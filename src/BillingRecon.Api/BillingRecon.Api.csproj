@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <UserSecretsId>billingrecon-api-6f1c0c7e-2b9c-4e0a-9a41-5f4d2f0a9c11</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../BillingRecon.Application/BillingRecon.Application.csproj" />
+    <ProjectReference Include="../BillingRecon.Infrastructure/BillingRecon.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Built-in OpenAPI document (AddOpenApi/MapOpenApi) and the Scalar UI that renders it. Both are mapped in Development only. -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+  </ItemGroup>
+
+</Project>

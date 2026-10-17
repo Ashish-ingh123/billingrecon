@@ -1,0 +1,39 @@
+// APIs that production code (everything under src/) must not call. One documentation id per line, then a
+// semicolon and the message shown with the build error RS0030. Decisions: docs/adr/0015-persistence-conventions.md.
+// A test checks that every id below still names a real member, so a renamed or re-shaped API cannot silently
+// drop out of the list, and that RS0030 is suppressed only in the sanctioned places.
+
+// Time comes from IClock only (CLAUDE.md section 4 rule 8, ADR 0010).
+P:System.DateTime.Now;Read the time from IClock: UtcNow for instants, TodayIst for business dates (ADR 0010).
+P:System.DateTime.UtcNow;Read the time from IClock: UtcNow for instants, TodayIst for business dates (ADR 0010).
+P:System.DateTime.Today;Read the business date from IClock.TodayIst (ADR 0010).
+P:System.DateTimeOffset.Now;Read the time from IClock: UtcNow for instants, TodayIst for business dates (ADR 0010).
+P:System.DateTimeOffset.UtcNow;Read the time from IClock.UtcNow (ADR 0010).
+P:System.TimeProvider.System;Only SystemClock reads the system time provider. Take IClock instead (ADR 0010).
+
+// The time zone of the machine is never used: a container runs in UTC, a laptop in IST (ADR 0010).
+P:System.TimeZoneInfo.Local;The time zone of the machine is never used. Business dates come from IClock (ADR 0010).
+P:System.TimeProvider.LocalTimeZone;The time zone of the machine is never used. Business dates come from IClock (ADR 0010).
+M:System.TimeProvider.GetLocalNow;The time zone of the machine is never used. Business dates come from IClock (ADR 0010).
+M:System.DateTime.ToLocalTime;The time zone of the machine is never used. Convert with IClock.ToIstDate (ADR 0010).
+M:System.DateTimeOffset.ToLocalTime;The time zone of the machine is never used. Convert with IClock.ToIstDate (ADR 0010).
+P:System.DateTimeOffset.LocalDateTime;The time zone of the machine is never used. Convert with IClock.ToIstDate (ADR 0010).
+
+// Tenant isolation: the global query filter is never switched off (CLAUDE.md section 4 rule 12, ADR 0009).
+M:Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.IgnoreQueryFilters``1(System.Linq.IQueryable{``0});The tenant filter is never switched off. The one sanctioned use is named in ADR 0015.
+M:Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.IgnoreQueryFilters``1(System.Linq.IQueryable{``0},System.Collections.Generic.IReadOnlyCollection{System.String});The tenant filter is never switched off. The one sanctioned use is named in ADR 0015.
+
+// These read a row back by its key with the query filters switched off inside EF Core, so they would return another
+// tenant's row. They are the usual calls in a concurrency-conflict handler: read the current row with a normal
+// query instead, which is filtered (ADR 0015).
+M:Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry.Reload;Reload ignores the tenant filter. Read the row again with a normal query (ADR 0015).
+M:Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry.ReloadAsync(System.Threading.CancellationToken);ReloadAsync ignores the tenant filter. Read the row again with a normal query (ADR 0015).
+M:Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry.GetDatabaseValues;GetDatabaseValues ignores the tenant filter. Read the row again with a normal query (ADR 0015).
+M:Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry.GetDatabaseValuesAsync(System.Threading.CancellationToken);GetDatabaseValuesAsync ignores the tenant filter. Read the row again with a normal query (ADR 0015).
+
+// Set-based statements bypass the save interceptors: no tenant check, no audit columns, no row version, and
+// ExecuteDelete is a hard delete (CLAUDE.md section 4 rules 10 to 12, ADR 0015).
+M:Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ExecuteUpdate``1(System.Linq.IQueryable{``0},System.Action{Microsoft.EntityFrameworkCore.Query.UpdateSettersBuilder{``0}});Set-based updates bypass the tenant check and the audit columns. Load, change and save the entities (ADR 0015).
+M:Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ExecuteUpdateAsync``1(System.Linq.IQueryable{``0},System.Action{Microsoft.EntityFrameworkCore.Query.UpdateSettersBuilder{``0}},System.Threading.CancellationToken);Set-based updates bypass the tenant check and the audit columns. Load, change and save the entities (ADR 0015).
+M:Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ExecuteDelete``1(System.Linq.IQueryable{``0});Set-based deletes bypass the tenant check, and financial data is never deleted (ADR 0015).
+M:Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ExecuteDeleteAsync``1(System.Linq.IQueryable{``0},System.Threading.CancellationToken);Set-based deletes bypass the tenant check, and financial data is never deleted (ADR 0015).

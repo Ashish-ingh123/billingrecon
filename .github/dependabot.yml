@@ -1,0 +1,43 @@
+# Dependabot (ADR 0017): weekly pull requests for NuGet packages and for the GitHub Actions the workflow uses.
+# Central package management (Directory.Packages.props) is understood. The framework-bound packages follow the
+# target framework (ADR 0014), so their major versions are a deliberate decision, not a Dependabot pull request.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: "Microsoft.AspNetCore.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microsoft.EntityFrameworkCore.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Serilog.AspNetCore"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+
+  # The front end arrives with Prompt 8.1. Dependabot reports an error for a directory that does not exist, so
+  # this entry waits here until frontend/ has a package.json.
+  # - package-ecosystem: npm
+  #   directory: /frontend
+  #   schedule:
+  #     interval: weekly
+  #     day: monday
+  #     time: "06:00"
+  #     timezone: Asia/Kolkata

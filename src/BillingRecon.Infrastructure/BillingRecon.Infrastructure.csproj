@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Lets the EF Core tools (dotnet ef) use this class library as their startup project: the tools run it like an
+      application and need to know that it runs on the ASP.NET Core shared framework. With that, the tools use the
+      design-time factory in Common/Persistence and never start the API.
+    -->
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The ASP.NET Core shared framework: options, configuration, hosting and health-check abstractions without extra packages. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../BillingRecon.Application/BillingRecon.Application.csproj" />
+    <ProjectReference Include="../BillingRecon.Domain/BillingRecon.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <!--
+      Design-time only: what dotnet ef needs to scaffold migrations. PrivateAssets keeps it out of the API and of
+      everything else that references this project; the compile assets are excluded so that no code here can use it.
+    -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.Seq" />
+  </ItemGroup>
+
+</Project>

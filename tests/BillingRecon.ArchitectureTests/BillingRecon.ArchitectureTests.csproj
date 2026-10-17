@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/BillingRecon.Domain/BillingRecon.Domain.csproj" />
+    <ProjectReference Include="../../src/BillingRecon.Application/BillingRecon.Application.csproj" />
+    <ProjectReference Include="../../src/BillingRecon.Infrastructure/BillingRecon.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/BillingRecon.Api/BillingRecon.Api.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NetArchTest.Rules" />
+  </ItemGroup>
+
+</Project>

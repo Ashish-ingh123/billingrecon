@@ -1,0 +1,69 @@
+# Local development infrastructure for BillingRecon: SQL Server 2022 (Developer edition) and Seq.
+#
+# This file was written on a machine without Docker. Image tags, variables, ports and healthcheck commands were
+# checked against the vendors' documentation and image metadata on 2026-10-03; the owner first started the
+# containers on 2026-10-17. The results of "Verify on a Docker machine" in docs/runbook.md are still to be
+# recorded there.
+#
+# Before the first start, copy .env.example to .env and fill it in. No secret and no licence acceptance lives in
+# this file; both come from .env, which git ignores.
+
+name: billingrecon
+
+services:
+  sql:
+    # A pinned cumulative update (the same image as 2022-latest on 2026-10-03). Bump it deliberately, and keep the
+    # Testcontainers tests on the same tag. The image is x86-64 only.
+    image: mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04
+    container_name: billingrecon-sql
+    # SQL Server on Linux documents a 15-character limit for the host name.
+    hostname: billrecon-sql
+    restart: unless-stopped
+    environment:
+      # Accepting the licence is each developer's own decision, so it is read from .env and never committed.
+      ACCEPT_EULA: "${MSSQL_ACCEPT_EULA:?Set MSSQL_ACCEPT_EULA=Y in .env to accept the SQL Server licence terms}"
+      MSSQL_PID: "Developer"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env, see .env.example}"
+    ports:
+      # Loopback only: the database is for this machine, not for the network.
+      - "127.0.0.1:${MSSQL_HOST_PORT:-1433}:1433"
+    volumes:
+      - sql-data:/var/opt/mssql
+    healthcheck:
+      # $$ stops Compose from substituting the variable; the container's shell reads it from its own environment.
+      # -C trusts the container's self-signed certificate; -b makes a failed query exit with a non-zero code.
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -b -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  seq:
+    # Pinned to a minor version; it receives 2026.1.x patch builds only.
+    image: datalust/seq:2026.1
+    container_name: billingrecon-seq
+    restart: unless-stopped
+    environment:
+      # Must be exactly Y. Read from .env for the same reason as above.
+      ACCEPT_EULA: "${SEQ_ACCEPT_EULA:?Set SEQ_ACCEPT_EULA=Y in .env to accept the Seq licence terms}"
+      # Local development only: no login and no API key. Seq refuses to initialise a new instance without either a
+      # password or this opt-out. It is read on the first start only (empty seq-data volume).
+      SEQ_FIRSTRUN_NOAUTHENTICATION: "True"
+    ports:
+      # Container port 80 serves the UI, the API and ingestion, so http://localhost:5341 works for the browser and
+      # for the API's Seq sink. Loopback only, because authentication is off.
+      - "127.0.0.1:${SEQ_HOST_PORT:-5341}:80"
+    volumes:
+      - seq-data:/data
+    healthcheck:
+      # seqcli ships in the image; `node health` exits 0 only when Seq's /health endpoint answers 2xx.
+      test: ["CMD-SHELL", "/seqsvr/Client/seqcli node health -s http://localhost || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 4
+      start_period: 15s
+
+# Named volumes keep the data across `docker compose down`. `docker compose down -v` deletes BOTH of them.
+volumes:
+  sql-data:
+  seq-data:

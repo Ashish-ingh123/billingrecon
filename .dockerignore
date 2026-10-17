@@ -1,0 +1,15 @@
+# Build context of src/BillingRecon.Api/Dockerfile: only what the publish needs reaches the Docker daemon.
+# Secrets and local state never do.
+**/bin/
+**/obj/
+**/*.user
+.git/
+.vs/
+.github/
+docs/
+tests/
+frontend/
+*.md
+.env
+.env.*
+docker-compose.yml

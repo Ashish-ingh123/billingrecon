@@ -1,0 +1,167 @@
+# Continuous integration (ADR 0017): every push to main and every pull request runs the gates below. The Database
+# collection of the integration tests starts SQL Server 2022 in Docker, which the hosted Ubuntu runners provide.
+# Nothing is deployed and no image is pushed to a registry here; that is the release workflow of Prompt 9.1.
+# What each gate is, and how to run it locally, is in docs/runbook.md section 5.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build-and-test:
+    name: Format, build, test, audit, migration script
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Install the .NET SDK that global.json asks for
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '.config/dotnet-tools.json', '**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore tools and packages
+        # The NuGet audit of Directory.Build.props runs here: an advisory of any severity stops the restore.
+        run: |
+          dotnet tool restore
+          dotnet restore
+
+      - name: Format
+        run: dotnet format --verify-no-changes --no-restore
+
+      - name: Build
+        # Warnings are errors (Directory.Build.props); GITHUB_ACTIONS switches the deterministic CI build on.
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test
+        # All four test projects, the Database collection included: Testcontainers starts SQL Server 2022 on the
+        # runner's Docker. Not instrumented for coverage: the PII masker's regex-timeout test is sensitive to the
+        # slowdown instrumentation brings (CLAUDE.md section 9).
+        run: >
+          dotnet test --no-build --configuration Release
+          --logger trx
+          --results-directory artifacts/test-results
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: artifacts/test-results
+          if-no-files-found: error
+
+      - name: Coverage of the Domain and Application unit tests
+        # Measured where the blueprint measures it (Domain and Application, 80 per cent as a guide, not a gate):
+        # coverlet writes cobertura files for the two unit test projects.
+        run: |
+          dotnet test tests/BillingRecon.Domain.Tests --no-build --configuration Release --collect:"XPlat Code Coverage" --results-directory artifacts/coverage
+          dotnet test tests/BillingRecon.Application.Tests --no-build --configuration Release --collect:"XPlat Code Coverage" --results-directory artifacts/coverage
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: artifacts/coverage/**/coverage.cobertura.xml
+          if-no-files-found: error
+
+      - name: Vulnerable packages
+        # The restore above already refuses any advisory. This is the readable report, and the gate the blueprint
+        # names: a High or Critical advisory on any direct or transitive package fails the run.
+        run: |
+          mkdir -p artifacts
+          dotnet list package --vulnerable --include-transitive | tee artifacts/vulnerable-packages.txt
+          if grep -Eq '\b(High|Critical)\b' artifacts/vulnerable-packages.txt; then
+            echo "::error::A package with a High or Critical vulnerability is referenced. See the vulnerable-packages artifact."
+            exit 1
+          fi
+
+      - name: Upload vulnerable package report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: vulnerable-packages
+          path: artifacts/vulnerable-packages.txt
+          if-no-files-found: error
+
+      - name: Generate the idempotent migration script
+        # The EF Core tools use the Infrastructure project and its design-time factory: no database is needed.
+        run: >
+          dotnet ef migrations script --idempotent --no-build --configuration Release
+          --project src/BillingRecon.Infrastructure
+          --output artifacts/migrations/BillingRecon.sql
+
+      - name: Upload migration script
+        uses: actions/upload-artifact@v7
+        with:
+          name: migration-script
+          path: artifacts/migrations/BillingRecon.sql
+          if-no-files-found: error
+
+  docker-image:
+    name: API container image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build the image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: src/BillingRecon.Api/Dockerfile
+          load: true
+          push: false
+          tags: billingrecon-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Start the image and check liveness
+        # A connection string nothing listens on: the API starts (liveness 200) and readiness reports 503. The
+        # container runs as the image's non-root user and has to find the Asia/Kolkata time zone at startup.
+        run: |
+          docker run --detach --name api --publish 8080:8080 \
+            --env "Database__ConnectionString=Server=127.0.0.1,1;Database=BillingRecon;User Id=sa;Password=not-used;Encrypt=False;Connect Timeout=1" \
+            billingrecon-api:${{ github.sha }}
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/health/live; then
+              echo
+              echo "alive after $attempt second(s)"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::The API did not answer /health/live within 30 seconds."
+          exit 1
+
+      - name: Container logs
+        if: always()
+        run: docker logs api || true

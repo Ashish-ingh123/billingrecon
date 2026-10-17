@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Domain layer: no project references and no packages, by design (CLAUDE.md, section 3). -->
+
+</Project>

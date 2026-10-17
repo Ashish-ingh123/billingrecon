@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/BillingRecon.Api/BillingRecon.Api.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <!-- The Database collection: SQL Server 2022 in Docker for the test run, emptied between tests, with realistic test data (ADR 0016). -->
+    <PackageReference Include="Testcontainers.MsSql" />
+    <PackageReference Include="Respawn" />
+    <PackageReference Include="Bogus" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,36 @@
+# Line endings: LF in the repo and in every checkout, on every operating system (ADR 0017). The CRLF
+# exceptions below are the Windows-only tooling files. .editorconfig says the same.
+* text=auto eol=lf
+
+# Always LF (Linux CI, Docker, shell)
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+
+# Always CRLF (Windows-only tooling)
+*.ps1       text eol=crlf
+*.cmd       text eol=crlf
+*.bat       text eol=crlf
+*.sln       text eol=crlf
+
+# Source
+*.cs        text diff=csharp
+*.csproj    text
+*.props     text
+*.targets   text
+*.ts        text
+*.tsx       text
+*.json      text
+*.md        text diff=markdown
+
+# Binary
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.woff      binary
+*.woff2     binary
+*.pfx       binary
+*.snk       binary

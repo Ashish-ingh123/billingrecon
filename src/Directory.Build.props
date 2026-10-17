@@ -1,0 +1,15 @@
+<Project>
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!--
+    Production code only: APIs that must not be called are listed in BannedSymbols.txt, and a call is a build error
+    (the analyzer's rule is set to error in .editorconfig). The analyzer is a build tool, not a dependency: it adds
+    no assembly reference, so the Domain project still references nothing (docs/adr/0015-persistence-conventions.md).
+  -->
+  <ItemGroup Label="Banned APIs">
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" Link="BannedSymbols.txt" />
+  </ItemGroup>
+
+</Project>
