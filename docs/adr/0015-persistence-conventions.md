@@ -58,6 +58,7 @@ table-specific CHECK constraints). The context applies the rest to every entity 
 | Convention | Effect |
 |---|---|
 | Typed ids | Every type that implements `ITypedId` is stored as `uniqueidentifier` (`TypedIdConverter`), nullable ones included. |
+| `Money`, `UnitPrice`, `Quantity`, `Percent` | Stored as `decimal(18,2)`, `decimal(19,4)`, `decimal(9,3)` and `decimal(5,2)` through one converter each, nullable ones included; no configuration repeats the precision (added 2026-10-17 with ADR 0004's implementation). |
 | Ids of `Entity<TId>` | Generated in the application when the entity is added (`TypedIdValueGenerator`, EF Core's sequential GUIDs, which increase in SQL Server's sort order). |
 | `DateTimeOffset` | `datetimeoffset(3)`. |
 | `DateOnly` | `date`. |

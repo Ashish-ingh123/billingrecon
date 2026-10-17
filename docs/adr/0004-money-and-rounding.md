@@ -1,6 +1,7 @@
 # ADR 0004: Money and rounding
 
-- **Status:** Proposed (accept on review of the R1 design documents)
+- **Status:** Accepted (the owner's approval of the Prompt 2.1 plan, 2026-10-17, and built the same day: see
+  "Built" at the end)
 - **Date:** 2026-09-29
 - **Deciders:** project owner, Claude Code
 
@@ -75,3 +76,37 @@ round **once, at line level, half away from zero**.
 - Multi-currency or sub-paisa precision would require a new ADR, a `Money` change and a migration.
 - GST-specific rounding (tax payable to the nearest rupee, CGST/SGST split) is deferred with GST
   reporting and will be implemented on top of, not instead of, line-level rounding.
+
+## Built 2026-10-17 (Prompt 2.1)
+
+`Money`, `UnitPrice`, `Quantity` and `Percent` exist in `BillingRecon.Domain.Common` as decided, with
+these points settled while building:
+
+- **`Of` refuses digits, not scale.** The decision said "more than two decimals"; the implementation
+  refuses a value with a digit below the paisa and accepts trailing zeros (`5.000` is ₹5.00). JSON
+  gives `5.000` a scale of three, and a request carrying it must not become a bug. `Money.TryOf`
+  reports the same rule without throwing, for validators. The three siblings follow the same rule for
+  their own scale and have `TryOf` too, so a use case can return a business failure (BR-201) instead
+  of catching an exception.
+- **`Sum()`**, an extension over any sequence of amounts, adds exactly; **`ToString`** gives two
+  decimals without grouping in every culture (`1234.50`); `IsPositive` joins `IsZero` and
+  `IsNegative`. Every amount the type produces carries exactly two decimals (`5` and `5.000` both
+  become `5.00`), so amounts print and serialise alike. The operator set is as decided, and a test
+  proves there is no `*`, `/` or conversion operator. A second test walks the whole Domain and fails on
+  any member that takes, returns or holds a `double`, `float` or `Half` (rule 1 of CLAUDE.md section 4).
+- The blueprint's "currency code, INR only for now" was considered again and not added: the
+  alternatives section above still holds, and the type's contract names the rupee.
+- **No `Guard` class.** The BCL throw helpers (`ArgumentNullException.ThrowIfNull`,
+  `ArgumentOutOfRangeException.ThrowIfNegative`, `ThrowIfNegativeOrZero`, `ThrowIfGreaterThan`,
+  `ArgumentException.ThrowIfNullOrWhiteSpace`) are the guards; a class of our own would duplicate them.
+- **Persistence by convention** (ADR 0015): the context registers a converter for each of the four
+  types and the column of `docs/database.md` section 1 (`decimal(18,2)`, `decimal(19,4)`,
+  `decimal(9,3)`, `decimal(5,2)`), nullable properties included, so no configuration repeats a
+  precision. `Tenant.PostingApprovalThreshold` is `Money?`; the column did not change, so there is
+  no migration. A converter reads a stored value through `Of`, so a value outside the rules is an
+  exception when read, not a silently accepted one; the CHECK constraints keep such values out.
+- **Queries.** EF Core translates equality on a converted property but not the ordering operators,
+  so a comparison like "total at or above the tenant's threshold" is made on loaded aggregates in
+  the use case (BR-207), and reports work in SQL on the stored decimals (ADR 0003 Reporting).
+- Error codes are constants in a static `<Module>Errors` class per module (`IdentityErrors`), one
+  factory per failure; a test keeps them snake_case and unique.

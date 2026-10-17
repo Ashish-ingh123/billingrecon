@@ -102,6 +102,13 @@ public class BillingReconDbContext : DbContext
             configurationBuilder.Properties(idType).HaveConversion(typeof(TypedIdConverter<>).MakeGenericType(idType));
         }
 
+        // Money and its siblings are stored as decimals with the scale docs/database.md section 1 gives each of them.
+        // A configuration never repeats the precision; the convention applies to nullable properties too (ADR 0004).
+        configurationBuilder.Properties<Money>().HaveConversion<MoneyConverter>().HavePrecision(18, 2);
+        configurationBuilder.Properties<UnitPrice>().HaveConversion<UnitPriceConverter>().HavePrecision(19, 4);
+        configurationBuilder.Properties<Quantity>().HaveConversion<QuantityConverter>().HavePrecision(9, 3);
+        configurationBuilder.Properties<Percent>().HaveConversion<PercentConverter>().HavePrecision(5, 2);
+
         // Instants are datetimeoffset(3), business dates are date, enums are stored by name in a varchar column whose
         // length each configuration sets (docs/database.md, section 1).
         configurationBuilder.Properties<DateTimeOffset>().HavePrecision(3);

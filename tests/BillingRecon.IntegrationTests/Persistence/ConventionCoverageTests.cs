@@ -17,6 +17,14 @@ namespace BillingRecon.IntegrationTests.Persistence;
 /// </summary>
 public sealed class ConventionCoverageTests
 {
+    private static readonly Dictionary<Type, string> ValueObjectColumns = new()
+    {
+        [typeof(Money)] = "decimal(18,2)",
+        [typeof(UnitPrice)] = "decimal(19,4)",
+        [typeof(Quantity)] = "decimal(9,3)",
+        [typeof(Percent)] = "decimal(5,2)",
+    };
+
     [Fact]
     public void Every_entity_type_of_the_production_model_has_every_convention_it_qualifies_for()
     {
@@ -27,6 +35,7 @@ public sealed class ConventionCoverageTests
         coverage.TypedIds.ShouldBeGreaterThan(0, "the production model has an Entity<TId> (Tenant)");
         coverage.RowVersions.ShouldBeGreaterThan(0, "the production model has an IHasRowVersion (Tenant)");
         coverage.Enums.ShouldBeGreaterThan(0, "the production model has an enum column (Tenant.Status)");
+        coverage.ValueObjects.ShouldBeGreaterThan(0, "the production model has a Money column (Tenant.PostingApprovalThreshold)");
     }
 
     [Fact]
@@ -126,6 +135,13 @@ public sealed class ConventionCoverageTests
                 {
                     property.GetColumnType().ShouldBe("uniqueidentifier", $"{name}.{property.Name} is not a uniqueidentifier");
                 }
+
+                // The value objects of ADR 0004: each has the column of docs/database.md section 1, by convention.
+                if (ValueObjectColumns.TryGetValue(propertyType, out var valueObjectColumn))
+                {
+                    property.GetColumnType().ShouldBe(valueObjectColumn, $"{name}.{property.Name} has not the column of its value object");
+                    coverage.ValueObjects++;
+                }
             }
         }
 
@@ -160,5 +176,7 @@ public sealed class ConventionCoverageTests
         public int Instants { get; set; }
 
         public int BusinessDates { get; set; }
+
+        public int ValueObjects { get; set; }
     }
 }

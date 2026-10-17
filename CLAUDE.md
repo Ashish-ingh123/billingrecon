@@ -155,7 +155,8 @@ src/
                                 Error (Common, ADR 0011), domain events, invariants, domain services. No I/O, no
                                 project or package references. Today: the base types (Common: Entity<TId>,
                                 AggregateRoot<TId>, ITypedId, ITenantScoped, the two audit interfaces,
-                                IHasRowVersion, TenantId, UserId) and the Tenant aggregate (Identity).
+                                IHasRowVersion, TenantId, UserId), the value objects Money, UnitPrice, Quantity
+                                and Percent (Common, ADR 0004), and the Tenant aggregate with IdentityErrors (Identity).
   BillingRecon.Application/     Use cases (command/query handlers as plain classes), FluentValidation validators,
                                 port interfaces (IClock, IUnitOfWork, repositories, INumberSeries,
                                 IIdempotencyStore, ITenantContext, ICurrentUser), DTOs and explicit mappers.
@@ -163,8 +164,8 @@ src/
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
-                                the context with its conventions, interceptors, startup step and design-time
-                                factory (Common/Persistence), SystemClock (Common/Time), the database health
+                                the context with its conventions, interceptors, startup step, design-time
+                                factory and the value-object converters (Common/Persistence), SystemClock (Common/Time), the database health
                                 check (Common/Health), the identities and the Tenants table (Identity),
                                 AddInfrastructure. Migrations go to Common/Migrations.
   BillingRecon.Api/             Controllers, middleware and filters (correlation id, idempotency, tenant resolution),
@@ -339,6 +340,13 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 - **Line endings are LF** in every file, on every operating system (`.gitattributes` `eol=lf` and
   `.editorconfig` `end_of_line = lf`), with CRLF only for `.sln`, `.ps1`, `.cmd` and `.bat`, so that
   `dotnet format --verify-no-changes` gives one answer on Windows and in CI (ADR 0017).
+- **Value objects, and no `Guard` class.** `Money`, `UnitPrice`, `Quantity` and `Percent` are `readonly record
+  struct`s built through `Of` (an invalid value is a bug and throws) or `TryOf` (for a validator or use case that
+  reports a business failure); a `decimal` is never money, and only `Money.Round` turns an arithmetic result into
+  money (ADR 0004). Guards are the BCL throw helpers (`ArgumentNullException.ThrowIfNull`,
+  `ArgumentOutOfRangeException.ThrowIfNegative` and friends); there is no `Guard` class of our own.
+- **Error codes** are constants in a static `<Module>Errors` class in `BillingRecon.Domain.<Module>`, one factory
+  per failure (`IdentityErrors.TenantInvalid`); `ErrorCodesTests` keeps them snake_case and unique.
 - **File-scoped namespaces**: `namespace BillingRecon.Domain.Billing;` on one line, no braces.
 - **`Result<T>` for business failures.** Expected failures (validation, not found, conflict,
   business rule) return `Result` / `Result<T>` with an `Error { Code, Message, Kind }`. Exceptions
@@ -423,9 +431,9 @@ TenantId and query filter, 0010 time handling, 0011 error model (Result, excepti
 context, typed ids, tenant isolation on reads and writes, audit columns, banned APIs, migrations),
 0016 integration test infrastructure (one SQL Server per test run, two databases, Respawn, the test
 identity), 0017 the CI pipeline, the API container image and LF line endings.
-ADRs 0003–0010 are *Proposed* until the owner reviews the R1 design documents; flip their Status to
-Accepted then (ADR 0003 carries an amendment of 2026-10-17 with the precise module rule). ADRs
-0011–0017 are Accepted (0011–0013 approved with the infrastructure step, 0014 and 0015 on the owner's
+ADRs 0003 and 0005–0010 are *Proposed* until the owner reviews the R1 design documents; flip their
+Status to Accepted then (ADR 0003 carries an amendment of 2026-10-17 with the precise module rule).
+ADR 0004 is Accepted since its implementation (Prompt 2.1, 2026-10-17). ADRs 0011–0017 are Accepted (0011–0013 approved with the infrastructure step, 0014 and 0015 on the owner's
 decisions of 2026-10-03, 0016 and 0017 with the approvals of the Prompt 1.4 and 1.5 plans on 2026-10-17;
 ADR 0015 marks
 the points it added beyond those decisions, which wait for the owner's review).
@@ -489,8 +497,8 @@ Kept here so they survive between sessions. Remove an item when it is done.
    - `CreatedByUserId` and `UpdatedByUserId` are null when no user acts (the owner asked for this to be decided
      and recorded);
    - `ExecuteUpdate`/`ExecuteDelete` are banned outright rather than routed through a helper;
-   - `Tenants` has no audit columns beyond `CreatedAtUtc`; `Tenant.PostingApprovalThreshold` is a plain decimal
-     until `Money` exists;
+   - `Tenants` has no audit columns beyond `CreatedAtUtc` (`Tenant.PostingApprovalThreshold` is `Money?` since
+     Prompt 2.1);
    - the tenant row itself is filtered to, and writable by, its own tenant only, while system work sees and may
      write every tenant row (added 2026-10-17 after a review: ADR 0009 promised it and nothing implemented it).
    Open question for the owner: ban the raw-SQL entry points of EF Core as well (`ExecuteSql*`, `SqlQuery*`,
@@ -523,8 +531,7 @@ Kept here so they survive between sessions. Remove an item when it is done.
    - with the logins of `docs/database.md` section 7: the grants, including `SELECT` on
      `__EFMigrationsHistory` for the API's login, without which `/health/ready` can never answer 200;
    - in Phase 5: `LoginUserLookup` as the one sanctioned use of `IgnoreQueryFilters` (add it to
-     `BannedSymbolsTests`); `Money` for the approval threshold when the value object arrives; the procedure for
-     applying migrations outside Development with the migration login.
+     `BannedSymbolsTests`); the procedure for applying migrations outside Development with the migration login.
 6. **Review findings of 2026-10-03 that are still open** (numbering from that review):
    - 1.1 closed 2026-10-17: the module rule and its two exceptions are written in ADR 0003 (amendment) and
      `ModuleDependencyTests`; Audit is generic over `IDomainEvent`, approval handlers live with their documents,
@@ -555,4 +562,9 @@ Kept here so they survive between sessions. Remove an item when it is done.
    assertion must go red, then is closed unmerged). The Dockerfile can be proven earlier on the personal machine
    with `docker build` (`docs/runbook.md` section 6). Pre-checked in the .NET 9 copy: the format gate with the
    LF rule, the coverage collection of the two unit test projects, the vulnerable-package report (whose gate
-   fires there on the 9.x graph, as it should) and the migration script command.
+   fires there on the 9.x graph, as it should) and the migration script command. The first commit exists
+   (`03c42fb` on `main`); the push is the owner's.
+8. **Phase 2 is on branch `phase-2-billing`** (the blueprint's rule: a branch per phase, one commit per prompt).
+   Prompt 2.1 (Money and the shared kernel, ADR 0004 built) was written, reviewed and fixed on 2026-10-17 and is
+   pre-checked on .NET 9 only; its first run on .NET 10 and with Docker (the Money round trip in the Database
+   collection) comes with the next push.

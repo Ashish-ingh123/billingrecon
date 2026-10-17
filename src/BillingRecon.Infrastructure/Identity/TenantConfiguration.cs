@@ -47,7 +47,8 @@ public sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant>
 
         builder.Property(tenant => tenant.Name).HasMaxLength(Tenant.NameMaxLength);
         builder.Property(tenant => tenant.Status).HasMaxLength(StatusMaxLength);
-        builder.Property(tenant => tenant.PostingApprovalThreshold).HasPrecision(18, 2);
+
+        // PostingApprovalThreshold is Money: decimal(18,2) by the convention of the context, like every amount.
 
         foreach (var column in PrefixColumns)
         {

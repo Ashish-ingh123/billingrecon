@@ -58,10 +58,10 @@ unless stated. Construction validates; an invalid value cannot exist.
 
 | Type | Definition | Rules |
 |---|---|---|
-| `Money` | `readonly record struct Money(decimal Amount)`; INR only; scale exactly 2. | `Money.Of(decimal)` requires scale ≤ 2 (a bug otherwise). `Money.Round(decimal raw)` rounds `AwayFromZero` to 2 places and is the **only** way to turn a computed value into money (BR-001). `+`, `-`, comparisons, `Zero`, `IsZero`, `IsNegative`. There is no `*` operator: multiply the raw decimals, then `Money.Round`. |
-| `UnitPrice` | `decimal` with scale 4, `≥ 0`. | BR-201. Stored as `decimal(19,4)`. |
-| `Quantity` | `decimal` with scale 3, `> 0`. | BR-201. Stored as `decimal(9,3)`. |
-| `Percent` | `decimal` with scale 2, `0 ≤ value ≤ 100`. | Tax rates (BR-201). |
+| `Money` | `readonly record struct` over a `decimal` `Amount`; INR only; exact to the paisa. | `Money.Of(decimal)` refuses a digit below the paisa (a bug; trailing zeros are fine), `Money.TryOf` says so without throwing. `Money.Round(decimal raw)` rounds `AwayFromZero` to 2 places and is the **only** way to turn a computed value into money (BR-001). `+`, `-`, unary `-`, comparisons, `Sum`, `Zero`, `IsZero`, `IsNegative`, `IsPositive`, `ToString` (`1234.50`). There is no `*` or `/` operator: multiply the raw decimals, then `Money.Round`. Stored as `decimal(18,2)` by convention (ADR 0004, built 2026-10-17). |
+| `UnitPrice` | `decimal` exact to 4 decimals, `≥ 0`. | BR-201. `Of` (throws) and `TryOf` (for validators). Stored as `decimal(19,4)` by convention. |
+| `Quantity` | `decimal` exact to 3 decimals, `> 0`. | BR-201. `Of` and `TryOf`; the struct's default (zero) is not a valid quantity. Stored as `decimal(9,3)` by convention. |
+| `Percent` | `decimal` exact to 2 decimals, `0 ≤ value ≤ 100`. | Tax rates (BR-201). `Of` and `TryOf`. Stored as `decimal(5,2)` by convention. |
 | `FiscalYear` | `(int StartYear)`; `Label` = `"2026-27"`; `Start` = 1 Apr, `End` = 31 Mar. | `FiscalYear.FromDate(DateOnly)`: month ≥ 4 → same year, else previous year (BR-004). |
 | `DocumentNumber` | `(DocumentType Type, FiscalYear Year, string Prefix, int Sequence)`; `ToString()` = `PREFIX/YY-YY/NNNNNN`, for example `BIL/26-27/000123` (≤ 16 characters, ADR 0008). | Only `INumberSeries` creates one, inside a posting transaction (BR-801). `BillNumber`, `CreditNoteNumber`, `PaymentNumber`, `AdjustmentNumber`, `RefundNumber` are thin typed wrappers so a bill number cannot be assigned to a payment. |
 | Typed ids | `TenantId`, `UserId`, `PatientId`, `PayerId`, `ServiceItemId`, `BillId`, `BillLineId`, `CreditNoteId`, `PaymentId`, `AllocationId`, `AdjustmentId`, `RefundId`, `ApprovalRequestId`, `PostingId`, `CorrelationId` — each `readonly record struct X(Guid Value) : ITypedId`. | Prevents passing a `PaymentId` where a `BillId` is expected. The `Guid` is generated client-side (sequential) by EF when the entity is added to the context: the id is empty before that and known before anything is saved (ADR 0015). |
@@ -134,7 +134,7 @@ later price changes never alter a bill. Deactivated, never deleted.
 | | |
 |---|---|
 | **Root** | `Bill` |
-| **Children** | `BillLine` (`LineNo`, `ServiceItemId?`, `Description`, `Quantity`, `UnitPrice`, `DiscountAmount`, `TaxRate`, computed `LineAmount`, `TaxAmount`, `LineTotal`) |
+| **Children** | `BillLine` (`LineNo`, `ServiceItemId?`, `Description`, `Quantity`, `UnitPrice`, `DiscountAmount`, `TaxRate`, computed `LineAmount`, `TaxAmount`, `LineTotal`). `Quantity`, `UnitPrice` and `TaxRate` are the value objects of §3, which the use case makes with `TryOf` (BR-201 as a business failure); a line is never built from a struct default, which for `Quantity` is the invalid zero. |
 | **Fields** | `Number?` (null until posted), `FiscalYear?`, `PatientId`, `PayerId`, `BillDate`, `DueDate`, `EncounterReference?`, `Notes?`, `Status`, `SubTotal`, `DiscountTotal`, `TaxTotal`, `Total`, `BalanceDue`, posted/voided stamps |
 | **Commands** | `Create`, `AddLine`, `UpdateLine`, `RemoveLine` (draft only), `ChangeDates`, `Void`, `SubmitForApproval`, `Post(number, clock, user)`, `ApplyCredit(amount)` / `RestoreBalance(amount)` (called only by posting use cases, see §6) |
 | **Invariants** | Lines per BR-201; arithmetic per BR-202; totals per BR-203; at least one line to post. Draft-only editing and voiding (BR-204). Dates per BR-205. `Number` present iff posted (BR-206). Frozen after posting (BR-006, BR-209): every mutating method returns `Error(bill_already_posted)` once `Status ∉ {Draft, PendingApproval}`. `0 ≤ BalanceDue ≤ Total` (BR-405). Status follows balance (BR-208). Threshold approval (BR-207). Patient and payer active at creation (BR-102, BR-105). |

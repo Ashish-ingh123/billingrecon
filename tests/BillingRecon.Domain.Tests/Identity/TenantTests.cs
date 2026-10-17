@@ -74,7 +74,7 @@ public sealed class TenantTests
         var result = Tenant.Create(code!, "City Hospital", CreatedAt);
 
         result.IsFailure.ShouldBeTrue();
-        result.Error.Code.ShouldBe("tenant_invalid");
+        result.Error.Code.ShouldBe(IdentityErrors.TenantInvalidCode);
         result.Error.Kind.ShouldBe(ErrorKind.Validation);
         result.Error.FieldErrors.Keys.ShouldBe(["code"]);
     }
@@ -111,7 +111,7 @@ public sealed class TenantTests
         var result = Tenant.Create("city-hospital", text!, CreatedAt);
 
         result.IsFailure.ShouldBeTrue();
-        result.Error.Code.ShouldBe("tenant_invalid");
+        result.Error.Code.ShouldBe(IdentityErrors.TenantInvalidCode);
         result.Error.Kind.ShouldBe(ErrorKind.Validation);
         result.Error.FieldErrors.Keys.ShouldBe(["name"]);
     }

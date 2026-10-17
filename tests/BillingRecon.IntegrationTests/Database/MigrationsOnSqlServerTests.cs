@@ -1,3 +1,4 @@
+using BillingRecon.Domain.Common;
 using BillingRecon.Domain.Identity;
 using BillingRecon.Infrastructure.Identity;
 using BillingRecon.IntegrationTests.Support;
@@ -48,9 +49,13 @@ public sealed class MigrationsOnSqlServerTests(SqlServerFixture sqlServer) : Dat
     public async Task A_tenant_round_trips_with_an_id_generated_here_and_a_row_version_assigned_there()
     {
         var tenant = TestData.NewTenant(Now);
+        var threshold = Money.Of(5000.50m);
 
         await using (var writer = ApiContext(SystemIdentity.Instance))
         {
+            // No use case sets the threshold yet (BR-607 arrives with the Identity slice); written here through the
+            // entry, so the Money column round-trips through its converter on a real SQL Server.
+            writer.Entry(tenant).Property(candidate => candidate.PostingApprovalThreshold).CurrentValue = threshold;
             writer.Add(tenant);
             await writer.SaveChangesAsync();
         }
@@ -64,7 +69,7 @@ public sealed class MigrationsOnSqlServerTests(SqlServerFixture sqlServer) : Dat
         stored.Code.ShouldBe(tenant.Code);
         stored.Name.ShouldBe(tenant.Name);
         stored.Status.ShouldBe(TenantStatus.Active);
-        stored.PostingApprovalThreshold.ShouldBeNull();
+        stored.PostingApprovalThreshold.ShouldBe(threshold);
         stored.MaxBackdateDays.ShouldBe(Tenant.InitialMaxBackdateDays);
         stored.DefaultDueDays.ShouldBe(0);
         stored.BillPrefix.ShouldBe("BIL");

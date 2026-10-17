@@ -52,9 +52,10 @@ public sealed class Tenant : AggregateRoot<TenantId>, IHasRowVersion
 
     /// <summary>
     /// A bill whose total reaches this amount needs a checker's approval before it is posted; null means bills never
-    /// need approval (BR-207). A plain decimal for now; it becomes <c>Money</c> when that value object arrives.
+    /// need approval (BR-207). Changing it is a TenantAdmin's audited action (BR-607), which arrives with the
+    /// Identity slice.
     /// </summary>
-    public decimal? PostingApprovalThreshold { get; private set; }
+    public Money? PostingApprovalThreshold { get; private set; }
 
     /// <summary>How many days before today a business date may lie (BR-205).</summary>
     public int MaxBackdateDays { get; private set; }
@@ -116,7 +117,7 @@ public sealed class Tenant : AggregateRoot<TenantId>, IHasRowVersion
 
         if (fieldErrors.Count > 0)
         {
-            return Error.Validation("tenant_invalid", "The tenant is not valid.", fieldErrors);
+            return IdentityErrors.TenantInvalid(fieldErrors);
         }
 
         return new Tenant(code, trimmedName, createdAtUtc);
