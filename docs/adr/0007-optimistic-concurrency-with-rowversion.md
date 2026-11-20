@@ -74,3 +74,19 @@ clients as **ETag / If-Match**, with **409 `concurrency_conflict`** on a stale w
 - Raw SQL updates against versioned tables must not be written; EF's tracked updates are the only
   path, which the architecture test for `ExecuteUpdate`/`ExecuteSql` usage enforces outside the
   ledger and cache services.
+
+## Built 2026-10-17 (Prompt 2.2, ADR 0018)
+
+The contract is built for patients and payers, the first mutable aggregates with endpoints:
+
+- `GET`, the `201` of a create and the `200` of every change carry `ETag: "<base64 rowversion>"`, and the body
+  carries the same value as `version`.
+- `PATCH`, `POST /{id}/deactivate` and `POST /{id}/reactivate` need `If-Match`. Missing: 428
+  `precondition_required`. Not one strong ETag of eight bytes (a weak tag, `*`, a list, something else): 400
+  `validation_failed` with the field `If-Match`. Stale: 409 `concurrency_conflict`, nothing changed.
+- The handler compares the version the client sent with the one it loaded before it changes anything, and the
+  UPDATE carries the loaded row version, so a change between the load and the save is caught as well.
+- **Deviation:** the 409 does not carry the current ETag, as the Decision above says it would. The client re-reads,
+  which BR-804 asks for anyway; carrying the ETag would need a second read in the failure path of every handler.
+- The rowversion of every mutable aggregate root comes from the context's convention (`IHasRowVersion`, ADR 0015),
+  checked by `ConventionCoverageTests` rather than by an architecture test on the configurations.

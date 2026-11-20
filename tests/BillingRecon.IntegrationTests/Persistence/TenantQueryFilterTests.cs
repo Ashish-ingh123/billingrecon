@@ -1,5 +1,8 @@
+using BillingRecon.Domain.Audit;
+using BillingRecon.Domain.Billing;
 using BillingRecon.Domain.Common;
 using BillingRecon.Domain.Identity;
+using BillingRecon.Domain.Payers;
 using BillingRecon.Infrastructure.Common.Persistence;
 using BillingRecon.Infrastructure.Identity;
 using BillingRecon.IntegrationTests.Support;
@@ -67,17 +70,21 @@ public sealed class TenantQueryFilterTests
 
         var protectedEntities = AssertEveryTenantColumnIsProtected(context);
 
-        protectedEntities.ShouldBe([typeof(Widget), typeof(LogLine)], ignoreOrder: true);
+        // The test model is the production model plus the probe entities.
+        protectedEntities.ShouldBe([typeof(Widget), typeof(LogLine), typeof(NumberedDocument), typeof(Patient), typeof(Payer), typeof(ServiceItem), typeof(Bill), typeof(BillLine), typeof(NumberSeries), typeof(IdempotencyKey), typeof(AuditRecord)], ignoreOrder: true);
     }
 
     [Fact]
     public void Every_tenant_scoped_entity_of_the_production_model_is_filtered_and_guarded()
     {
-        // The production model has no tenant-scoped table yet (Tenants is the tenant itself), so today this checks
-        // nothing. It is the guard for the first one: a TenantId column that is not protected fails here.
+        // Tenants is the tenant itself; Patients and Payers (Prompt 2.2) are the first tenant-scoped tables, ServiceItems
+        // (Prompt 2.3), Bills and BillLines (Prompt 2.4) NumberSeries (Prompt 3.1), IdempotencyKeys (Prompt 3.2) and AuditRecords (Prompt 3.4) the next. Every one that follows is checked here as well: a TenantId column that is not protected
+        // fails.
         using var context = TestContexts.CreateProduction(FixedIdentity.Random());
 
-        AssertEveryTenantColumnIsProtected(context);
+        var protectedEntities = AssertEveryTenantColumnIsProtected(context);
+
+        protectedEntities.ShouldBe([typeof(Patient), typeof(Payer), typeof(ServiceItem), typeof(Bill), typeof(BillLine), typeof(NumberSeries), typeof(IdempotencyKey), typeof(AuditRecord)], ignoreOrder: true);
     }
 
     [Fact]

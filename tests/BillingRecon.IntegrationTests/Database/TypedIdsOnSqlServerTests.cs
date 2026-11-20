@@ -13,6 +13,7 @@ public sealed class TypedIdsOnSqlServerTests(SqlServerFixture sqlServer) : Datab
     [Fact]
     public async Task A_typed_id_is_stored_as_the_guid_it_wraps()
     {
+        await AddProbeTenantRowsAsync(_identity);
         var widget = TestData.NewWidget();
         await using var context = ProbeContext(_identity);
         context.Add(widget);
@@ -26,6 +27,7 @@ public sealed class TypedIdsOnSqlServerTests(SqlServerFixture sqlServer) : Datab
     [Fact]
     public async Task Ids_generated_in_the_application_sort_in_the_order_the_rows_were_added()
     {
+        await AddProbeTenantRowsAsync(_identity);
         var widgets = Enumerable.Range(1, 5).Select(index => new Widget($"widget {index}")).ToArray();
         await using (var context = ProbeContext(_identity))
         {

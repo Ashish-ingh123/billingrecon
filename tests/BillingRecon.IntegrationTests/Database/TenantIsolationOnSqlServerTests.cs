@@ -21,6 +21,7 @@ public sealed class TenantIsolationOnSqlServerTests(SqlServerFixture sqlServer) 
     [Fact]
     public async Task Each_tenant_reads_only_its_own_rows()
     {
+        await AddProbeTenantRowsAsync(_tenantA, _tenantB);
         await SaveWidgetAsync(_tenantA, "a-first");
         await SaveWidgetAsync(_tenantA, "a-second");
         var theirs = await SaveWidgetAsync(_tenantB, "b-only");
@@ -36,6 +37,7 @@ public sealed class TenantIsolationOnSqlServerTests(SqlServerFixture sqlServer) 
     [Fact]
     public async Task A_forged_update_of_another_tenants_row_changes_no_row()
     {
+        await AddProbeTenantRowsAsync(_tenantA, _tenantB);
         var theirs = await SaveWidgetAsync(_tenantA, "original");
 
         await using (var asB = ProbeContext(_tenantB))
@@ -58,6 +60,7 @@ public sealed class TenantIsolationOnSqlServerTests(SqlServerFixture sqlServer) 
     [Fact]
     public async Task A_forged_delete_of_another_tenants_row_deletes_no_row()
     {
+        await AddProbeTenantRowsAsync(_tenantA, _tenantB);
         var theirs = await SaveWidgetAsync(_tenantA, "kept");
 
         await using (var asB = ProbeContext(_tenantB))
@@ -78,6 +81,7 @@ public sealed class TenantIsolationOnSqlServerTests(SqlServerFixture sqlServer) 
     [Fact]
     public async Task System_work_writes_and_reads_tables_that_are_not_tenant_scoped_and_nothing_that_is()
     {
+        await AddProbeTenantRowsAsync(_tenantA);
         await SaveWidgetAsync(_tenantA, "a");
         await using var system = ProbeContext(SystemIdentity.Instance);
         system.Add(new Setting("colour"));

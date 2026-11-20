@@ -13,6 +13,7 @@ public sealed class RowVersionOnSqlServerTests(SqlServerFixture sqlServer) : Dat
     [Fact]
     public async Task The_database_assigns_the_row_version_on_insert_and_changes_it_on_update()
     {
+        await AddProbeTenantRowsAsync(_identity);
         var widget = TestData.NewWidget();
         await using var context = ProbeContext(_identity);
         context.Add(widget);
@@ -32,6 +33,7 @@ public sealed class RowVersionOnSqlServerTests(SqlServerFixture sqlServer) : Dat
     [Fact]
     public async Task The_second_of_two_writers_that_read_the_same_version_fails_and_changes_nothing()
     {
+        await AddProbeTenantRowsAsync(_identity);
         var widget = TestData.NewWidget();
         await using (var context = ProbeContext(_identity))
         {

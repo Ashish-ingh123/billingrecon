@@ -9,7 +9,8 @@ namespace BillingRecon.Api.Common.Errors;
 /// </summary>
 public static class ErrorCodes
 {
-    public const string ValidationFailed = "validation_failed";
+    /// <summary>The same code a use case reports for invalid fields (<c>CommonErrors.ValidationFailedCode</c>): one code for every 400 with field errors.</summary>
+    public const string ValidationFailed = Domain.Common.CommonErrors.ValidationFailedCode;
     public const string BadRequest = "bad_request";
     public const string Unauthorized = "unauthorized";
     public const string Forbidden = "forbidden";

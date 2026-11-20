@@ -1,19 +1,48 @@
+using System.Text.Json.Serialization;
+using BillingRecon.Api.Common;
 using BillingRecon.Api.Common.Correlation;
 using BillingRecon.Api.Common.Errors;
+using BillingRecon.Api.Common.Idempotency;
 using BillingRecon.Api.Common.Logging;
+using BillingRecon.Application.Common;
+using BillingRecon.Infrastructure.Audit;
+using BillingRecon.Infrastructure.Billing;
 using BillingRecon.Infrastructure.Common;
+using BillingRecon.Infrastructure.Payers;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Options validated at startup, structured logging, the clock, the identity of the request, the EF Core context and
-// the readiness check. Configuration comes from appsettings, environment variables and, in Development, user-secrets.
+// Options validated at startup, structured logging, the clock, the identity of the request, the EF Core context with
+// its unit of work, and the readiness check. Configuration comes from appsettings, environment variables and, in
+// Development, user-secrets.
 builder.Services.AddInfrastructure(builder.Environment);
 
-// A body that cannot be read as JSON is answered with a generic message per JSON path. The serializer's own
-// messages name CLR types and line numbers, which are internals.
-builder.Services.AddControllers().AddJsonOptions(options => options.AllowInputFormatterExceptionMessages = false);
+// The ports of each business module, then every use case and validator of the Application layer (ADR 0018).
+builder.Services.AddPayers();
+builder.Services.AddBilling();
+builder.Services.AddApplication();
+
+// The audit trail: one record for every domain event, written by the unit of work in the transaction of the change
+// (BR-701, ADR 0020), with the correlation id of the request (BR-703), which only the API knows.
+builder.Services.AddAudit();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICorrelationContext, HttpCorrelationContext>();
+
+// The filter behind [Idempotent]: one per request, over the request's idempotency store (BR-803, ADR 0006).
+builder.Services.AddScoped<IdempotencyFilter>();
+
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    // A body that cannot be read as JSON is answered with a generic message per JSON path. The serializer's own
+    // messages name CLR types and line numbers, which are internals.
+    options.AllowInputFormatterExceptionMessages = false;
+
+    // Enums travel by name, in both directions. A number is refused: it depends on the order of the members, and one
+    // the enum does not define would bind to a value nobody can name (docs/api.md).
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(namingPolicy: null, allowIntegerValues: false));
+});
 
 // Error contract: every error is an RFC 9457 ProblemDetails with errorCode, traceId and correlationId.
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = ProblemDetailsEnricher.Enrich);

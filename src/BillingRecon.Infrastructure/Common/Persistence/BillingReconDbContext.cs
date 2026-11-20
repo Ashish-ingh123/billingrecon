@@ -2,7 +2,10 @@ using System.Reflection;
 using BillingRecon.Application.Common;
 using BillingRecon.Domain.Common;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+using Microsoft.Extensions.Logging;
 
 namespace BillingRecon.Infrastructure.Common.Persistence;
 
@@ -15,14 +18,19 @@ namespace BillingRecon.Infrastructure.Common.Persistence;
 /// typed ids are stored as <c>uniqueidentifier</c> and generated when the entity is added; instants are
 /// <c>datetimeoffset(3)</c>; business dates are <c>date</c>; enums are stored by name with a CHECK constraint; a
 /// <c>RowVersion</c> is a concurrency token; creation columns are never part of an UPDATE; a decimal or text column
-/// without an explicit size fails the model; every tenant-scoped entity is filtered by the current tenant; and the
-/// tenant row itself (the entity whose id is a <see cref="TenantId"/>) is filtered to the current tenant's own row.
-/// The model has no entity inheritance and no owned types; the conventions would need extending for those.
+/// without an explicit size fails the model; every tenant-scoped entity is filtered by the current tenant, and its
+/// <c>TenantId</c> is a foreign key to the tenant row, <c>FK_&lt;Table&gt;_TenantId</c>; every index of a tenant-scoped
+/// entity leads with <c>TenantId</c>, or the model fails; no foreign key deletes anything, whatever a configuration
+/// says (<c>ON DELETE NO ACTION</c>), and none gets an index of its own by default; and the tenant row itself (the
+/// entity whose id is a <see cref="TenantId"/>) is filtered to the current tenant's own row. The model has no entity
+/// inheritance and no owned types; the conventions would need extending for those.
 /// </para>
 /// <para>
-/// The two save interceptors (tenant guard, audit columns) are attached by the context itself, in
+/// The four save interceptors (tenant guard, append-only tables, no hard deletes, audit columns) are attached by the context itself, in
 /// <see cref="OnConfiguring"/>. A context cannot exist without them, however it was created: by dependency
-/// injection, by the design-time factory, or by hand.
+/// injection, by the design-time factory, or by hand. So is the level of Entity Framework's own error events: a
+/// failed command or save is logged at Debug, because the exception reaches the caller, which either answers it as an
+/// expected outcome (the unit of work: a lost race) or lets it reach the exception handler, which logs it once.
 /// </para>
 /// <para>
 /// The class is not sealed so that tests can derive a context that adds probe entities and still runs all of this.
@@ -43,8 +51,8 @@ public class BillingReconDbContext : DbContext
         typeof(BillingReconDbContext).GetMethod(nameof(ApplyTenantRowFilter), BindingFlags.Instance | BindingFlags.NonPublic)!;
 
     private readonly ITenantContext _tenantContext;
-    private readonly ICurrentUser _currentUser;
-    private readonly IClock _clock;
+    private readonly TenantWriteGuardInterceptor _tenantGuard;
+    private readonly AuditStampInterceptor _auditStamps;
 
     /// <summary>Creates the context for the tenant and the user of the current scope.</summary>
     public BillingReconDbContext(DbContextOptions<BillingReconDbContext> options, ITenantContext tenantContext, ICurrentUser currentUser, IClock clock)
@@ -61,8 +69,8 @@ public class BillingReconDbContext : DbContext
         ArgumentNullException.ThrowIfNull(clock);
 
         _tenantContext = tenantContext;
-        _currentUser = currentUser;
-        _clock = clock;
+        _tenantGuard = new TenantWriteGuardInterceptor(tenantContext);
+        _auditStamps = new AuditStampInterceptor(currentUser, clock);
     }
 
     /// <summary>The assemblies searched for typed ids (types that implement <see cref="ITypedId"/>).</summary>
@@ -84,13 +92,46 @@ public class BillingReconDbContext : DbContext
 
     private TenantId TenantRowScopeOrEmpty => _tenantContext.TenantId ?? default;
 
+    /// <summary>
+    /// Starts a commit of the unit of work: reads the clock once, and stamps the tenant and the audit columns of
+    /// everything the commit is about to write, so that the subscribers of domain events see rows that are complete
+    /// (ADR 0020). The save that follows stamps again, with the same instant, whatever the subscribers added. Returns
+    /// that instant. Call <see cref="EndCommit"/> when the commit is over, whatever its outcome.
+    /// </summary>
+    /// <exception cref="TenantIsolationException">A row would be written for another tenant, or without one.</exception>
+    public DateTimeOffset BeginCommit()
+    {
+        var now = _auditStamps.Hold();
+
+        ChangeTracker.DetectChanges();
+        _tenantGuard.Apply(this);
+        _auditStamps.Apply(this);
+
+        return now;
+    }
+
+    /// <summary>Ends a commit started with <see cref="BeginCommit"/>: the next save reads the clock for itself.</summary>
+    public void EndCommit() => _auditStamps.Release();
+
     /// <inheritdoc />
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        // Every save of every instance passes through both. They are not registered anywhere else.
+        // Every save of every instance passes through all four. They are not registered anywhere else.
         optionsBuilder.AddInterceptors(
-            new TenantWriteGuardInterceptor(_tenantContext),
-            new AuditStampInterceptor(_currentUser, _clock));
+            _tenantGuard,
+            new AppendOnlyGuardInterceptor(),
+            new HardDeleteGuardInterceptor(),
+            _auditStamps);
+
+        // Entity Framework logs a failed command, save or query at Error before it throws. The exception is the one
+        // report: the unit of work answers a lost race (a unique index, a stale row version) as an expected outcome,
+        // and anything else reaches the exception handler, which logs it once (ADR 0011). Logged here as well, a lost
+        // race would be an error in the log, and SQL Server's message for a unique index names the duplicate key,
+        // which can be patient data such as an MRN (ADR 0012).
+        optionsBuilder.ConfigureWarnings(warnings => warnings.Log(
+            (RelationalEventId.CommandError, LogLevel.Debug),
+            (CoreEventId.SaveChangesFailed, LogLevel.Debug),
+            (CoreEventId.QueryIterationFailed, LogLevel.Debug)));
     }
 
     /// <inheritdoc />
@@ -109,6 +150,9 @@ public class BillingReconDbContext : DbContext
         configurationBuilder.Properties<Quantity>().HaveConversion<QuantityConverter>().HavePrecision(9, 3);
         configurationBuilder.Properties<Percent>().HaveConversion<PercentConverter>().HavePrecision(5, 2);
 
+        // A fiscal year is stored as its label, 2026-27, in a char(7) column (BR-004).
+        configurationBuilder.Properties<FiscalYear>().HaveConversion<FiscalYearConverter>().HaveMaxLength(FiscalYear.LabelLength).AreFixedLength().AreUnicode(false);
+
         // Instants are datetimeoffset(3), business dates are date, enums are stored by name in a varchar column whose
         // length each configuration sets (docs/database.md, section 1).
         configurationBuilder.Properties<DateTimeOffset>().HavePrecision(3);
@@ -117,6 +161,12 @@ public class BillingReconDbContext : DbContext
 
         // Deliberately no default for decimals and strings: a column whose size nobody chose fails the model.
         configurationBuilder.Conventions.Add(_ => new ExplicitColumnSizeConvention());
+
+        // Every index of a tenant-scoped table leads with TenantId (docs/database.md section 1). Entity Framework would
+        // add an index of its own for every foreign key, led by the key's column, so that convention is off: a table
+        // declares each index it needs, and the one that serves a foreign key leads with TenantId like the others.
+        configurationBuilder.Conventions.Remove<ForeignKeyIndexConvention>();
+        configurationBuilder.Conventions.Add(_ => new TenantLeadingIndexConvention());
     }
 
     /// <inheritdoc />
@@ -130,6 +180,9 @@ public class BillingReconDbContext : DbContext
         var entityTypes = modelBuilder.Model.GetEntityTypes()
             .Where(entityType => entityType.BaseType is null && !entityType.IsOwned() && !entityType.HasSharedClrType)
             .ToList();
+
+        // The tenant row: the entity whose id is a TenantId. Every tenant-scoped row refers to it.
+        var tenantRow = entityTypes.FirstOrDefault(entityType => IdTypeOf(entityType.ClrType) == typeof(TenantId));
 
         foreach (var entityType in entityTypes)
         {
@@ -182,11 +235,37 @@ public class BillingReconDbContext : DbContext
                 var tenant = entity.Property(nameof(ITenantScoped.TenantId));
                 tenant.IsConcurrencyToken();
                 tenant.Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Throw);
+
+                // In the database: a row cannot name a tenant that does not exist (docs/database.md section 1). No
+                // navigation, so loading a row never loads its tenant.
+                if (tenantRow is not null)
+                {
+                    entity.HasOne(tenantRow.ClrType)
+                        .WithMany()
+                        .HasForeignKey(nameof(ITenantScoped.TenantId))
+                        .HasConstraintName($"FK_{entityType.GetTableName()}_{nameof(ITenantScoped.TenantId)}");
+                }
             }
 
             AddEnumCheckConstraints(modelBuilder, entityType);
         }
+
+        // Nothing is ever deleted (CLAUDE.md section 4, rule 10), so no foreign key may delete or change its dependent
+        // rows: every one is ON DELETE NO ACTION, whatever a configuration said. Entity Framework's default for a
+        // required relationship would be ON DELETE CASCADE. The one behaviour a configuration may keep is
+        // ClientCascade, for the children of an aggregate that the aggregate itself may remove (the lines of a draft
+        // bill): it is ON DELETE NO ACTION in the database as well, and only tells Entity Framework to delete a child
+        // that was taken out of its parent's collection. HardDeleteGuardInterceptor decides which entities that may be.
+        foreach (var foreignKey in modelBuilder.Model.GetEntityTypes().SelectMany(entityType => entityType.GetDeclaredForeignKeys()))
+        {
+            if (foreignKey.DeleteBehavior != DeleteBehavior.ClientCascade)
+            {
+                foreignKey.DeleteBehavior = DeleteBehavior.Restrict;
+            }
+        }
     }
+
+    private static Type? IdTypeOf(Type clrType) => FindGenericBase(clrType, typeof(Entity<>))?.GetGenericArguments()[0];
 
     private static bool IsTypedId(Type type) => type is { IsValueType: true, IsEnum: false } && typeof(ITypedId).IsAssignableFrom(type);
 

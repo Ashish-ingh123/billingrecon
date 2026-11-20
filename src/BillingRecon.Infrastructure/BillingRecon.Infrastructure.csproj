@@ -21,6 +21,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" />
+    <!-- A NuGet audit fix, not a dependency of the code: lifts a transitive package to a patched version (Directory.Packages.props). -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
     <!--
       Design-time only: what dotnet ef needs to scaffold migrations. PrivateAssets keeps it out of the API and of

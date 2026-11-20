@@ -17,6 +17,7 @@ public sealed class AuditStampsOnSqlServerTests(SqlServerFixture sqlServer) : Da
     [Fact]
     public async Task An_insert_stores_the_creation_stamp_and_the_touch_with_the_same_instant_and_user()
     {
+        await AddProbeTenantRowsAsync(_creator);
         var widget = TestData.NewWidget();
 
         await using (var context = ProbeContext(_creator))
@@ -36,6 +37,7 @@ public sealed class AuditStampsOnSqlServerTests(SqlServerFixture sqlServer) : Da
     [Fact]
     public async Task An_update_moves_the_touch_and_leaves_the_creation_stamp_whatever_the_entity_claims()
     {
+        await AddProbeTenantRowsAsync(_creator);
         var widget = TestData.NewWidget();
         await using (var context = ProbeContext(_creator))
         {
@@ -68,6 +70,7 @@ public sealed class AuditStampsOnSqlServerTests(SqlServerFixture sqlServer) : Da
     [Fact]
     public async Task A_scope_with_a_tenant_but_no_user_stores_null_in_the_user_columns()
     {
+        await AddProbeTenantRowsAsync(_creator);
         var noUser = new FixedIdentity(_creator.TenantId, userId: null);
         var widget = TestData.NewWidget();
 
@@ -87,6 +90,7 @@ public sealed class AuditStampsOnSqlServerTests(SqlServerFixture sqlServer) : Da
     [Fact]
     public async Task An_append_only_row_stores_its_creation_stamp()
     {
+        await AddProbeTenantRowsAsync(_creator);
         var line = new LogLine("appended");
 
         await using (var context = ProbeContext(_creator))

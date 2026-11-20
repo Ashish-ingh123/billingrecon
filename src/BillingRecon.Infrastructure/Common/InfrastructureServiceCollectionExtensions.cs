@@ -1,6 +1,9 @@
 using BillingRecon.Application.Common;
+using BillingRecon.Application.Identity;
 using BillingRecon.Infrastructure.Common.Health;
+using BillingRecon.Infrastructure.Common.Idempotency;
 using BillingRecon.Infrastructure.Common.Logging;
+using BillingRecon.Infrastructure.Common.Numbering;
 using BillingRecon.Infrastructure.Common.Persistence;
 using BillingRecon.Infrastructure.Common.Settings;
 using BillingRecon.Infrastructure.Common.Time;
@@ -23,7 +26,8 @@ public static class InfrastructureServiceCollectionExtensions
 
     /// <summary>
     /// Adds strongly typed options (validated at startup), structured logging, the clock, the identity of the
-    /// current scope, the EF Core context, and the readiness health check.
+    /// current scope, the EF Core context with its unit of work, and the readiness health check. The ports of the
+    /// business modules are registered by each module (for example <c>AddPayers</c>), which this class may not name.
     /// </summary>
     /// <param name="services">The service collection of the host.</param>
     /// <param name="environment">The environment of the host; it decides which identity is registered.</param>
@@ -74,6 +78,9 @@ public static class InfrastructureServiceCollectionExtensions
             services.AddScoped<ITenantContext>(provider => provider.GetRequiredService<DevelopmentIdentity>());
             services.AddScoped<ICurrentUser>(provider => provider.GetRequiredService<DevelopmentIdentity>());
 
+            // The row of that tenant, which every tenant-scoped row refers to, where the database is migrated at startup.
+            services.AddHostedService<DevelopmentTenantSeeder>();
+
             return;
         }
 
@@ -88,6 +95,20 @@ public static class InfrastructureServiceCollectionExtensions
         // audit stamps to itself; nothing has to be wired here for a save to be guarded.
         services.AddDbContext<BillingReconDbContext>((provider, options) =>
             options.UseSqlServer(provider.GetRequiredService<IOptions<DatabaseOptions>>().Value.ConnectionString));
+
+        // One per request, over the request's context: what a use case changed is saved by one commit (BR-007).
+        services.AddScoped<RequestTransaction>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // Idempotency keys of financial POSTs; the store holds the transaction of the request while a key is reserved
+        // (BR-803, ADR 0006).
+        services.AddScoped<IIdempotencyStore, IdempotencyStore>();
+
+        // Gapless document numbers, taken in the transaction this unit of work commits (BR-801, ADR 0008).
+        services.AddScoped<INumberSeries, NumberSeriesAllocator>();
+
+        // The settings of the current tenant, for the use cases of every module (BR-205, BR-607).
+        services.AddScoped<ITenantSettingsReader, TenantSettingsReader>();
 
         // Builds the model at startup (an invalid model stops the application) and, in Development, applies migrations.
         services.AddHostedService<DatabaseStartup>();

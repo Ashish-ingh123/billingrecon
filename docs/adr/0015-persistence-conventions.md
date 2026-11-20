@@ -310,7 +310,9 @@ name. `PostingApprovalThreshold` is a plain `decimal?` until the `Money` value o
   - *With the first financial and append-only tables:* a guard at the EF layer for CLAUDE.md
     section 4 rules 10 and 11. Today the tenant guard lets a delete of the current tenant's own row
     through, and an update of a creation-only row; only the database grants, which do not exist
-    yet either, would stop them.
+    yet either, would stop them. *Built since:* the guard for rule 10 with the first financial table
+    (`HardDeleteGuardInterceptor`, ADR 0019), the guard for rule 11 with the first append-only table
+    (`AppendOnlyGuardInterceptor`, ADR 0020), and stamping before the dispatch of domain events (ADR 0020).
   - *With the logins of `docs/database.md` section 7:* the grants, including `SELECT` on
     `__EFMigrationsHistory` for the API's login.
 - **Verification.** On 2026-10-17 the step was built and tested on .NET 10 on the personal machine: a clean
@@ -334,3 +336,46 @@ name. `PostingApprovalThreshold` is a plain `decimal?` until the `Money` value o
 - **Done in Prompt 1.4 (ADR 0016):** the same rules against real SQL Server, including the two cases
   no test without a database can reach: pending migrations mean not ready, and the tenant predicate in
   an UPDATE and in a DELETE (`tests/BillingRecon.IntegrationTests/Database`).
+
+## Built 2026-10-17 with the first tenant-scoped tables (Prompt 2.2)
+
+`Patients` and `Payers` (migration `0002_Payers`) are the first tenant-scoped tables, so the first item of
+"Not built yet, on purpose" is built, by the context, for every entity type:
+
+- **The tenant's foreign key.** Every `ITenantScoped` entity gets a required foreign key from `TenantId` to the tenant
+  row (the entity whose id is a `TenantId`), named `FK_<Table>_TenantId`, without a navigation, so that loading a row
+  never loads its tenant. A row cannot name a tenant that does not exist.
+- **No `ON DELETE CASCADE`.** Every foreign key of the model is `Restrict`, which SQL Server writes as
+  `ON DELETE NO ACTION`, whatever a configuration asked for: nothing is ever deleted (CLAUDE.md section 4, rule 10).
+- **Every index of a tenant-scoped table leads with `TenantId`.** `TenantLeadingIndexConvention` refuses the model
+  otherwise, at startup, in the tests and in the tools, like `ExplicitColumnSizeConvention`.
+- **(addition)** **No index per foreign key by default.** Entity Framework's `ForeignKeyIndexConvention` would add one
+  for every foreign key, led by the key's column (`IX_Payers_PatientId`), which the previous rule refuses. It is
+  removed; a table declares each index it needs, and the one that serves a foreign key leads with `TenantId`
+  (`UX_Payers_TenantId_PatientId`).
+- **(addition)** **Entity Framework's own error events are logged at Debug**: `RelationalEventId.CommandError`,
+  `CoreEventId.SaveChangesFailed` and `CoreEventId.QueryIterationFailed`, configured by the context itself. The
+  exception is the report: the unit of work answers a lost race as an expected outcome (ADR 0018), and anything else
+  reaches the exception handler, which logs it once (ADR 0011). Logged by Entity Framework as well, a race lost on a
+  unique index would be an error in the log, and SQL Server's message for it names the duplicate key, which can be an
+  MRN (ADR 0012).
+- **(addition)** **The development tenant.** In the Development environment, after the startup migration,
+  `DevelopmentTenantSeeder` (Infrastructure/Identity) adds the row of the configured development tenant if it is
+  missing, so that what a developer saves satisfies the foreign key. The development user row waits for the `Users`
+  table (Phase 5).
+- **A module's value object is a struct.** `Mrn` (Payers) is a `readonly record struct` with its converter in the
+  module's entity configuration. As a class, Entity Framework takes a property of its type for a navigation while it
+  discovers the entity, before the converter applies, and the model fails ("no suitable constructor for entity type
+  Mrn"). The context's own conventions cannot name a business module's types (ADR 0003), so a converter cannot be
+  registered there before discovery.
+- **Not built, and an open question for the owner:** `FK_Payers_PatientId` refers to `Patients(Id)` alone. The database
+  would accept a payer of one tenant that names another tenant's patient; the use case cannot produce one (its lookup
+  of the patient is filtered by the tenant), but nothing at the database refuses it. A composite key,
+  `(TenantId, PatientId)` to `Patients (TenantId, Id)`, would, at the price of one more unique index per referenced
+  table; the same choice comes back with every reference between tenant-scoped tables (bills to patients and payers).
+
+The unit of work exists now (ADR 0018). Of its two items above, one clock reading per use case holds as long as a use
+case saves once (the audit interceptor reads the clock once per save), and stamping before events are dispatched waits
+for the dispatch, which comes with the first subscriber. The tests: `RelationalConventionTests` (the models),
+`PayersSchemaTests` (the DDL), `PayersOnSqlServerTests` (SQL Server); the database tests that write probe rows add their
+tenants' rows first.
