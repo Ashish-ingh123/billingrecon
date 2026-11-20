@@ -367,6 +367,46 @@ public sealed class ReceivablesOnSqlServerTests(SqlServerFixture sqlServer) : Da
     }
 
     [Fact]
+    public async Task BR401_a_bill_posting_whose_bill_is_not_posted_is_reported()
+    {
+        var clerk = await NewApiTenantAsync();
+        var payer = await NewPayerAsync(clerk);
+        var number = DocumentNumber.Create(DocumentType.Bill, FiscalYear.FromDate(Today), "BIL", 1);
+
+        // A bill posting for a bill that does not exist: the ledger accepts it, the reconciliation finds it.
+        await PostAsync(clerk, PostingTemplate.BillPosted(new BillId(Guid.NewGuid()), payer, Money.Of(590m), Today, number));
+        var postingId = (await NamesAsync("SELECT CAST([Id] AS varchar(36)) AS [Value] FROM dbo.LedgerPostings")).ShouldHaveSingleItem();
+
+        (await DriftAsync(clerk)).ShouldHaveSingleItem().ShouldBe(new DriftRow(DriftIdentity.PostingWithoutBill, Guid.Parse(postingId), null, 0m, 0m));
+        (await BalanceAsync(clerk, payer)).Receivable.ShouldBe(Money.Of(590m));
+    }
+
+    [Fact]
+    public void The_template_of_a_bill_posting_debits_the_receivable_of_the_bill_and_credits_revenue()
+    {
+        var bill = new BillId(Guid.NewGuid());
+        var payer = new PayerId(Guid.NewGuid());
+        var number = DocumentNumber.Create(DocumentType.Bill, FiscalYear.FromDate(Today), "BIL", 42);
+
+        var template = PostingTemplate.BillPosted(bill, payer, Money.Of(590m), Today, number);
+
+        template.Kind.ShouldBe(LedgerPostingKind.BillPosted);
+        template.DocumentType.ShouldBe(LedgerDocumentType.Bill);
+        template.DocumentId.ShouldBe(bill.Value);
+        template.PayerId.ShouldBe(payer);
+        template.BusinessDate.ShouldBe(Today);
+        template.Description.ShouldBe("Bill BIL/26-27/000042 posted");
+        template.Lines.ShouldBe(
+        [
+            LedgerLine.Dr(LedgerAccount.Receivable, Money.Of(590m), new LedgerSubject(LedgerSubjectType.Bill, bill.Value)),
+            LedgerLine.Cr(LedgerAccount.Revenue, Money.Of(590m)),
+        ]);
+
+        // A bill that comes to nothing has no posting: a line of zero is not an entry (BR-401 as amended).
+        Should.Throw<ArgumentException>(() => PostingTemplate.BillPosted(bill, payer, Money.Zero, Today, number));
+    }
+
+    [Fact]
     public async Task BR002_the_ledger_and_the_reconciliation_of_one_tenant_never_show_another_tenants_rows()
     {
         var clerk = await NewApiTenantAsync();

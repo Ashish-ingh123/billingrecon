@@ -89,6 +89,21 @@ public sealed class Bill : AggregateRoot<BillId>, ITenantScoped, ICreationAudite
     /// <summary>Why the draft was voided; null unless it was.</summary>
     public string? VoidReason { get; private set; }
 
+    /// <summary>The gapless number of the bill, as it is printed (BR-801); null until the bill is posted.</summary>
+    public string? Number { get; private set; }
+
+    /// <summary>The fiscal year of the bill date, which the number belongs to (BR-004); null until the bill is posted.</summary>
+    public FiscalYear? FiscalYear { get; private set; }
+
+    /// <summary>The position of the bill in the series of its fiscal year, from 1 (BR-801); null until the bill is posted.</summary>
+    public int? SequenceNumber { get; private set; }
+
+    /// <summary>When the bill was posted; null until it is.</summary>
+    public DateTimeOffset? PostedAtUtc { get; private set; }
+
+    /// <summary>Who posted the bill; null until it is posted, or when no user did it.</summary>
+    public UserId? PostedByUserId { get; private set; }
+
     /// <inheritdoc />
     public DateTimeOffset CreatedAtUtc { get; private set; }
 
@@ -165,9 +180,9 @@ public sealed class Bill : AggregateRoot<BillId>, ITenantScoped, ICreationAudite
     {
         ArgumentNullException.ThrowIfNull(header);
 
-        if (Status != BillStatus.Draft)
+        if (RefuseUnlessDraft() is { } refused)
         {
-            return BillingErrors.BillNotDraft();
+            return refused;
         }
 
         var refusedDates = header.BillDate == BillDate ? CheckDueDate(header) : CheckDates(header, window);
@@ -197,9 +212,9 @@ public sealed class Bill : AggregateRoot<BillId>, ITenantScoped, ICreationAudite
     {
         ArgumentNullException.ThrowIfNull(lines);
 
-        if (Status != BillStatus.Draft)
+        if (RefuseUnlessDraft() is { } refused)
         {
-            return BillingErrors.BillNotDraft();
+            return refused;
         }
 
         var checkedLines = CheckLines(lines);
@@ -228,9 +243,9 @@ public sealed class Bill : AggregateRoot<BillId>, ITenantScoped, ICreationAudite
     {
         var why = Field.Required(reason, VoidReasonMaxLength);
 
-        if (Status != BillStatus.Draft)
+        if (RefuseUnlessDraft() is { } refused)
         {
-            return BillingErrors.BillNotDraft();
+            return refused;
         }
 
         Status = BillStatus.Voided;
@@ -245,6 +260,82 @@ public sealed class Bill : AggregateRoot<BillId>, ITenantScoped, ICreationAudite
     // What a clerk enters for each line, in the order of the line numbers; the amounts follow from it (BR-202).
     private List<(ServiceItemId?, string, Quantity, UnitPrice, Money, Percent)> LineContents()
         => [.. _lines.OrderBy(line => line.LineNo).Select(line => (line.ServiceItemId, line.Description, line.Quantity, line.UnitPrice, line.DiscountAmount, line.TaxRate))];
+
+    /// <summary>
+    /// Whether the bill can be posted today (BR-206): it is a draft, it has a line, and its bill date still lies in
+    /// <paramref name="window"/>, which is checked again here because a draft may have grown old (BR-205). The use
+    /// case asks before it takes the number, so that a refusal never touches the series (BR-801).
+    /// </summary>
+    public Result CheckCanPost(BusinessDateWindow window)
+    {
+        if (RefuseUnlessDraft() is { } refused)
+        {
+            return refused;
+        }
+
+        if (_lines.Count == 0)
+        {
+            return BillingErrors.BillHasNoLines();
+        }
+
+        if (BillDate > window.Latest)
+        {
+            return BillingErrors.BillDateInFuture();
+        }
+
+        return BillDate < window.Earliest ? BillingErrors.BillDateTooOld(window.Earliest) : Result.Success();
+    }
+
+    /// <summary>
+    /// Posts the draft under <paramref name="number"/> (BR-206, US-21): the bill is frozen (BR-006), the payer owes its
+    /// total, and the status follows the balance (BR-208): <see cref="BillStatus.Posted"/>, or
+    /// <see cref="BillStatus.Settled"/> at once when the bill comes to nothing. The rules of
+    /// <see cref="CheckCanPost"/> are checked again; a refusal leaves the bill a draft.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="number"/> is not a bill number of the fiscal year of the bill date: a bug in the caller.
+    /// </exception>
+    public Result Post(DocumentNumber number, DateTimeOffset postedAtUtc, UserId? postedBy, BusinessDateWindow window)
+    {
+        ArgumentNullException.ThrowIfNull(number);
+
+        var allowed = CheckCanPost(window);
+        if (allowed.IsFailure)
+        {
+            return allowed;
+        }
+
+        if (number.Type != DocumentType.Bill || number.FiscalYear != Common.FiscalYear.FromDate(BillDate))
+        {
+            throw new ArgumentException("A bill is posted under a bill number of the fiscal year of its bill date (BR-206).", nameof(number));
+        }
+
+        Number = number.Value;
+        FiscalYear = number.FiscalYear;
+        SequenceNumber = number.Sequence;
+        PostedAtUtc = postedAtUtc;
+        PostedByUserId = postedBy;
+        BalanceDue = Total;
+        Status = Total.IsZero ? BillStatus.Settled : BillStatus.Posted;
+        AddDomainEvent(new BillPosted(Id, number.Value, PayerId, Total, BillDate));
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Whether the bill can still be edited: it is a draft. A voided draft answers <c>bill_not_draft</c>, a posted
+    /// bill <c>bill_already_posted</c> (BR-204, BR-006). For a use case that wants to know before it does other work.
+    /// </summary>
+    public Result CheckIsDraft() => RefuseUnlessDraft() is { } refused ? refused : Result.Success();
+
+    // Only a draft changes. A voided draft and a posted bill both refuse, with different answers: a posted bill is
+    // frozen for good (BR-006), and the client is told that it is posted, not merely that it is no draft.
+    private Error? RefuseUnlessDraft() => Status switch
+    {
+        BillStatus.Draft => null,
+        BillStatus.Voided => BillingErrors.BillNotDraft(),
+        _ => BillingErrors.BillAlreadyPosted(),
+    };
 
     private static Error? CheckDates(BillHeader header, BusinessDateWindow window)
     {

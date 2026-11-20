@@ -92,8 +92,13 @@ public sealed class BillsApiTests(SqlServerFixture sqlServer) : DatabaseTest(sql
         using var read = await client.GetAsync(BillingApi.Bill(bill.Id));
         var json = await read.Content.ReadAsStringAsync();
 
-        json.ShouldNotContain("number", Case.Insensitive);
-        json.ShouldNotContain("fiscalYear", Case.Insensitive);
+        // Until Prompt 3.5 a bill had no such members at all. Since bills can be posted they exist, and a draft
+        // carries them empty: the number is assigned by posting and by nothing else (BR-206, BR-801).
+        var body = System.Text.Json.JsonDocument.Parse(json).RootElement;
+        body.GetProperty("number").ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
+        body.GetProperty("fiscalYear").ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
+        body.GetProperty("postedAtUtc").ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
+        json.ShouldNotContain("BIL/", Case.Insensitive);
     }
 
     [Fact]

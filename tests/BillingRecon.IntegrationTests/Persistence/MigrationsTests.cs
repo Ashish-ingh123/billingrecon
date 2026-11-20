@@ -211,6 +211,47 @@ public sealed class MigrationsTests : IDisposable
     }
 
     [Fact]
+    public void The_ninth_migration_is_0009_BillPosting()
+    {
+        var migrations = _context.Database.GetMigrations().ToArray();
+
+        migrations.Length.ShouldBeGreaterThanOrEqualTo(9, $"The BillPosting migration is missing. {HowToAdd.Replace("<name>", "0009_BillPosting", StringComparison.Ordinal)}");
+        migrations[8].ShouldEndWith("_0009_BillPosting");
+    }
+
+    [Fact]
+    public void The_migrations_give_the_bills_table_the_number_and_the_constraints_of_a_posted_bill()
+    {
+        var script = _context.GetService<IMigrator>().GenerateScript();
+
+        script.ShouldContain("ALTER TABLE [Bills] ADD [Number] varchar(16) NULL", Case.Sensitive, $"The migrations do not add the number to Bills. {HowToAdd}");
+        script.ShouldContain("ALTER TABLE [Bills] ADD [FiscalYear] char(7) NULL", Case.Sensitive);
+        script.ShouldContain("ALTER TABLE [Bills] ADD [SequenceNumber] int NULL", Case.Sensitive);
+        script.ShouldContain("ALTER TABLE [Bills] ADD [PostedAtUtc] datetimeoffset(3) NULL", Case.Sensitive);
+        script.ShouldContain("ALTER TABLE [Bills] ADD [PostedByUserId] uniqueidentifier NULL", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [CK_Bills_NumberIffPosted] CHECK (([Status] IN ('Draft', 'PendingApproval', 'Voided') AND [Number] IS NULL AND [PostedAtUtc] IS NULL) OR ([Status] IN ('Posted', 'PartiallyPaid', 'Settled') AND [Number] IS NOT NULL AND [PostedAtUtc] IS NOT NULL))", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [CK_Bills_StatusMatchesBalance] CHECK (([Status] <> 'Posted' OR ([BalanceDue] = [Total] AND [Total] > 0)) AND ([Status] <> 'PartiallyPaid' OR ([BalanceDue] > 0 AND [BalanceDue] < [Total])) AND ([Status] <> 'Settled' OR [BalanceDue] = 0))", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [CK_Bills_NumberParts] CHECK (", Case.Sensitive);
+        script.ShouldContain("CREATE UNIQUE INDEX [UX_Bills_TenantId_Number] ON [Bills] ([TenantId], [Number]) WHERE [Number] IS NOT NULL", Case.Sensitive);
+        script.ShouldContain("CREATE UNIQUE INDEX [UX_Bills_TenantId_FiscalYear_SequenceNumber] ON [Bills] ([TenantId], [FiscalYear], [SequenceNumber]) WHERE [SequenceNumber] IS NOT NULL", Case.Sensitive);
+    }
+
+    [Fact]
+    public void The_table_of_a_draft_and_the_columns_of_a_posted_bill_are_two_migrations()
+    {
+        // 0004_Bills creates the table without the number; 0009_BillPosting adds it. If the number is in the CREATE
+        // TABLE, 0004 was scaffolded with BillPostingConfiguration.cs still in the project (docs/runbook.md, section 8).
+        var script = _context.GetService<IMigrator>().GenerateScript();
+        var createBills = script[script.IndexOf("CREATE TABLE [Bills]", StringComparison.Ordinal)..];
+        createBills = createBills[..createBills.IndexOf(");", StringComparison.Ordinal)];
+
+        createBills.ShouldNotContain("[Number]");
+        createBills.ShouldNotContain("[PostedAtUtc]");
+        createBills.ShouldNotContain("CK_Bills_NumberIffPosted");
+        createBills.ShouldContain("CONSTRAINT [CK_Bills_Status] CHECK ([Status] IN ('Draft', 'Voided', 'Posted', 'PartiallyPaid', 'Settled'))", Case.Sensitive);
+    }
+
+    [Fact]
     public void The_migrations_create_the_bills_and_bill_lines_tables_as_documented()
     {
         var script = _context.GetService<IMigrator>().GenerateScript();
@@ -219,7 +260,7 @@ public sealed class MigrationsTests : IDisposable
         script.ShouldContain("CREATE TABLE [BillLines]", customMessage: $"The migrations do not create the BillLines table. {HowToAdd}");
         script.ShouldContain("[Total] decimal(18,2) NOT NULL", Case.Sensitive);
         script.ShouldContain("[Quantity] decimal(9,3) NOT NULL", Case.Sensitive);
-        script.ShouldContain("CONSTRAINT [CK_Bills_Status] CHECK ([Status] IN ('Draft', 'Voided'))", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [CK_Bills_Status] CHECK ([Status] IN ('Draft', 'Voided', 'Posted', 'PartiallyPaid', 'Settled'))", Case.Sensitive);
         script.ShouldContain("CONSTRAINT [CK_Bills_Total] CHECK ([Total] >= 0 AND [Total] = [SubTotal] - [DiscountTotal] + [TaxTotal])", Case.Sensitive);
         script.ShouldContain("CONSTRAINT [CK_Bills_BalanceDue] CHECK ([BalanceDue] BETWEEN 0 AND [Total])", Case.Sensitive);
         script.ShouldContain("CONSTRAINT [CK_BillLines_LineTotal] CHECK ([LineTotal] = [LineAmount] - [DiscountAmount] + [TaxAmount])", Case.Sensitive);

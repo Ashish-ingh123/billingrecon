@@ -145,4 +145,32 @@ public sealed class BillsController : ApiControllerBase
 
         return result.IsSuccess ? OkWithVersion(result.Value, result.Value.Version) : Problem(result.Error);
     }
+
+    /// <summary>
+    /// Posts a draft (US-21, BR-206): the bill gets the next number of the fiscal year of its bill date, the payer owes
+    /// its total, and it can no longer be edited or voided. All of it, with the ledger entry and the audit record, is
+    /// one transaction (BR-007). Needs If-Match and an Idempotency-Key; no body.
+    /// </summary>
+    [HttpPost("{id:guid}/post")]
+    [Idempotent]
+    [ProducesResponseType<BillDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status428PreconditionRequired)]
+    public async Task<IActionResult> PostAsync(
+        Guid id,
+        [FromServices] ICommandHandler<PostBillCommand, BillDto> handler,
+        CancellationToken ct)
+    {
+        if (!TryGetExpectedVersion(out var version, out var refusal))
+        {
+            return refusal;
+        }
+
+        var result = await handler.HandleAsync(new PostBillCommand(new BillId(id), version), ct);
+
+        return result.IsSuccess ? OkWithVersion(result.Value, result.Value.Version) : Problem(result.Error);
+    }
 }

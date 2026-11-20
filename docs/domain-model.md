@@ -162,8 +162,12 @@ State machine: §5.
 **Built with Prompt 2.4 (2026-11-20, ADR 0019): the draft.** What exists so far, and where it differs from the table
 above:
 
-- **States:** `Draft` and `Voided` only. Every mutating method returns `bill_not_draft` (422) unless the bill is a
-  draft; `bill_already_posted` arrives with posting.
+- **States:** `Draft`, `Voided`, and since Prompt 3.5 `Posted` and `Settled` (a bill that comes to nothing is settled
+  the moment it is posted); `PartiallyPaid` exists and nothing reaches it yet; `PendingApproval` comes with 3.6.
+  Every mutating method refuses unless the bill is a draft: a voided draft with `bill_not_draft` (422), a posted bill
+  with `bill_already_posted` (409). `Post(number, postedAtUtc, postedBy, window)` sets the number, the fiscal year,
+  the sequence number and the posted stamps and raises `BillPosted`; `CheckCanPost(window)` lets the use case ask
+  before it takes the number (ADR 0022).
 - **Commands:** `Create`, `ReplaceLines` (in place of `AddLine`, `UpdateLine` and `RemoveLine`: one request replaces
   every line, a line that keeps its position keeps its row, the rest are added or removed), `UpdateHeader` (in place
   of `ChangeDates`: both dates, the encounter reference and the notes), `Void(reason, instant, user)`.

@@ -16,9 +16,10 @@ is left; their numbering is mine, not the blueprint's.
 | 2.2 Patients and payers | Code, tests, docs and ADR 0018 written; migration scaffolded with EF Core 10.0.12 on 2026-10-18 under the name `0002_SyncCurrentModel`; **not committed**; no test result recorded |
 | 2.3, 2.4, 3.1, 3.2 and 3.4 (service catalogue, bill drafts, number series, idempotency, event dispatch and audit) | Written on 2026-11-20 on top of the uncommitted 2.2, each pre-checked on .NET 9 with LocalDB only; **not built on .NET 10, not committed**; migrations `0003` to `0007` still to be scaffolded (CLAUDE.md section 9, items 9 to 14) |
 | 3.3 Receivables ledger | Written on 2026-11-20 after 3.4, with the owner's decisions (ADR 0005 built note, ADR 0021); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0008_Receivables` still to be scaffolded and completed by hand (`docs/runbook.md` section 8) |
-| Everything else in R1 | Not started: bill posting, approvals, payments, credit notes, adjustments, refunds, users and JWT, reports, frontend, delivery |
+| 3.5 Post a bill | Written on 2026-11-20 with the owner's decisions (ADR 0022); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0009_BillPosting` still to be scaffolded (`docs/runbook.md` section 8) |
+| Everything else in R1 | Not started: approvals, payments, credit notes, adjustments, refunds, users and JWT, reports, frontend, delivery |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile 2.2 to 3.4 are committed unverified, one commit per prompt. Next prompt: 3.5. The owner's decisions for both are recorded under each prompt below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile 2.2 to 3.4 are committed unverified, one commit per prompt. Next prompt: 3.6 (maker-checker), which also removes the temporary refusal `bill_requires_approval`. The owner's decisions for both are recorded under each prompt below.**
 
 ## How to use these prompts
 
@@ -270,6 +271,11 @@ Done when: every scenario ends with zero drift rows and a gapless series.
 ```
 
 **Owner's decisions for 3.5, recorded 2026-11-20 (give 3.5 in a later session, after 3.3 is committed):**
+
+**Settled by the owner on 2026-11-20 and built (ADR 0022):** BR-401 and identity 2 are amended for a bill that comes
+to nothing; a second posting gets 409 `concurrency_conflict` for a stale version and 409 `bill_already_posted` for
+the current one, and a posted bill answers `bill_already_posted` to an edit or a void as well. The list below is kept
+as the record of what was asked.
 
 - **Accepted:** a draft without lines is refused with 422; the payer must be active at posting (BR-105); the
   patient is not re-checked (BR-102 only stops new bills).

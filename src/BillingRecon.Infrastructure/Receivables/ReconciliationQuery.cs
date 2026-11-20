@@ -10,8 +10,8 @@ namespace BillingRecon.Infrastructure.Receivables;
 /// The reconciliation of docs/database.md section 5.6 (BR-404): one read-only statement that returns a row for every
 /// place where a cached balance of a payer differs from the ledger, or where the ledger breaks one of its own
 /// identities, for the current tenant. No rows means no drift. The identities of each document join it with the
-/// slice that posts the document: a bill's balance due against its receivable with Prompt 3.5, then payments and
-/// credit notes.
+/// slice that posts the document: a bill's balance due against its receivable, and a posted bill against its
+/// posting, since Prompt 3.5 (a bill that came to nothing has no posting, ADR 0022); then payments and credit notes.
 /// <para>
 /// This is one of the files of the production code that send SQL of their own (ADR 0021, BannedSymbolsTests). It is
 /// the SQL the design document gives: sums over the whole ledger, grouped, which Entity Framework cannot translate
@@ -32,6 +32,12 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
             FROM   [dbo].[LedgerEntries]
             WHERE  [TenantId] = @tenant AND [PayerId] IS NOT NULL
             GROUP  BY [PayerId]
+        ),
+        [BillLedger] AS (
+            SELECT [SubjectId], SUM([Debit] - [Credit]) AS [Balance]
+            FROM   [dbo].[LedgerEntries]
+            WHERE  [TenantId] = @tenant AND [Account] = 'Receivable'
+            GROUP  BY [SubjectId]
         )
         SELECT CAST('UnbalancedPosting' AS varchar(30)) AS [Identity], e.[PostingId] AS [SubjectId], CAST(NULL AS varchar(30)) AS [Reference],
                SUM(e.[Debit]) AS [Cached], SUM(e.[Credit]) AS [Ledger]
@@ -45,6 +51,25 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
         FROM   [dbo].[LedgerPostings] AS p
         WHERE  p.[TenantId] = @tenant
           AND  NOT EXISTS (SELECT 1 FROM [dbo].[LedgerEntries] AS e WHERE e.[TenantId] = @tenant AND e.[PostingId] = p.[Id])
+
+        UNION ALL
+        SELECT 'BillBalance', b.[Id], b.[Number], b.[BalanceDue], ISNULL(l.[Balance], 0)
+        FROM   [dbo].[Bills] AS b
+        LEFT JOIN [BillLedger] AS l ON l.[SubjectId] = b.[Id]
+        WHERE  b.[TenantId] = @tenant AND b.[Number] IS NOT NULL AND b.[BalanceDue] <> ISNULL(l.[Balance], 0)
+
+        UNION ALL
+        SELECT 'BillWithoutPosting', b.[Id], b.[Number], b.[Total], 0
+        FROM   [dbo].[Bills] AS b
+        WHERE  b.[TenantId] = @tenant AND b.[Number] IS NOT NULL AND b.[Total] > 0
+          AND  NOT EXISTS (SELECT 1 FROM [dbo].[LedgerPostings] AS p
+                           WHERE p.[TenantId] = @tenant AND p.[DocumentType] = 'Bill' AND p.[DocumentId] = b.[Id] AND p.[Kind] = 'BillPosted')
+
+        UNION ALL
+        SELECT 'PostingWithoutBill', p.[Id], NULL, 0, 0
+        FROM   [dbo].[LedgerPostings] AS p
+        WHERE  p.[TenantId] = @tenant AND p.[Kind] = 'BillPosted'
+          AND  NOT EXISTS (SELECT 1 FROM [dbo].[Bills] AS b WHERE b.[TenantId] = @tenant AND b.[Id] = p.[DocumentId] AND b.[Number] IS NOT NULL)
 
         UNION ALL
         SELECT 'PayerReceivable', pb.[PayerId], NULL, pb.[Receivable], ISNULL(l.[Receivable], 0)

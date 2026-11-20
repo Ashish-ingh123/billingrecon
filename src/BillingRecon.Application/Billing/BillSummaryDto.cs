@@ -11,6 +11,7 @@ public sealed record BillSummaryDto(
     DateOnly DueDate,
     string? EncounterReference,
     BillStatus Status,
+    string? Number,
     decimal Total,
     decimal BalanceDue,
     DateTimeOffset CreatedAtUtc,

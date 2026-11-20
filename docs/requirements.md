@@ -138,7 +138,7 @@ The checker must always be a different user from the maker (BR-603), whatever th
 
 | Id | Rule |
 |---|---|
-| **BR-401** | Every financial posting writes exactly one ledger posting with two or more entries whose debits equal credits, in the same transaction as the document (BR-007). A posted document without ledger entries, or ledger entries without a document, is a defect. |
+| **BR-401** | Every financial posting writes exactly one ledger posting with two or more entries whose debits equal credits, in the same transaction as the document (BR-007). A posted document without ledger entries, or ledger entries without a document, is a defect. *Amended 2026-11-20 (ADR 0022):* a posted document whose total is zero has no ledger posting, because an entry has an amount above zero; a bill that comes to nothing is posted as Settled without one (BR-206). |
 | **BR-402** | Ledger postings and entries are append-only. Corrections are reversing postings that reference the original posting. |
 | **BR-403** | The subledger has six accounts: `Receivable` (subject: bill), `UnappliedCash` (subject: payment), `CreditAvailable` (subject: credit note), and the control accounts `Revenue`, `Cash` and `Adjustments`. Subject and payer are required on the first three and absent on the control accounts. |
 | **BR-404** | The balance identities in `database.md` §5.5 hold after every transaction: bill balance due, payment unapplied amount, credit note available amount and payer balances each equal the corresponding ledger sum. A reconciliation query detects drift; drift is a Sev-1 defect, never silently corrected. |

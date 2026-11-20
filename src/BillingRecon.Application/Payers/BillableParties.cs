@@ -24,6 +24,12 @@ public sealed class BillableParties(IPatientReadService patients, IPayerReadServ
             return PayersErrors.PatientInactive();
         }
 
+        return await EnsureCanOweAsync(payerId, ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<Result> EnsureCanOweAsync(PayerId payerId, CancellationToken ct)
+    {
         var payer = await payers.GetAsync(payerId, ct);
         if (payer is null)
         {

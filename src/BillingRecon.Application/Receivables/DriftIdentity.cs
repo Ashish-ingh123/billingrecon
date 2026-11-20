@@ -2,13 +2,22 @@ namespace BillingRecon.Application.Receivables;
 
 /// <summary>
 /// The identities the reconciliation checks so far (docs/database.md, section 5.5), by the name a
-/// <see cref="DriftRow"/> carries. The identities of a document (a bill's balance due against its receivable, a
-/// posted bill without its posting) join with the slice that posts that document.
+/// <see cref="DriftRow"/> carries. The identities of a document join with the slice that posts that document: the
+/// bill's since Prompt 3.5, then those of payments and credit notes.
 /// </summary>
 public static class DriftIdentity
 {
     /// <summary>Identity 1: a posting whose debits differ from its credits, or that has fewer than two entries.</summary>
     public const string UnbalancedPosting = "UnbalancedPosting";
+
+    /// <summary>Identity 2: a posted bill above zero without its posting. A bill that came to nothing has none.</summary>
+    public const string BillWithoutPosting = "BillWithoutPosting";
+
+    /// <summary>Identity 2, the other direction: a bill posting whose bill is not posted.</summary>
+    public const string PostingWithoutBill = "PostingWithoutBill";
+
+    /// <summary>Identity 3: the balance due of a posted bill differs from its receivable in the ledger.</summary>
+    public const string BillBalance = "BillBalance";
 
     /// <summary>Identity 6: the receivable of a payer differs from the ledger.</summary>
     public const string PayerReceivable = "PayerReceivable";

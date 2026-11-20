@@ -221,23 +221,25 @@ case; the text is taken literally, `%` and `_` included. **Status** (`status`): 
 left out. Correcting the price or the tax rate changes what new bill lines start from; a line already written
 keeps its own copy. An inactive item is still listed, read and corrected.
 
-### 8.4 Bills, as drafts (US-20, US-23; BR-201 to BR-205)
+### 8.4 Bills (US-20, US-21, US-23; BR-201 to BR-206)
 
-A bill is a draft until it is posted; posting is not built yet. A draft has no number and no ledger effect.
+A bill is a draft until it is posted. A draft has no number and no ledger effect.
 
 | Method and path | Success | Failures |
 |---|---|---|
 | `POST /api/v1/bills` (needs `Idempotency-Key`, section 7) | 201, the bill | 400, also `idempotency_key_missing`; 404 `patient_not_found`, `payer_not_found`, `service_item_not_found`; 422 (see below) |
 | `GET /api/v1/bills/{id}` | 200, the bill with its lines | 404 `bill_not_found` |
 | `GET /api/v1/bills?patientId=&payerId=&status=&billDateFrom=&billDateTo=&page=&pageSize=` | 200, a page of bill summaries, newest bill date first | 400 |
-| `PATCH /api/v1/bills/{id}` | 200, the bill | 400; 404; 409 `concurrency_conflict`; 422 `bill_not_draft` and the date rules; 428 |
-| `PUT /api/v1/bills/{id}/lines` | 200, the bill | 400; 404 `bill_not_found`, `service_item_not_found`; 409 `concurrency_conflict`; 422 `bill_not_draft`, `service_item_inactive` and the line rules; 428 |
-| `POST /api/v1/bills/{id}/void` (needs `Idempotency-Key`, section 7) | 200, the bill | 400, also `idempotency_key_missing`; 404; 409 `concurrency_conflict`; 422 `bill_not_draft`; 428 |
+| `PATCH /api/v1/bills/{id}` | 200, the bill | 400; 404; 409 `concurrency_conflict`, `bill_already_posted`; 422 `bill_not_draft` and the date rules; 428 |
+| `PUT /api/v1/bills/{id}/lines` | 200, the bill | 400; 404 `bill_not_found`, `service_item_not_found`; 409 `concurrency_conflict`, `bill_already_posted`; 422 `bill_not_draft`, `service_item_inactive` and the line rules; 428 |
+| `POST /api/v1/bills/{id}/void` (needs `Idempotency-Key`, section 7) | 200, the bill | 400, also `idempotency_key_missing`; 404; 409 `concurrency_conflict`, `bill_already_posted`; 422 `bill_not_draft`; 428 |
+| `POST /api/v1/bills/{id}/post` (needs `Idempotency-Key`, section 7; no body) | 200, the bill with its number | 400 `idempotency_key_missing`; 404 `bill_not_found`; 409 `concurrency_conflict`, `bill_already_posted`, `idempotency_in_progress`; 422 `bill_not_draft`, `bill_has_no_lines`, `bill_date_too_old`, `bill_date_in_future`, `payer_inactive`, `bill_requires_approval`; 428 |
 
 There is no `DELETE`: it answers 405. A draft that is not wanted is voided.
 
 **A bill**: `id`, `patientId`, `payerId`, `billDate`, `dueDate`, `encounterReference`, `notes`, `status` (`Draft`,
-`Voided`), `subTotal`, `discountTotal`, `taxTotal`, `total`, `balanceDue`, `voidedAtUtc`, `voidReason`, `lines`,
+`Voided`, `Posted`, `PartiallyPaid`, `Settled`), `number`, `fiscalYear` and `postedAtUtc` (all three null until the
+bill is posted), `subTotal`, `discountTotal`, `taxTotal`, `total`, `balanceDue`, `voidedAtUtc`, `voidReason`, `lines`,
 `createdAtUtc`, `updatedAtUtc`, `version`. **A line**: `lineNo`, `serviceItemId`, `description`, `quantity`,
 `unitPrice`, `lineAmount`, `discountAmount`, `taxRatePercent`, `taxAmount`, `lineTotal`. **A bill in a list** has
 no lines and no void details. Every amount is a JSON number, never a string. The `version` and the ETag change when
@@ -295,6 +297,28 @@ further change.
 
 **Filters of the list:** `patientId`, `payerId`, `status`, and `billDateFrom` and `billDateTo` (`yyyy-MM-dd`, both
 ends included; 400 when the end is before the start). They combine.
+
+**Posting** (`POST .../post`, US-21; BR-206, ADR 0022) gives the bill the next number of the fiscal year of its
+bill date (`BIL/26-27/000123`), enters `Dr Receivable / Cr Revenue` for the total, raises what the payer owes, and
+freezes the bill: one transaction, with the audit record (BR-007). The bill comes back with `number`, `fiscalYear`
+(`2026-27`), `postedAtUtc` and the status `Posted`, or `Settled` when it comes to nothing. A draft must have at
+least one line, a bill date that is still allowed today (BR-205) and an active payer; the patient is not asked
+about again. A posted bill answers **409 `bill_already_posted`** to every edit, void or second posting, and is
+corrected only by a credit note or an adjustment.
+
+What a client that posts twice receives:
+
+| It sends | Answer |
+|---|---|
+| the same `Idempotency-Key` while the first request is still running | 409 `idempotency_in_progress` |
+| the same key after the first request finished | the first answer again, with `Idempotent-Replayed: true` |
+| another key at the same moment | one succeeds, the other 409 `concurrency_conflict` |
+| another key later, with the version from before the posting | 409 `concurrency_conflict` |
+| another key later, with the version of the posted bill | 409 `bill_already_posted` |
+
+**Temporary, until approvals exist (Prompt 3.6):** when the hospital has set a posting approval threshold, a bill
+whose total is at or above it cannot be posted at all and answers 422 `bill_requires_approval` (BR-207). A hospital
+without a threshold posts any bill.
 
 ### 8.5 Audit trail (US-43; BR-701 to BR-703, ADR 0020)
 

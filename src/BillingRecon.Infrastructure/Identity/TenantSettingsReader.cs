@@ -22,7 +22,7 @@ public sealed class TenantSettingsReader(BillingReconDbContext context, ITenantC
         var settings = await context.Set<Tenant>()
             .AsNoTracking()
             .Where(tenant => tenant.Id == tenantId)
-            .Select(tenant => new TenantDocumentSettings(tenant.MaxBackdateDays, tenant.DefaultDueDays))
+            .Select(tenant => new TenantDocumentSettings(tenant.MaxBackdateDays, tenant.DefaultDueDays, tenant.PostingApprovalThreshold))
             .SingleOrDefaultAsync(ct);
 
         return settings ?? throw new InvalidOperationException($"Tenant {tenantId} has no row, so it has no settings.");

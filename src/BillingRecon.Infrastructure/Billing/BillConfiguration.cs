@@ -61,6 +61,14 @@ public sealed class BillConfiguration : IEntityTypeConfiguration<Bill>
         builder.Property(bill => bill.Status).HasMaxLength(StatusMaxLength);
         builder.Property(bill => bill.VoidReason).HasMaxLength(Bill.VoidReasonMaxLength);
 
+        // What posting adds is configured by BillPostingConfiguration, which is applied after this class and names
+        // these properties again. Left out here, so that the table of a draft is a migration of its own.
+        builder.Ignore(bill => bill.Number);
+        builder.Ignore(bill => bill.FiscalYear);
+        builder.Ignore(bill => bill.SequenceNumber);
+        builder.Ignore(bill => bill.PostedAtUtc);
+        builder.Ignore(bill => bill.PostedByUserId);
+
         // The lines belong to the bill and are loaded, changed and saved with it. A line taken out of a draft is
         // deleted by Entity Framework (ClientCascade); the database itself deletes nothing (ON DELETE NO ACTION).
         builder.HasMany(bill => bill.Lines)

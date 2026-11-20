@@ -265,9 +265,14 @@ sets it:
   `FK_Bills_TenantId`, `FK_Bills_PatientId`, `FK_Bills_PayerId`.
 - *Indexes now:* `IX_Bills_TenantId_PatientId`, `IX_Bills_TenantId_PayerId_Status INCLUDE (BalanceDue, Total)`,
   `IX_Bills_TenantId_BillDate`.
-- *Not yet:* Doc# (`Number`, `FiscalYear`, `SequenceNumber`) and its two filtered unique indexes, Posted, the four
-  later statuses, the filtered index on `PendingApproval`, `CK_Bills_NumberIffPosted` and
-  `CK_Bills_StatusMatchesBalance`.
+- *Added by migration `0009_BillPosting` (Prompt 3.5, ADR 0022):* Doc# as `Number varchar(16)` (the length of
+  CGST rule 46, ADR 0008), `FiscalYear char(7)` and `SequenceNumber int`; Posted (`PostedAtUtc`, `PostedByUserId`);
+  the two filtered unique indexes; `CK_Bills_NumberIffPosted`, `CK_Bills_StatusMatchesBalance`, and
+  `CK_Bills_NumberParts` (the three parts of the number are all there or all absent, and a bill without a number
+  has no poster). `CK_Bills_Status` lists `Draft`, `Voided`, `Posted`, `PartiallyPaid` and `Settled` from
+  `0004_Bills` on, because it is generated from the enum and both migrations were scaffolded after the enum grew.
+- *Not yet:* the status `PendingApproval` and its filtered index (Prompt 3.6). `CK_Bills_NumberIffPosted` names
+  that status already, so maker-checker does not have to replace the constraint.
 - `UpdatedAtUtc` is not set by the aggregate: when only lines changed, the unit of work marks it as modified, the
   audit stamp writes it, and the UPDATE checks and advances `RowVersion` (ADR 0019).
 
@@ -741,7 +746,7 @@ scenario; the reconciliation report evaluates them on demand.
 | # | Identity |
 |---|---|
 | 1 | For every `LedgerPostings` row: `Σ Debit = Σ Credit` over its entries, and the posting has ≥ 2 entries. |
-| 2 | Every posted document (`Bills` with `Number`, `Payments`, posted `CreditNotes`, `Adjustments`, `Refunds`, and every allocation row) has exactly one `LedgerPostings` row with its `DocumentType`/`DocumentId` (plus one reversal posting if reversed); every `LedgerPostings` row has such a document. |
+| 2 | Every posted document (`Bills` with `Number`, `Payments`, posted `CreditNotes`, `Adjustments`, `Refunds`, and every allocation row) has exactly one `LedgerPostings` row with its `DocumentType`/`DocumentId` (plus one reversal posting if reversed); every `LedgerPostings` row has such a document. *Amended 2026-11-20 (ADR 0022):* a posted bill whose total is zero has no posting and is not counted here. |
 | 3 | `Bills.BalanceDue = Σ(Debit − Credit)` over `LedgerEntries` where `Account = 'Receivable' AND SubjectId = Bills.Id`, for every posted bill. Equivalently: `Total − Σ active PaymentAllocations − Σ active CreditNoteAllocations − Σ posted Adjustments`. |
 | 4 | `Payments.UnappliedAmount = Σ(Credit − Debit)` over `UnappliedCash` entries for the payment. Equivalently: `Amount − Σ active allocations − Σ posted refunds from it`, and `0` if reversed. |
 | 5 | `CreditNotes.AvailableAmount = Σ(Credit − Debit)` over `CreditAvailable` entries for the credit note. Equivalently: `Total − Σ active applications − Σ posted refunds from it`. |
@@ -901,7 +906,7 @@ update of an append-only table (CLAUDE.md, section 9).
   | `0006_IdempotencyKeys` | `IdempotencyKeys` (§3.6, §6) | Written 2026-11-20 (Prompt 3.2). **To be scaffolded with EF Core 10 on the personal machine, after `0005_NumberSeries` and separately from it** (`docs/runbook.md` §3 has the four steps), under exactly this name. Scaffolded that way with EF Core 9 in the throwaway copy: it held `IdempotencyKeys` alone, and the database tests passed on LocalDB 2019. |
   | `0007_Audit` | `AuditRecords` (§3.8) | Written 2026-11-20 (Prompt 3.4, ADR 0020). **To be scaffolded with EF Core 10 on the personal machine, after `0006_IdempotencyKeys` and separately from it** (`docs/runbook.md` §8), under exactly this name. Scaffolded that way with EF Core 9 in the throwaway copy: it held `AuditRecords` alone, and the database tests passed on LocalDB 2019. The build prompts first had this as `0008_Audit`; Prompt 3.4 was built before 3.3, so the numbers follow the order of application. |
   | `0008_Receivables` | `LedgerPostings`, `LedgerEntries`, `PayerBalances` (§3.7), and one data statement | Written 2026-11-20 (Prompt 3.3, ADR 0021). **To be scaffolded with EF Core 10 on the personal machine, after `0007_Audit`, and then completed by hand**: the statement that opens the balances of every payer that already exists is pasted at the end of `Up()` (`docs/runbook.md` §8 has the line; `MigrationsTests` fails without it). Scaffolded and completed that way with EF Core 9 in the throwaway copy: it held the three tables alone, and the database tests passed on LocalDB 2019. |
-  | `0009_BillPosting` | The number, fiscal year, sequence number and posted stamps of `Bills`, the later statuses and their constraints (§3.3) | Prompt 3.5. Not started. |
+  | `0009_BillPosting` | The number, fiscal year, sequence number and posted stamps of `Bills` and their constraints and indexes (§3.3) | Written 2026-11-20 (Prompt 3.5, ADR 0022). **To be scaffolded with EF Core 10 on the personal machine, after `0008_Receivables`** (`docs/runbook.md` §8), with `BillPostingConfiguration.cs` moved out of the project until then, so that `0004_Bills` creates the table without these columns. Scaffolded that way with EF Core 9 in the throwaway copy: `0004` held no column of posting, `0009` added five columns, two indexes and three constraints, and the database tests passed on LocalDB 2019. |
   | `0010_Approvals` | `ApprovalRequests` (§3.6) | Prompt 3.6. Not started. |
   | `0011_Payments`, `0012_CreditNotes`, `0013_Adjustments`, `0014_Refunds` | §3.4, §3.3, §3.5 | Prompts 4.1, 4.3, 4.4, 4.6. Not started. |
   | `0015_Users` | `Users`, `Roles` (§3.1) | Prompt 5.1. Not started. |

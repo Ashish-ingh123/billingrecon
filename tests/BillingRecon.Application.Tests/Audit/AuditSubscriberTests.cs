@@ -56,6 +56,20 @@ public sealed class AuditSubscriberTests
     }
 
     [Fact]
+    public async Task An_event_that_carries_a_document_number_gives_it_to_its_record()
+    {
+        var written = new List<AuditRecord>();
+        var posted = new BillPosted(new BillId(Entity), "BIL/26-27/000123", new PayerId(Guid.NewGuid()), Money.Of(590m), new DateOnly(2026, 11, 20));
+
+        await Subscriber(written, Clerk).HandleAsync(new DomainEventOccurrence(posted, "Bill", Entity, At, "{}", "{}"), CancellationToken.None);
+
+        var record = written.ShouldHaveSingleItem();
+        record.Action.ShouldBe("Posted");
+        record.DocumentNumber.ShouldBe("BIL/26-27/000123");
+        record.Reason.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task System_work_has_no_user_and_a_creation_no_before_image()
     {
         var written = new List<AuditRecord>();

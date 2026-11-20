@@ -171,7 +171,9 @@ src/
                                 an event for every correction (PatientUpdated, PayerUpdated, ServiceItemUpdated,
                                 BillHeaderUpdated, BillLinesReplaced). Since Prompt 3.3 (ADR 0005 built):
                                 LedgerPosting with LedgerEntry, both append-only, PayerBalance and
-                                ReceivablesErrors (Receivables); LedgerPostingId (Common).
+                                ReceivablesErrors (Receivables); LedgerPostingId (Common). Since Prompt 3.5
+                                (ADR 0022): Bill.Post and CheckCanPost, the statuses Posted, PartiallyPaid and
+                                Settled, BillPosted, and IHasDocumentNumber (Common).
   BillingRecon.Application/     Use cases (command/query handlers as plain classes), FluentValidation validators,
                                 port interfaces (IClock, IUnitOfWork, repositories, INumberSeries,
                                 IIdempotencyStore, ITenantContext, ICurrentUser), DTOs and explicit mappers.
@@ -187,6 +189,8 @@ src/
                                 generic AuditSubscriber, AuditAction, and the query of an audit trail with its
                                 read service and DTO (Audit). ADR 0020. IReceivablesLedger with PostingTemplate,
                                 IPayerAccounts, IReconciliationQuery with DriftRow (Receivables, ADR 0005).
+                                PostBillHandler, the first posting use case, and PostingTemplate.BillPosted
+                                (Billing, Receivables; ADR 0022).
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -308,6 +312,10 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
    As built (ADR 0005, built note): a posting use case calls `IReceivablesLedger.PostAsync` with a
    `PostingTemplate` built by the named factory of its event, after its validation and after it has
    taken its number. Lock order: the number series, then the balances of the payer, both before the save.
+   Every posting use case follows the six steps of ADR 0022 in order: read and compare the version;
+   every check that can refuse; the number; the document takes it; the ledger; the save. The row of
+   the document is written last, under its row version. A document whose total is zero has no ledger
+   posting (BR-401 as amended).
 
 4. **Cached balances must equal the ledger** (ADR 0005; BR-404, BR-405). Denormalised balances
    (`Bill.BalanceDue`, `Payment.UnappliedAmount`, `CreditNote.AvailableAmount`, `PayerBalances`) are
@@ -534,6 +542,8 @@ dispatched by the unit of work, and the audit trail is their one subscriber (Acc
 Prompt 3.4 plan, 2026-11-20; it also builds the append-only guard and names the migration `0007_Audit`),
 0021 typed-id foreign keys by convention, a data step written by hand, and two more files with raw SQL
 (Accepted on the owner's decisions of 2026-11-20 for Prompt 3.3).
+0022 posting a bill: the order of its locks, the bill that comes to nothing, and what a posted bill answers
+(Accepted on the owner's decisions of 2026-11-20 for Prompt 3.5; it amends BR-401).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -872,13 +882,13 @@ Kept here so they survive between sessions. Remove an item when it is done.
       foreign keys to `Payers` come from the typed-id convention, with no new exception; the ledger and the
       reconciliation are sanctioned raw-SQL files; no `LastPostingId`; `PostedByUserId` nullable without a key
       (ADR 0021, ADR 0005 built note; item 17).
-    - **Open with the owner before 3.5 is coded:** BR-401 read literally contradicts "a zero-total bill has no
-      ledger posting", so BR-401 and identity 2 need an amendment or the decision changes; and which code a second
-      posting gets after the first has committed (proposed: 409 `concurrency_conflict` for a stale version, 409
-      `bill_already_posted` for the current one).
-    - **Temporary, to be removed by Prompt 3.6:** once 3.5 is built, a bill at or above
-      `Tenant.PostingApprovalThreshold` is refused with 422 `bill_requires_approval` (BR-207). Maker-checker
-      replaces the refusal with the `PendingApproval` state; the error code and its test go then.
+    - **Settled by the owner on 2026-11-20, before 3.5 was coded:** BR-401 and identity 2 are amended for a bill
+      that comes to nothing; a second posting gets 409 `concurrency_conflict` for a stale version and 409
+      `bill_already_posted` for the current one (ADR 0022; item 18).
+    - **Temporary, to be removed by Prompt 3.6:** a bill at or above `Tenant.PostingApprovalThreshold` is refused
+      with 422 `bill_requires_approval` (BR-207). Maker-checker replaces the refusal with the `PendingApproval`
+      state; then `BillingErrors.BillRequiresApproval`, its check in `PostBillHandler`, its tests and its lines in
+      `docs/api.md` section 8.4 go.
     - **A first draft of 3.3 and 3.5** was written on 2026-11-20 before these decisions and taken out of the
       repository again the same day; the tree was checked to be back at the state of item 14 (same build, format
       and test results in the .NET 9 copy). The draft is parked in `C:\aptran2026\BillingRecon\parked-3.3-3.5-draft`,
@@ -934,5 +944,35 @@ Kept here so they survive between sessions. Remove an item when it is done.
     - Not built, on purpose: an endpoint for the reconciliation (6.2); reads of a payer's balances (6.1); the
       bill identities of the reconciliation and `PostingTemplate.BillPosted` (3.5); the error code
       `ledger_balance_negative` is not in the catalogue of `docs/api.md` yet, because no endpoint can answer it.
-    - Next: Prompt 3.5, with the owner's decisions recorded in `docs/build-prompts.md`; two questions are open
-      there (BR-401 and the zero-total bill; the code for a second posting after the first committed).
+    - Next: Prompt 3.5 (item 18).
+18. **Prompt 3.5 (post a bill, ADR 0022), written 2026-11-20, not built on .NET 10 yet.** Verification is deferred
+    with the rest (item 16).
+    - Built: `Bill.Post` and `CheckCanPost`, the statuses `Posted`, `PartiallyPaid` and `Settled`, `BillPosted`,
+      `PostBillHandler`, `POST /api/v1/bills/{id}/post` (`[Idempotent]`, `If-Match`),
+      `PostingTemplate.BillPosted`, the bill identities of the reconciliation, the document number in the audit
+      record (`IHasDocumentNumber`), `BillPostingConfiguration`, and their tests.
+    - Decided by the owner: see item 15 and ADR 0022. BR-401 is amended in `docs/requirements.md`.
+    - **Temporary (BR-207):** `bill_requires_approval`, see item 15. Prompt 3.6 removes it.
+    - Changed in existing code and tests, each for a stated reason: a posted bill answers `bill_already_posted`
+      (409) where every non-draft answered `bill_not_draft` (422), which stays for a voided draft;
+      `ReplaceBillLinesHandler` asks the bill (`CheckIsDraft`) instead of comparing the status itself;
+      `TenantDocumentSettings` carries the threshold; `IBillableParties` has `EnsureCanOweAsync`; the bill DTOs
+      have `number`, `fiscalYear` and `postedAtUtc`, so **`BillsApiTests.A_draft_has_no_number_in_any_form` asserts
+      null members where it asserted absent ones** (a changed expectation, called out in ADR 0022);
+      `BillsSchemaTests` and `BillsOnSqlServerTests` list the new columns, indexes and constraints;
+      `DatabaseApiFactory` takes a `configure` action so that a test can make one port fail.
+    - **Two configurations for `Bills`:** `BillConfiguration` ignores the five properties of posting and
+      `BillPostingConfiguration` names them again, so that `0004_Bills` and `0009_BillPosting` are two migrations
+      although neither is scaffolded yet. Merge the two classes once both migrations are in the repository.
+    - Pre-checked in the .NET 9 copy: build, format gate, Domain 461 and Application 238 tests green,
+      Architecture 108 green and Integration 892 green on LocalDB 2019, with `0003` to `0009` scaffolded there
+      separately by EF Core 9. Failing there, as before and by design: the same eleven tests. The posting and
+      ledger tests (41) ran eight times in a row without a failure.
+    - **To do on the personal machine:** `docs/runbook.md` section 8, which now ends with `0009_BillPosting`;
+      mind that `BillPostingConfiguration.cs` comes back last.
+    - Not proven anywhere yet: the split of the two configurations on EF Core 10; every concurrency test on SQL
+      Server 2022; the failure injection through the real pipeline on ASP.NET Core 10.
+    - Follow-ups for later slices: maker-checker and `PendingApproval` (3.6); `PartiallyPaid` is reached by
+      allocations (4.2); the reconciliation endpoint and the gapless check in the report (6.2); role checks
+      (Phase 5: bills are posted by TenantAdmin, Supervisor and BillingClerk).
+    - Next: Prompt 3.6.

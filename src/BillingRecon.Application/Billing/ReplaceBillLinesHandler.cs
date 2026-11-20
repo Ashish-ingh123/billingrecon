@@ -37,9 +37,10 @@ public sealed class ReplaceBillLinesHandler(
         }
 
         // The state is the first rule: a bill that cannot be edited needs no look at the catalogue.
-        if (bill.Status != BillStatus.Draft)
+        var editable = bill.CheckIsDraft();
+        if (editable.IsFailure)
         {
-            return BillingErrors.BillNotDraft();
+            return editable.Error;
         }
 
         var alreadyOnBill = bill.Lines.Select(line => line.ServiceItemId).OfType<ServiceItemId>().ToHashSet();

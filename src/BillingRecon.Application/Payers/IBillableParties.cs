@@ -15,4 +15,11 @@ public interface IBillableParties
     /// first. Another tenant's patient or payer is not found, like an id nobody has.
     /// </summary>
     public Task<Result> EnsureCanBeBilledAsync(PatientId patientId, PayerId payerId, CancellationToken ct);
+
+    /// <summary>
+    /// Whether <paramref name="payerId"/> can take on what a draft bill comes to when it is posted (BR-105): the payer
+    /// exists in the tenant and is active. The patient is not asked about again: the draft exists already, and an
+    /// inactive patient only stops new bills (BR-102). Fails with <c>payer_not_found</c> or <c>payer_inactive</c>.
+    /// </summary>
+    public Task<Result> EnsureCanOweAsync(PayerId payerId, CancellationToken ct);
 }

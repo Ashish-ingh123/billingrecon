@@ -26,4 +26,33 @@ public sealed record PostingTemplate(
     DateOnly BusinessDate,
     string Description,
     IReadOnlyList<LedgerLine> Lines,
-    LedgerPostingId? ReversalOf = null);
+    LedgerPostingId? ReversalOf = null)
+{
+    /// <summary>
+    /// A bill of <paramref name="total"/> was posted (BR-206): Dr Receivable(bill), Cr Revenue. The payer owes
+    /// <paramref name="total"/> more. A bill that comes to nothing has no posting: a line of zero is not an entry
+    /// (BR-401 as amended, ADR 0022).
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="total"/> is not above zero.</exception>
+    public static PostingTemplate BillPosted(BillId billId, PayerId payerId, Money total, DateOnly billDate, DocumentNumber number)
+    {
+        ArgumentNullException.ThrowIfNull(number);
+
+        if (!total.IsPositive)
+        {
+            throw new ArgumentException("A bill is posted to the ledger for a total above zero; one that comes to nothing has no posting.", nameof(total));
+        }
+
+        return new PostingTemplate(
+            LedgerPostingKind.BillPosted,
+            LedgerDocumentType.Bill,
+            billId.Value,
+            payerId,
+            billDate,
+            $"Bill {number} posted",
+            [
+                LedgerLine.Dr(LedgerAccount.Receivable, total, new LedgerSubject(LedgerSubjectType.Bill, billId.Value)),
+                LedgerLine.Cr(LedgerAccount.Revenue, total),
+            ]);
+    }
+}

@@ -42,7 +42,7 @@ public sealed class BillsSchemaTests : IDisposable
     [InlineData("[UpdatedByUserId] uniqueidentifier NULL")]
     [InlineData("[RowVersion] rowversion NOT NULL")]
     [InlineData("CONSTRAINT [PK_Bills] PRIMARY KEY ([Id])")]
-    [InlineData("CONSTRAINT [CK_Bills_Status] CHECK ([Status] IN ('Draft', 'Voided'))")]
+    [InlineData("CONSTRAINT [CK_Bills_Status] CHECK ([Status] IN ('Draft', 'Voided', 'Posted', 'PartiallyPaid', 'Settled'))")]
     [InlineData("CONSTRAINT [CK_Bills_DueDate] CHECK ([DueDate] >= [BillDate])")]
     [InlineData("CONSTRAINT [CK_Bills_SubTotal] CHECK ([SubTotal] >= 0)")]
     [InlineData("CONSTRAINT [CK_Bills_DiscountTotal] CHECK ([DiscountTotal] >= 0)")]
@@ -97,6 +97,9 @@ public sealed class BillsSchemaTests : IDisposable
                 "Id", "TenantId", "PatientId", "PayerId", "BillDate", "DueDate", "EncounterReference", "Notes", "Status",
                 "SubTotal", "DiscountTotal", "TaxTotal", "Total", "BalanceDue", "VoidedAtUtc", "VoidedByUserId", "VoidReason",
                 "CreatedAtUtc", "CreatedByUserId", "UpdatedAtUtc", "UpdatedByUserId", "RowVersion",
+
+                // Since Prompt 3.5: what posting sets (migration 0009_BillPosting).
+                "Number", "FiscalYear", "SequenceNumber", "PostedAtUtc", "PostedByUserId",
             ],
             ignoreOrder: true);
 
@@ -127,7 +130,8 @@ public sealed class BillsSchemaTests : IDisposable
             .Where(line => line.Contains(" INDEX [", StringComparison.Ordinal) && (line.Contains("ON [Bills]", StringComparison.Ordinal) || line.Contains("ON [BillLines]", StringComparison.Ordinal)))
             .ToArray();
 
-        indexes.Length.ShouldBe(4, string.Join(Environment.NewLine, indexes));
+        // Four for drafts, and since Prompt 3.5 the two filtered unique indexes of the number (BR-801).
+        indexes.Length.ShouldBe(6, string.Join(Environment.NewLine, indexes));
     }
 
     [Fact]

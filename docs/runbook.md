@@ -416,7 +416,7 @@ dotnet tool restore
 
 ```powershell
 New-Item -ItemType Directory -Force ..\held | Out-Null
-Move-Item src\BillingRecon.Infrastructure\Billing\BillConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillLineConfiguration.cs, src\BillingRecon.Infrastructure\Common\Numbering\NumberSeriesConfiguration.cs, src\BillingRecon.Infrastructure\Common\Idempotency\IdempotencyKeyConfiguration.cs, src\BillingRecon.Infrastructure\Audit\AuditRecordConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerPostingConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerEntryConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\PayerBalanceConfiguration.cs ..\held\
+Move-Item src\BillingRecon.Infrastructure\Billing\BillConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillLineConfiguration.cs, src\BillingRecon.Infrastructure\Common\Numbering\NumberSeriesConfiguration.cs, src\BillingRecon.Infrastructure\Common\Idempotency\IdempotencyKeyConfiguration.cs, src\BillingRecon.Infrastructure\Audit\AuditRecordConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerPostingConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerEntryConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\PayerBalanceConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillPostingConfiguration.cs ..\held\
 dotnet ef migrations add 0003_ServiceItems --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
 Move-Item ..\held\BillConfiguration.cs, ..\held\BillLineConfiguration.cs src\BillingRecon.Infrastructure\Billing\
 dotnet ef migrations add 0004_Bills --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
@@ -428,16 +428,22 @@ Move-Item ..\held\AuditRecordConfiguration.cs src\BillingRecon.Infrastructure\Au
 dotnet ef migrations add 0007_Audit --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
 Move-Item ..\held\LedgerPostingConfiguration.cs, ..\held\LedgerEntryConfiguration.cs, ..\held\PayerBalanceConfiguration.cs src\BillingRecon.Infrastructure\Receivables\
 dotnet ef migrations add 0008_Receivables --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
+Move-Item ..\held\BillPostingConfiguration.cs src\BillingRecon.Infrastructure\Billing\
+dotnet ef migrations add 0009_BillPosting --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
 ```
+
+Mind the second line: `BillPostingConfiguration.cs` is moved out with the others and comes back **last**, not with
+the two Bill configurations before `0004_Bills`. That is what keeps the columns of posting out of `0004` (ADR 0022).
 
 | Migration | Prompt | Must create exactly |
 |---|---|---|
 | `0003_ServiceItems` | 2.3 | `ServiceItems` |
-| `0004_Bills` | 2.4 | `Bills`, `BillLines` |
+| `0004_Bills` | 2.4 | `Bills`, `BillLines`; no `Number`, `FiscalYear`, `SequenceNumber`, `PostedAtUtc` or `PostedByUserId` in `Bills` |
 | `0005_NumberSeries` | 3.1 | `NumberSeries` |
 | `0006_IdempotencyKeys` | 3.2 | `IdempotencyKeys` |
 | `0007_Audit` | 3.4 | `AuditRecords` |
 | `0008_Receivables` | 3.3 | `LedgerPostings`, `LedgerEntries`, `PayerBalances`, and the hand-written line below |
+| `0009_BillPosting` | 3.5 | No table. On `Bills`: five columns (`Number`, `FiscalYear`, `SequenceNumber`, `PostedAtUtc`, `PostedByUserId`), two unique indexes (`UX_Bills_TenantId_Number`, `UX_Bills_TenantId_FiscalYear_SequenceNumber`), three CHECK constraints (`CK_Bills_NumberIffPosted`, `CK_Bills_NumberParts`, `CK_Bills_StatusMatchesBalance`) |
 
 **`0008_Receivables` is finished by hand** (ADR 0021): a scaffold writes schema, and this migration also has to
 open the balances of every payer that already exists. Open `Common/Migrations/*_0008_Receivables.cs` (not the
@@ -472,13 +478,14 @@ dotnet test --filter "FullyQualifiedName~IdempotencyApiTests"
 dotnet test --filter "FullyQualifiedName~BillsApiTests"
 dotnet test --filter "FullyQualifiedName~AuditOnSqlServerTests|FullyQualifiedName~AuditTrailApiTests"
 dotnet test --filter "FullyQualifiedName~ReceivablesOnSqlServerTests"
+dotnet test --filter "FullyQualifiedName~BillPostingApiTests"
 ```
 
 **E. Send back**
 
 - the output of A, C and D, and the names of the migration files B created;
-- the migration files themselves (`Common/Migrations/*_0003_*` to `*_0008_*` and the updated
-  `BillingReconDbContextModelSnapshot.cs`), which are then committed as "Migrations 0003 to 0008, scaffolded with
+- the migration files themselves (`Common/Migrations/*_0003_*` to `*_0009_*` and the updated
+  `BillingReconDbContextModelSnapshot.cs`), which are then committed as "Migrations 0003 to 0009, scaffolded with
   EF Core 10".
 
 **What that run has to show, because nothing here could** (the office machine has .NET 9 and LocalDB 2019 only):
@@ -492,5 +499,6 @@ dotnet test --filter "FullyQualifiedName~ReceivablesOnSqlServerTests"
 | 3.2 | The response buffering of the idempotency filter on ASP.NET Core 10. |
 | 3.4 | The before and after images of `EntitySnapshot` on EF Core 10. |
 | 3.3 | The typed-id foreign key convention on EF Core 10 (migrations `0003` to `0007` must hold the same keys as before it; `0008` the four new ones). The locked change of `PayerBalances` and twenty simultaneous postings for one payer, on SQL Server 2022. The computed column `NetOutstanding`. The reconciliation statement. |
+| 3.5 | That `BillConfiguration` can leave five properties out of the model and `BillPostingConfiguration` put them back, on EF Core 10 (the split of `0004` and `0009` depends on it). Twenty bills posted at once, two posts of one bill at once, and a posting held open while its key is sent again, on SQL Server 2022. The failure injected at each step of a posting. |
 
 A red result is reported as it is, with its output; the fix is its own commit on top, never an edit of history.

@@ -28,6 +28,7 @@ public sealed class BillsOnSqlServerTests(SqlServerFixture sqlServer) : Database
                 [
                     "CK_Bills_DueDate", "CK_Bills_SubTotal", "CK_Bills_DiscountTotal", "CK_Bills_TaxTotal", "CK_Bills_Total",
                     "CK_Bills_BalanceDue", "CK_Bills_VoidedIffVoided", "CK_Bills_Status",
+                    "CK_Bills_NumberIffPosted", "CK_Bills_NumberParts", "CK_Bills_StatusMatchesBalance",
                 ],
                 ignoreOrder: true);
 
@@ -57,6 +58,8 @@ public sealed class BillsOnSqlServerTests(SqlServerFixture sqlServer) : Database
                 "IX_Bills_TenantId_PatientId:TenantId:0:0",
                 "IX_Bills_TenantId_PayerId_Status:TenantId:0:0",
                 "IX_Bills_TenantId_BillDate:TenantId:0:0",
+                "UX_Bills_TenantId_Number:TenantId:1:1",
+                "UX_Bills_TenantId_FiscalYear_SequenceNumber:TenantId:1:1",
                 "UX_BillLines_TenantId_BillId_LineNo:TenantId:1:0",
             ],
             ignoreOrder: true);
