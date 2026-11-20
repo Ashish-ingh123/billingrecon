@@ -327,6 +327,28 @@ public sealed class ReceivablesOnSqlServerTests(SqlServerFixture sqlServer) : Da
     }
 
     [Fact]
+    public async Task BR405_a_posting_that_would_take_a_cached_balance_of_the_payer_below_zero_is_refused_under_the_lock_and_writes_nothing()
+    {
+        var clerk = await NewApiTenantAsync();
+        var payer = await NewPayerAsync(clerk);
+        var payment = Guid.NewGuid();
+        await PostAsync(clerk, PaymentRecorded(payer, payment, 590m));
+
+        // The cache is lowered behind the application: the payment still has its cash in the ledger, the payer has not.
+        await ExecuteAsync($"UPDATE dbo.PayerBalances SET UnappliedCash = 100 WHERE PayerId = '{payer.Value}'");
+
+        await using (var context = ApiContext(clerk))
+        {
+            var refused = await Ledger(context, clerk).PostAsync(Refund(payer, payment, 590m), CancellationToken.None);
+
+            refused.Error.Code.ShouldBe(ReceivablesErrors.LedgerBalanceNegativeCode, "a refusal, not a failed CHECK constraint");
+        }
+
+        (await CountAsync("SELECT COUNT(*) AS [Value] FROM dbo.LedgerPostings")).ShouldBe(1);
+        (await BalanceAsync(clerk, payer)).UnappliedCash.ShouldBe(Money.Of(100m));
+    }
+
+    [Fact]
     public async Task A_payer_with_ledger_entries_and_no_balances_is_reported()
     {
         var clerk = await NewApiTenantAsync();

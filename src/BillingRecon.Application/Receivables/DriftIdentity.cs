@@ -28,6 +28,18 @@ public static class DriftIdentity
     /// <summary>Identity 2, the other direction: a payment posting without its payment.</summary>
     public const string PostingWithoutPayment = "PostingWithoutPayment";
 
+    /// <summary>Identity 5: the amount of a payment less its active allocations differs from its unapplied amount.</summary>
+    public const string PaymentAllocations = "PaymentAllocations";
+
+    /// <summary>Identity 2: an allocation without its posting.</summary>
+    public const string AllocationWithoutPosting = "AllocationWithoutPosting";
+
+    /// <summary>Identity 2, the other direction: an allocation posting without its allocation.</summary>
+    public const string PostingWithoutAllocation = "PostingWithoutAllocation";
+
+    /// <summary>An allocation whose bill is owed by another payer than its payment came from (BR-303).</summary>
+    public const string AllocationPayerMismatch = "AllocationPayerMismatch";
+
     /// <summary>Identity 6: the receivable of a payer differs from the ledger.</summary>
     public const string PayerReceivable = "PayerReceivable";
 

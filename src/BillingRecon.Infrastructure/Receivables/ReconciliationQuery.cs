@@ -12,7 +12,9 @@ namespace BillingRecon.Infrastructure.Receivables;
 /// identities, for the current tenant. No rows means no drift. The identities of each document join it with the
 /// slice that posts the document: a bill's balance due against its receivable, and a posted bill against its
 /// posting, since Prompt 3.5 (a bill that came to nothing has no posting, ADR 0022); a payment's unapplied amount
-/// against its unapplied cash, and a payment against its posting, since Prompt 4.1; then credit notes.
+/// against its unapplied cash, and a payment against its posting, since Prompt 4.1; a payment against the sum of its
+/// allocations, an allocation against its posting, and the payers of an allocation's two documents, since Prompt
+/// 4.2; then credit notes.
 /// <para>
 /// This is one of the files of the production code that send SQL of their own (ADR 0021, BannedSymbolsTests). It is
 /// the SQL the design document gives: sums over the whole ledger, grouped, which Entity Framework cannot translate
@@ -96,6 +98,35 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
         FROM   [dbo].[LedgerPostings] AS lp
         WHERE  lp.[TenantId] = @tenant AND lp.[Kind] = 'PaymentRecorded'
           AND  NOT EXISTS (SELECT 1 FROM [dbo].[Payments] AS p WHERE p.[TenantId] = @tenant AND p.[Id] = lp.[DocumentId])
+
+        UNION ALL
+        SELECT 'PaymentAllocations', p.[Id], p.[Number], p.[UnappliedAmount], p.[Amount] - ISNULL(a.[Allocated], 0)
+        FROM   [dbo].[Payments] AS p
+        LEFT JOIN (SELECT [PaymentId], SUM([Amount]) AS [Allocated]
+                   FROM   [dbo].[PaymentAllocations]
+                   WHERE  [TenantId] = @tenant AND [Status] = 'Active'
+                   GROUP  BY [PaymentId]) AS a ON a.[PaymentId] = p.[Id]
+        WHERE  p.[TenantId] = @tenant AND p.[UnappliedAmount] <> p.[Amount] - ISNULL(a.[Allocated], 0)
+
+        UNION ALL
+        SELECT 'AllocationWithoutPosting', a.[Id], NULL, a.[Amount], 0
+        FROM   [dbo].[PaymentAllocations] AS a
+        WHERE  a.[TenantId] = @tenant
+          AND  NOT EXISTS (SELECT 1 FROM [dbo].[LedgerPostings] AS lp
+                           WHERE lp.[TenantId] = @tenant AND lp.[DocumentType] = 'PaymentAllocation' AND lp.[DocumentId] = a.[Id] AND lp.[Kind] = 'PaymentAllocated')
+
+        UNION ALL
+        SELECT 'PostingWithoutAllocation', lp.[Id], NULL, 0, 0
+        FROM   [dbo].[LedgerPostings] AS lp
+        WHERE  lp.[TenantId] = @tenant AND lp.[Kind] = 'PaymentAllocated'
+          AND  NOT EXISTS (SELECT 1 FROM [dbo].[PaymentAllocations] AS a WHERE a.[TenantId] = @tenant AND a.[Id] = lp.[DocumentId])
+
+        UNION ALL
+        SELECT 'AllocationPayerMismatch', a.[Id], NULL, a.[Amount], 0
+        FROM   [dbo].[PaymentAllocations] AS a
+        JOIN   [dbo].[Payments] AS p ON p.[Id] = a.[PaymentId]
+        JOIN   [dbo].[Bills] AS b ON b.[Id] = a.[BillId]
+        WHERE  a.[TenantId] = @tenant AND p.[PayerId] <> b.[PayerId]
 
         UNION ALL
         SELECT 'PayerReceivable', pb.[PayerId], NULL, pb.[Receivable], ISNULL(l.[Receivable], 0)

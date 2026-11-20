@@ -41,14 +41,18 @@ public sealed class ReceivablesLedger(
     IClock clock) : IReceivablesLedger
 {
     // The read takes the update lock on the one row and holds it to the end of the transaction; the change follows
-    // under that lock. A payer without the row gets nothing changed, and the answer says so.
+    // under that lock. A payer without the row gets nothing changed, and the answer says so (0). Neither does a
+    // change that would take one of the three balances below zero (2): under the lock that can only mean that the
+    // documents of the request were read before another request changed them, or a defect, and the caller is told
+    // instead of the CHECK constraint of the table failing the batch (BR-405).
     private const string MoveBalances =
         """
         SET NOCOUNT ON;
 
         DECLARE @found int = 0;
 
-        SELECT @found = 1
+        SELECT @found = CASE WHEN [Receivable] + @receivable < 0 OR [UnappliedCash] + @unappliedCash < 0 OR [CreditAvailable] + @creditAvailable < 0
+                             THEN 2 ELSE 1 END
         FROM   [dbo].[PayerBalances] WITH (UPDLOCK, ROWLOCK)
         WHERE  [TenantId] = @tenant AND [PayerId] = @payer;
 
@@ -94,9 +98,9 @@ public sealed class ReceivablesLedger(
         }
 
         var payerChange = posting.PayerChange();
-        if (!payerChange.IsNone)
+        if (!payerChange.IsNone && !await MoveBalancesAsync(tenantId, posting.PayerId, payerChange, now, ct))
         {
-            await MoveBalancesAsync(tenantId, posting.PayerId, payerChange, now, ct);
+            return ReceivablesErrors.LedgerBalanceNegative();
         }
 
         // Adding the posting gives it its id, which the document may keep (the payment does).
@@ -121,7 +125,8 @@ public sealed class ReceivablesLedger(
         return saved.Concat(pending).Select(entry => entry.BalanceChange()).Sum();
     }
 
-    private async Task MoveBalancesAsync(TenantId tenantId, PayerId payerId, PayerBalanceChange change, DateTimeOffset now, CancellationToken ct)
+    // False when the change would take a cached balance of the payer below zero; nothing is changed then.
+    private async Task<bool> MoveBalancesAsync(TenantId tenantId, PayerId payerId, PayerBalanceChange change, DateTimeOffset now, CancellationToken ct)
     {
         // The transaction of the use case: opened here if nothing has opened it yet, and committed by the unit of work.
         // If the request ends without a commit, the context is disposed and the transaction rolls back.
@@ -144,11 +149,18 @@ public sealed class ReceivablesLedger(
         var found = await context.Database.SqlQueryRaw<int>(MoveBalances, parameters).ToListAsync(ct);
 #pragma warning restore RS0030
 
+        if (found is [2])
+        {
+            return false;
+        }
+
         if (found is not [1])
         {
             throw new InvalidOperationException(
                 $"Payer {payerId} has no row of cached balances, so the posting cannot move them. Every payer gets the row when it is created (BR-404).");
         }
+
+        return true;
     }
 
     private static SqlParameter Amount(string name, Money amount)

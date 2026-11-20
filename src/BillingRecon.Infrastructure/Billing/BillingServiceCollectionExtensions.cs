@@ -18,6 +18,9 @@ public static class BillingServiceCollectionExtensions
         services.AddScoped<IBillRepository, BillRepository>();
         services.AddScoped<IBillReadService, BillReadService>();
 
+        // What Billing answers to the modules that settle bills (docs/domain-model.md, section 6).
+        services.AddScoped<IBillSettlement, BillSettlement>();
+
         return services;
     }
 }

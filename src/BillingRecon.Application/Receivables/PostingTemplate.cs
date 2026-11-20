@@ -82,4 +82,39 @@ public sealed record PostingTemplate(
                 LedgerLine.Cr(LedgerAccount.UnappliedCash, amount, new LedgerSubject(LedgerSubjectType.Payment, paymentId.Value)),
             ]);
     }
+
+    /// <summary>
+    /// <paramref name="amount"/> of a payment was allocated to a bill of the same payer (BR-303): the paired entry
+    /// Dr UnappliedCash(payment), Cr Receivable(bill). No control account moves: the payer holds less unapplied cash
+    /// and owes less, by the same amount (docs/database.md, section 5.4). The business date is the day of the
+    /// allocation.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="amount"/> is not above zero.</exception>
+    public static PostingTemplate PaymentAllocated(
+        PaymentAllocationId allocationId,
+        PaymentId paymentId,
+        BillId billId,
+        PayerId payerId,
+        Money amount,
+        DateOnly allocationDate,
+        string paymentNumber,
+        string billNumber)
+    {
+        if (!amount.IsPositive)
+        {
+            throw new ArgumentException("A payment is allocated for an amount above zero.", nameof(amount));
+        }
+
+        return new PostingTemplate(
+            LedgerPostingKind.PaymentAllocated,
+            LedgerDocumentType.PaymentAllocation,
+            allocationId.Value,
+            payerId,
+            allocationDate,
+            $"Payment {paymentNumber} allocated to bill {billNumber}",
+            [
+                LedgerLine.Dr(LedgerAccount.UnappliedCash, amount, new LedgerSubject(LedgerSubjectType.Payment, paymentId.Value)),
+                LedgerLine.Cr(LedgerAccount.Receivable, amount, new LedgerSubject(LedgerSubjectType.Bill, billId.Value)),
+            ]);
+    }
 }

@@ -422,7 +422,13 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
         // The drift is seeded with SQL: nothing in the application can produce it.
         await ExecuteAsync($"UPDATE dbo.Payments SET UnappliedAmount = 100 WHERE Id = '{payment.Id}'");
 
-        (await DriftAsync(cashier)).ShouldHaveSingleItem().ShouldBe(new DriftRow(DriftIdentity.PaymentUnapplied, payment.Id, "PAY/26-27/000001", 100.00m, 126.00m));
+        // Two identities see it: the ledger, and since Prompt 4.2 the amount less the allocations.
+        (await DriftAsync(cashier)).ShouldBe(
+            [
+                new DriftRow(DriftIdentity.PaymentUnapplied, payment.Id, "PAY/26-27/000001", 100.00m, 126.00m),
+                new DriftRow(DriftIdentity.PaymentAllocations, payment.Id, "PAY/26-27/000001", 100.00m, 126.00m),
+            ],
+            ignoreOrder: true);
 
         await ExecuteAsync($"UPDATE dbo.Payments SET UnappliedAmount = 126 WHERE Id = '{payment.Id}'");
         await ExecuteAsync("UPDATE dbo.LedgerPostings SET DocumentId = NEWID()");

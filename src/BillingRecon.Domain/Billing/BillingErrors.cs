@@ -21,6 +21,9 @@ public static class BillingErrors
     public const string BillPendingApprovalCode = "bill_pending_approval";
     public const string BillNotPendingApprovalCode = "bill_not_pending_approval";
     public const string BillAlreadyPostedCode = "bill_already_posted";
+    public const string BillNotPostedCode = "bill_not_posted";
+    public const string AllocationExceedsBalanceDueCode = "allocation_exceeds_balance_due";
+    public const string AllocationPayerMismatchCode = "allocation_payer_mismatch";
 
     /// <summary>No service item with that id exists for the tenant. Another tenant's item gets the same answer.</summary>
     public static Error ServiceItemNotFound() => Error.NotFound(ServiceItemNotFoundCode, "The service item does not exist.");
@@ -85,4 +88,16 @@ public static class BillingErrors
     /// <summary>Approving or rejecting a bill that is a draft: nobody has asked for an approval.</summary>
     public static Error BillNotPendingApproval()
         => Error.BusinessRule(BillNotPendingApprovalCode, "The bill is not waiting for approval, so there is nothing to approve or reject.");
+
+    /// <summary>An amount is to be applied to a bill that is a draft, voided, or waiting for approval: nothing is owed on it (BR-303).</summary>
+    public static Error BillNotPosted()
+        => Error.BusinessRule(BillNotPostedCode, "The bill is not posted, so nothing is owed on it and nothing can be applied to it (BR-303).");
+
+    /// <summary>More is to be applied to a bill than is still owed on it (BR-303).</summary>
+    public static Error AllocationExceedsBalanceDue(string number, Money balanceDue)
+        => Error.BusinessRule(AllocationExceedsBalanceDueCode, $"Bill {number} has a balance due of {balanceDue}; more than that cannot be applied to it (BR-303).");
+
+    /// <summary>The bill is owed by another payer than the one the money came from (BR-303).</summary>
+    public static Error AllocationPayerMismatch()
+        => Error.BusinessRule(AllocationPayerMismatchCode, "The bill is owed by a different payer than the payment came from (BR-303).");
 }

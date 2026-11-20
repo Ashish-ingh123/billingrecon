@@ -22,6 +22,14 @@ public sealed class PaymentReadService(BillingReconDbContext context) : IPayment
     }
 
     /// <inheritdoc />
+    public async Task<PaymentAllocationsDto?> GetWithAllocationsAsync(PaymentId id, CancellationToken ct)
+    {
+        var payment = await Payments().Include(candidate => candidate.Allocations).SingleOrDefaultAsync(candidate => candidate.Id == id, ct);
+
+        return payment?.ToDtoWithAllocations();
+    }
+
+    /// <inheritdoc />
     public async Task<PageOf<PaymentDto>> ListAsync(ListPaymentsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);

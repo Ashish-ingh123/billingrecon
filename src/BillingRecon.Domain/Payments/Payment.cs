@@ -10,7 +10,12 @@ namespace BillingRecon.Domain.Payments;
 /// <para>
 /// Whether the payer exists and is active is the use case's question (BR-309): it needs another aggregate. The date
 /// follows BR-205, with today and the tenant's back-dating limit handed in as a <see cref="BusinessDateWindow"/>.
-/// Allocations, reversals and refunds arrive with their slices.
+/// </para>
+/// <para>
+/// A payment is applied to posted bills of its payer through <see cref="Allocate"/> (BR-303, BR-304): each
+/// allocation lowers <see cref="UnappliedAmount"/> and is kept as a <see cref="PaymentAllocation"/>. Whether the bill
+/// can take the amount is the bill's question, which the use case asks through the Billing module's contract.
+/// Reversals and refunds arrive with their slices.
 /// </para>
 /// </summary>
 public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, ICreationAudited, IModificationAudited, IHasRowVersion
@@ -23,6 +28,8 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, ICreation
 
     /// <summary>The largest amount one payment may have: sums of payments stay far inside what a <c>decimal(18,2)</c> column holds.</summary>
     public const decimal MaxAmount = 9_999_999_999.99m;
+
+    private readonly List<PaymentAllocation> _allocations = [];
 
     // Entity Framework creates a payment with this constructor and then sets the properties.
     private Payment()
@@ -84,6 +91,9 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, ICreation
 
     /// <inheritdoc />
     public byte[] RowVersion { get; private set; }
+
+    /// <summary>The allocations of the payment to bills, in no promised order.</summary>
+    public IReadOnlyList<PaymentAllocation> Allocations => _allocations;
 
     /// <summary>
     /// Whether a payment dated <paramref name="paymentDate"/> may be recorded today (BR-205). The use case asks before
@@ -194,5 +204,65 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, ICreation
         }
 
         PostingId = postingId;
+    }
+
+    /// <summary>
+    /// Whether <paramref name="amount"/> can still be allocated from the payment (BR-303): it is not more than what
+    /// is unapplied. The use case asks for the sum of a request before it changes anything.
+    /// </summary>
+    public Result CheckCanAllocate(Money amount)
+        => amount > UnappliedAmount ? PaymentsErrors.AllocationExceedsUnapplied(Number, UnappliedAmount) : Result.Success();
+
+    /// <summary>
+    /// Applies <paramref name="amount"/> of the payment to bill <paramref name="billId"/> (BR-303): the unapplied
+    /// amount falls by it and the allocation is kept. More than what is unapplied is refused and changes nothing.
+    /// That the bill is posted, belongs to the same payer and is owed at least the amount is checked by the bill,
+    /// in the same use case.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    /// The bill's id is empty or the amount is not above zero; the validator of the use case refuses both first.
+    /// </exception>
+    public Result<PaymentAllocation> Allocate(BillId billId, Money amount, DateTimeOffset allocatedAtUtc, UserId? allocatedBy)
+    {
+        if (billId.Value == Guid.Empty)
+        {
+            throw new ArgumentException("A payment is allocated to a bill; the empty id is not one.", nameof(billId));
+        }
+
+        if (!amount.IsPositive)
+        {
+            throw new ArgumentException("An allocation has an amount above zero (BR-303); the validator of the use case should have refused it.", nameof(amount));
+        }
+
+        var allowed = CheckCanAllocate(amount);
+        if (allowed.IsFailure)
+        {
+            return allowed.Error;
+        }
+
+        var allocation = PaymentAllocation.Create(billId, amount, allocatedAtUtc, allocatedBy);
+        _allocations.Add(allocation);
+        UnappliedAmount -= amount;
+        AddDomainEvent(new PaymentAllocated(Number, billId, amount, UnappliedAmount));
+
+        return allocation;
+    }
+
+    /// <summary>
+    /// Records which ledger posting belongs to <paramref name="allocation"/>. The use case calls it once for each
+    /// allocation, between the ledger and the save.
+    /// </summary>
+    /// <exception cref="ArgumentException">The allocation is not one of this payment, or the posting id is empty.</exception>
+    /// <exception cref="InvalidOperationException">The allocation has its posting already.</exception>
+    public void AttachAllocationPosting(PaymentAllocation allocation, LedgerPostingId postingId)
+    {
+        ArgumentNullException.ThrowIfNull(allocation);
+
+        if (!_allocations.Contains(allocation))
+        {
+            throw new ArgumentException("The allocation does not belong to this payment.", nameof(allocation));
+        }
+
+        allocation.AttachPosting(postingId);
     }
 }

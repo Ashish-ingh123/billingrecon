@@ -409,6 +409,38 @@ public sealed class Bill : AggregateRoot<BillId>, ITenantScoped, ICreationAudite
     }
 
     /// <summary>
+    /// Applies <paramref name="amount"/> to the bill (BR-303): what is owed falls by it, and the status follows the
+    /// balance (BR-208), <see cref="BillStatus.PartiallyPaid"/> while something is still owed and
+    /// <see cref="BillStatus.Settled"/> when nothing is. This is the one change a posted bill accepts (BR-006): its
+    /// lines, totals, dates and parties stay as posted. A bill that is not posted, or is owed less than the amount,
+    /// refuses and stays as it was.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="amount"/> is not above zero: a bug in the caller.</exception>
+    public Result ApplyCredit(Money amount)
+    {
+        if (!amount.IsPositive)
+        {
+            throw new ArgumentException("An amount applied to a bill is above zero (BR-303).", nameof(amount));
+        }
+
+        if (Status is not (BillStatus.Posted or BillStatus.PartiallyPaid or BillStatus.Settled) || Number is null)
+        {
+            return BillingErrors.BillNotPosted();
+        }
+
+        if (amount > BalanceDue)
+        {
+            return BillingErrors.AllocationExceedsBalanceDue(Number, BalanceDue);
+        }
+
+        BalanceDue -= amount;
+        Status = BalanceDue.IsZero ? BillStatus.Settled : BillStatus.PartiallyPaid;
+        AddDomainEvent(new BillCreditApplied(Id, Number, amount, BalanceDue));
+
+        return Result.Success();
+    }
+
+    /// <summary>
     /// Whether the bill can still be edited: it is a draft. A voided draft answers <c>bill_not_draft</c>, a posted
     /// bill <c>bill_already_posted</c> (BR-204, BR-006). For a use case that wants to know before it does other work.
     /// </summary>

@@ -332,6 +332,45 @@ public sealed class MigrationsTests : IDisposable
     }
 
     [Fact]
+    public void The_twelfth_migration_is_0012_PaymentAllocations()
+    {
+        var migrations = _context.Database.GetMigrations().ToArray();
+
+        migrations.Length.ShouldBeGreaterThanOrEqualTo(12, $"The PaymentAllocations migration is missing. {HowToAdd.Replace("<name>", "0012_PaymentAllocations", StringComparison.Ordinal)}");
+        migrations[11].ShouldEndWith("_0012_PaymentAllocations");
+    }
+
+    [Fact]
+    public void The_migrations_create_the_payment_allocations_table_as_documented_and_the_payments_table_without_it()
+    {
+        var script = _context.GetService<IMigrator>().GenerateScript();
+        var start = script.IndexOf("CREATE TABLE [PaymentAllocations]", StringComparison.Ordinal);
+        start.ShouldBeGreaterThan(0, $"The migrations do not create the PaymentAllocations table. {HowToAdd}");
+        var createAllocations = script[start..script.IndexOf(");", start, StringComparison.Ordinal)];
+
+        // The table of payments comes first, in a migration of its own (docs/runbook.md, section 8).
+        script.IndexOf("CREATE TABLE [Payments]", StringComparison.Ordinal).ShouldBeLessThan(start);
+        script.IndexOf("_0011_Payments", StringComparison.Ordinal).ShouldBeLessThan(start, "the table belongs to the twelfth migration, not to the eleventh");
+
+        createAllocations.ShouldContain("[PaymentId] uniqueidentifier NOT NULL", Case.Sensitive);
+        createAllocations.ShouldContain("[BillId] uniqueidentifier NOT NULL", Case.Sensitive);
+        createAllocations.ShouldContain("[Amount] decimal(18,2) NOT NULL", Case.Sensitive);
+        createAllocations.ShouldContain("[Status] varchar(20) NOT NULL", Case.Sensitive);
+        createAllocations.ShouldContain("[AllocatedAtUtc] datetimeoffset(3) NOT NULL", Case.Sensitive);
+        createAllocations.ShouldContain("[AllocatedByUserId] uniqueidentifier NULL", Case.Sensitive);
+        createAllocations.ShouldContain("[PostingId] uniqueidentifier NOT NULL", Case.Sensitive);
+        createAllocations.ShouldNotContain("RowVersion", Case.Sensitive, "the row version of the payment covers its allocations");
+        createAllocations.ShouldContain("CONSTRAINT [CK_PaymentAllocations_Amount] CHECK ([Amount] > 0)", Case.Sensitive);
+        createAllocations.ShouldContain("CONSTRAINT [CK_PaymentAllocations_Status] CHECK ([Status] IN ('Active'))", Case.Sensitive);
+        createAllocations.ShouldContain("CONSTRAINT [FK_PaymentAllocations_TenantId] FOREIGN KEY ([TenantId]) REFERENCES [Tenants] ([Id])", Case.Sensitive);
+        createAllocations.ShouldContain("CONSTRAINT [FK_PaymentAllocations_PaymentId] FOREIGN KEY ([PaymentId]) REFERENCES [Payments] ([Id])", Case.Sensitive);
+        createAllocations.ShouldContain("CONSTRAINT [FK_PaymentAllocations_BillId] FOREIGN KEY ([BillId]) REFERENCES [Bills] ([Id])", Case.Sensitive);
+        createAllocations.ShouldContain("CONSTRAINT [FK_PaymentAllocations_PostingId] FOREIGN KEY ([PostingId]) REFERENCES [LedgerPostings] ([Id])", Case.Sensitive);
+        script.ShouldContain("CREATE INDEX [IX_PaymentAllocations_TenantId_PaymentId] ON [PaymentAllocations] ([TenantId], [PaymentId])", Case.Sensitive);
+        script.ShouldContain("CREATE INDEX [IX_PaymentAllocations_TenantId_BillId] ON [PaymentAllocations] ([TenantId], [BillId]) INCLUDE ([Amount], [Status])", Case.Sensitive);
+    }
+
+    [Fact]
     public void The_migrations_create_the_bills_and_bill_lines_tables_as_documented()
     {
         var script = _context.GetService<IMigrator>().GenerateScript();

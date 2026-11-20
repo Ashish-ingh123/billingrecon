@@ -10,6 +10,13 @@ namespace BillingRecon.Infrastructure.Payments;
 /// is posted when it is created, so its number is never null. The foreign keys to the payer and to the ledger posting
 /// come from the convention of the context for typed-id columns (ADR 0021), so this class names no entity of another
 /// module. The columns and states of a reversal arrive with reversals (Prompt 4.5).
+/// <para>
+/// The allocations of a payment are left out of the model here and put back by
+/// <c>PaymentWithAllocationsConfiguration</c>, which Entity Framework applies after this class (configurations
+/// are applied in the order of their names), so that the table of payments and the table of allocations are two
+/// migrations (<c>0011_Payments</c> and <c>0012_PaymentAllocations</c>) although both were written before either was
+/// scaffolded (docs/runbook.md, section 8). Once both migrations exist, the two classes can become one.
+/// </para>
 /// </summary>
 public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
 {
@@ -27,6 +34,18 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             table.HasCheckConstraint("CK_Payments_Reference", "[Method] = 'Cash' OR [Reference] IS NOT NULL");
         });
         builder.HasKey(payment => payment.Id);
+
+        // Put back by PaymentWithAllocationsConfiguration. Leaving out the navigation is not enough: Entity Framework
+        // has discovered the allocation through it by then and would keep it as a table of its own, so the entity
+        // is taken out of the model as well, until that class names it.
+        builder.Ignore(payment => payment.Allocations);
+        var model = builder.Metadata.Model;
+        if (model.FindEntityType(typeof(PaymentAllocation)) is { } discovered)
+        {
+            model.RemoveEntityType(discovered);
+        }
+
+        model.AddIgnored(typeof(PaymentAllocation));
 
         // The gapless number (BR-801): unique in the tenant, and one payment per position of the series of a fiscal year.
         builder.Property(payment => payment.Number).HasMaxLength(DocumentNumber.MaxLength).IsUnicode(false);

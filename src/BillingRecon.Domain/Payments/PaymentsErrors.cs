@@ -8,6 +8,7 @@ public static class PaymentsErrors
     public const string PaymentNotFoundCode = "payment_not_found";
     public const string PaymentDateInFutureCode = "payment_date_in_future";
     public const string PaymentDateTooOldCode = "payment_date_too_old";
+    public const string AllocationExceedsUnappliedCode = "allocation_exceeds_unapplied";
 
     /// <summary>No payment with that id exists for the tenant. Another tenant's payment gets the same answer.</summary>
     public static Error PaymentNotFound() => Error.NotFound(PaymentNotFoundCode, "The payment does not exist.");
@@ -18,4 +19,8 @@ public static class PaymentsErrors
     /// <summary>The payment date is earlier than the tenant allows a document to be back-dated (BR-205).</summary>
     public static Error PaymentDateTooOld(DateOnly earliest)
         => Error.BusinessRule(PaymentDateTooOldCode, $"The payment date cannot be earlier than {earliest:yyyy-MM-dd}, the earliest date this hospital allows (BR-205).");
+
+    /// <summary>More is to be allocated than the payment has unapplied (BR-303).</summary>
+    public static Error AllocationExceedsUnapplied(string number, Money unapplied)
+        => Error.BusinessRule(AllocationExceedsUnappliedCode, $"Payment {number} has {unapplied} unapplied; more than that cannot be allocated (BR-303).");
 }

@@ -27,4 +27,28 @@ public static class PaymentsMapping
             UpdatedAtUtc: payment.UpdatedAtUtc,
             Version: RowVersionText.Of(payment));
     }
+
+    /// <summary>The allocation as the API returns it.</summary>
+    public static PaymentAllocationDto ToDto(this PaymentAllocation allocation)
+    {
+        ArgumentNullException.ThrowIfNull(allocation);
+
+        return new PaymentAllocationDto(
+            Id: allocation.Id.Value,
+            BillId: allocation.BillId.Value,
+            Amount: allocation.Amount.Amount,
+            Status: allocation.Status,
+            AllocatedAtUtc: allocation.AllocatedAtUtc,
+            AllocatedByUserId: allocation.AllocatedByUserId?.Value);
+    }
+
+    /// <summary>The payment with its allocations, the oldest first; allocations of one instant in the order of their ids.</summary>
+    public static PaymentAllocationsDto ToDtoWithAllocations(this Payment payment)
+    {
+        ArgumentNullException.ThrowIfNull(payment);
+
+        return new PaymentAllocationsDto(
+            payment.ToDto(),
+            [.. payment.Allocations.OrderBy(allocation => allocation.AllocatedAtUtc).ThenBy(allocation => allocation.Id.Value).Select(allocation => allocation.ToDto())]);
+    }
 }

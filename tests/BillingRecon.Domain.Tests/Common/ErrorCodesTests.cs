@@ -94,6 +94,7 @@ public sealed class ErrorCodesTests
             var type when type == typeof(decimal) => 0m,
             var type when type == typeof(int) => 0,
             var type when type == typeof(DateOnly) => new DateOnly(2026, 11, 20),
+            var type when type == typeof(Money) => Money.Of(100m),
             var type => throw new NotSupportedException($"No sample value for a {type.Name} parameter; add one here."),
         };
 }

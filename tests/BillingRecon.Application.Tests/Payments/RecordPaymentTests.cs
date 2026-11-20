@@ -241,7 +241,7 @@ public sealed class RecordPaymentTests
     private async Task NothingWasTakenOrWrittenAsync()
     {
         await _numbers.DidNotReceiveWithAnyArgs().NextAsync(default, default, default);
-        _repository.DidNotReceiveWithAnyArgs().Add(default!);
+        _repository.DidNotReceiveWithAnyArgs().Add((Payment)default!);
         await _ledger.DidNotReceiveWithAnyArgs().PostAsync(default!, default);
         await _unitOfWork.DidNotReceiveWithAnyArgs().CommitAsync(default);
     }

@@ -10,12 +10,57 @@ namespace BillingRecon.Api.Payments;
 /// <summary>
 /// The payments of the tenant (US-30; BR-301, BR-302, BR-309): record, read and list. Recording a payment posts it:
 /// the gapless number, the ledger entry and the audit record, in one transaction (BR-007). A payment is never edited
-/// or deleted; allocations, reversals and refunds are separate actions that arrive with their slices.
+/// or deleted. Allocating it to bills (US-31, BR-303) is an action of its own; reversals and refunds arrive with
+/// their slices.
 /// </summary>
 [Route(ApiRoutes.V1 + "/payments")]
 public sealed class PaymentsController : ApiControllerBase
 {
     private const string GetPaymentRoute = "GetPayment";
+
+    /// <summary>
+    /// Allocates the payment to one or more posted bills of its payer, all of them or none (BR-303, BR-304). Each
+    /// bill's balance due and status follow (BR-208). 422 when an amount is more than the payment has unapplied or
+    /// the bill is owed, the bill is not posted, or it is owed by another payer. Needs If-Match, with the version
+    /// of the payment, and an Idempotency-Key.
+    /// </summary>
+    [HttpPost("{id:guid}/allocations")]
+    [Idempotent]
+    [ProducesResponseType<PaymentAllocationsDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status428PreconditionRequired)]
+    public async Task<IActionResult> AllocateAsync(
+        Guid id,
+        AllocatePaymentRequest request,
+        [FromServices] ICommandHandler<AllocatePaymentCommand, PaymentAllocationsDto> handler,
+        CancellationToken ct)
+    {
+        if (!TryGetExpectedVersion(out var version, out var refusal))
+        {
+            return refusal;
+        }
+
+        var result = await handler.HandleAsync(request.ToCommand(new PaymentId(id), version), ct);
+
+        return result.IsSuccess ? OkWithVersion(result.Value, result.Value.Payment.Version) : Problem(result.Error);
+    }
+
+    /// <summary>Reads one payment with every allocation made from it, the oldest first.</summary>
+    [HttpGet("{id:guid}/allocations")]
+    [ProducesResponseType<PaymentAllocationsDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetAllocationsAsync(
+        Guid id,
+        [FromServices] IQueryHandler<GetPaymentAllocationsQuery, PaymentAllocationsDto> handler,
+        CancellationToken ct)
+    {
+        var result = await handler.HandleAsync(new GetPaymentAllocationsQuery(new PaymentId(id)), ct);
+
+        return result.IsSuccess ? OkWithVersion(result.Value, result.Value.Payment.Version) : Problem(result.Error);
+    }
 
     /// <summary>
     /// Records money received from an active payer. 422 when the payer is inactive or the date is not allowed today

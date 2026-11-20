@@ -11,8 +11,11 @@ public sealed class PaymentRepository(BillingReconDbContext context) : IPaymentR
 {
     /// <inheritdoc />
     public Task<Payment?> GetAsync(PaymentId id, CancellationToken ct)
-        => context.Set<Payment>().SingleOrDefaultAsync(payment => payment.Id == id, ct);
+        => context.Set<Payment>().Include(payment => payment.Allocations).SingleOrDefaultAsync(payment => payment.Id == id, ct);
 
     /// <inheritdoc />
     public void Add(Payment payment) => context.Set<Payment>().Add(payment);
+
+    /// <inheritdoc />
+    public void Add(PaymentAllocation allocation) => context.Set<PaymentAllocation>().Add(allocation);
 }
