@@ -28,6 +28,9 @@ public class ApiFactory : WebApplicationFactory<Program>
     /// <summary>Every log event the API wrote, as the sinks received it.</summary>
     public InMemoryLogSink Logs { get; } = new();
 
+    /// <summary>What the tests of the idempotency filter tell the probe endpoint to do, and what it reports back.</summary>
+    public IdempotencyProbeState IdempotencyProbe { get; } = new();
+
     /// <summary>The ASP.NET Core environment the host runs in.</summary>
     protected virtual string EnvironmentName => Environments.Production;
 
@@ -82,6 +85,7 @@ public class ApiFactory : WebApplicationFactory<Program>
     {
         services.AddControllers().AddApplicationPart(typeof(ProbeController).Assembly);
         services.AddSingleton<ILogEventSink>(Logs);
+        services.AddSingleton(IdempotencyProbe);
         services.AddTransient<IStartupFilter, TestPrincipalStartupFilter>();
         services.AddTransient<IStartupFilter, RawTargetStartupFilter>();
     }

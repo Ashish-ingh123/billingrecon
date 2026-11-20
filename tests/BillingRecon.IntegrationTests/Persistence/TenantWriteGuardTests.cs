@@ -66,6 +66,37 @@ public sealed class TenantWriteGuardTests
     }
 
     [Fact]
+    public void An_added_row_whose_tenant_is_part_of_its_key_gets_the_current_tenant_in_place_of_the_temporary_one()
+    {
+        // IdempotencyKeys is keyed by (TenantId, Key). Entity Framework tracks a new row under a temporary tenant
+        // until the key is known; that placeholder is not a tenant anyone gave the row.
+        using var context = TestContexts.CreateProduction(_identity);
+        var key = NewIdempotencyKey();
+        var entry = context.Add(key);
+        entry.Property(row => row.TenantId).IsTemporary.ShouldBeTrue();
+
+        Guard().Apply(context);
+
+        key.TenantId.ShouldBe(CurrentTenant);
+        entry.Property(row => row.TenantId).CurrentValue.ShouldBe(CurrentTenant);
+        entry.Property(row => row.TenantId).IsTemporary.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void An_added_row_whose_tenant_is_part_of_its_key_and_names_another_tenant_is_refused()
+    {
+        using var context = TestContexts.CreateProduction(_identity);
+        var key = NewIdempotencyKey();
+        context.Entry(key).Property(row => row.TenantId).CurrentValue = _otherTenant;
+        context.Add(key);
+
+        var exception = Should.Throw<TenantIsolationException>(() => Guard().Apply(context));
+
+        exception.Message.ShouldContain("Cannot add IdempotencyKey");
+        exception.Message.ShouldContain(_otherTenant.ToString());
+    }
+
+    [Fact]
     public void A_modified_entity_of_the_current_tenant_is_accepted()
     {
         using var context = TestContexts.Create(_identity);
@@ -304,6 +335,8 @@ public sealed class TenantWriteGuardTests
     }
 
     private TenantWriteGuardInterceptor Guard() => new(_identity);
+
+    private static IdempotencyKey NewIdempotencyKey() => IdempotencyKey.Reserve(Guid.NewGuid(), userId: null, "POST", "/api/v1/payments", new byte[IdempotencyKey.RequestHashLength], Now);
 
     // A tenant row that already exists in the database with the given id, tracked as unchanged.
     private static Tenant ExistingTenant(DbContext context, TenantId id)

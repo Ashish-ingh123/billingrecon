@@ -82,8 +82,11 @@ public sealed class TenantWriteGuardInterceptor(ITenantContext tenantContext) : 
 
             if (entry.State == EntityState.Added)
             {
+                // A tenant that is part of the key (IdempotencyKeys) gets a temporary value from Entity Framework when
+                // the row is added, so that the row can be tracked before its key is known. That is a placeholder, not
+                // a tenant anyone gave the row: it counts as not set. A value the caller assigned is never temporary.
                 var carried = (TenantId)tenant.CurrentValue!;
-                if (carried == default)
+                if (carried == default || tenant.IsTemporary)
                 {
                     tenant.CurrentValue = currentTenant.Value;
                 }
