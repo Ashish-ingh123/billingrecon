@@ -526,7 +526,7 @@ public sealed class BillApprovalApiTests(SqlServerFixture sqlServer) : DatabaseT
 
     private sealed class PostingThenFault(Application.Receivables.IReceivablesLedger inner) : Application.Receivables.IReceivablesLedger
     {
-        public async Task<Result> PostAsync(Application.Receivables.PostingTemplate template, CancellationToken ct)
+        public async Task<Result<LedgerPostingId>> PostAsync(Application.Receivables.PostingTemplate template, CancellationToken ct)
         {
             await inner.PostAsync(template, ct);
 

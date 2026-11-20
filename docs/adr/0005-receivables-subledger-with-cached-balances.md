@@ -82,6 +82,19 @@ query** that proves the two agree.
 - Exporting journals to an external accounting package (R5) is a projection over `LedgerEntries`
   grouped by control account and business date; no schema change is needed.
 
+## Amended 2026-11-20 (Prompt 4.1)
+
+Decided by the owner with the plan of Prompt 4.1:
+
+- **`IReceivablesLedger.PostAsync` answers `Result<LedgerPostingId>`**, the id of the posting it entered, where it
+  answered `Result`. A document that keeps its posting (`Payments.PostingId`, NOT NULL, with a foreign key) gets
+  the id from the port and is saved with it in the same commit. The alternative, looking the posting up by
+  document after the save, needs a second save or a nullable column, and neither is better. A bill does not keep
+  its posting and ignores the answer.
+- The reconciliation pairs every payment with its posting in both directions and compares
+  `Payments.UnappliedAmount` with the unapplied cash of the payment in the ledger (`PaymentUnapplied`,
+  `PaymentWithoutPosting`, `PostingWithoutPayment`).
+
 ## Built 2026-11-20 (Prompt 3.3)
 
 Written on the office machine and pre-checked on .NET 9 with LocalDB 2019; not yet run on .NET 10 or SQL Server 2022.

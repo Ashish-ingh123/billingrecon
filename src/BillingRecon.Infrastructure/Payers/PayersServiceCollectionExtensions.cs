@@ -20,6 +20,7 @@ public static class PayersServiceCollectionExtensions
 
         // What other modules ask the Payers module, built on the read services above.
         services.AddScoped<IBillableParties, BillableParties>();
+        services.AddScoped<IActivePayers, BillableParties>();
 
         return services;
     }

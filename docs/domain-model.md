@@ -215,6 +215,15 @@ above:
 | **Invariants** | `Amount > 0`; reference required unless Cash; date per BR-205 (BR-301). Payer active (BR-309). Allocation caps: `0 < amount ≤ UnappliedAmount` and `≤ Bill.BalanceDue`, same payer (BR-303). `0 ≤ UnappliedAmount ≤ Amount` (BR-405). Reversal only if no refund was posted from it (BR-306); reversal reverses active allocations first. `Reversed ⇒ UnappliedAmount = 0`. Financial fields frozen from creation (BR-006). |
 | **Events** | `PaymentRecorded`, `PaymentAllocated`, `AllocationReversed`, `PaymentReversed` |
 
+*Built 2026-11-20 (Prompt 4.1): recording.* `Payment.Record(payer, paymentDate, method, reference, amount, notes,
+number, window)` creates the payment posted, under the number it is given, with `UnappliedAmount = Amount`, and
+raises `PaymentRecorded` (number, payer, method, amount, date), which the audit trail writes as `Recorded`.
+`Payment.CheckDate` is the BR-205 check, so the use case can refuse a date before it takes a number; a date the
+window refuses is the one failure `Record` returns, and everything else it is handed wrong is a bug and throws
+(the validator refuses it first). `AttachPosting(postingId)` is called once, by the use case, with the id the
+ledger answered. The status has `Posted` alone so far. `BusinessDateWindow` is in `Domain/Common` since this
+prompt, shared with bills. Not built yet: `PaymentAllocation` and `Allocate` (4.2), the reversals (4.5).
+
 ### 4.7 Refund (Payments module)
 
 | | |
@@ -514,7 +523,8 @@ as the table plans them.
 | `IAuditWriter` | Append audit records to the current unit of work (BR-701). | Infrastructure (Audit). |
 | `IDomainEventSubscriber`, `ICorrelationContext` | What the unit of work dispatches to (the audit subscriber is the only one), and the correlation id of the current request (BR-703). | Application (`AuditSubscriber`); Api (`HttpCorrelationContext`). |
 | `IAuditReadService` | The audit trail of one record, paged, oldest first (US-43). | Infrastructure (Audit). |
-| `IReceivablesLedger`, `IPayerAccounts`, `IReconciliationQuery` | Built 2026-11-20 (Prompt 3.3, ADR 0005 built note): post a `PostingTemplate` inside the unit of work of the caller (BR-401, BR-404, BR-405); open the zero balances of a new payer; return the drift rows of the tenant. | Infrastructure (Receivables). |
+| `IActivePayers` | Built 2026-11-20 (Prompt 4.1), in Payers: `EnsureActiveAsync(payerId, ct)` answers success, `payer_not_found` or `payer_inactive` (BR-309). What Payments asks before it records money. |
+| `IReceivablesLedger`, `IPayerAccounts`, `IReconciliationQuery` | Since Prompt 4.1 `PostAsync` answers the id of the posting it entered. Built 2026-11-20 (Prompt 3.3, ADR 0005 built note): post a `PostingTemplate` inside the unit of work of the caller (BR-401, BR-404, BR-405); open the zero balances of a new payer; return the drift rows of the tenant. | Infrastructure (Receivables). |
 | Repositories | `IPatientRepository`, `IPayerRepository`, `IBillRepository`, `ICreditNoteRepository`, `IPaymentRepository`, `IRefundRepository`, `IAdjustmentRepository`, `IApprovalRequestRepository`, `IUserRepository`, `ITenantRepository` — load by id (tenant-filtered), add, and nothing else. No `Remove` (BR-005). | Infrastructure. |
 | Read services | `IPatientReadService`, `IPayerReadService` (built 2026-10-17), `IBillReadService`, reporting queries. DTOs, pages, and the existence checks a command makes before it writes. | Infrastructure (EF queries, `AsNoTracking`). |
 | Domain services (Domain) | `LineCalculator` (BR-202), `FiscalYear.FromDate` (BR-004), `PostingTemplates` (the account pairs in `database.md` §5.3). | Domain. |

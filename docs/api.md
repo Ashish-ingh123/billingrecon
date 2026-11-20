@@ -43,7 +43,7 @@ with field errors lists the messages per field under `errors`, keyed by the JSON
 |---|---|---|
 | 400 | A field is missing or invalid, the body cannot be read, a query value is out of range | `validation_failed` |
 | 400 | A financial POST without a usable `Idempotency-Key` (section 7) | `idempotency_key_missing` |
-| 404 | The record does not exist for the tenant (another tenant's included), also when a request only refers to it | `patient_not_found`, `payer_not_found`, `service_item_not_found`, `bill_not_found`; `not_found` for an unknown route |
+| 404 | The record does not exist for the tenant (another tenant's included), also when a request only refers to it | `patient_not_found`, `payer_not_found`, `service_item_not_found`, `bill_not_found`, `payment_not_found`; `not_found` for an unknown route |
 | 409 | The record changed since it was read (BR-804) | `concurrency_conflict` |
 | 409 | The first request with this `Idempotency-Key` is still running (section 7) | `idempotency_in_progress` |
 | 409 | A uniqueness rule (BR-101, BR-104, the code of a service item) | `patient_mrn_duplicate`, `patient_already_linked`, `service_item_code_duplicate`; `duplicate_key` where no rule applies |
@@ -378,3 +378,36 @@ decided through the document (`.../approve`, `.../reject`); nothing here can be 
 `status` is `Pending` (the default), `Approved` or `Rejected`; `documentType` is `Bill` so far. A request:
 `id`, `documentType`, `documentId`, `action` (`Post`), `status`, `makerUserId`, `makerComment`, `checkerUserId`,
 `checkerComment`, `requestedAtUtc`, `decidedAtUtc`. The last three of the checker are null while it is pending.
+
+### 8.7 Payments (US-30; BR-205, BR-301, BR-302, BR-309)
+
+Money received from a payer. Recording a payment posts it: the gapless number, the ledger entry
+(Dr Cash / Cr UnappliedCash), the payer's unapplied cash and the audit record are written by one transaction or
+not at all (BR-007). A payment is never edited or deleted (BR-006), so no endpoint takes `If-Match`; allocations,
+reversals and refunds are separate actions that arrive with their own prompts.
+
+| Method and path | Success | Failures |
+|---|---|---|
+| `POST /api/v1/payments` (needs `Idempotency-Key`) | 201, the payment, `Location`, `ETag` | 400; 404 `payer_not_found`; 409 `idempotency_in_progress`; 422 `payer_inactive`, `payment_date_in_future`, `payment_date_too_old`, `idempotency_key_reuse` |
+| `GET /api/v1/payments/{id}` | 200, the payment, `ETag` | 404 `payment_not_found` |
+| `GET /api/v1/payments?payerId=&method=&status=&paymentDateFrom=&paymentDateTo=&page=&pageSize=` | 200, a page of payments | 400 |
+
+The body of a recording (unknown members are refused):
+
+| Field | Required | Rule |
+|---|---|---|
+| `payerId` | yes | An active payer of the tenant (BR-309) |
+| `paymentDate` | no | `yyyy-MM-dd`; today in India when left out. Not in the future and not older than the tenant's back-dating limit (BR-205) |
+| `method` | yes | `Cash`, `Card`, `UPI`, `BankTransfer` or `Cheque` |
+| `reference` | unless `Cash` | The UPI id, card authorisation, UTR or cheque number; at most 100 characters (BR-301) |
+| `amount` | yes | Above zero, at most two decimals, at most 9,999,999,999.99 |
+| `notes` | no | At most 500 characters |
+
+A payment: `id`, `number` (`PAY/26-27/000001`), `fiscalYear` (that of the payment date, BR-004), `payerId`,
+`paymentDate`, `method`, `reference`, `amount`, `unappliedAmount` (equal to `amount` until something is allocated),
+`status` (`Posted` so far), `notes`, `createdAtUtc`, `updatedAtUtc`, `version`.
+
+The list is ordered by payment date, newest first, then by number, newest first; the filters combine, and
+`paymentDateTo` may not be before `paymentDateFrom`. The audit trail of a payment is read with
+`GET /api/v1/audit-records?entityType=Payment&entityId=...`; its first record has the action `Recorded` and the
+number of the payment.

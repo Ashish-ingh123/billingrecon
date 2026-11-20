@@ -115,6 +115,7 @@ public sealed class TypedIdForeignKeyTests
                 "FK_LedgerPostings_PayerId", "FK_LedgerPostings_ReversalOfPostingId",
                 "FK_LedgerEntries_PostingId", "FK_LedgerEntries_PayerId",
                 "FK_PayerBalances_PayerId",
+                "FK_Payments_PayerId", "FK_Payments_PostingId",
             ],
             ignoreOrder: true);
     }

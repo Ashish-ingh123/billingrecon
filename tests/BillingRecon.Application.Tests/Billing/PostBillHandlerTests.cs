@@ -47,7 +47,7 @@ public sealed class PostBillHandlerTests
         _currentUser.UserId.Returns(Clerk);
         _correlation.CorrelationId.Returns(Correlation);
         _numbers.NextAsync(DocumentType.Bill, Fy, Arg.Any<CancellationToken>()).Returns(DocumentNumber.Create(DocumentType.Bill, Fy, "BIL", 42));
-        _ledger.PostAsync(Arg.Any<PostingTemplate>(), Arg.Any<CancellationToken>()).Returns(Result.Success());
+        _ledger.PostAsync(Arg.Any<PostingTemplate>(), Arg.Any<CancellationToken>()).Returns((Result<LedgerPostingId>)new LedgerPostingId(Guid.NewGuid()));
     }
 
     [Fact]
@@ -243,7 +243,7 @@ public sealed class PostBillHandlerTests
     public async Task US25_a_ledger_that_refuses_the_posting_leaves_the_commit_undone()
     {
         Saved(Draft(FreeText()));
-        _ledger.PostAsync(Arg.Any<PostingTemplate>(), Arg.Any<CancellationToken>()).Returns(ReceivablesErrors.LedgerBalanceNegative());
+        _ledger.PostAsync(Arg.Any<PostingTemplate>(), Arg.Any<CancellationToken>()).Returns((Result<LedgerPostingId>)ReceivablesErrors.LedgerBalanceNegative());
 
         var result = await Handler().HandleAsync(new PostBillCommand(Id, Version(CurrentVersion)), CancellationToken.None);
 
@@ -257,7 +257,7 @@ public sealed class PostBillHandlerTests
     public async Task US25_a_number_series_or_a_ledger_that_fails_with_a_fault_lets_the_fault_through_without_a_commit()
     {
         Saved(Draft(FreeText()));
-        _ledger.PostAsync(Arg.Any<PostingTemplate>(), Arg.Any<CancellationToken>()).Returns<Task<Result>>(_ => throw new InvalidOperationException("The ledger failed."));
+        _ledger.PostAsync(Arg.Any<PostingTemplate>(), Arg.Any<CancellationToken>()).Returns<Task<Result<LedgerPostingId>>>(_ => throw new InvalidOperationException("The ledger failed."));
 
         await Should.ThrowAsync<InvalidOperationException>(() => Handler().HandleAsync(new PostBillCommand(Id, Version(CurrentVersion)), CancellationToken.None));
 

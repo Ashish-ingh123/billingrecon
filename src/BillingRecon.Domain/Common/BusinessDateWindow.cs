@@ -1,4 +1,4 @@
-namespace BillingRecon.Domain.Billing;
+namespace BillingRecon.Domain.Common;
 
 /// <summary>
 /// The business dates a document may carry today (BR-205): not in the future, and not earlier than today in India

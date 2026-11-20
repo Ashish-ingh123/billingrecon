@@ -46,7 +46,7 @@ public sealed class BillApprovalHandlerTests
             .Returns(new TenantDocumentSettings(MaxBackdateDays: 7, DefaultDueDays: 15, PostingApprovalThreshold: Money.Of(100m)));
         _currentUser.UserId.Returns(Checker);
         _numbers.NextAsync(DocumentType.Bill, Fy, Arg.Any<CancellationToken>()).Returns(DocumentNumber.Create(DocumentType.Bill, Fy, "BIL", 42));
-        _ledger.PostAsync(Arg.Any<PostingTemplate>(), Arg.Any<CancellationToken>()).Returns(Result.Success());
+        _ledger.PostAsync(Arg.Any<PostingTemplate>(), Arg.Any<CancellationToken>()).Returns((Result<LedgerPostingId>)new LedgerPostingId(Guid.NewGuid()));
     }
 
     [Fact]

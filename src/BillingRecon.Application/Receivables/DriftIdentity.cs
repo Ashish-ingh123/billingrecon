@@ -19,6 +19,15 @@ public static class DriftIdentity
     /// <summary>Identity 3: the balance due of a posted bill differs from its receivable in the ledger.</summary>
     public const string BillBalance = "BillBalance";
 
+    /// <summary>Identity 4: the unapplied amount of a payment differs from its unapplied cash in the ledger.</summary>
+    public const string PaymentUnapplied = "PaymentUnapplied";
+
+    /// <summary>Identity 2: a payment without its posting.</summary>
+    public const string PaymentWithoutPosting = "PaymentWithoutPosting";
+
+    /// <summary>Identity 2, the other direction: a payment posting without its payment.</summary>
+    public const string PostingWithoutPayment = "PostingWithoutPayment";
+
     /// <summary>Identity 6: the receivable of a payer differs from the ledger.</summary>
     public const string PayerReceivable = "PayerReceivable";
 

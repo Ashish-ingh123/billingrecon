@@ -18,9 +18,10 @@ is left; their numbering is mine, not the blueprint's.
 | 3.3 Receivables ledger | Written on 2026-11-20 after 3.4, with the owner's decisions (ADR 0005 built note, ADR 0021); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0008_Receivables` still to be scaffolded and completed by hand (`docs/runbook.md` section 8) |
 | 3.5 Post a bill | Written on 2026-11-20 with the owner's decisions (ADR 0022); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0009_BillPosting` still to be scaffolded (`docs/runbook.md` section 8) |
 | 3.6 Maker-checker approvals | Written on 2026-11-20 with the owner's decisions (ADR 0023); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0010_Approvals` still to be scaffolded (`docs/runbook.md` section 8). The role of the checker is left to 5.3 |
-| Everything else in R1 | Not started: approvals, payments, credit notes, adjustments, refunds, users and JWT, reports, frontend, delivery |
+| 4.1 Record a payment | Written on 2026-11-20 with the owner's decisions (CLAUDE.md section 9, item 20); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0011_Payments` still to be scaffolded (`docs/runbook.md` section 8) |
+| Everything else in R1 | Not started: allocations, credit notes, adjustments, reversals, refunds, users and JWT, reports, frontend, delivery |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile 2.2 to 3.4 are committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6). Next prompt: 4.1 (record a payment). The owner's decisions for both are recorded under each prompt below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile 2.2 to 3.4 are committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment) is written. Next prompt: 4.2 (allocate a payment to bills). The owner's decisions for both are recorded under each prompt below.**
 
 ## How to use these prompts
 
@@ -330,6 +331,10 @@ gapless payment number, Dr Cash / Cr UnappliedCash(payment), UnappliedAmount = A
 transaction, Idempotency-Key required. Get and list. Migration 0011_Payments.
 Done when: US-30 passes with zero drift.
 ```
+
+**Owner's decisions for 4.1, recorded 2026-11-20:** the ledger port answers the id of the posting and the payment
+stores it; the `Payments` table holds only what recording needs (reversal columns and states with 4.5); an amount
+is at most 9,999,999,999.99. Built on `phase-2-billing`, not on a new branch, like everything since 2.2.
 
 #### 4.2 Allocate a payment to bills
 

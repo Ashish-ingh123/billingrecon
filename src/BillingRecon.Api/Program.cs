@@ -9,6 +9,7 @@ using BillingRecon.Infrastructure.Audit;
 using BillingRecon.Infrastructure.Billing;
 using BillingRecon.Infrastructure.Common;
 using BillingRecon.Infrastructure.Payers;
+using BillingRecon.Infrastructure.Payments;
 using BillingRecon.Infrastructure.Receivables;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
@@ -24,6 +25,7 @@ builder.Services.AddInfrastructure(builder.Environment);
 builder.Services.AddPayers();
 builder.Services.AddBilling();
 builder.Services.AddReceivables();
+builder.Services.AddPayments();
 builder.Services.AddApplication();
 
 // The audit trail: one record for every domain event, written by the unit of work in the transaction of the change

@@ -374,6 +374,16 @@ implementation of BR-202. The additive identities are CHECKed.
 | ReversalPostingId | uniqueidentifier | • | FK `LedgerPostings` |
 | Stamp, RV | | | `CreatedAtUtc` is the posting instant |
 
+**Built 2026-11-20 (Prompt 4.1; migration `0011_Payments`), as recording needs it.** The table has the columns
+above down to `PostingId`, the audit stamp and the row version; the four reversal columns, the statuses
+`PendingReversal` and `Reversed` and the two CHECK constraints that speak of them are **not** there yet and arrive
+with reversals (Prompt 4.5), so `CK_Payments_Status` allows `Posted` alone for now. Precisions: `Number` is
+`varchar(16)`, the length of a document number, as on `Bills`; the constraints are `CK_Payments_SequenceNumber`
+(`>= 1`), `CK_Payments_Amount`, `CK_Payments_UnappliedAmount`, `CK_Payments_Reference`, `CK_Payments_Method` and
+`CK_Payments_Status`; `FK_Payments_PayerId` and `FK_Payments_PostingId` come from the typed-id convention
+(ADR 0021), no cascade. `PostingId` is `NOT NULL`: the ledger port answers the id of the posting it entered, and
+the payment is saved with it in the same commit.
+
 **PaymentAllocations** — same shape as `CreditNoteAllocations` with `PaymentId` FK `Payments`
 (`IX_PaymentAllocations_TenantId_PaymentId`, `IX_PaymentAllocations_TenantId_BillId INCLUDE (Amount, Status)`).
 The rule "payment and bill share a payer" (BR-303) is cross-table and enforced in code; the
@@ -916,7 +926,8 @@ update of an append-only table (CLAUDE.md, section 9).
   | `0008_Receivables` | `LedgerPostings`, `LedgerEntries`, `PayerBalances` (§3.7), and one data statement | Written 2026-11-20 (Prompt 3.3, ADR 0021). **To be scaffolded with EF Core 10 on the personal machine, after `0007_Audit`, and then completed by hand**: the statement that opens the balances of every payer that already exists is pasted at the end of `Up()` (`docs/runbook.md` §8 has the line; `MigrationsTests` fails without it). Scaffolded and completed that way with EF Core 9 in the throwaway copy: it held the three tables alone, and the database tests passed on LocalDB 2019. |
   | `0009_BillPosting` | The number, fiscal year, sequence number and posted stamps of `Bills` and their constraints and indexes (§3.3) | Written 2026-11-20 (Prompt 3.5, ADR 0022). **To be scaffolded with EF Core 10 on the personal machine, after `0008_Receivables`** (`docs/runbook.md` §8), with `BillPostingConfiguration.cs` moved out of the project until then, so that `0004_Bills` creates the table without these columns. Scaffolded that way with EF Core 9 in the throwaway copy: `0004` held no column of posting, `0009` added five columns, two indexes and three constraints, and the database tests passed on LocalDB 2019. |
   | `0010_Approvals` | `ApprovalRequests` (§3.6) and the filtered index of the bills that wait (§3.3) | Written 2026-11-20 (Prompt 3.6, ADR 0023). **To be scaffolded with EF Core 10 on the personal machine, after `0009_BillPosting`** (`docs/runbook.md` §8), with `ApprovalRequestConfiguration.cs` and `BillApprovalConfiguration.cs` moved out of the project until then. Scaffolded that way with EF Core 9 in the throwaway copy: it held the table and the one index, neither `0004` nor `0009` held that index, and the database tests passed on LocalDB 2019. |
-  | `0011_Payments`, `0012_CreditNotes`, `0013_Adjustments`, `0014_Refunds` | §3.4, §3.3, §3.5 | Prompts 4.1, 4.3, 4.4, 4.6. Not started. |
+  | `0011_Payments` | `Payments` (§3.4), as recording needs it | Written 2026-11-20 (Prompt 4.1). **To be scaffolded with EF Core 10 on the personal machine, after `0010_Approvals`** (`docs/runbook.md` §8), with `PaymentConfiguration.cs` moved out of the project until then. Scaffolded that way with EF Core 9 in the throwaway copy: it held `Payments` alone, and the database tests passed on LocalDB 2019. |
+  | `0012_CreditNotes`, `0013_Adjustments`, `0014_Refunds` | §3.3, §3.5, §3.4 | Prompts 4.3, 4.4, 4.6. Not started. `PaymentAllocations` (4.2) and the reversal columns of `Payments` (4.5) need a migration each, numbered when their prompts are planned. |
   | `0015_Users` | `Users`, `Roles` (§3.1) | Prompt 5.1. Not started. |
 
 - CHECK constraints, unique and filtered indexes and computed columns are declared in the EF model

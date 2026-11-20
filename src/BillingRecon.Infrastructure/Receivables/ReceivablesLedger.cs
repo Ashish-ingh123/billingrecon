@@ -64,7 +64,7 @@ public sealed class ReceivablesLedger(
         """;
 
     /// <inheritdoc />
-    public async Task<Result> PostAsync(PostingTemplate template, CancellationToken ct)
+    public async Task<Result<LedgerPostingId>> PostAsync(PostingTemplate template, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(template);
 
@@ -99,9 +99,10 @@ public sealed class ReceivablesLedger(
             await MoveBalancesAsync(tenantId, posting.PayerId, payerChange, now, ct);
         }
 
+        // Adding the posting gives it its id, which the document may keep (the payment does).
         context.Set<LedgerPosting>().Add(posting);
 
-        return Result.Success();
+        return posting.Id;
     }
 
     // The balance of one subject account: what is saved, plus what this request has posted and not saved yet.

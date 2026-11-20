@@ -3,6 +3,7 @@ using BillingRecon.Domain.Billing;
 using BillingRecon.Domain.Common;
 using BillingRecon.Domain.Identity;
 using BillingRecon.Domain.Payers;
+using BillingRecon.Domain.Payments;
 using BillingRecon.Domain.Receivables;
 using BillingRecon.Infrastructure.Common.Persistence;
 using BillingRecon.Infrastructure.Identity;
@@ -72,7 +73,7 @@ public sealed class TenantQueryFilterTests
         var protectedEntities = AssertEveryTenantColumnIsProtected(context);
 
         // The test model is the production model plus the probe entities.
-        protectedEntities.ShouldBe([typeof(Widget), typeof(LogLine), typeof(NumberedDocument), typeof(Patient), typeof(Payer), typeof(ServiceItem), typeof(Bill), typeof(BillLine), typeof(NumberSeries), typeof(IdempotencyKey), typeof(AuditRecord), typeof(LedgerPosting), typeof(LedgerEntry), typeof(PayerBalance), typeof(ApprovalRequest)], ignoreOrder: true);
+        protectedEntities.ShouldBe([typeof(Widget), typeof(LogLine), typeof(NumberedDocument), typeof(Patient), typeof(Payer), typeof(ServiceItem), typeof(Bill), typeof(BillLine), typeof(NumberSeries), typeof(IdempotencyKey), typeof(AuditRecord), typeof(LedgerPosting), typeof(LedgerEntry), typeof(PayerBalance), typeof(ApprovalRequest), typeof(Payment)], ignoreOrder: true);
     }
 
     [Fact]
@@ -85,7 +86,7 @@ public sealed class TenantQueryFilterTests
 
         var protectedEntities = AssertEveryTenantColumnIsProtected(context);
 
-        protectedEntities.ShouldBe([typeof(Patient), typeof(Payer), typeof(ServiceItem), typeof(Bill), typeof(BillLine), typeof(NumberSeries), typeof(IdempotencyKey), typeof(AuditRecord), typeof(LedgerPosting), typeof(LedgerEntry), typeof(PayerBalance), typeof(ApprovalRequest)], ignoreOrder: true);
+        protectedEntities.ShouldBe([typeof(Patient), typeof(Payer), typeof(ServiceItem), typeof(Bill), typeof(BillLine), typeof(NumberSeries), typeof(IdempotencyKey), typeof(AuditRecord), typeof(LedgerPosting), typeof(LedgerEntry), typeof(PayerBalance), typeof(ApprovalRequest), typeof(Payment)], ignoreOrder: true);
     }
 
     [Fact]

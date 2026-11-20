@@ -640,7 +640,7 @@ public sealed class BillPostingApiTests(SqlServerFixture sqlServer) : DatabaseTe
 
     private sealed class PostingThenFault(IReceivablesLedger inner) : IReceivablesLedger
     {
-        public async Task<Result> PostAsync(PostingTemplate template, CancellationToken ct)
+        public async Task<Result<LedgerPostingId>> PostAsync(PostingTemplate template, CancellationToken ct)
         {
             await inner.PostAsync(template, ct);
 

@@ -3,6 +3,7 @@ using BillingRecon.Api.Billing;
 using BillingRecon.Api.Common;
 using BillingRecon.Api.Common.Idempotency;
 using BillingRecon.Api.Payers;
+using BillingRecon.Api.Payments;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BillingRecon.ArchitectureTests;
@@ -19,6 +20,7 @@ public sealed class IdempotencyConventionTests
     private static readonly Type[] FinancialControllers =
     [
         typeof(BillsController),
+        typeof(PaymentsController),
     ];
 
     /// <summary>

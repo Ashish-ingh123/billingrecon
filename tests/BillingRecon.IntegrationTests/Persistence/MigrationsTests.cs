@@ -287,6 +287,51 @@ public sealed class MigrationsTests : IDisposable
     }
 
     [Fact]
+    public void The_eleventh_migration_is_0011_Payments()
+    {
+        var migrations = _context.Database.GetMigrations().ToArray();
+
+        migrations.Length.ShouldBeGreaterThanOrEqualTo(11, $"The Payments migration is missing. {HowToAdd.Replace("<name>", "0011_Payments", StringComparison.Ordinal)}");
+        migrations[10].ShouldEndWith("_0011_Payments");
+    }
+
+    [Fact]
+    public void The_migrations_create_the_payments_table_as_documented()
+    {
+        var script = _context.GetService<IMigrator>().GenerateScript();
+        var start = script.IndexOf("CREATE TABLE [Payments]", StringComparison.Ordinal);
+        start.ShouldBeGreaterThan(0, $"The migrations do not create the Payments table. {HowToAdd}");
+        var createPayments = script[start..script.IndexOf(");", start, StringComparison.Ordinal)];
+
+        createPayments.ShouldContain("[Number] varchar(16) NOT NULL", Case.Sensitive);
+        createPayments.ShouldContain("[FiscalYear] char(7) NOT NULL", Case.Sensitive);
+        createPayments.ShouldContain("[SequenceNumber] int NOT NULL", Case.Sensitive);
+        createPayments.ShouldContain("[PayerId] uniqueidentifier NOT NULL", Case.Sensitive);
+        createPayments.ShouldContain("[PaymentDate] date NOT NULL", Case.Sensitive);
+        createPayments.ShouldContain("[Method] varchar(20) NOT NULL", Case.Sensitive);
+        createPayments.ShouldContain("[Reference] nvarchar(100) NULL", Case.Sensitive);
+        createPayments.ShouldContain("[Amount] decimal(18,2) NOT NULL", Case.Sensitive);
+        createPayments.ShouldContain("[UnappliedAmount] decimal(18,2) NOT NULL", Case.Sensitive);
+        createPayments.ShouldContain("[Status] varchar(20) NOT NULL", Case.Sensitive);
+        createPayments.ShouldContain("[Notes] nvarchar(500) NULL", Case.Sensitive);
+        createPayments.ShouldContain("[PostingId] uniqueidentifier NOT NULL", Case.Sensitive);
+        createPayments.ShouldContain("[RowVersion] rowversion NOT NULL", Case.Sensitive);
+        createPayments.ShouldContain("CONSTRAINT [CK_Payments_SequenceNumber] CHECK ([SequenceNumber] >= 1)", Case.Sensitive);
+        createPayments.ShouldContain("CONSTRAINT [CK_Payments_Amount] CHECK ([Amount] > 0)", Case.Sensitive);
+        createPayments.ShouldContain("CONSTRAINT [CK_Payments_UnappliedAmount] CHECK ([UnappliedAmount] BETWEEN 0 AND [Amount])", Case.Sensitive);
+        createPayments.ShouldContain("CONSTRAINT [CK_Payments_Reference] CHECK ([Method] = 'Cash' OR [Reference] IS NOT NULL)", Case.Sensitive);
+        createPayments.ShouldContain("CONSTRAINT [CK_Payments_Method] CHECK ([Method] IN ('Cash', 'Card', 'UPI', 'BankTransfer', 'Cheque'))", Case.Sensitive);
+        createPayments.ShouldContain("CONSTRAINT [CK_Payments_Status] CHECK ([Status] IN ('Posted'))", Case.Sensitive);
+        createPayments.ShouldContain("CONSTRAINT [FK_Payments_TenantId] FOREIGN KEY ([TenantId]) REFERENCES [Tenants] ([Id])", Case.Sensitive);
+        createPayments.ShouldContain("CONSTRAINT [FK_Payments_PayerId] FOREIGN KEY ([PayerId]) REFERENCES [Payers] ([Id])", Case.Sensitive);
+        createPayments.ShouldContain("CONSTRAINT [FK_Payments_PostingId] FOREIGN KEY ([PostingId]) REFERENCES [LedgerPostings] ([Id])", Case.Sensitive);
+        script.ShouldContain("CREATE UNIQUE INDEX [UX_Payments_TenantId_Number] ON [Payments] ([TenantId], [Number])", Case.Sensitive);
+        script.ShouldContain("CREATE UNIQUE INDEX [UX_Payments_TenantId_FiscalYear_SequenceNumber] ON [Payments] ([TenantId], [FiscalYear], [SequenceNumber])", Case.Sensitive);
+        script.ShouldContain("CREATE INDEX [IX_Payments_TenantId_PayerId_Status] ON [Payments] ([TenantId], [PayerId], [Status]) INCLUDE ([UnappliedAmount])", Case.Sensitive);
+        script.ShouldContain("CREATE INDEX [IX_Payments_TenantId_PaymentDate] ON [Payments] ([TenantId], [PaymentDate]) INCLUDE ([Method], [Amount], [Status])", Case.Sensitive);
+    }
+
+    [Fact]
     public void The_migrations_create_the_bills_and_bill_lines_tables_as_documented()
     {
         var script = _context.GetService<IMigrator>().GenerateScript();

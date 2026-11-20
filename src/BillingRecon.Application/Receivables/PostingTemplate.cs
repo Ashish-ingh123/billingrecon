@@ -55,4 +55,31 @@ public sealed record PostingTemplate(
                 LedgerLine.Cr(LedgerAccount.Revenue, total),
             ]);
     }
+
+    /// <summary>
+    /// A payment of <paramref name="amount"/> was recorded (BR-302): Dr Cash, Cr UnappliedCash(payment). The money is
+    /// held for the payer, unapplied, until it is allocated to a bill.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="amount"/> is not above zero.</exception>
+    public static PostingTemplate PaymentRecorded(PaymentId paymentId, PayerId payerId, Money amount, DateOnly paymentDate, DocumentNumber number)
+    {
+        ArgumentNullException.ThrowIfNull(number);
+
+        if (!amount.IsPositive)
+        {
+            throw new ArgumentException("A payment is recorded for an amount above zero.", nameof(amount));
+        }
+
+        return new PostingTemplate(
+            LedgerPostingKind.PaymentRecorded,
+            LedgerDocumentType.Payment,
+            paymentId.Value,
+            payerId,
+            paymentDate,
+            $"Payment {number} recorded",
+            [
+                LedgerLine.Dr(LedgerAccount.Cash, amount),
+                LedgerLine.Cr(LedgerAccount.UnappliedCash, amount, new LedgerSubject(LedgerSubjectType.Payment, paymentId.Value)),
+            ]);
+    }
 }

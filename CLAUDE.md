@@ -176,7 +176,9 @@ src/
                                 Settled, BillPosted, and IHasDocumentNumber (Common). Since Prompt 3.6
                                 (ADR 0023): the ApprovalRequest aggregate with its enums and events (Common),
                                 and the bill's PendingApproval status with SubmitForApproval, PostApproved and
-                                ReturnToDraft.
+                                ReturnToDraft. Since Prompt 4.1: the Payment aggregate with PaymentMethod,
+                                PaymentStatus, PaymentRecorded and PaymentsErrors (Payments); PaymentId and
+                                BusinessDateWindow, which bills and payments share (Common).
   BillingRecon.Application/     Use cases (command/query handlers as plain classes), FluentValidation validators,
                                 port interfaces (IClock, IUnitOfWork, repositories, INumberSeries,
                                 IIdempotencyStore, ITenantContext, ICurrentUser), DTOs and explicit mappers.
@@ -195,7 +197,11 @@ src/
                                 PostBillHandler, the first posting use case, and PostingTemplate.BillPosted
                                 (Billing, Receivables; ADR 0022). IApprovalRequestRepository and the list of
                                 approval requests (Common); ApproveBillPostingHandler and
-                                RejectBillPostingHandler (Billing; ADR 0023).
+                                RejectBillPostingHandler (Billing; ADR 0023). RecordPaymentHandler with the get
+                                and list queries, IPaymentRepository and IPaymentReadService (Payments);
+                                IActivePayers, what Payers answers when money is received (Payers);
+                                PostingTemplate.PaymentRecorded, and IReceivablesLedger.PostAsync now answers
+                                the id of the posting it entered (Receivables).
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -220,7 +226,8 @@ src/
                                 AuditReadService, registered by AddAudit (Audit). The LedgerPostings,
                                 LedgerEntries and PayerBalances tables, ReceivablesLedger, PayerAccounts and
                                 ReconciliationQuery, registered by AddReceivables (Receivables, ADR 0005); the
-                                typed-id foreign key convention of the context (ADR 0021).
+                                typed-id foreign key convention of the context (ADR 0021). The Payments table
+                                with its repository and read service, registered by AddPayments (Payments).
                                 Migrations go to Common/Migrations.
   BillingRecon.Api/             Controllers, middleware and filters (correlation id, idempotency, tenant resolution),
                                 the error contract (Common/Errors: exception handler, Error to ProblemDetails mapper),
@@ -232,6 +239,7 @@ src/
                                 records (Billing). Common/Idempotency: the [Idempotent] attribute, its filter,
                                 the header names and the request fingerprint (ADR 0006). The read-only audit
                                 trail controller (Audit) and HttpCorrelationContext (Common/Correlation), ADR 0020.
+                                The payments controller with its request records (Payments).
 tests/
   Directory.Build.props         Test defaults: xUnit, Shouldly, test SDK/runner, global usings.
   BillingRecon.Domain.Tests/  BillingRecon.Application.Tests/
@@ -1022,3 +1030,47 @@ Kept here so they survive between sessions. Remove an item when it is done.
       of Phase 4 follows the same shape; pending approvals in the reports (6.1); the checker's inbox screen (7.5).
     - Next: Phase 4, Prompt 4.1 (record a payment). `phase-2-billing` now holds Phase 2 and all of Phase 3; the
       owner decides when it is merged.
+20. **Prompt 4.1 (record a payment), written 2026-11-20, not built on .NET 10 yet.** The first prompt of Phase 4,
+    on `phase-2-billing` like the rest. Verification is deferred with the rest (item 16). No new ADR: the decisions
+    are in the "Amended 2026-11-20 (Prompt 4.1)" note of ADR 0005, and the order of the steps is that of ADR 0022.
+    - Built: the `Payment` aggregate; `POST /api/v1/payments` (records and posts, 201, `[Idempotent]`),
+      `GET /api/v1/payments/{id}` and `GET /api/v1/payments`; the `Payments` table; the posting template
+      Dr Cash / Cr UnappliedCash(payment); three identities of the reconciliation (`PaymentUnapplied`,
+      `PaymentWithoutPosting`, `PostingWithoutPayment`); and their tests. The Payments README placeholders are gone.
+    - Decided by the owner with the plan: **`IReceivablesLedger.PostAsync` answers the id of the posting**, and the
+      payment stores it (`PostingId`, NOT NULL, foreign key to `LedgerPostings`); the table holds **only what
+      recording needs** (the columns and states of a reversal arrive with Prompt 4.5, which also widens
+      `CK_Payments_Status`); an amount is at most **9,999,999,999.99**.
+    - **No new module-dependency exception.** Payments uses two Application contracts, as the module rule allows:
+      `IActivePayers` (new, in Payers: the payer exists and is active, BR-309) and `IReceivablesLedger`. To keep
+      the Payments domain from referring to the Billing domain, **`BusinessDateWindow` moved from
+      `Domain/Billing` to `Domain/Common`** (BR-205 is one rule for every dated document); nothing else about it
+      changed.
+    - Decided while building: an unknown payer answers 404 `payer_not_found` and an inactive one 422
+      `payer_inactive`, as for a bill; a date that BR-205 refuses answers 422 `payment_date_in_future` or
+      `payment_date_too_old`; a payment without a date is dated today in India; the audit action is `Recorded`;
+      the list is ordered by payment date, newest first, then by number. Who may record a payment is a role
+      question and is left to Phase 5 with the others.
+    - Lock order of a recording (the order of ADR 0022): every check first with nothing locked; then the number
+      series; then the `UPDLOCK` read of the payer's row of `PayerBalances` inside the ledger; then the save. The
+      payment row is an insert and locks nothing anyone waits for.
+    - Changed in existing code and tests, none weakened: the callers and test doubles of `PostAsync` return the
+      new type; `IdempotencyConventionTests` lists `PaymentsController` as financial; `TenantQueryFilterTests`,
+      `TypedIdForeignKeyTests` (two new keys), `MigrationsTests` and `MigrationsOnSqlServerTests` know the new table
+      and migration. **`ReceivablesOnSqlServerTests` now leaves the identity `PostingWithoutPayment` out of its
+      drift helper**: those tests write payment postings through the port alone, without payment rows, which the
+      reconciliation now reports, correctly. Every other identity is asserted there as before, and
+      `PaymentsApiTests` asserts the unfiltered reconciliation, this identity included.
+    - Pre-checked in the .NET 9 copy: strict build, format gate, Domain 501 and Application 274 tests green,
+      Architecture 108 green and Integration 928 green on LocalDB 2019, with `0003` to `0011` scaffolded there
+      separately by EF Core 9 (`0011_Payments` held the `Payments` table alone, with its three foreign keys and
+      four indexes). Failing there, as before and by design: the same eleven tests. The payment, receivables and
+      migration tests (72) ran three times in a row without a failure.
+    - **To do on the personal machine:** `docs/runbook.md` section 8, which now ends with `0011_Payments`.
+    - Not proven anywhere yet: twenty payments recorded at once for one payer, and a recording held open while its
+      key is sent again, on SQL Server 2022; the failure injection at each step there; the 201 answer of an
+      idempotent POST with its Location on ASP.NET Core 10.
+    - Follow-ups for later slices: allocation and `PaymentAllocations` (4.2); reversal, its columns and states
+      (4.5); refunds (4.6); the role that may record (5.3); the daily collection report over
+      `IX_Payments_TenantId_PaymentDate` (6.1).
+    - Next: Prompt 4.2 (allocate a payment to bills).

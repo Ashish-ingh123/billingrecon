@@ -12,9 +12,10 @@ namespace BillingRecon.Application.Receivables;
 public interface IReceivablesLedger
 {
     /// <summary>
-    /// Posts <paramref name="template"/>. Fails with <c>ledger_balance_negative</c>, and writes nothing, when the
-    /// posting would take the balance of a bill, a payment or a credit note below zero (BR-405).
+    /// Posts <paramref name="template"/> and answers the id of the posting, which a document may keep as its link to
+    /// the ledger. Fails with <c>ledger_balance_negative</c>, and writes nothing, when the posting would take the
+    /// balance of a bill, a payment or a credit note below zero (BR-405).
     /// </summary>
     /// <exception cref="ArgumentException">The template is not a valid posting: unbalanced, or its lines break BR-403.</exception>
-    public Task<Result> PostAsync(PostingTemplate template, CancellationToken ct);
+    public Task<Result<LedgerPostingId>> PostAsync(PostingTemplate template, CancellationToken ct);
 }

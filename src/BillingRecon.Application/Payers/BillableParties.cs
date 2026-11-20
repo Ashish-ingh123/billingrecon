@@ -8,7 +8,7 @@ namespace BillingRecon.Application.Payers;
 /// bill for any active patient of the tenant: BR-106 asks for one patient and one payer, not for a link between them
 /// (a guarantor has none, and a parent who is a patient themself may pay for a child).
 /// </summary>
-public sealed class BillableParties(IPatientReadService patients, IPayerReadService payers) : IBillableParties
+public sealed class BillableParties(IPatientReadService patients, IPayerReadService payers) : IBillableParties, IActivePayers
 {
     /// <inheritdoc />
     public async Task<Result> EnsureCanBeBilledAsync(PatientId patientId, PayerId payerId, CancellationToken ct)
@@ -26,6 +26,9 @@ public sealed class BillableParties(IPatientReadService patients, IPayerReadServ
 
         return await EnsureCanOweAsync(payerId, ct);
     }
+
+    /// <inheritdoc />
+    public Task<Result> EnsureActiveAsync(PayerId payerId, CancellationToken ct) => EnsureCanOweAsync(payerId, ct);
 
     /// <inheritdoc />
     public async Task<Result> EnsureCanOweAsync(PayerId payerId, CancellationToken ct)
