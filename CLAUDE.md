@@ -173,7 +173,10 @@ src/
                                 LedgerPosting with LedgerEntry, both append-only, PayerBalance and
                                 ReceivablesErrors (Receivables); LedgerPostingId (Common). Since Prompt 3.5
                                 (ADR 0022): Bill.Post and CheckCanPost, the statuses Posted, PartiallyPaid and
-                                Settled, BillPosted, and IHasDocumentNumber (Common).
+                                Settled, BillPosted, and IHasDocumentNumber (Common). Since Prompt 3.6
+                                (ADR 0023): the ApprovalRequest aggregate with its enums and events (Common),
+                                and the bill's PendingApproval status with SubmitForApproval, PostApproved and
+                                ReturnToDraft.
   BillingRecon.Application/     Use cases (command/query handlers as plain classes), FluentValidation validators,
                                 port interfaces (IClock, IUnitOfWork, repositories, INumberSeries,
                                 IIdempotencyStore, ITenantContext, ICurrentUser), DTOs and explicit mappers.
@@ -190,7 +193,9 @@ src/
                                 read service and DTO (Audit). ADR 0020. IReceivablesLedger with PostingTemplate,
                                 IPayerAccounts, IReconciliationQuery with DriftRow (Receivables, ADR 0005).
                                 PostBillHandler, the first posting use case, and PostingTemplate.BillPosted
-                                (Billing, Receivables; ADR 0022).
+                                (Billing, Receivables; ADR 0022). IApprovalRequestRepository and the list of
+                                approval requests (Common); ApproveBillPostingHandler and
+                                RejectBillPostingHandler (Billing; ADR 0023).
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -367,6 +372,12 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
    number-series prefix changes and bill postings at or above a tenant-configured threshold. Maker
    not equal to checker is enforced server-side and by a CHECK constraint; the pending state is
    visible; the checker's approval *is* the posting; both steps are audited.
+   As built for its first case, the bill (ADR 0023): the maker's own request to the document answers
+   202 and opens an `ApprovalRequest`; `approve` and `reject` are POST actions of the document, with
+   their handlers in the document's module; the request is only ever read
+   (`GET /api/v1/approval-requests`). The maker can decide nothing: 403 `approval_checker_is_maker`.
+   Every later maker-checker document follows this shape. The checker's role is checked from
+   Prompt 5.3 on; until then any second user of the tenant can decide.
 
 10. **No hard deletes of financial data** (BR-005, BR-102, BR-105). No `DELETE` statements and no
     `DbSet.Remove` against financial tables; the application login has no DELETE grant on them.
@@ -543,7 +554,9 @@ Prompt 3.4 plan, 2026-11-20; it also builds the append-only guard and names the 
 0021 typed-id foreign keys by convention, a data step written by hand, and two more files with raw SQL
 (Accepted on the owner's decisions of 2026-11-20 for Prompt 3.3).
 0022 posting a bill: the order of its locks, the bill that comes to nothing, and what a posted bill answers
-(Accepted on the owner's decisions of 2026-11-20 for Prompt 3.5; it amends BR-401).
+(Accepted on the owner's decisions of 2026-11-20 for Prompt 3.5; it amends BR-401),
+0023 maker-checker: the approval request, where its decisions live, and what a waiting bill answers (Accepted on
+the owner's decisions of 2026-11-20 for Prompt 3.6).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -885,10 +898,8 @@ Kept here so they survive between sessions. Remove an item when it is done.
     - **Settled by the owner on 2026-11-20, before 3.5 was coded:** BR-401 and identity 2 are amended for a bill
       that comes to nothing; a second posting gets 409 `concurrency_conflict` for a stale version and 409
       `bill_already_posted` for the current one (ADR 0022; item 18).
-    - **Temporary, to be removed by Prompt 3.6:** a bill at or above `Tenant.PostingApprovalThreshold` is refused
-      with 422 `bill_requires_approval` (BR-207). Maker-checker replaces the refusal with the `PendingApproval`
-      state; then `BillingErrors.BillRequiresApproval`, its check in `PostBillHandler`, its tests and its lines in
-      `docs/api.md` section 8.4 go.
+    - **Was temporary, removed by Prompt 3.6 (item 19):** the refusal 422 `bill_requires_approval` for a bill at or
+      above `Tenant.PostingApprovalThreshold`. Such a bill now waits in `PendingApproval` (ADR 0023).
     - **A first draft of 3.3 and 3.5** was written on 2026-11-20 before these decisions and taken out of the
       repository again the same day; the tree was checked to be back at the state of item 14 (same build, format
       and test results in the .NET 9 copy). The draft is parked in `C:\aptran2026\BillingRecon\parked-3.3-3.5-draft`,
@@ -952,7 +963,7 @@ Kept here so they survive between sessions. Remove an item when it is done.
       `PostingTemplate.BillPosted`, the bill identities of the reconciliation, the document number in the audit
       record (`IHasDocumentNumber`), `BillPostingConfiguration`, and their tests.
     - Decided by the owner: see item 15 and ADR 0022. BR-401 is amended in `docs/requirements.md`.
-    - **Temporary (BR-207):** `bill_requires_approval`, see item 15. Prompt 3.6 removes it.
+    - **Was temporary (BR-207):** `bill_requires_approval`. Removed by Prompt 3.6 (item 19).
     - Changed in existing code and tests, each for a stated reason: a posted bill answers `bill_already_posted`
       (409) where every non-draft answered `bill_not_draft` (422), which stays for a voided draft;
       `ReplaceBillLinesHandler` asks the bill (`CheckIsDraft`) instead of comparing the status itself;
@@ -975,4 +986,39 @@ Kept here so they survive between sessions. Remove an item when it is done.
     - Follow-ups for later slices: maker-checker and `PendingApproval` (3.6); `PartiallyPaid` is reached by
       allocations (4.2); the reconciliation endpoint and the gapless check in the report (6.2); role checks
       (Phase 5: bills are posted by TenantAdmin, Supervisor and BillingClerk).
-    - Next: Prompt 3.6.
+    - Next: Prompt 3.6 (item 19).
+19. **Prompt 3.6 (maker-checker approvals, ADR 0023), written 2026-11-20, not built on .NET 10 yet.** The last
+    prompt of Phase 3. Verification is deferred with the rest (item 16).
+    - Built: `ApprovalRequest` (Common) with its repository, read service and `GET /api/v1/approval-requests`; the
+      bill's `PendingApproval` status; `POST /bills/{id}/post` answers 202 and opens a request at or above the
+      threshold; `POST /bills/{id}/approve` (which posts) and `POST /bills/{id}/reject` (which returns the bill to
+      draft); the `ApprovalRequests` table and the index of waiting bills; and their tests.
+    - Decided by the owner with the plan: submit through `post` with 202; approve and reject on the bill; 409
+      `bill_pending_approval` and 403 `approval_checker_is_maker`; the posting checks again at approval;
+      **the role of the checker is left to Prompt 5.3**.
+    - **Differs from the approved plan in one point:** `reject` carries `[Idempotent]` too. The plan said only
+      `approve` would; the convention test asks every POST of a financial controller for a key, and it was not
+      weakened (ADR 0023, point 8).
+    - Decided while building, recorded in ADR 0023: a scope without a user can neither submit nor decide
+      (403 `approval_needs_user`); the events of the request are named `ApprovalRequestOpened`, `...Approved` and
+      `...Rejected`, not as `docs/domain-model.md` first had them; `CK_ApprovalRequests_RejectionHasComment`.
+    - Removed, as items 15 and 18 said: `bill_requires_approval`, its check and its tests. **Two existing tests
+      changed their expectation for it** (`PostBillHandlerTests` and `BillPostingApiTests`: the bill at the
+      threshold waits instead of being refused).
+    - Changed in existing tests: `TenantQueryFilterTests`, `BillsSchemaTests`, `BillsOnSqlServerTests`,
+      `MigrationsTests` and `MigrationsOnSqlServerTests` know the new table, status, index and migration;
+      `TestDoubles.WithId` gives an in-memory aggregate the id the persistence layer would.
+    - **A third configuration for `Bills`:** `BillApprovalConfiguration` holds the index of waiting bills so that it
+      lands in `0010_Approvals`. Merge it into `BillConfiguration` with `BillPostingConfiguration` once the
+      migrations are in the repository.
+    - Pre-checked in the .NET 9 copy: build, format gate, Domain 481 and Application 252 tests green,
+      Architecture 108 green and Integration 910 green on LocalDB 2019, with `0003` to `0010` scaffolded there
+      separately by EF Core 9. Failing there, as before and by design: the same eleven tests. The approval and
+      posting tests (36) ran eight times in a row without a failure.
+    - **To do on the personal machine:** `docs/runbook.md` section 8, which now ends with `0010_Approvals`.
+    - Not proven anywhere yet: two aggregates in one commit on EF Core 10; the races between two checkers on SQL
+      Server 2022; the 202 answer and the optional request body on ASP.NET Core 10.
+    - Follow-ups for later slices: the checker holds Supervisor or TenantAdmin (5.3); every maker-checker document
+      of Phase 4 follows the same shape; pending approvals in the reports (6.1); the checker's inbox screen (7.5).
+    - Next: Phase 4, Prompt 4.1 (record a payment). `phase-2-billing` now holds Phase 2 and all of Phase 3; the
+      owner decides when it is merged.

@@ -32,6 +32,19 @@ internal static class TestDoubles
         return entity;
     }
 
+    /// <summary>
+    /// <paramref name="entity"/> as if it had been added to the unit of work: it carries the id <paramref name="id"/>,
+    /// which in the application only the persistence layer assigns.
+    /// </summary>
+    public static TEntity WithId<TEntity, TId>(this TEntity entity, TId id)
+        where TEntity : Entity<TId>
+        where TId : struct, ITypedId
+    {
+        typeof(Entity<TId>).GetProperty(nameof(Entity<TId>.Id))!.SetValue(entity, id);
+
+        return entity;
+    }
+
     /// <summary>A unit of work whose commit answers <paramref name="outcome"/>, or succeeds.</summary>
     public static IUnitOfWork UnitOfWork(Result? outcome = null)
     {

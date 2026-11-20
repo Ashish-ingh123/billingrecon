@@ -18,7 +18,8 @@ public static class BillingErrors
     public const string BillLineDiscountExceedsAmountCode = "bill_line_discount_exceeds_amount";
     public const string BillLineAmountTooLargeCode = "bill_line_amount_too_large";
     public const string BillHasNoLinesCode = "bill_has_no_lines";
-    public const string BillRequiresApprovalCode = "bill_requires_approval";
+    public const string BillPendingApprovalCode = "bill_pending_approval";
+    public const string BillNotPendingApprovalCode = "bill_not_pending_approval";
     public const string BillAlreadyPostedCode = "bill_already_posted";
 
     /// <summary>No service item with that id exists for the tenant. Another tenant's item gets the same answer.</summary>
@@ -67,13 +68,6 @@ public static class BillingErrors
 
     /// <summary>Posting a draft that has no line: there is nothing to bill (docs/domain-model.md, section 4.4).</summary>
     public static Error BillHasNoLines() => Error.BusinessRule(BillHasNoLinesCode, "A bill needs at least one line to be posted.");
-
-    /// <summary>
-    /// Posting a bill whose total is at or above the amount from which the hospital wants a second person to approve
-    /// (BR-207). Approval is not built yet, so such a bill cannot be posted at all: nothing may go around the rule.
-    /// </summary>
-    public static Error BillRequiresApproval()
-        => Error.BusinessRule(BillRequiresApprovalCode, "The total of this bill is at or above the amount that needs approval by a second person (BR-207), and approvals are not available yet.");
     /// <summary>
     /// Editing, voiding or posting a bill that is posted already (BR-006, BR-209): it has its number and its ledger
     /// entry, and is corrected only by a credit note or an adjustment. A conflict, because the usual cause is a
@@ -81,4 +75,14 @@ public static class BillingErrors
     /// </summary>
     public static Error BillAlreadyPosted()
         => Error.Conflict(BillAlreadyPostedCode, "The bill is posted already and can no longer be changed (BR-006). Correct it with a credit note or an adjustment.");
+    /// <summary>
+    /// Editing, voiding or posting a bill that waits for a second person (BR-207): it is locked until the checker
+    /// approves it, which posts it, or rejects it, which makes it a draft again.
+    /// </summary>
+    public static Error BillPendingApproval()
+        => Error.Conflict(BillPendingApprovalCode, "The bill is waiting for approval and cannot be changed until it is approved or rejected (BR-207).");
+
+    /// <summary>Approving or rejecting a bill that is a draft: nobody has asked for an approval.</summary>
+    public static Error BillNotPendingApproval()
+        => Error.BusinessRule(BillNotPendingApprovalCode, "The bill is not waiting for approval, so there is nothing to approve or reject.");
 }

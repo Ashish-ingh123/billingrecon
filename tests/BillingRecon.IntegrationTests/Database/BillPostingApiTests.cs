@@ -250,8 +250,9 @@ public sealed class BillPostingApiTests(SqlServerFixture sqlServer) : DatabaseTe
     [Theory]
     [InlineData(126.00, false)]
     [InlineData(126.01, true)]
-    public async Task BR207_a_bill_at_or_above_the_approval_threshold_cannot_be_posted_until_approvals_exist(decimal threshold, bool posted)
+    public async Task BR207_a_bill_at_or_above_the_approval_threshold_waits_for_a_second_person_and_one_below_is_posted(decimal threshold, bool posted)
     {
+        // Until Prompt 3.6 the bill at the threshold was refused with 422 bill_requires_approval.
         using var factory = new DatabaseApiFactory(SqlServer);
         var clerk = await NewApiTenantAsync();
         await SetApprovalThresholdAsync(clerk, threshold);
@@ -260,15 +261,21 @@ public sealed class BillPostingApiTests(SqlServerFixture sqlServer) : DatabaseTe
         var draft = await client.CreateBillAsync(NewBill(patient, payer, BillingApi.FreeTextLine("Dressing", 2m, 60m, 5m)));
 
         using var response = await PostAsync(client, draft);
+        var bill = await response.ReadAsAsync<BillDto>();
 
         if (posted)
         {
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
+            bill.Status.ShouldBe(BillStatus.Posted);
         }
         else
         {
-            await response.ShouldBeProblemAsync(HttpStatusCode.UnprocessableEntity, BillingErrors.BillRequiresApprovalCode);
-            await ShouldBeAnUntouchedDraftAsync(client, clerk, draft, payer);
+            response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+            bill.Status.ShouldBe(BillStatus.PendingApproval);
+            bill.Number.ShouldBeNull();
+            (await CountAsync("SELECT COUNT(*) AS [Value] FROM dbo.NumberSeries")).ShouldBe(0, "a bill that waits has taken no number (BR-207)");
+            (await CountAsync("SELECT COUNT(*) AS [Value] FROM dbo.LedgerPostings")).ShouldBe(0);
+            (await BalanceAsync(clerk, payer)).Receivable.ShouldBe(Money.Zero);
         }
 
         await ShouldHaveNoDriftAndAGaplessSeriesAsync(clerk);

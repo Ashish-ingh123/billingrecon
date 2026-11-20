@@ -27,6 +27,12 @@ public static class CommonErrors
     /// <summary>The idempotency key was used before, for a different request (BR-803).</summary>
     public const string IdempotencyKeyReuseCode = "idempotency_key_reuse";
 
+    public const string ApprovalCheckerIsMakerCode = "approval_checker_is_maker";
+
+    public const string ApprovalAlreadyDecidedCode = "approval_already_decided";
+
+    public const string ApprovalNeedsUserCode = "approval_needs_user";
+
     /// <summary>The request has invalid fields; <paramref name="fieldErrors"/> holds the messages per field.</summary>
     public static Error ValidationFailed(IReadOnlyDictionary<string, string[]> fieldErrors)
         => Error.Validation(ValidationFailedCode, "The request is not valid. The errors are listed per field.", fieldErrors);
@@ -59,4 +65,21 @@ public static class CommonErrors
         => Error.BusinessRule(
             IdempotencyKeyReuseCode,
             "This Idempotency-Key was already used for a different request. A key belongs to one operation: generate a new key for a new one, also when you try again after a refusal (BR-803).");
+    /// <summary>
+    /// The user who asked for an action tried to approve or reject it themselves (BR-603). The checker is always a
+    /// different user, whatever the roles.
+    /// </summary>
+    public static Error ApprovalCheckerIsMaker()
+        => Error.Forbidden(ApprovalCheckerIsMakerCode, "You asked for this yourself, so you cannot decide it: a second person has to approve or reject it (BR-603).");
+
+    /// <summary>An approval request that a checker has already approved or rejected: a decision is final (BR-605).</summary>
+    public static Error ApprovalAlreadyDecided()
+        => Error.Conflict(ApprovalAlreadyDecidedCode, "This request has already been decided. Read the document again.");
+
+    /// <summary>
+    /// An action that needs a maker or a checker was asked for without a user. System work cannot ask for an approval
+    /// or give one: both steps belong to a person (BR-603).
+    /// </summary>
+    public static Error ApprovalNeedsUser()
+        => Error.Forbidden(ApprovalNeedsUserCode, "This action needs a signed-in user: an approval is asked for and given by people (BR-603).");
 }

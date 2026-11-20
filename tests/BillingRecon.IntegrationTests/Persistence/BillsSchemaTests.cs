@@ -42,7 +42,7 @@ public sealed class BillsSchemaTests : IDisposable
     [InlineData("[UpdatedByUserId] uniqueidentifier NULL")]
     [InlineData("[RowVersion] rowversion NOT NULL")]
     [InlineData("CONSTRAINT [PK_Bills] PRIMARY KEY ([Id])")]
-    [InlineData("CONSTRAINT [CK_Bills_Status] CHECK ([Status] IN ('Draft', 'Voided', 'Posted', 'PartiallyPaid', 'Settled'))")]
+    [InlineData("CONSTRAINT [CK_Bills_Status] CHECK ([Status] IN ('Draft', 'Voided', 'Posted', 'PartiallyPaid', 'Settled', 'PendingApproval'))")]
     [InlineData("CONSTRAINT [CK_Bills_DueDate] CHECK ([DueDate] >= [BillDate])")]
     [InlineData("CONSTRAINT [CK_Bills_SubTotal] CHECK ([SubTotal] >= 0)")]
     [InlineData("CONSTRAINT [CK_Bills_DiscountTotal] CHECK ([DiscountTotal] >= 0)")]
@@ -130,8 +130,9 @@ public sealed class BillsSchemaTests : IDisposable
             .Where(line => line.Contains(" INDEX [", StringComparison.Ordinal) && (line.Contains("ON [Bills]", StringComparison.Ordinal) || line.Contains("ON [BillLines]", StringComparison.Ordinal)))
             .ToArray();
 
-        // Four for drafts, and since Prompt 3.5 the two filtered unique indexes of the number (BR-801).
-        indexes.Length.ShouldBe(6, string.Join(Environment.NewLine, indexes));
+        // Four for drafts, since Prompt 3.5 the two filtered unique indexes of the number (BR-801), and since Prompt 3.6
+        // the filtered index of the bills that wait for approval (BR-207).
+        indexes.Length.ShouldBe(7, string.Join(Environment.NewLine, indexes));
     }
 
     [Fact]

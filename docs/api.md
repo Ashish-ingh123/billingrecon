@@ -233,12 +233,14 @@ A bill is a draft until it is posted. A draft has no number and no ledger effect
 | `PATCH /api/v1/bills/{id}` | 200, the bill | 400; 404; 409 `concurrency_conflict`, `bill_already_posted`; 422 `bill_not_draft` and the date rules; 428 |
 | `PUT /api/v1/bills/{id}/lines` | 200, the bill | 400; 404 `bill_not_found`, `service_item_not_found`; 409 `concurrency_conflict`, `bill_already_posted`; 422 `bill_not_draft`, `service_item_inactive` and the line rules; 428 |
 | `POST /api/v1/bills/{id}/void` (needs `Idempotency-Key`, section 7) | 200, the bill | 400, also `idempotency_key_missing`; 404; 409 `concurrency_conflict`, `bill_already_posted`; 422 `bill_not_draft`; 428 |
-| `POST /api/v1/bills/{id}/post` (needs `Idempotency-Key`, section 7; no body) | 200, the bill with its number | 400 `idempotency_key_missing`; 404 `bill_not_found`; 409 `concurrency_conflict`, `bill_already_posted`, `idempotency_in_progress`; 422 `bill_not_draft`, `bill_has_no_lines`, `bill_date_too_old`, `bill_date_in_future`, `payer_inactive`, `bill_requires_approval`; 428 |
+| `POST /api/v1/bills/{id}/post` (needs `Idempotency-Key`, section 7; no body) | 200, the bill with its number; **202**, the bill waiting for approval | 400 `idempotency_key_missing`; 403 `approval_needs_user`; 404 `bill_not_found`; 409 `concurrency_conflict`, `bill_already_posted`, `bill_pending_approval`, `idempotency_in_progress`; 422 `bill_not_draft`, `bill_has_no_lines`, `bill_date_too_old`, `bill_date_in_future`, `payer_inactive`; 428 |
+| `POST /api/v1/bills/{id}/approve` (needs `Idempotency-Key`; body optional) | 200, the bill, posted | 400; 403 `approval_checker_is_maker`, `approval_needs_user`; 404; 409 `concurrency_conflict`, `bill_already_posted`; 422 `bill_not_pending_approval`, `bill_not_draft`, `bill_date_too_old`, `payer_inactive`; 428 |
+| `POST /api/v1/bills/{id}/reject` (needs `Idempotency-Key`) | 200, the bill, a draft again | 400 (the comment is required); 403 `approval_checker_is_maker`, `approval_needs_user`; 404; 409 `concurrency_conflict`, `bill_already_posted`; 422 `bill_not_pending_approval`, `bill_not_draft`; 428 |
 
 There is no `DELETE`: it answers 405. A draft that is not wanted is voided.
 
 **A bill**: `id`, `patientId`, `payerId`, `billDate`, `dueDate`, `encounterReference`, `notes`, `status` (`Draft`,
-`Voided`, `Posted`, `PartiallyPaid`, `Settled`), `number`, `fiscalYear` and `postedAtUtc` (all three null until the
+`Voided`, `Posted`, `PartiallyPaid`, `Settled`, `PendingApproval`), `number`, `fiscalYear` and `postedAtUtc` (all three null until the
 bill is posted), `subTotal`, `discountTotal`, `taxTotal`, `total`, `balanceDue`, `voidedAtUtc`, `voidReason`, `lines`,
 `createdAtUtc`, `updatedAtUtc`, `version`. **A line**: `lineNo`, `serviceItemId`, `description`, `quantity`,
 `unitPrice`, `lineAmount`, `discountAmount`, `taxRatePercent`, `taxAmount`, `lineTotal`. **A bill in a list** has
@@ -316,9 +318,23 @@ What a client that posts twice receives:
 | another key later, with the version from before the posting | 409 `concurrency_conflict` |
 | another key later, with the version of the posted bill | 409 `bill_already_posted` |
 
-**Temporary, until approvals exist (Prompt 3.6):** when the hospital has set a posting approval threshold, a bill
-whose total is at or above it cannot be posted at all and answers 422 `bill_requires_approval` (BR-207). A hospital
-without a threshold posts any bill.
+**Approval (maker-checker; US-22, BR-207, BR-603 to BR-606, ADR 0023).** When the hospital has set a posting approval
+threshold and the total of the bill is at or above it, `POST .../post` does not post. It answers **202** with the
+bill in the status `PendingApproval`: no number, no ledger entry, nothing owed yet. A hospital without a threshold
+posts any bill directly. A bill that waits is locked: an edit, a void or another posting answers
+409 `bill_pending_approval`.
+
+A second user then decides, with the version of the waiting bill in `If-Match`:
+
+- `POST .../approve`, body `{ "comment": "..." }` or none: the approval is the posting. The bill comes back
+  `Posted` with its number, and the checker is recorded as the one who posted. The date of the bill and its payer
+  are checked again at that moment.
+- `POST .../reject`, body `{ "comment": "..." }`, the comment required, at most 500 characters: the bill is a
+  draft again and can be corrected, voided or posted once more.
+
+The user who posted the bill can do neither: 403 `approval_checker_is_maker`, whatever their role. A draft that
+nobody submitted answers 422 `bill_not_pending_approval`. Until users and roles exist (Phase 5), any other user of
+the hospital can decide; the rule that the checker is a Supervisor or a TenantAdmin arrives with roles.
 
 ### 8.5 Audit trail (US-43; BR-701 to BR-703, ADR 0020)
 
@@ -329,7 +345,7 @@ change. Nothing here can be created, changed or deleted: any other verb answers 
 |---|---|---|
 | `GET /api/v1/audit-records?entityType=&entityId=&page=&pageSize=` | 200, a page of records, oldest first | 400 when `entityType` or `entityId` is missing, or the page is outside the limits |
 
-`entityType` is `Patient`, `Payer`, `ServiceItem` or `Bill`; `entityId` is the id of that record. Both are required.
+`entityType` is `Patient`, `Payer`, `ServiceItem`, `Bill` or `ApprovalRequest`; `entityId` is the id of that record. Both are required.
 A record of another tenant, like an id nobody has, has an empty trail: 200 with no items, never 404 or 403.
 
 A record:
@@ -341,7 +357,7 @@ A record:
 | `userId` | Who made the change; null for system work |
 | `correlationId` | The `X-Correlation-Id` of the request that made the change (BR-703) |
 | `entityType`, `entityId` | The record that changed |
-| `action` | `Registered`, `Created`, `Drafted`, `Updated`, `HeaderUpdated`, `LinesReplaced`, `Deactivated`, `Reactivated`, `Voided` |
+| `action` | `Registered`, `Created`, `Drafted`, `Updated`, `HeaderUpdated`, `LinesReplaced`, `Deactivated`, `Reactivated`, `Voided`, `Posted`, `SubmittedForApproval`, `ReturnedToDraft`; for an approval request `Opened`, `Approved`, `Rejected` |
 | `before`, `after` | The stored record before and after, as JSON objects; `before` is null for a creation. A bill carries its `Lines` |
 | `reason` | The reason given, for a void; otherwise null |
 | `documentNumber` | Null until documents have numbers |
@@ -349,3 +365,16 @@ A record:
 The members of `before` and `after` are the stored columns, named in PascalCase as the database names them, with
 ids as GUIDs, money as numbers and enums by name; they are not the API's DTOs. A correction that sends exactly what
 is stored changes nothing and writes no record, and the version of the record stays as it was.
+
+### 8.6 Approval requests (BR-605, ADR 0023)
+
+Read-only: the checker's inbox. A request is opened when a document that needs a second person is posted, and
+decided through the document (`.../approve`, `.../reject`); nothing here can be created, changed or deleted.
+
+| Method and path | Success | Failures |
+|---|---|---|
+| `GET /api/v1/approval-requests?status=&documentType=&page=&pageSize=` | 200, a page of requests, oldest first | 400 |
+
+`status` is `Pending` (the default), `Approved` or `Rejected`; `documentType` is `Bill` so far. A request:
+`id`, `documentType`, `documentId`, `action` (`Post`), `status`, `makerUserId`, `makerComment`, `checkerUserId`,
+`checkerComment`, `requestedAtUtc`, `decidedAtUtc`. The last three of the checker are null while it is pending.

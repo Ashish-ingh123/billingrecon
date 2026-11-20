@@ -1,5 +1,6 @@
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Identity;
+using BillingRecon.Infrastructure.Common.Approvals;
 using BillingRecon.Infrastructure.Common.Health;
 using BillingRecon.Infrastructure.Common.Idempotency;
 using BillingRecon.Infrastructure.Common.Logging;
@@ -106,6 +107,10 @@ public static class InfrastructureServiceCollectionExtensions
 
         // Gapless document numbers, taken in the transaction this unit of work commits (BR-801, ADR 0008).
         services.AddScoped<INumberSeries, NumberSeriesAllocator>();
+
+        // Approval requests: opened and decided by the use cases of their documents, listed for the checker (BR-604, BR-605).
+        services.AddScoped<IApprovalRequestRepository, ApprovalRequestRepository>();
+        services.AddScoped<IApprovalRequestReadService, ApprovalRequestReadService>();
 
         // The settings of the current tenant, for the use cases of every module (BR-205, BR-607).
         services.AddScoped<ITenantSettingsReader, TenantSettingsReader>();

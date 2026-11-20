@@ -271,8 +271,9 @@ sets it:
   `CK_Bills_NumberParts` (the three parts of the number are all there or all absent, and a bill without a number
   has no poster). `CK_Bills_Status` lists `Draft`, `Voided`, `Posted`, `PartiallyPaid` and `Settled` from
   `0004_Bills` on, because it is generated from the enum and both migrations were scaffolded after the enum grew.
-- *Not yet:* the status `PendingApproval` and its filtered index (Prompt 3.6). `CK_Bills_NumberIffPosted` names
-  that status already, so maker-checker does not have to replace the constraint.
+- *Added by migration `0010_Approvals` (Prompt 3.6, ADR 0023):* the filtered index of the bills that wait,
+  `IX_Bills_TenantId_Status WHERE Status = 'PendingApproval'`. The status itself is in `CK_Bills_Status` from
+  `0004_Bills` on, for the reason given above, and `CK_Bills_NumberIffPosted` named it already.
 - `UpdatedAtUtc` is not set by the aggregate: when only lines changed, the unit of work marks it as modified, the
   audit stamp writes it, and the UPDATE checks and advances `RowVersion` (ADR 0019).
 
@@ -439,6 +440,13 @@ reconciliation query in §5.6 also detects a violation.
 | DecidedAtUtc | datetimeoffset(3) | • | |
 | CorrelationId | uniqueidentifier | | of the request that opened it |
 | RowVersion | rowversion | | |
+
+**Built 2026-11-20 (Prompt 3.6, ADR 0023; migration `0010_Approvals`), as above with these precisions.**
+`CK_ApprovalRequests_CheckerIsNotMaker` is the check on the checker. The rule of the status is written as two
+alternatives, `CK_ApprovalRequests_Decided`: pending with no checker and no decision instant, or decided with both.
+`CK_ApprovalRequests_RejectionHasComment` adds that a rejected request has the checker's comment (BR-605).
+`MakerUserId` and `CheckerUserId` have no foreign key until `Users` exists (Prompt 5.1). The first document type in
+use is `Bill` with the action `Post`; the other values of the two CHECK constraints are there for Phase 4.
 
 **NumberSeries** (BR-801, BR-802, ADR 0008)
 
@@ -907,7 +915,7 @@ update of an append-only table (CLAUDE.md, section 9).
   | `0007_Audit` | `AuditRecords` (§3.8) | Written 2026-11-20 (Prompt 3.4, ADR 0020). **To be scaffolded with EF Core 10 on the personal machine, after `0006_IdempotencyKeys` and separately from it** (`docs/runbook.md` §8), under exactly this name. Scaffolded that way with EF Core 9 in the throwaway copy: it held `AuditRecords` alone, and the database tests passed on LocalDB 2019. The build prompts first had this as `0008_Audit`; Prompt 3.4 was built before 3.3, so the numbers follow the order of application. |
   | `0008_Receivables` | `LedgerPostings`, `LedgerEntries`, `PayerBalances` (§3.7), and one data statement | Written 2026-11-20 (Prompt 3.3, ADR 0021). **To be scaffolded with EF Core 10 on the personal machine, after `0007_Audit`, and then completed by hand**: the statement that opens the balances of every payer that already exists is pasted at the end of `Up()` (`docs/runbook.md` §8 has the line; `MigrationsTests` fails without it). Scaffolded and completed that way with EF Core 9 in the throwaway copy: it held the three tables alone, and the database tests passed on LocalDB 2019. |
   | `0009_BillPosting` | The number, fiscal year, sequence number and posted stamps of `Bills` and their constraints and indexes (§3.3) | Written 2026-11-20 (Prompt 3.5, ADR 0022). **To be scaffolded with EF Core 10 on the personal machine, after `0008_Receivables`** (`docs/runbook.md` §8), with `BillPostingConfiguration.cs` moved out of the project until then, so that `0004_Bills` creates the table without these columns. Scaffolded that way with EF Core 9 in the throwaway copy: `0004` held no column of posting, `0009` added five columns, two indexes and three constraints, and the database tests passed on LocalDB 2019. |
-  | `0010_Approvals` | `ApprovalRequests` (§3.6) | Prompt 3.6. Not started. |
+  | `0010_Approvals` | `ApprovalRequests` (§3.6) and the filtered index of the bills that wait (§3.3) | Written 2026-11-20 (Prompt 3.6, ADR 0023). **To be scaffolded with EF Core 10 on the personal machine, after `0009_BillPosting`** (`docs/runbook.md` §8), with `ApprovalRequestConfiguration.cs` and `BillApprovalConfiguration.cs` moved out of the project until then. Scaffolded that way with EF Core 9 in the throwaway copy: it held the table and the one index, neither `0004` nor `0009` held that index, and the database tests passed on LocalDB 2019. |
   | `0011_Payments`, `0012_CreditNotes`, `0013_Adjustments`, `0014_Refunds` | §3.4, §3.3, §3.5 | Prompts 4.1, 4.3, 4.4, 4.6. Not started. |
   | `0015_Users` | `Users`, `Roles` (§3.1) | Prompt 5.1. Not started. |
 

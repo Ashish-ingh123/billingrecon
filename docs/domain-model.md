@@ -163,7 +163,9 @@ State machine: §5.
 above:
 
 - **States:** `Draft`, `Voided`, and since Prompt 3.5 `Posted` and `Settled` (a bill that comes to nothing is settled
-  the moment it is posted); `PartiallyPaid` exists and nothing reaches it yet; `PendingApproval` comes with 3.6.
+  the moment it is posted); `PartiallyPaid` exists and nothing reaches it yet; since Prompt 3.6 `PendingApproval`, for a bill at or above the
+  threshold of the tenant: `SubmitForApproval`, then `PostApproved` (the checker's approval) or `ReturnToDraft` (the
+  rejection); a bill that waits answers `bill_pending_approval` (409) to every other command (ADR 0023).
   Every mutating method refuses unless the bill is a draft: a voided draft with `bill_not_draft` (422), a posted bill
   with `bill_already_posted` (409). `Post(number, postedAtUtc, postedBy, window)` sets the number, the fiscal year,
   the sequence number and the posted stamps and raises `BillPosted`; `CheckCanPost(window)` lets the use case ask
@@ -241,11 +243,19 @@ above:
 | **Fields** | `DocumentType`, `DocumentId`, `Action` (`Post`, `Reverse`, `ChangePrefix`), `MakerUserId`, `MakerComment?`, `CheckerUserId?`, `CheckerComment?`, `Status` (`Pending`, `Approved`, `Rejected`), `RequestedAtUtc`, `DecidedAtUtc?`, `CorrelationId` |
 | **Commands** | `Open(maker)`, `Approve(checker)`, `Reject(checker, comment)` |
 | **Invariants** | `CheckerUserId ≠ MakerUserId` (BR-603; also a CHECK constraint). Checker holds Supervisor or TenantAdmin (checked by the use case from `ICurrentUser`). One pending request per document (BR-605; filtered unique index). Decision is final. |
-| **Events** | `ApprovalRequested`, `ApprovalGranted`, `ApprovalRejected` |
+| **Events** | `ApprovalRequestOpened`, `ApprovalRequestApproved`, `ApprovalRequestRejected` (first planned as `ApprovalRequested`, `ApprovalGranted`, `ApprovalRejected`; ADR 0023) |
 
 The approval use case (`ApproveRequestHandler`) loads the request and the target document, calls the
 document's `Post`/`Reverse`, and commits everything in one transaction (BR-606). The request itself
 never carries financial data.
+
+*Built 2026-11-20 (Prompt 3.6, ADR 0023).* The commands are `Open`, `Approve(checker, comment?, at)` and
+`Reject(checker, comment, at)`; a decision by the maker fails with `approval_checker_is_maker` (403) and a second
+decision with `approval_already_decided` (409). The events are named `ApprovalRequestOpened`,
+`ApprovalRequestApproved` and `ApprovalRequestRejected`, so that the audit trail derives `Opened`, `Approved` and
+`Rejected` from them (ADR 0020). There is no generic `ApproveRequestHandler`: the first use is the bill, with
+`ApproveBillPostingHandler` and `RejectBillPostingHandler` in Billing, and each later document brings its own. The
+check that the checker holds Supervisor or TenantAdmin waits for roles (Prompt 5.3).
 
 ### 4.10 LedgerPosting + LedgerEntry, PayerBalance (Receivables module)
 
@@ -470,7 +480,7 @@ and no broker in R1 (CLAUDE.md §2); R5 may add an outbox for external integrati
 | `PaymentReversed` | `Payment` | reason, reversed allocations | Audit |
 | `RefundPosted` | `Refund` | number, source, amount | Audit |
 | `AdjustmentPosted` | `Adjustment` | number, bill, kind, amount | Audit |
-| `ApprovalRequested`, `ApprovalGranted`, `ApprovalRejected` | `ApprovalRequest` | document, maker, checker, comment | Audit |
+| `ApprovalRequestOpened`, `ApprovalRequestApproved`, `ApprovalRequestRejected` | `ApprovalRequest` | document, maker, checker, comment | Audit |
 | `NumberSeriesPrefixChanged` | `NumberSeries` | old and new prefix | Audit |
 | `TenantSettingsChanged`, `UserCreated`, `UserRolesChanged`, `UserDisabled` | `Tenant`, `User` | before and after | Audit |
 

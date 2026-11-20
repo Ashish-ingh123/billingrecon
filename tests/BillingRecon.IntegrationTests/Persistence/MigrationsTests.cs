@@ -248,7 +248,42 @@ public sealed class MigrationsTests : IDisposable
         createBills.ShouldNotContain("[Number]");
         createBills.ShouldNotContain("[PostedAtUtc]");
         createBills.ShouldNotContain("CK_Bills_NumberIffPosted");
-        createBills.ShouldContain("CONSTRAINT [CK_Bills_Status] CHECK ([Status] IN ('Draft', 'Voided', 'Posted', 'PartiallyPaid', 'Settled'))", Case.Sensitive);
+        createBills.ShouldContain("CONSTRAINT [CK_Bills_Status] CHECK ([Status] IN ('Draft', 'Voided', 'Posted', 'PartiallyPaid', 'Settled', 'PendingApproval'))", Case.Sensitive);
+    }
+
+    [Fact]
+    public void The_tenth_migration_is_0010_Approvals()
+    {
+        var migrations = _context.Database.GetMigrations().ToArray();
+
+        migrations.Length.ShouldBeGreaterThanOrEqualTo(10, $"The Approvals migration is missing. {HowToAdd.Replace("<name>", "0010_Approvals", StringComparison.Ordinal)}");
+        migrations[9].ShouldEndWith("_0010_Approvals");
+    }
+
+    [Fact]
+    public void The_migrations_create_the_approval_requests_table_as_documented()
+    {
+        var script = _context.GetService<IMigrator>().GenerateScript();
+
+        script.ShouldContain("CREATE TABLE [ApprovalRequests]", customMessage: $"The migrations do not create the ApprovalRequests table. {HowToAdd}");
+        script.ShouldContain("[DocumentType] varchar(30) NOT NULL", Case.Sensitive);
+        script.ShouldContain("[Action] varchar(30) NOT NULL", Case.Sensitive);
+        script.ShouldContain("[MakerUserId] uniqueidentifier NOT NULL", Case.Sensitive);
+        script.ShouldContain("[MakerComment] nvarchar(500) NULL", Case.Sensitive);
+        script.ShouldContain("[CheckerUserId] uniqueidentifier NULL", Case.Sensitive);
+        script.ShouldContain("[CheckerComment] nvarchar(500) NULL", Case.Sensitive);
+        script.ShouldContain("[RequestedAtUtc] datetimeoffset(3) NOT NULL", Case.Sensitive);
+        script.ShouldContain("[DecidedAtUtc] datetimeoffset(3) NULL", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [CK_ApprovalRequests_CheckerIsNotMaker] CHECK ([CheckerUserId] IS NULL OR [CheckerUserId] <> [MakerUserId])", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [CK_ApprovalRequests_Decided] CHECK (([Status] = 'Pending' AND [CheckerUserId] IS NULL AND [DecidedAtUtc] IS NULL) OR ([Status] <> 'Pending' AND [CheckerUserId] IS NOT NULL AND [DecidedAtUtc] IS NOT NULL))", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [CK_ApprovalRequests_RejectionHasComment] CHECK ([Status] <> 'Rejected' OR [CheckerComment] IS NOT NULL)", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [CK_ApprovalRequests_Status] CHECK ([Status] IN ('Pending', 'Approved', 'Rejected'))", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [CK_ApprovalRequests_Action] CHECK ([Action] IN ('Post', 'Reverse', 'ChangePrefix'))", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [CK_ApprovalRequests_DocumentType] CHECK ([DocumentType] IN ('Bill', 'CreditNote', 'Adjustment', 'Refund', 'Payment', 'PaymentAllocation', 'CreditNoteAllocation', 'NumberSeries'))", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [FK_ApprovalRequests_TenantId] FOREIGN KEY ([TenantId]) REFERENCES [Tenants] ([Id])", Case.Sensitive);
+        script.ShouldContain("CREATE UNIQUE INDEX [UX_ApprovalRequests_TenantId_DocumentType_DocumentId] ON [ApprovalRequests] ([TenantId], [DocumentType], [DocumentId]) WHERE [Status] = 'Pending'", Case.Sensitive);
+        script.ShouldContain("CREATE INDEX [IX_ApprovalRequests_TenantId_Status_RequestedAtUtc] ON [ApprovalRequests] ([TenantId], [Status], [RequestedAtUtc])", Case.Sensitive);
+        script.ShouldContain("CREATE INDEX [IX_Bills_TenantId_Status] ON [Bills] ([TenantId], [Status]) WHERE [Status] = 'PendingApproval'", Case.Sensitive);
     }
 
     [Fact]
@@ -260,7 +295,7 @@ public sealed class MigrationsTests : IDisposable
         script.ShouldContain("CREATE TABLE [BillLines]", customMessage: $"The migrations do not create the BillLines table. {HowToAdd}");
         script.ShouldContain("[Total] decimal(18,2) NOT NULL", Case.Sensitive);
         script.ShouldContain("[Quantity] decimal(9,3) NOT NULL", Case.Sensitive);
-        script.ShouldContain("CONSTRAINT [CK_Bills_Status] CHECK ([Status] IN ('Draft', 'Voided', 'Posted', 'PartiallyPaid', 'Settled'))", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [CK_Bills_Status] CHECK ([Status] IN ('Draft', 'Voided', 'Posted', 'PartiallyPaid', 'Settled', 'PendingApproval'))", Case.Sensitive);
         script.ShouldContain("CONSTRAINT [CK_Bills_Total] CHECK ([Total] >= 0 AND [Total] = [SubTotal] - [DiscountTotal] + [TaxTotal])", Case.Sensitive);
         script.ShouldContain("CONSTRAINT [CK_Bills_BalanceDue] CHECK ([BalanceDue] BETWEEN 0 AND [Total])", Case.Sensitive);
         script.ShouldContain("CONSTRAINT [CK_BillLines_LineTotal] CHECK ([LineTotal] = [LineAmount] - [DiscountAmount] + [TaxAmount])", Case.Sensitive);

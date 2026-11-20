@@ -305,6 +305,94 @@ public sealed class Bill : AggregateRoot<BillId>, ITenantScoped, ICreationAudite
             return allowed;
         }
 
+        Record(number, postedAtUtc, postedBy);
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Hands a draft over to a second person, because its total is at or above the threshold of the tenant (BR-207).
+    /// The rules of <see cref="CheckCanPost"/> apply: only a bill that could be posted is submitted. The bill is
+    /// locked from here on, keeps no number, and has no ledger effect until the checker approves.
+    /// </summary>
+    public Result SubmitForApproval(BusinessDateWindow window)
+    {
+        var allowed = CheckCanPost(window);
+        if (allowed.IsFailure)
+        {
+            return allowed;
+        }
+
+        Status = BillStatus.PendingApproval;
+        AddDomainEvent(new BillSubmittedForApproval(Id, PayerId, Total));
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Whether the checker can approve the bill today (BR-606): it waits for approval, and its bill date still lies
+    /// in <paramref name="window"/>, which is checked again because a bill may have waited (BR-205). The use case asks
+    /// before it takes the number.
+    /// </summary>
+    public Result CheckCanApprove(BusinessDateWindow window)
+    {
+        if (RefuseUnlessPending() is { } refused)
+        {
+            return refused;
+        }
+
+        if (BillDate > window.Latest)
+        {
+            return BillingErrors.BillDateInFuture();
+        }
+
+        return BillDate < window.Earliest ? BillingErrors.BillDateTooOld(window.Earliest) : Result.Success();
+    }
+
+    /// <summary>
+    /// Posts a bill that waited for approval, under <paramref name="number"/> (BR-606): the checker's approval is the
+    /// posting. What <see cref="Post"/> does for a draft, for a bill that <see cref="CheckCanApprove"/> accepts;
+    /// <paramref name="postedBy"/> is the checker.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="number"/> is not a bill number of the fiscal year of the bill date.</exception>
+    public Result PostApproved(DocumentNumber number, DateTimeOffset postedAtUtc, UserId? postedBy, BusinessDateWindow window)
+    {
+        ArgumentNullException.ThrowIfNull(number);
+
+        var allowed = CheckCanApprove(window);
+        if (allowed.IsFailure)
+        {
+            return allowed;
+        }
+
+        Record(number, postedAtUtc, postedBy);
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// The checker rejected the bill (BR-605): it is a draft again, as it was before it was submitted, and can be
+    /// corrected, voided or submitted once more.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="reason"/> is blank or longer than <see cref="VoidReasonMaxLength"/>.</exception>
+    public Result ReturnToDraft(string reason)
+    {
+        var why = Field.Required(reason, VoidReasonMaxLength);
+
+        if (RefuseUnlessPending() is { } refused)
+        {
+            return refused;
+        }
+
+        Status = BillStatus.Draft;
+        AddDomainEvent(new BillReturnedToDraft(Id, why));
+
+        return Result.Success();
+    }
+
+    // What posting writes, for a draft and for an approved bill alike (BR-206).
+    private void Record(DocumentNumber number, DateTimeOffset postedAtUtc, UserId? postedBy)
+    {
         if (number.Type != DocumentType.Bill || number.FiscalYear != Common.FiscalYear.FromDate(BillDate))
         {
             throw new ArgumentException("A bill is posted under a bill number of the fiscal year of its bill date (BR-206).", nameof(number));
@@ -318,8 +406,6 @@ public sealed class Bill : AggregateRoot<BillId>, ITenantScoped, ICreationAudite
         BalanceDue = Total;
         Status = Total.IsZero ? BillStatus.Settled : BillStatus.Posted;
         AddDomainEvent(new BillPosted(Id, number.Value, PayerId, Total, BillDate));
-
-        return Result.Success();
     }
 
     /// <summary>
@@ -328,11 +414,21 @@ public sealed class Bill : AggregateRoot<BillId>, ITenantScoped, ICreationAudite
     /// </summary>
     public Result CheckIsDraft() => RefuseUnlessDraft() is { } refused ? refused : Result.Success();
 
-    // Only a draft changes. A voided draft and a posted bill both refuse, with different answers: a posted bill is
-    // frozen for good (BR-006), and the client is told that it is posted, not merely that it is no draft.
+    // Only a draft changes. A voided draft, a bill that waits for approval and a posted bill all refuse, each with its
+    // own answer: a posted bill is frozen for good (BR-006), a waiting one until the checker decides (BR-207).
     private Error? RefuseUnlessDraft() => Status switch
     {
         BillStatus.Draft => null,
+        BillStatus.Voided => BillingErrors.BillNotDraft(),
+        BillStatus.PendingApproval => BillingErrors.BillPendingApproval(),
+        _ => BillingErrors.BillAlreadyPosted(),
+    };
+
+    // Only a bill that waits is approved or rejected.
+    private Error? RefuseUnlessPending() => Status switch
+    {
+        BillStatus.PendingApproval => null,
+        BillStatus.Draft => BillingErrors.BillNotPendingApproval(),
         BillStatus.Voided => BillingErrors.BillNotDraft(),
         _ => BillingErrors.BillAlreadyPosted(),
     };

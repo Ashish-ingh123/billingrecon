@@ -17,9 +17,10 @@ is left; their numbering is mine, not the blueprint's.
 | 2.3, 2.4, 3.1, 3.2 and 3.4 (service catalogue, bill drafts, number series, idempotency, event dispatch and audit) | Written on 2026-11-20 on top of the uncommitted 2.2, each pre-checked on .NET 9 with LocalDB only; **not built on .NET 10, not committed**; migrations `0003` to `0007` still to be scaffolded (CLAUDE.md section 9, items 9 to 14) |
 | 3.3 Receivables ledger | Written on 2026-11-20 after 3.4, with the owner's decisions (ADR 0005 built note, ADR 0021); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0008_Receivables` still to be scaffolded and completed by hand (`docs/runbook.md` section 8) |
 | 3.5 Post a bill | Written on 2026-11-20 with the owner's decisions (ADR 0022); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0009_BillPosting` still to be scaffolded (`docs/runbook.md` section 8) |
+| 3.6 Maker-checker approvals | Written on 2026-11-20 with the owner's decisions (ADR 0023); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0010_Approvals` still to be scaffolded (`docs/runbook.md` section 8). The role of the checker is left to 5.3 |
 | Everything else in R1 | Not started: approvals, payments, credit notes, adjustments, refunds, users and JWT, reports, frontend, delivery |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile 2.2 to 3.4 are committed unverified, one commit per prompt. Next prompt: 3.6 (maker-checker), which also removes the temporary refusal `bill_requires_approval`. The owner's decisions for both are recorded under each prompt below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile 2.2 to 3.4 are committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6). Next prompt: 4.1 (record a payment). The owner's decisions for both are recorded under each prompt below.**
 
 ## How to use these prompts
 

@@ -8,27 +8,34 @@ using BillingRecon.Domain.Common;
 namespace BillingRecon.Application.Billing;
 
 /// <summary>
-/// Posts a draft bill (US-21, US-25; BR-206, BR-006, BR-007). Everything that can refuse the posting is asked first:
-/// the version the client read (BR-804), the bill itself (a draft, with a line, whose date is still allowed today,
-/// BR-205), its payer (active, BR-105) and the tenant's approval threshold (BR-207). Only then is the number taken,
-/// so a refusal never touches the series (BR-801). After that, in this order and in one transaction: the bill is
-/// posted under the number, the ledger gets Dr Receivable(bill) / Cr Revenue and the payer's balance moves, and the
-/// commit saves all of it with the audit record. If anything fails, the number goes back with the rest.
+/// Posts a draft bill (US-21, US-22, US-25; BR-206, BR-207, BR-006, BR-007). Everything that can refuse the posting is
+/// asked first: the version the client read (BR-804), the bill itself (a draft, with a line, whose date is still
+/// allowed today, BR-205) and its payer (active, BR-105). Then the tenant's threshold decides which of two things
+/// happens.
 /// <para>
-/// Lock order (ADR 0022): the number series, then the balances of the payer, both before the save; the row of the
-/// bill is written by the save, under its row version. A second posting of the same bill waits
-/// on the series and then loses on the row version of the bill: 409, and its number is rolled back.
+/// <b>Below the threshold, or no threshold:</b> the number is taken, so a refusal never touches the series (BR-801),
+/// and in this order and in one transaction the bill is posted under the number, the ledger gets Dr Receivable(bill) /
+/// Cr Revenue and the payer's balance moves, and the commit saves all of it with the audit record. If anything fails,
+/// the number goes back with the rest. Lock order (ADR 0022): the number series, then the balances of the payer, both
+/// before the save; the row of the bill is written by the save, under its row version.
 /// </para>
 /// <para>
-/// A bill at or above the threshold is refused with <c>bill_requires_approval</c> until maker-checker exists
-/// (Prompt 3.6); a bill that comes to nothing is settled at once and has no ledger posting, because a line of zero
-/// is not an entry (ADR 0022).
+/// <b>At or above the threshold:</b> nothing is posted. The bill is handed to a second person: it becomes
+/// <c>PendingApproval</c>, and an approval request with the current user as its maker is opened in the same commit
+/// (BR-207, BR-604). No number, no ledger entry, no balance: the checker's approval is the posting (BR-606,
+/// <see cref="ApproveBillPostingHandler"/>).
+/// </para>
+/// <para>
+/// A bill that comes to nothing is settled at once and has no ledger posting, because a line of zero is not an entry
+/// (ADR 0022).
 /// </para>
 /// </summary>
 public sealed class PostBillHandler(
     IClock clock,
     ICurrentUser currentUser,
+    ICorrelationContext correlation,
     IBillRepository repository,
+    IApprovalRequestRepository approvals,
     ITenantSettingsReader tenantSettings,
     IBillableParties parties,
     INumberSeries numbers,
@@ -70,7 +77,7 @@ public sealed class PostBillHandler(
 
         if (settings.PostingApprovalThreshold is { } threshold && bill.Total >= threshold)
         {
-            return BillingErrors.BillRequiresApproval();
+            return await SubmitAsync(bill, window, now, ct);
         }
 
         // Last, after every check: from here on the series of the fiscal year is locked until the commit (BR-801).
@@ -90,6 +97,27 @@ public sealed class PostBillHandler(
                 return entered.Error;
             }
         }
+
+        var committed = await unitOfWork.CommitAsync(ct);
+
+        return committed.IsSuccess ? bill.ToDto() : committed.Error;
+    }
+
+    // The maker's half of maker-checker: the bill waits, and the request says who asked (BR-207, BR-604).
+    private async Task<Result<BillDto>> SubmitAsync(Bill bill, BusinessDateWindow window, DateTimeOffset now, CancellationToken ct)
+    {
+        if (currentUser.UserId is not { } maker)
+        {
+            return CommonErrors.ApprovalNeedsUser();
+        }
+
+        var submitted = bill.SubmitForApproval(window);
+        if (submitted.IsFailure)
+        {
+            return submitted.Error;
+        }
+
+        approvals.Add(ApprovalRequest.Open(ApprovalDocumentType.Bill, bill.Id.Value, ApprovalAction.Post, maker, makerComment: null, now, correlation.CorrelationId));
 
         var committed = await unitOfWork.CommitAsync(ct);
 

@@ -25,6 +25,7 @@ public sealed class PostBillHandlerTests
     private static readonly PayerId Payer = new(Guid.NewGuid());
     private static readonly UserId Clerk = new(Guid.NewGuid());
     private static readonly BillId Id = new(Guid.NewGuid());
+    private static readonly Guid Correlation = Guid.NewGuid();
     private static readonly FiscalYear Fy = FiscalYear.FromDate(TestDoubles.Today);
 
     private readonly IBillableParties _parties = Substitute.For<IBillableParties>();
@@ -33,6 +34,8 @@ public sealed class PostBillHandlerTests
     private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
     private readonly INumberSeries _numbers = Substitute.For<INumberSeries>();
     private readonly IReceivablesLedger _ledger = Substitute.For<IReceivablesLedger>();
+    private readonly IApprovalRequestRepository _approvals = Substitute.For<IApprovalRequestRepository>();
+    private readonly ICorrelationContext _correlation = Substitute.For<ICorrelationContext>();
     private readonly IClock _clock = TestDoubles.ClockAt(TestDoubles.Today);
     private IUnitOfWork _unitOfWork = TestDoubles.UnitOfWork();
 
@@ -42,6 +45,7 @@ public sealed class PostBillHandlerTests
         _parties.EnsureCanOweAsync(Payer, Arg.Any<CancellationToken>()).Returns(Result.Success());
         _settings.GetDocumentSettingsAsync(Arg.Any<CancellationToken>()).Returns(new TenantDocumentSettings(MaxBackdateDays: 7, DefaultDueDays: 15));
         _currentUser.UserId.Returns(Clerk);
+        _correlation.CorrelationId.Returns(Correlation);
         _numbers.NextAsync(DocumentType.Bill, Fy, Arg.Any<CancellationToken>()).Returns(DocumentNumber.Create(DocumentType.Bill, Fy, "BIL", 42));
         _ledger.PostAsync(Arg.Any<PostingTemplate>(), Arg.Any<CancellationToken>()).Returns(Result.Success());
     }
@@ -184,21 +188,55 @@ public sealed class PostBillHandlerTests
     [InlineData(126.00, false)]
     [InlineData(125.99, false)]
     [InlineData(126.01, true)]
-    public async Task BR207_a_bill_at_or_above_the_approval_threshold_is_refused_until_approvals_exist(decimal threshold, bool posted)
+    public async Task BR207_a_bill_at_or_above_the_approval_threshold_is_handed_to_a_second_person_and_not_posted(decimal threshold, bool posted)
     {
-        Saved(Draft(FreeText()));
+        // Until Prompt 3.6 such a bill was refused with bill_requires_approval; maker-checker replaces the refusal.
+        var bill = Saved(Draft(FreeText()));
+        ApprovalRequest? opened = null;
+        _approvals.Add(Arg.Do<ApprovalRequest>(request => opened = request));
         _settings.GetDocumentSettingsAsync(Arg.Any<CancellationToken>())
             .Returns(new TenantDocumentSettings(MaxBackdateDays: 7, DefaultDueDays: 15, PostingApprovalThreshold: Money.Of(threshold)));
 
         var result = await Handler().HandleAsync(new PostBillCommand(Id, Version(CurrentVersion)), CancellationToken.None);
 
-        result.IsSuccess.ShouldBe(posted);
-        if (!posted)
+        result.IsSuccess.ShouldBeTrue();
+        if (posted)
         {
-            result.Error.Code.ShouldBe(BillingErrors.BillRequiresApprovalCode);
-            result.Error.Kind.ShouldBe(ErrorKind.BusinessRule);
-            await NothingWasTakenOrWrittenAsync();
+            result.Value.Status.ShouldBe(BillStatus.Posted);
+            opened.ShouldBeNull();
+
+            return;
         }
+
+        result.Value.Status.ShouldBe(BillStatus.PendingApproval);
+        result.Value.Number.ShouldBeNull("the number is assigned when the checker approves (BR-207)");
+        result.Value.PostedAtUtc.ShouldBeNull();
+        var request = opened.ShouldNotBeNull();
+        request.DocumentType.ShouldBe(ApprovalDocumentType.Bill);
+        request.DocumentId.ShouldBe(bill.Id.Value);
+        request.Action.ShouldBe(ApprovalAction.Post);
+        request.MakerUserId.ShouldBe(Clerk);
+        request.Status.ShouldBe(ApprovalStatus.Pending);
+        request.CorrelationId.ShouldBe(Correlation);
+        await _numbers.DidNotReceiveWithAnyArgs().NextAsync(default, default, default);
+        await _ledger.DidNotReceiveWithAnyArgs().PostAsync(default!, default);
+        await _unitOfWork.Received(1).CommitAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task BR603_a_bill_that_needs_approval_cannot_be_submitted_without_a_user()
+    {
+        Saved(Draft(FreeText()));
+        _currentUser.UserId.Returns((UserId?)null);
+        _settings.GetDocumentSettingsAsync(Arg.Any<CancellationToken>())
+            .Returns(new TenantDocumentSettings(MaxBackdateDays: 7, DefaultDueDays: 15, PostingApprovalThreshold: Money.Of(1m)));
+
+        var result = await Handler().HandleAsync(new PostBillCommand(Id, Version(CurrentVersion)), CancellationToken.None);
+
+        result.Error.Code.ShouldBe(CommonErrors.ApprovalNeedsUserCode);
+        result.Error.Kind.ShouldBe(ErrorKind.Forbidden);
+        _approvals.DidNotReceiveWithAnyArgs().Add(default!);
+        await NothingWasTakenOrWrittenAsync();
     }
 
     [Fact]
@@ -244,11 +282,11 @@ public sealed class PostBillHandlerTests
         await _unitOfWork.DidNotReceiveWithAnyArgs().CommitAsync(default);
     }
 
-    private PostBillHandler Handler() => new(_clock, _currentUser, _repository, _settings, _parties, _numbers, _ledger, _unitOfWork);
+    private PostBillHandler Handler() => new(_clock, _currentUser, _correlation, _repository, _approvals, _settings, _parties, _numbers, _ledger, _unitOfWork);
 
     private Bill Saved(Bill bill)
     {
-        bill.Saved(CurrentVersion);
+        bill.Saved(CurrentVersion).WithId(Id);
         _repository.GetAsync(Id, Arg.Any<CancellationToken>()).Returns(bill);
 
         return bill;
