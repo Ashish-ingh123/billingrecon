@@ -108,7 +108,9 @@ SDK from `global.json`, and ports 1433 and 5341 free.
    ```
 
 6. **Run the API.** It should start and log JSON lines to the console. In Development it creates the
-   `BillingRecon` database on first start and applies the migrations (one line says so).
+   `BillingRecon` database on first start and applies the migrations (one line says so), then adds the
+   row of the development tenant of `appsettings.Development.json` if it is missing (another line says
+   so), which every patient and payer saved in Development refers to.
 
    ```bash
    dotnet run --project src/BillingRecon.Api
@@ -189,13 +191,44 @@ read its configuration. Run every command from the repository root.
 **Add a migration** (no database needed). Names are `NNNN_<Slice>`, the next free number first:
 
 ```bash
-dotnet ef migrations add 0001_Tenants --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
+dotnet ef migrations add 0003_ServiceItems --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
 ```
 
-Then build and run the tests: three of them check that the first migration exists, that the model
-has no change missing from the migrations, and that their script creates what `docs/database.md`
-describes. (They fail as long as the repository has no migration.) Review the generated `Up` and
-`Down` before committing; they should need no hand editing (ADR 0015).
+(That is the command for the third migration, the service catalogue of Prompt 2.3. The first was `0001_Tenants`; the
+second, Patients and Payers, was scaffolded as `0002_SyncCurrentModel` and keeps that name.)
+
+**The five migrations that are waiting (Prompts 2.3, 2.4, 3.1, 3.2 and 3.4), one after the other.** The five prompts were
+written before any of their migrations was scaffolded, so the model already holds the tables of all five, and the
+command above alone would put them all into `0003_ServiceItems`. To get one migration per slice, take the
+configurations of the later slices out of the project, and put them back one slice at a time (PowerShell, from the
+repository root; without its configuration a table is not in the model, and the project still builds):
+
+```powershell
+New-Item -ItemType Directory -Force ..\held | Out-Null
+Move-Item src\BillingRecon.Infrastructure\Billing\BillConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillLineConfiguration.cs, src\BillingRecon.Infrastructure\Common\Numbering\NumberSeriesConfiguration.cs, src\BillingRecon.Infrastructure\Common\Idempotency\IdempotencyKeyConfiguration.cs, src\BillingRecon.Infrastructure\Audit\AuditRecordConfiguration.cs ..\held\
+dotnet ef migrations add 0003_ServiceItems --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
+Move-Item ..\held\BillConfiguration.cs, ..\held\BillLineConfiguration.cs src\BillingRecon.Infrastructure\Billing\
+dotnet ef migrations add 0004_Bills --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
+Move-Item ..\held\NumberSeriesConfiguration.cs src\BillingRecon.Infrastructure\Common\Numbering\
+dotnet ef migrations add 0005_NumberSeries --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
+Move-Item ..\held\IdempotencyKeyConfiguration.cs src\BillingRecon.Infrastructure\Common\Idempotency\
+dotnet ef migrations add 0006_IdempotencyKeys --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
+Move-Item ..\held\AuditRecordConfiguration.cs src\BillingRecon.Infrastructure\Audit\
+dotnet ef migrations add 0007_Audit --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
+```
+
+Check before going on: `*_0003_ServiceItems.cs` creates the table `ServiceItems` and nothing else,
+`*_0004_Bills.cs` creates `Bills` and `BillLines` and nothing else, `*_0005_NumberSeries.cs` creates
+`NumberSeries` and nothing else, `*_0006_IdempotencyKeys.cs` creates `IdempotencyKeys` and nothing else, and
+`*_0007_Audit.cs` creates `AuditRecords` and nothing else. If
+one of them creates more, a file was not moved: run
+`dotnet ef migrations remove --project src/BillingRecon.Infrastructure` once per migration added, and start again.
+Check too that `..\held` is empty at the end. Remove this paragraph once the five migrations are committed.
+Then build and run the tests: `MigrationsTests` checks that each migration exists under its name, that
+the model has no change missing from the migrations, and that their script creates what
+`docs/database.md` describes; they fail while a migration the model needs is missing, and so does
+every test of the `Database` collection, whose database is migrated first. Review the generated `Up`
+and `Down` before committing; they should need no hand editing (ADR 0015).
 
 **Check that no migration is missing** (no database needed; the same check runs as a test):
 
@@ -315,3 +348,130 @@ SDK the build image carries. If a build fails on the SDK version, pass the exact
 ```bash
 docker build -f src/BillingRecon.Api/Dockerfile --build-arg SDK_TAG=10.0.402 -t billingrecon-api .
 ```
+
+---
+
+## 7. Idempotency keys: retention and a key that is stuck
+
+Every financial POST leaves a row in `IdempotencyKeys` (BR-803, ADR 0006; `docs/database.md` section 6). Nothing
+deletes these rows on a schedule yet. Until the sweep is built, the two clean-ups below are run by hand, as the
+migrator login or `sa`, when the table has grown or a client reports a key that answers 409 for ever. Both delete
+only what the application itself is allowed to delete; neither touches a financial record.
+
+**Expired keys.** A key is kept for 30 days (`ExpiresAtUtc`). After that a retry with it is no longer expected, and
+the row can go. Run it in batches, so that the delete never holds a long lock on a table every posting writes to:
+
+```sql
+DECLARE @now datetimeoffset(3) = SYSUTCDATETIME();
+
+WHILE 1 = 1
+BEGIN
+    DELETE TOP (5000) FROM dbo.IdempotencyKeys WHERE ExpiresAtUtc < @now;
+    IF @@ROWCOUNT = 0 BREAK;
+END
+```
+
+The index of the table leads with the tenant, so this statement scans. That is acceptable for an occasional manual
+run; the scheduled sweep will go tenant by tenant.
+
+**A key stuck in progress.** If the API process dies between reserving a key and answering, the row stays
+`InProgress` and every retry with that key is answered 409 `idempotency_in_progress`. The business transaction of
+the dead request was rolled back by SQL Server, so nothing of it was saved. First make sure the request is not
+simply still running (a row younger than a few minutes may be), then look at it and remove it:
+
+```sql
+SELECT TenantId, [Key], UserId, Method, Path, CreatedAtUtc
+FROM   dbo.IdempotencyKeys
+WHERE  Status = 'InProgress' AND CreatedAtUtc < DATEADD(minute, -15, SYSUTCDATETIME());
+
+DELETE FROM dbo.IdempotencyKeys
+WHERE  TenantId = @tenant AND [Key] = @key AND Status = 'InProgress';
+```
+
+After that the client's retry with the same key runs as a first request. Never delete a `Completed` row to "let a
+request run again": its work is already done, and the retry would do it a second time.
+
+---
+
+## 8. Deferred verification: the running list for the personal machine
+
+On 2026-11-20 the owner decided to go on building and to run the verification on the personal machine later.
+Until this list has been run and its output recorded, **nothing after Prompt 2.1 has been built on .NET 10, run on
+SQL Server 2022, or had its migration scaffolded with EF Core 10**; every commit made in the meantime says so in
+its message. This is the one list of what is owed. A prompt that adds a migration or a check adds its line here,
+in order; nothing is removed until the owner has run it and sent the output.
+
+Run from the repository root, in PowerShell, with Docker Desktop running, on the tip of the branch.
+
+**A. Once**
+
+```powershell
+dotnet --list-sdks
+dotnet tool restore
+```
+
+**B. The migrations, one after the other** (section 3 explains why the configurations are moved out and back)
+
+```powershell
+New-Item -ItemType Directory -Force ..\held | Out-Null
+Move-Item src\BillingRecon.Infrastructure\Billing\BillConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillLineConfiguration.cs, src\BillingRecon.Infrastructure\Common\Numbering\NumberSeriesConfiguration.cs, src\BillingRecon.Infrastructure\Common\Idempotency\IdempotencyKeyConfiguration.cs, src\BillingRecon.Infrastructure\Audit\AuditRecordConfiguration.cs ..\held\
+dotnet ef migrations add 0003_ServiceItems --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
+Move-Item ..\held\BillConfiguration.cs, ..\held\BillLineConfiguration.cs src\BillingRecon.Infrastructure\Billing\
+dotnet ef migrations add 0004_Bills --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
+Move-Item ..\held\NumberSeriesConfiguration.cs src\BillingRecon.Infrastructure\Common\Numbering\
+dotnet ef migrations add 0005_NumberSeries --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
+Move-Item ..\held\IdempotencyKeyConfiguration.cs src\BillingRecon.Infrastructure\Common\Idempotency\
+dotnet ef migrations add 0006_IdempotencyKeys --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
+Move-Item ..\held\AuditRecordConfiguration.cs src\BillingRecon.Infrastructure\Audit\
+dotnet ef migrations add 0007_Audit --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
+```
+
+| Migration | Prompt | Must create exactly |
+|---|---|---|
+| `0003_ServiceItems` | 2.3 | `ServiceItems` |
+| `0004_Bills` | 2.4 | `Bills`, `BillLines` |
+| `0005_NumberSeries` | 3.1 | `NumberSeries` |
+| `0006_IdempotencyKeys` | 3.2 | `IdempotencyKeys` |
+| `0007_Audit` | 3.4 | `AuditRecords` |
+
+`..\held` must be empty at the end. If a migration creates more than its row says, a file was not moved: run
+`dotnet ef migrations remove --project src/BillingRecon.Infrastructure` once per migration added and start B again.
+Every later prompt that adds a table adds its configuration file to the first `Move-Item`, and its own two lines
+and its row at the end.
+
+**C. Build, format, tests**
+
+```powershell
+dotnet build
+dotnet format --verify-no-changes
+dotnet test
+```
+
+**D. The concurrency tests, several times each** (a race shows on some runs only)
+
+```powershell
+dotnet test --filter "FullyQualifiedName~NumberSeriesOnSqlServerTests"
+dotnet test --filter "FullyQualifiedName~IdempotencyApiTests"
+dotnet test --filter "FullyQualifiedName~BillsApiTests"
+dotnet test --filter "FullyQualifiedName~AuditOnSqlServerTests|FullyQualifiedName~AuditTrailApiTests"
+```
+
+**E. Send back**
+
+- the output of A, C and D, and the names of the migration files B created;
+- the migration files themselves (`Common/Migrations/*_0003_*` to `*_0007_*` and the updated
+  `BillingReconDbContextModelSnapshot.cs`), which are then committed as "Migrations 0003 to 0007, scaffolded with
+  EF Core 10".
+
+**What that run has to show, because nothing here could** (the office machine has .NET 9 and LocalDB 2019 only):
+
+| Prompt | Not proven anywhere yet |
+|---|---|
+| 2.2 | The run itself; then 2.2-close (CLAUDE.md section 9, item 9). |
+| 2.3 | The `LIKE` search on the service item code translates on EF Core 10. |
+| 2.4 | Ten simultaneous changes of the lines of one bill, on SQL Server 2022. |
+| 3.1 | Fifty parallel takers of a number series, on SQL Server 2022. |
+| 3.2 | The response buffering of the idempotency filter on ASP.NET Core 10. |
+| 3.4 | The before and after images of `EntitySnapshot` on EF Core 10. |
+
+A red result is reported as it is, with its output; the fix is its own commit on top, never an edit of history.

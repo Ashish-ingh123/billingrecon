@@ -5,7 +5,7 @@ namespace BillingRecon.Domain.Common;
 /// collects the domain events its methods raise until the unit of work dispatches them.
 /// </summary>
 /// <typeparam name="TId">The typed id of this kind of aggregate.</typeparam>
-public abstract class AggregateRoot<TId> : Entity<TId>
+public abstract class AggregateRoot<TId> : Entity<TId>, IHasDomainEvents
     where TId : struct, ITypedId
 {
     private readonly List<IDomainEvent> _domainEvents = [];

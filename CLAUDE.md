@@ -45,8 +45,8 @@ the domain model, the schema and the tests.
 | Web API | **ASP.NET Core Web API with controllers** | No minimal APIs. Controllers derive from `ApiControllerBase`, are `sealed`, end in `Controller` (architecture test). Every route is under `/api/v1` (ADR 0013). Every error is an RFC 9457 ProblemDetails (ADR 0011). Health checks at `/health/live` (process is up) and `/health/ready` (the application database is reachable and has no pending migration). |
 | OpenAPI | **Built-in OpenAPI + Scalar UI**, Development only | `AddOpenApi`/`MapOpenApi` (document at `/openapi/v1.json`) and `MapScalarApiReference` (`/scalar`), mapped only when the environment is Development. |
 | Data | **EF Core 10 + SQL Server** | One context, `BillingReconDbContext`, whose conventions do the repetitive work (ADR 0015, section 5 below). Migrations live in `Infrastructure/Common/Migrations`, are applied at startup in Development only, and are a deployment step elsewhere. `dotnet-ef` is a local tool (`.config/dotnet-tools.json`, `dotnet tool restore`) at the same version as the EF Core packages; it uses the Infrastructure project and its design-time factory, never the API. SQL Server 2022 in Docker for dev and tests. |
-| Banned APIs | **Microsoft.CodeAnalysis.BannedApiAnalyzers** | `src/BannedSymbols.txt` lists what production code must not call (system time and the machine's time zone, `IgnoreQueryFilters`, `EntityEntry.Reload`/`GetDatabaseValues`, `ExecuteUpdate`/`ExecuteDelete`); a call is build error RS0030. Tests guard the list and where the rule may be suppressed (ADR 0015). |
-| Validation | **FluentValidation** | One validator per command / request DTO, run in the Application layer. |
+| Banned APIs | **Microsoft.CodeAnalysis.BannedApiAnalyzers** | `src/BannedSymbols.txt` lists what production code must not call (system time and the machine's time zone, `IgnoreQueryFilters`, `EntityEntry.Reload`/`GetDatabaseValues`, `ExecuteUpdate`/`ExecuteDelete`, and since Prompt 3.1 every raw-SQL entry point of EF Core: `ExecuteSql*`, `SqlQuery*`, `FromSql*`, `GetDbConnection`); a call is build error RS0030. Two files may suppress it, each for one named reason: `SystemClock` and `NumberSeriesAllocator`. Tests guard the list and where the rule may be suppressed (ADR 0015). |
+| Validation | **FluentValidation** (12.2.0) | One public validator per command or query that has a shape to check, in the Application layer, run by its handler as the handler's first step; it checks the shape (presence, lengths, formats, ranges), the domain and the handler the business rules. A failure is 400 `validation_failed` with messages per field (ADR 0018). The API registers the validators with its scan of the Application assembly. |
 | Logging | **Serilog** | Compact JSON on the console, plus Seq when `Seq:ServerUrl` is set. Every event of a request carries CorrelationId (from `X-Correlation-Id` or generated, BR-703), and TenantId and UserId when the request is authenticated. Phone numbers and e-mail addresses are masked before any sink (ADR 0012). |
 | Configuration | **appsettings + environment variables + user-secrets** | One strongly typed options class per section, validated at startup: the API refuses to start when misconfigured. Secrets (`Database:ConnectionString`, `Seq:ApiKey`) come from user-secrets or environment variables, never from a file in git. |
 
@@ -114,8 +114,10 @@ Office machine:
   to that collection and nowhere else, and its first run is on the personal machine.
 - SQL Server LocalDB 2019 is installed here (`Server=(localdb)\MSSQLLocalDB;Integrated Security=true`): enough
   for a manual check in the .NET 9 copy (apply a throwaway migration, inspect the tables, run the context
-  against a real database), not a substitute for SQL Server 2022. LocalDB 2022 is not installed: its installer
-  needs a licence acceptance, which is the owner's to give.
+  against a real database), not a substitute for SQL Server 2022. Since 2026-10-17 the copy's
+  `SqlServerFixture` can also be pointed at LocalDB (a patch to the copy only, never to the repository), so the
+  whole `Database` collection runs here as a pre-check; the run with Docker on the personal machine stays the
+  proof. LocalDB 2022 is not installed: its installer needs a licence acceptance, which is the owner's to give.
 - **No .NET 10 SDK on this machine either, and the owner decided not to add it** (recorded 2026-10-03): it is
   installed on the owner's personal machine, which is where the project is run. The repository targets .NET 10
   (ADR 0014), so **`dotnet build` and `dotnet test` do not work here**. Code written here is pre-checked in a
@@ -155,23 +157,66 @@ src/
                                 Error (Common, ADR 0011), domain events, invariants, domain services. No I/O, no
                                 project or package references. Today: the base types (Common: Entity<TId>,
                                 AggregateRoot<TId>, ITypedId, ITenantScoped, the two audit interfaces,
-                                IHasRowVersion, TenantId, UserId), the value objects Money, UnitPrice, Quantity
-                                and Percent (Common, ADR 0004), and the Tenant aggregate with IdentityErrors (Identity).
+                                IHasRowVersion, TenantId, UserId, PatientId, PayerId, ServiceItemId, CommonErrors,
+                                the internal Field text helper), the value objects Money, UnitPrice, Quantity and
+                                Percent (Common, ADR 0004), the Tenant aggregate with IdentityErrors (Identity),
+                                the Patient and Payer aggregates with Mrn, their events and PayersErrors (Payers),
+                                and, in Billing, the ServiceItem aggregate with ServiceItemCode, and the Bill
+                                aggregate with BillLine as drafts (LineCalculator, BusinessDateWindow), with their
+                                events and BillingErrors. BillId, BillLineId and the IHardDeletable marker are in
+                                Common (ADR 0019), and so are FiscalYear, DocumentType, DocumentNumber and the
+                                read-only NumberSeries entity (ADR 0008), and IdempotencyKey, the record of a key
+                                and its stored answer (ADR 0006). Since Prompt 3.4 (ADR 0020): AuditRecord
+                                (Audit), the markers IAppendOnly, IHasDomainEvents and IHasReason (Common), and
+                                an event for every correction (PatientUpdated, PayerUpdated, ServiceItemUpdated,
+                                BillHeaderUpdated, BillLinesReplaced).
   BillingRecon.Application/     Use cases (command/query handlers as plain classes), FluentValidation validators,
                                 port interfaces (IClock, IUnitOfWork, repositories, INumberSeries,
                                 IIdempotencyStore, ITenantContext, ICurrentUser), DTOs and explicit mappers.
-                                Today: IClock, ITenantContext, ICurrentUser (Common).
+                                Today: IClock, ITenantContext, ICurrentUser, the use-case contracts
+                                ICommandHandler and IQueryHandler, IUnitOfWork, paging, the validator helper and
+                                the shared text rules (Common); the patient and payer use cases, validators, DTOs,
+                                repositories and read services (Payers), and IBillableParties, what Payers answers
+                                when a bill is about to be raised; the same for the service catalogue and for bill
+                                drafts (Billing); ITenantSettingsReader (Identity); INumberSeries, the gapless
+                                document numbers (Common, ADR 0008). IIdempotencyStore with its outcome and
+                                response records (Common, ADR 0006). ADR 0018, ADR 0019. IDomainEventSubscriber
+                                with DomainEventOccurrence, and ICorrelationContext (Common); IAuditWriter, the
+                                generic AuditSubscriber, AuditAction, and the query of an audit trail with its
+                                read service and DTO (Audit). ADR 0020.
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
                                 the context with its conventions, interceptors, startup step, design-time
-                                factory and the value-object converters (Common/Persistence), SystemClock (Common/Time), the database health
-                                check (Common/Health), the identities and the Tenants table (Identity),
-                                AddInfrastructure. Migrations go to Common/Migrations.
+                                factory, the value-object converters, the TenantId-first index check and the unit
+                                of work (Common/Persistence), SystemClock (Common/Time), the database health
+                                check (Common/Health), the identities, the Tenants table and the development
+                                tenant seeder (Identity), the Patients and Payers tables with their repositories
+                                and read services, registered by AddPayers (Payers), the ServiceItems, Bills and
+                                BillLines tables with their repositories and read services, registered by
+                                AddBilling (Billing), the tenant settings reader (Identity), the guard against
+                                deletes and the unit of work that makes a root part of the save when only its
+                                children changed (Common/Persistence, ADR 0019), the NumberSeries table and the
+                                allocator that takes a number in the transaction the unit of work commits
+                                (Common/Numbering, ADR 0008; the one file with raw SQL), the IdempotencyKeys table
+                                and the store that holds the transaction of a request while its key is reserved
+                                (Common/Idempotency, ADR 0006), AddInfrastructure. The unit of work dispatches
+                                domain events before it saves, with one clock reading per commit
+                                (BeginCommit/EndCommit of the context), EntitySnapshot builds the before and after
+                                images, AppendOnlyGuardInterceptor refuses an update or delete of an IAppendOnly
+                                row (Common/Persistence, ADR 0020); the AuditRecords table, AuditWriter,
+                                AuditReadService, registered by AddAudit (Audit).
+                                Migrations go to Common/Migrations.
   BillingRecon.Api/             Controllers, middleware and filters (correlation id, idempotency, tenant resolution),
                                 the error contract (Common/Errors: exception handler, Error to ProblemDetails mapper),
                                 authentication/authorisation, OpenAPI + Scalar, Program.cs (composition root),
-                                and the Dockerfile of the API image (ADR 0017).
+                                and the Dockerfile of the API image (ADR 0017). Today also: the ETag and If-Match
+                                helpers of ApiControllerBase and AddApplication, which registers every handler and
+                                validator by scanning (Common); the patient and payer controllers with their
+                                request records (Payers); the service item and bill controllers with their request
+                                records (Billing). Common/Idempotency: the [Idempotent] attribute, its filter,
+                                the header names and the request fingerprint (ADR 0006). The read-only audit
+                                trail controller (Audit) and HttpCorrelationContext (Common/Correlation), ADR 0020.
 tests/
   Directory.Build.props         Test defaults: xUnit, Shouldly, test SDK/runner, global usings.
   BillingRecon.Domain.Tests/  BillingRecon.Application.Tests/
@@ -268,6 +313,11 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
    and the response. A replay returns the original response unchanged. The same key with a
    different payload returns 422 `idempotency_key_reuse`; an in-flight key returns 409
    `idempotency_in_progress`; a missing header returns 400 `idempotency_key_missing`.
+   As built (ADR 0006, built note of 2026-11-20): mark the action `[Idempotent]`; the hash covers the
+   method, the path with its query, `If-Match` and the body; a success is stored and committed with
+   the work it reports, a refusal (4xx) is stored after that work has been rolled back, a fault
+   frees the key. A test lists which controllers are financial and fails for a POST without the
+   attribute.
 
 6. **`rowversion` optimistic concurrency** (ADR 0007; BR-804). Every mutable aggregate root has a
    `rowversion` column mapped as an EF concurrency token. `DbUpdateConcurrencyException` maps to
@@ -306,12 +356,22 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
     `ExecuteDelete` is banned outright (ADR 0015).
     Lifecycle is by status (Draft, PendingApproval, Posted, PartiallyPaid, Settled, Voided,
     Reversed) and by reversal documents. Drafts are voided, not deleted. Patients, payers and
-    service items are deactivated by status, never deleted.
+    service items are deactivated by status, never deleted. **Two exceptions, neither a financial
+    record:** a line of a *draft* bill is deleted when the draft's lines are replaced (ADR 0019),
+    and the record of an idempotency key is deleted when its request failed with a fault, or when
+    it has expired (ADR 0006). The context refuses to delete a row of any entity that is not marked
+    `IHardDeletable`, which only `BillLine` and `IdempotencyKey` are; a test lists them.
 
 11. **Append-only audit** (BR-701 – BR-703). Every state change to a financial or security-relevant
     entity writes an audit record (who, when in UTC, tenant, entity, action, before/after JSON,
     correlation id) in the same transaction. Audit and ledger tables are insert-only for the
     application login: no UPDATE, no DELETE.
+    As built (ADR 0020): an aggregate is audited by raising a domain event, and **every state change
+    raises one**, raised only when something really changed. The unit of work dispatches the events
+    before it saves, and the generic `AuditSubscriber`, the only subscriber, writes one `AuditRecord`
+    per event into the same save. The before and after images are the stored row with its children.
+    An entity marked `IAppendOnly` (only `AuditRecord` so far) cannot be updated or deleted through
+    the context. A new use case that changes state needs its event and a test that counts one record.
 
 12. **TenantId from the JWT only** (ADR 0009, ADR 0015; BR-002, BR-602). The tenant comes from the
     validated JWT claim, resolved once per request into `ITenantContext`. Never read TenantId from
@@ -374,6 +434,27 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
   columns and `RowVersion` with non-public setters and never assign them. A text column that is
   unbounded on purpose says so with `IsUnbounded()`. Migrations are scaffolded (the command is in
   section 8), never edited by hand to add what the model could say, and never changed once applied.
+  Every index of a tenant-scoped table leads with `TenantId` (the model fails otherwise), and no
+  index is added per foreign key by default: a configuration declares each index it needs. A
+  module's value object stored through a converter is a `readonly record struct` (a class would be
+  taken for an entity), with the converter in the module's entity configuration (ADR 0015, built
+  note of 2026-10-17).
+- **Use cases** (ADR 0018). One public sealed handler per command or query, behind
+  `ICommandHandler<TCommand, TResult>` or `IQueryHandler<TQuery, TResult>`, returning `Result<T>`. A
+  command handler validates (`validator.GetErrorAsync` first), loads through a repository, compares
+  the version the client read, calls the aggregate and commits once through `IUnitOfWork`, which
+  returns `concurrency_conflict` or `duplicate_key` for a lost race; the handler replaces
+  `duplicate_key` with the error of the rule it checked. A query handler reads through a read
+  service. Handlers and validators are registered by the API's scan (`AddApplication`); each
+  business module registers its ports with its own `Add<Module>` in its Infrastructure folder,
+  called from `Program.cs`.
+- **The HTTP contract of a resource** (ADR 0018, `docs/api.md`). Request records in the Api with
+  explicit mapping to commands, refusing unknown JSON members; the Application DTOs as responses.
+  Enums by name, never numbers. `PATCH` sends every editable field, an optional one left out is
+  cleared. State changes are `POST` actions; no `DELETE`. Responses that return one record carry
+  its version as the ETag; changes of an existing record need `If-Match` (428 without, 400 when
+  malformed, 409 when stale). Lists take `page` and `pageSize` (at most 100) and answer
+  `{ items, page, pageSize, totalCount }`. Another tenant's record is 404, never 403.
 - **Explicit DTO mapping.** Static `ToDto()` / `ToDomain()` methods or small mapper classes.
   No reflection-based mappers.
 - **Async all the way.** No `.Result`, `.Wait()` or `GetAwaiter().GetResult()`. Async methods end
@@ -415,7 +496,8 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 | `docs/requirements.md` | Domain and vocabulary, actors and permissions, R1 scope, the **BR-nnn business-rule catalogue**, user stories with acceptance criteria, NFRs, R2–R5 outlines |
 | `docs/domain-model.md` | Module map, value objects, aggregates with invariants (citing BR-ids), Bill state machine, transaction boundaries and the allocation exception, domain events, ports |
 | `docs/database.md` | Conventions, ER diagram, every R1 table with types/keys/indexes/CHECKs, number-series lock, ledger accounts and posting templates, balance identities and reconciliation SQL, idempotency lifecycle, permissions, migrations |
-| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints |
+| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4) and the audit trail endpoint (Prompt 3.4) |
+| `docs/build-prompts.md` | The build prompts from zero to R1, reconstructed on 2026-11-20: what each finished prompt built, and the wording and order of the prompts still to give. Its phase numbers are the ones this file uses |
 | `docs/security.md` | Authentication, authorisation, tenancy, maker-checker, secrets, threat model |
 | `docs/testing-strategy.md` | Test pyramid, tooling, database tests, architecture tests, CI gates |
 | `docs/runbook.md` | Written so far: local infrastructure and the "Verify on a Docker machine" checklist. Still to come: migrations, backups, incident procedures |
@@ -430,9 +512,23 @@ TenantId and query filter, 0010 time handling, 0011 error model (Result, excepti
 0014 target framework .NET 10 (and the SqlClient pairing), 0015 persistence conventions (the
 context, typed ids, tenant isolation on reads and writes, audit columns, banned APIs, migrations),
 0016 integration test infrastructure (one SQL Server per test run, two databases, Respawn, the test
-identity), 0017 the CI pipeline, the API container image and LF line endings.
-ADRs 0003 and 0005–0010 are *Proposed* until the owner reviews the R1 design documents; flip their
-Status to Accepted then (ADR 0003 carries an amendment of 2026-10-17 with the precise module rule).
+identity), 0017 the CI pipeline, the API container image and LF line endings, 0018 use cases,
+validation, the unit of work and the HTTP contract of a resource (Accepted with the approval of the
+Prompt 2.2 plan, 2026-10-17), 0019 bill drafts: replaceable lines, one version for the whole bill, and the
+guard against deletes (Accepted for the points of the Prompt 2.4 plan and, with it, the amendment of ADR 0003 for the foreign
+keys of `Bills`, 2026-11-20; its unit-of-work point awaits the owner's review), 0020 domain events are
+dispatched by the unit of work, and the audit trail is their one subscriber (Accepted with the approval of the
+Prompt 3.4 plan, 2026-11-20; it also builds the append-only guard and names the migration `0007_Audit`).
+ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
+differs from the first text (the store owns the business transaction, a refusal is stored after a rollback, the
+fingerprint includes the query and `If-Match`) and one change the owner accepted on 2026-11-20 (the tenant guard treats
+a temporary key value as not set).
+ADRs 0003, 0005, 0007, 0009 and 0010 are *Proposed* until the owner reviews the R1 design documents; flip their
+Status to Accepted then (ADR 0003 carries an amendment of 2026-10-17 with the precise module rule, and one of
+2026-11-20, accepted, for the foreign keys of `Bills`). ADR 0008 is Accepted since its implementation (Prompt 3.1,
+2026-11-20); its built note records what the build added (who opens the transaction, the sixteen-character limit as
+a hard stop, the ban on raw SQL) and one finding the owner accepted the same day (the first number of a new series
+can wait for a neighbouring series).
 ADR 0004 is Accepted since its implementation (Prompt 2.1, 2026-10-17). ADRs 0011–0017 are Accepted (0011–0013 approved with the infrastructure step, 0014 and 0015 on the owner's
 decisions of 2026-10-03, 0016 and 0017 with the approvals of the Prompt 1.4 and 1.5 plans on 2026-10-17;
 ADR 0015 marks
@@ -501,9 +597,10 @@ Kept here so they survive between sessions. Remove an item when it is done.
      Prompt 2.1);
    - the tenant row itself is filtered to, and writable by, its own tenant only, while system work sees and may
      write every tenant row (added 2026-10-17 after a review: ADR 0009 promised it and nothing implemented it).
-   Open question for the owner: ban the raw-SQL entry points of EF Core as well (`ExecuteSql*`, `SqlQuery*`,
-   `FromSql*`, `GetDbConnection`) and sanction them file by file, as `BannedSymbolsTests` already does for RS0030
-   suppressions? Today raw SQL is left to review (ADR 0009). Flip the Status line of ADR 0015 once reviewed.
+   Answered 2026-11-20 with the owner's approval of the Prompt 3.1 plan: the raw-SQL entry points of EF Core
+   (`ExecuteSql*`, `SqlQuery*`, `FromSql*`, `GetDbConnection`) are banned (RS0030), and the one file that may use
+   one is `NumberSeriesAllocator.cs`, listed in `BannedSymbolsTests` (ADR 0008, built note). Flip the Status line of
+   ADR 0015 once the remaining points are reviewed.
 3. **Record the container checklist results** (`docs/runbook.md`, "Verify on a Docker machine", step 12). The
    owner set the containers up on 2026-10-17 (reported, not recorded step by step). Steps 3, 7, 8 and 10 of the
    checklist (both containers healthy; `/health/ready` 200 against SQL Server 2022, which is also the first time
@@ -516,18 +613,20 @@ Kept here so they survive between sessions. Remove an item when it is done.
    and DELETE) exist in `tests/BillingRecon.IntegrationTests/Database` (ADR 0016) and await their first run with
    Docker (item 1).
 5. **Due with the tables that need them** (ADR 0015, "Not built yet, on purpose"):
-   - with the first tenant-scoped table (`Users`): the foreign key from `TenantId` to `Tenants` by convention,
-     "no ON DELETE CASCADE anywhere" by convention, and a model check that every index of a tenant-scoped entity
-     leads with `TenantId`; also a development tenant and user row, so that rows written in Development satisfy
-     their foreign keys;
-   - with the first financial and append-only tables: a guard at the EF layer for section 4 rules 10 and 11
-     (today a delete of the current tenant's own row, and an update of a creation-only row, pass the tenant
-     guard; the database grants that would stop them do not exist yet);
-   - with the first aggregate that has child rows (`Bill`): the unit of work marks the root as modified when a
-     command changes only children, so the root's row version is checked and advanced (ADR 0007, ADR 0015
-     section 4);
-   - with the unit of work: one clock reading per use case, and stamping the tenant and audit columns before
-     domain events are dispatched (both interceptors expose `Apply` for that);
+   - built 2026-10-17 with the first tenant-scoped tables (`Patients`, `Payers`; ADR 0015, built note): the
+     foreign key from `TenantId` to `Tenants`, no ON DELETE CASCADE, and the TenantId-first index check, all by
+     convention, and the development tenant row (`DevelopmentTenantSeeder`). Still due: the development user row,
+     with the `Users` table, and with it the foreign keys of `CreatedByUserId` and `UpdatedByUserId` to `Users`;
+   - built 2026-11-20 with `Bills` (Prompt 2.4, ADR 0019): the guard at the EF layer for rule 10,
+     `HardDeleteGuardInterceptor`, which refuses to delete a row of any entity but `BillLine`. Built 2026-11-20
+     with `AuditRecords` (Prompt 3.4, ADR 0020): the guard for rule 11, `AppendOnlyGuardInterceptor`, which refuses
+     an update or a delete of a row marked `IAppendOnly`; the ledger entities get the marker in Prompt 3.3. The
+     database grants that would stop either do not exist yet;
+   - built 2026-11-20 with `Bill` (ADR 0019): the unit of work marks the root as modified when a command changes
+     only children, so the root's row version is checked and advanced (ADR 0007);
+   - built 2026-11-20 with the dispatch of domain events (Prompt 3.4, ADR 0020): the tenant and audit columns
+     are stamped before the events are dispatched, and a commit reads the clock once
+     (`BillingReconDbContext.BeginCommit` and `EndCommit`);
    - with the logins of `docs/database.md` section 7: the grants, including `SELECT` on
      `__EFMigrationsHistory` for the API's login, without which `/health/ready` can never answer 200;
    - in Phase 5: `LoginUserLookup` as the one sanctioned use of `IgnoreQueryFilters` (add it to
@@ -545,8 +644,8 @@ Kept here so they survive between sessions. Remove an item when it is done.
      the layer tests; 3.7 xunit 2 is deprecated in favour of xunit.v3.
    - 4.3 most `.editorconfig` style rules were not enforced by the build on the .NET 8 SDK (the .NET 10 SDK
      enforced one more on 2026-10-17, explicit accessibility on interface members, which seven interfaces
-     gained; re-check the rest); 4.6 the version endpoint always says `1.0.0`; 4.7 `docs/api.md`, `docs/security.md` and
-     `docs/testing-strategy.md` are still stubs.
+     gained; re-check the rest); 4.6 the version endpoint always says `1.0.0`; 4.7 `docs/security.md` is still a
+     stub (`docs/testing-strategy.md` was written with Prompt 1.4, `docs/api.md` with Prompt 2.2).
    - 5.2 placeholder READMEs restate the module map; 5.3 one redundant test theory; 5.4 redundant build properties.
    - Closed by the DbContext step: 1.2 (the time rule is enforced by the banned-API analyzer, and the list
      includes `DateTimeOffset.UtcNow`) and 4.5 (`IClock` is an Application port, ADR 0015).
@@ -568,3 +667,219 @@ Kept here so they survive between sessions. Remove an item when it is done.
    Prompt 2.1 (Money and the shared kernel, ADR 0004 built) was written, reviewed and fixed on 2026-10-17 and is
    pre-checked on .NET 9 only; its first run on .NET 10 and with Docker (the Money round trip in the Database
    collection) comes with the next push.
+9. **Prompt 2.2 (patients and payers, ADR 0018), written 2026-10-17, not built on .NET 10 yet.** Pre-checked in the
+   .NET 9 copy: build, format gate, every test outside the database collection (apart from the eleven that differ
+   on .NET 9), and the whole database collection, pointed at LocalDB 2019 in the copy only (89 tests). To do on
+   the personal machine, in this order: `dotnet tool restore`, scaffold the migration
+   (`dotnet ef migrations add 0002_Payers --project src/BillingRecon.Infrastructure --output-dir Common/Migrations`),
+   copy its three files (`*_0002_Payers.cs`, `*_0002_Payers.Designer.cs`, the updated
+   `BillingReconDbContextModelSnapshot.cs`) back into the repository, then `dotnet build` and `dotnet test` with
+   Docker running. Until the migration exists, `MigrationsTests` and every test of the database collection fail.
+   Follow-ups that belong to later slices:
+   - **Receivables (Phase 3):** the zero `PayerBalances` row is created by the payer use case through a Receivables
+     port (docs/domain-model.md section 8), plus one for every payer that exists by then.
+   - **Audit (Phase 3):** done with Prompt 3.4 (item 14): the domain events are dispatched, and patients and
+     payers have their audit records (BR-701).
+   - **Identity (Phase 5):** the role checks of the permission matrix (`docs/requirements.md` section 1): patients
+     and payers are written by TenantAdmin, Supervisor and BillingClerk, read by everyone.
+   - **Open question for the owner:** composite foreign keys that include the tenant, so that the database refuses
+     a payer naming another tenant's patient (ADR 0015, built note of 2026-10-17). Today the use case prevents it.
+   - **Recorded deviations:** a 409 does not carry the current ETag (ADR 0007, built note); creating a guarantor is
+     not idempotent (ADR 0018, `docs/api.md` section 7).
+   - **2.2-close, started 2026-11-20 on the office machine, not finished.** The migration exists as
+     `20261018182819_0002_SyncCurrentModel` (EF Core 10.0.12), not `0002_Payers`; it was compared with
+     `docs/database.md` section 3.2, the entity configurations and the snapshot (no difference), it keeps its name,
+     and the two tests that named it expect the real id. Found and put right the same day: the EF Core Design package
+     had been moved from the Infrastructure project to the Api project (back in Infrastructure, as section 2 says),
+     and a pin of `System.Security.Cryptography.Pkcs` 9.0.21 had appeared without a note (kept: a NuGet audit fix per
+     the owner; the advisory id is not recorded). **Still to do:** the owner's run on the personal machine
+     (`dotnet --list-sdks`, `dotnet tool restore`, `dotnet build`, `dotnet format --verify-no-changes`, `dotnet test`
+     with Docker), then items 1 and 8 and the SDK list of section 2, the README status, the stale `0002_Payers` in
+     ADR 0015 and ADR 0018, and the commit "Prompt 2.2: patients and payers (ADR 0018)". The scaffolding steps at the
+     top of this item are done and no longer apply.
+10. **Prompt 2.3 (service catalogue), written 2026-11-20 on top of the uncommitted 2.2, not built on .NET 10 yet.**
+    The owner chose to go on before 2.2 was verified, so the two prompts are in one working tree: commit 2.2 first,
+    then 2.3, each on its own.
+    - Built: the `ServiceItem` aggregate (Billing) with `ServiceItemCode`, the six use cases, the `ServiceItems`
+      table, `/api/v1/service-items`, and their tests. Decided with the owner: `Status` instead of the `IsActive` bit
+      of the first design, the code fixed at creation, the `Field` helper moved from Payers to `Domain.Common` and
+      the two text rules from `PayersRules` to `Application.Common.TextRules`.
+    - Pre-checked in the .NET 9 copy: build, format gate, every unit test, and every integration test including the
+      whole database collection on LocalDB 2019 (127 tests) with a migration scaffolded there by EF Core 9. Failing
+      there, as before and by design: 5 `BannedSymbolsTests`, 5 logging and error-contract tests, 1 unnamed-filter
+      test.
+    - **To do on the personal machine:** scaffold the migration under exactly this name,
+      `dotnet ef migrations add 0003_ServiceItems --project src/BillingRecon.Infrastructure --output-dir Common/Migrations`,
+      check that it creates only the `ServiceItems` table, copy its three files back, then `dotnet build`,
+      `dotnet format --verify-no-changes` and `dotnet test` with Docker. Until the migration exists, `MigrationsTests`
+      and every test of the database collection fail.
+    - Not proven anywhere yet: the search of the list endpoint casts the code's value object to its column for
+      `LIKE` (`ServiceItemReadService`); it translates on EF Core 9 and must be seen to translate on EF Core 10.
+    - Follow-ups for later slices: role checks (Phase 5: written by TenantAdmin, Supervisor and BillingClerk, read by
+      everyone); audit records of the catalogue (Phase 3).
+11. **Prompt 2.4 (bill drafts, ADR 0019), written 2026-11-20 on top of the uncommitted 2.2 and 2.3, not built on
+    .NET 10 yet.** Three prompts are now in one working tree; commit them one by one, in order.
+    - Built: `Bill` with `BillLine` in the states Draft and Voided, `LineCalculator` (BR-202), the six use cases,
+      `Bills` and `BillLines`, `/api/v1/bills`, the guard against deletes, the unit of work that versions a bill
+      with its lines, `IBillableParties` (Payers) and `ITenantSettingsReader` (Identity), and their tests.
+    - Accepted by the owner on 2026-11-20: the amendment of ADR 0003 that lets `BillConfiguration` name `Patient`
+      and `Payer` for the two foreign keys of `Bills` (a third listed exception in `ModuleDependencyTests`). The
+      alternative written up there, a typed-id foreign key convention, is to be weighed again when the next table
+      refers to another module's (payments, credit notes, adjustments, refunds).
+    - **Awaits the owner's review** (decided while building, not in the approved plan): how the unit of work finds
+      the roots of changed children (ADR 0019, point 5).
+    - Changed in existing tests, each for a stated reason: `RelationalConventionTests` (one foreign key is
+      `ClientCascade`, still `NO ACTION` in the database), `TenantQueryFilterTests` and `MigrationsOnSqlServerTests`
+      (new tables and migrations), `ErrorCodesTests` (a sample `DateOnly`), and the probe `Widget`, which carries
+      `IHardDeletable` so that the tenant-guard tests on a DELETE still reach the database.
+    - Pre-checked in the .NET 9 copy: build, format gate, every unit test, and every integration test including
+      the whole database collection on LocalDB 2019 (180 tests), with `0003_ServiceItems` and `0004_Bills`
+      scaffolded there separately by EF Core 9. Failing there, as before and by design: the same eleven tests.
+    - **To do on the personal machine:** scaffold the two migrations one after the other, as `docs/runbook.md`
+      section 3 describes (the two Bill configurations are moved out for `0003_ServiceItems` and back for
+      `0004_Bills`), check what each creates, copy the files back, then `dotnet build`,
+      `dotnet format --verify-no-changes` and `dotnet test` with Docker.
+    - Not proven anywhere yet: everything above on EF Core 10 and SQL Server 2022; in particular the test of ten
+      simultaneous changes of the lines of one bill, which passes on LocalDB.
+    - Recorded deviation: the grant of `DELETE` on `BillLines` cannot tell a draft's line from a posted bill's,
+      which the posting slice has to settle. (The other one, `POST /api/v1/bills` without an `Idempotency-Key`,
+      was closed by Prompt 3.2: both bill POSTs carry `[Idempotent]`.)
+    - Follow-ups for later slices: the number, the fiscal year, the posted stamps, the four later statuses and
+      their constraints (Prompt 3.5); `Idempotency-Key` on `POST /bills` (3.2); audit records of bills (3.4); role
+      checks (Phase 5: bills are written by TenantAdmin, Supervisor and BillingClerk, read by everyone).
+12. **Prompt 3.1 (fiscal year and gapless number series, ADR 0008), written 2026-11-20, not built on .NET 10 yet.**
+    The first prompt of Phase 3, written while Phase 2 (2.2, 2.3, 2.4) is still uncommitted: four prompts are in
+    one working tree. Phase 3 belongs on a branch `phase-3-posting` cut from `main` after Phase 2 is merged; sort
+    the commits accordingly when the run on the personal machine is green.
+    - Built: `FiscalYear`, `DocumentType`, `DocumentNumber`, the `NumberSeries` table, `INumberSeries` and
+      `NumberSeriesAllocator`, the transaction that the allocator opens and the unit of work commits, the ban on
+      raw SQL with its one sanctioned file, and their tests. No document takes a number yet.
+    - Accepted by the owner on 2026-11-20 (found while testing, ADR 0008 built note): the first number of a new
+      series can wait for a neighbouring series whose posting is in flight, another tenant's included. Once per
+      series, for milliseconds, no deadlock. The alternative, insert-and-retry without the range lock, is written
+      up there and was not chosen.
+    - Changed in existing code and tests: `UnitOfWork.CommitAsync` commits or rolls back an open transaction (use
+      cases that take no number are unaffected); `TenantQueryFilterTests`, `MigrationsTests` and
+      `MigrationsOnSqlServerTests` know the new table and migration; `BannedSymbolsTests` has the second
+      sanctioned file and pins the raw-SQL entries.
+    - Pre-checked in the .NET 9 copy: build, format gate, every unit test, and every integration test including
+      the whole database collection on LocalDB 2019 (212 tests), with `0003`, `0004` and `0005` scaffolded there
+      separately by EF Core 9. The number series tests, with fifty parallel takers, ran eighteen times in a row
+      without a failure. The raw-SQL entries of the ban list were compared with the EF Core 10.0.12 package in
+      the NuGet cache: the ids are the same as on EF Core 9. Failing there, as before and by design: the same
+      eleven tests.
+    - **To do on the personal machine:** scaffold the three migrations one after the other, as `docs/runbook.md`
+      section 3 describes, check what each creates, copy the files back, then `dotnet build`,
+      `dotnet format --verify-no-changes` and `dotnet test` with Docker; then run the number series tests several
+      times: `dotnet test --filter "FullyQualifiedName~NumberSeriesOnSqlServerTests"`.
+    - Follow-ups for later slices: bill posting takes the first number (3.5); the typed wrappers come with their
+      documents; changing a prefix is a maker-checker action (3.6, 5.3); the gapless verification query joins
+      the reconciliation report (6.2).
+13. **Prompt 3.2 (idempotency for financial POSTs, ADR 0006), written 2026-11-20, not built on .NET 10 yet.** The
+    fifth prompt in one uncommitted working tree (2.2, 2.3, 2.4, 3.1, 3.2). The owner was advised twice to run the
+    earlier prompts on the personal machine first and chose to go on; the first thing to do now is that run.
+    - Built: `IdempotencyKey`, `IIdempotencyStore`, `IdempotencyStore`, the `IdempotencyKeys` table, `[Idempotent]`
+      with `IdempotencyFilter`, the header and fingerprint rules, the three error codes, and their tests. Applied
+      to `POST /api/v1/bills` and `POST /api/v1/bills/{id}/void`; proven on a test-only probe endpoint
+      (`IdempotencyProbeController`) that takes a document number and saves a record.
+    - **Accepted by the owner on 2026-11-20** (found while building, ADR 0006 built note): `TenantWriteGuardInterceptor`
+      now treats a *temporary* tenant value on an added row as not set. `IdempotencyKeys` is the first table whose
+      tenant is part of its primary key, and Entity Framework tracks such a row under a placeholder until the guard
+      sets the tenant; the guard had refused it as another tenant's. A value a caller assigned is never temporary
+      and is refused as before (two new tests in `TenantWriteGuardTests`).
+    - Changed in existing code and tests: `UnitOfWork` takes an optional `RequestTransaction` and leaves the commit
+      to the idempotency store while it holds the transaction; the test client's `PostJsonAsync` and
+      `SendWithIfMatchAsync` send a new `Idempotency-Key` with every POST, as a well-behaved client does, so the
+      existing bill tests needed no other change (one raw POST in `BillsApiTests` got the header by hand);
+      `HardDeleteGuardTests` lists two deletable entities; `TenantQueryFilterTests`, `MigrationsTests` and
+      `MigrationsOnSqlServerTests` know the new table and migration.
+    - Pre-checked in the .NET 9 copy: build, format gate, every unit test, and every integration test including
+      the whole database collection on LocalDB 2019, with `0003` to `0006` scaffolded there separately by EF
+      Core 9. The idempotency and number series tests ran ten times in a row without a failure. Failing there, as
+      before and by design: the same eleven tests.
+    - **To do on the personal machine:** scaffold the four migrations one after the other, as `docs/runbook.md`
+      section 3 describes, check what each creates, copy the files back, then `dotnet build`,
+      `dotnet format --verify-no-changes` and `dotnet test` with Docker; then several runs of
+      `dotnet test --filter "FullyQualifiedName~IdempotencyApiTests|FullyQualifiedName~NumberSeriesOnSqlServerTests"`.
+    - Not proven anywhere yet: the response buffering of the filter on ASP.NET Core 10 (the tests run it through
+      the test server on ASP.NET Core 9 here); everything on EF Core 10 and SQL Server 2022.
+    - Not built, on purpose: the sweep of expired keys (the manual procedure is in `docs/runbook.md` section 7,
+      with the one for a key stuck `InProgress`).
+    - Follow-ups for later slices: every new financial POST gets `[Idempotent]` and its controller a line in
+      `IdempotencyConventionTests` (3.5 onward); the scheduled sweep (Phase 8, or with the first background job);
+      the grants of `docs/database.md` section 7 (5.4).
+14. **Prompt 3.4 (domain event dispatch and the audit trail, ADR 0020), written 2026-11-20, not built on .NET 10
+    yet.** The sixth prompt in one uncommitted working tree (2.2, 2.3, 2.4, 3.1, 3.2, 3.4). **Prompt 3.3, the
+    receivables ledger, was skipped and is still to be given**; the owner chose to go on and to check later.
+    - Built: the dispatch in `UnitOfWork`, `BeginCommit`/`EndCommit` with one clock reading per commit,
+      `EntitySnapshot`, `IDomainEventSubscriber` and `DomainEventOccurrence`, `ICorrelationContext` with the API's
+      `HttpCorrelationContext`, the Audit module (`AuditRecord`, `IAuditWriter`, `AuditSubscriber`, the
+      `AuditRecords` table), `IAppendOnly` with `AppendOnlyGuardInterceptor`,
+      `GET /api/v1/audit-records`, five new events for corrections, and their tests.
+    - Approved by the owner with the plan on 2026-11-20, beyond the prompt's wording: the migration is
+      `0007_Audit` and the receivables one becomes `0008_Receivables`; a correction raises an event only when a
+      value changed, so a PATCH that changes nothing writes no audit record and leaves the version alone; the
+      append-only guard, which Prompt 3.3 was to bring, is built here.
+    - Changed in existing code and tests: `UnitOfWork` takes the subscribers as an optional third argument and
+      does its preparation inside its `try`; the context creates its interceptors once and holds them;
+      `PatientTests` expected no event after an update and now expects `PatientUpdated` (a changed expectation,
+      called out in ADR 0020); `TenantQueryFilterTests`, `MigrationsTests` and `MigrationsOnSqlServerTests` know
+      the new table and migration.
+    - Pre-checked in the .NET 9 copy: build, format gate, Domain 428 and Application 222 tests green, Architecture
+      104 green and Integration 826 green on LocalDB 2019 with `0003` to `0007` scaffolded there separately by EF
+      Core 9. Failing there, as before and by design: the same eleven tests. The audit, unit-of-work, idempotency
+      and bill API tests (152) ran three times in a row without a failure.
+    - **To do on the personal machine:** scaffold the five migrations one after the other, as `docs/runbook.md`
+      section 3 describes, check what each creates, copy the files back, then `dotnet build`,
+      `dotnet format --verify-no-changes` and `dotnet test` with Docker.
+    - Not proven anywhere yet: everything on EF Core 10 and SQL Server 2022; in particular the images of
+      `EntitySnapshot`, which read Entity Framework's original values and type mappings.
+    - **Open point for the owner:** the audit images copy patient data (names, phone numbers, e-mail addresses)
+      into a table that is never changed or deleted. Same database, same tenant filter, never a log; a later
+      erasure or retention rule has to take it into account (ADR 0020, Consequences).
+    - Not built, on purpose: the grants that refuse UPDATE and DELETE on `AuditRecords` (5.4); a role check on
+      the audit endpoint (Phase 5: readable by everyone per US-43); `DocumentNumber` in a record (3.5).
+    - Follow-ups for later slices: every new aggregate raises an event for every state change and gets a test
+      that counts one record per use case; the ledger entities carry `IAppendOnly` (3.3); approvals, number
+      series prefix changes, users and tenant settings are audited when they are built (BR-701).
+15. **Order of work decided by the owner on 2026-11-20, and decisions for Prompts 3.3 and 3.5.**
+    - **Order** (changed by the owner later the same day, see item 16): 2.2 to 3.4 are committed unverified, one
+      commit per prompt; then 3.3 alone; 3.5 after it. One prompt at a time, never two together, and none before
+      the one before it is committed.
+    - **The decisions themselves are in `docs/build-prompts.md`**, under prompts 3.3 and 3.5 ("Owner's decisions"):
+      the renumbered migrations (`0008_Receivables` to `0015_Users`), how the `PayerBalances` row is created, no
+      new module-dependency exception without approval, the data step of `0008` and its ADR, the zero-total bill,
+      the lock order and its ADR, the three idempotency and concurrency cases with their error codes, and the
+      extra tests.
+    - **Open with the owner before 3.3 is coded:** subscriber or port for the `PayerBalances` row; how the foreign
+      keys to `Payers` are declared without an unapproved exception; whether the ledger and the reconciliation
+      may each be a sanctioned raw-SQL file.
+    - **Open with the owner before 3.5 is coded:** BR-401 read literally contradicts "a zero-total bill has no
+      ledger posting", so BR-401 and identity 2 need an amendment or the decision changes; and which code a second
+      posting gets after the first has committed (proposed: 409 `concurrency_conflict` for a stale version, 409
+      `bill_already_posted` for the current one).
+    - **Temporary, to be removed by Prompt 3.6:** once 3.5 is built, a bill at or above
+      `Tenant.PostingApprovalThreshold` is refused with 422 `bill_requires_approval` (BR-207). Maker-checker
+      replaces the refusal with the `PendingApproval` state; the error code and its test go then.
+    - **A first draft of 3.3 and 3.5** was written on 2026-11-20 before these decisions and taken out of the
+      repository again the same day; the tree was checked to be back at the state of item 14 (same build, format
+      and test results in the .NET 9 copy). The draft is parked in `C:\aptran2026\BillingRecon\parked-3.3-3.5-draft`,
+      outside the repository, as reference only: it does not match the decisions above.
+16. **Verification on the personal machine is deferred (owner's decision, 2026-11-20).** The owner will run it
+    later and building goes on meanwhile. Until then, read every "to do on the personal machine" of items 9 to 14
+    as still owed, and say "unverified on .NET 10" of everything after Prompt 2.1.
+    - **The one running list of what is owed is `docs/runbook.md` section 8**: the commands in order, every
+      migration scaffold with the table it must create, the concurrency tests to repeat, and what to send back.
+      A prompt that adds a migration or a check adds its line there; nothing is removed until the owner has run it.
+    - **Commits:** Prompts 2.2, 2.3, 2.4, 3.1, 3.2 and 3.4 are committed on `phase-2-billing`, one commit per
+      prompt, each message ending "UNVERIFIED on .NET 10, migrations not scaffolded". A file is in the commit of
+      the prompt that introduced it, in its final state, so a file that later prompts changed carries their
+      changes already: **only the last of the six commits is a state that builds**. Shared documents (this file,
+      the README, the documents of `docs/` that are not ADRs) are in the last one. Recorded here so that nobody
+      bisects those commits or checks one out expecting it to compile.
+    - **Migrations `0003` to `0007` are not in those commits.** They come as a commit of their own after the run
+      of section 8. Until then `MigrationsTests` and the whole database collection fail on a fresh clone, by
+      design.
+    - **Branch:** Phase 3 work (3.1, 3.2, 3.4 and what follows) is on `phase-2-billing` too, because the owner
+      asked for the current branch; the branch-per-phase rule of item 8 resumes when the owner says so.
+    - **If the run of section 8 is red:** the fix is a commit on top, with the output that showed it.

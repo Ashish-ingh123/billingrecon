@@ -1,4 +1,14 @@
-# Database
+
+**Built 2026-11-20 (Prompt 3.4, ADR 0020), as above with these precisions.** `AfterJson` is `NOT NULL`. `Id` is
+the one key in the model that is not a typed Guid id. `EntityType` is the name of the aggregate's class and
+`Action` the name of the domain event without it (`Registered`, `Updated`, `Deactivated`, `Reactivated`, `Created`,
+`Drafted`, `HeaderUpdated`, `LinesReplaced`, `Voided` so far). The two images hold the stored row, one member per
+column, and the children of the aggregate (a bill's `Lines`); the row version and the tenant are left out.
+`DocumentNumber` stays null until documents have numbers (Prompt 3.5). The third index ends in `Id`, so the trail
+of one record is read in the order it was written. Rows are written by the unit of work in the transaction of the
+change and refused for update and delete by `AppendOnlyGuardInterceptor`; the grants of section 7 are still to come.
+  | `0007_Audit` | `AuditRecords` (§3.8) | Written 2026-11-20 (Prompt 3.4, ADR 0020). **To be scaffolded with EF Core 10 on the personal machine, after `0006_IdempotencyKeys` and separately from it** (`docs/runbook.md` §3 has the five steps), under exactly this name. Scaffolded that way with EF Core 9 in the throwaway copy: it held `AuditRecords` alone, and the database tests passed on LocalDB 2019. The build prompts had this as `0008_Audit` after the receivables migration; Prompt 3.4 was built before 3.3, so the numbers follow the order of application. |
+  | `0008_…` onward | One per slice, in the order of `docs/build-prompts.md`: receivables (`0008_Receivables`), approvals and so on; users and roles come with the Identity slice in Phase 5 | Not started. |# Database
 
 - **Status:** R1 schema designed 2026-09-29. Implemented incrementally by EF Core migrations in
   `src/BillingRecon.Infrastructure`; this document is the target the migrations converge on.
@@ -14,14 +24,14 @@
 |---|---|
 | Names | Tables plural PascalCase (`Bills`, `BillLines`). Columns PascalCase. `PK_<Table>`, `FK_<Table>_<Column>`, `IX_<Table>_<Cols>`, `UX_` unique, `CK_<Table>_<Rule>`. |
 | Primary keys | Aggregates and documents: `Id uniqueidentifier`, generated client-side by EF's sequential GUID generator, clustered. Append-only tables (`LedgerEntries`, `AuditRecords`): `Id bigint IDENTITY`, clustered, so insertion order is the physical order. Junction and cache tables: composite or borrowed keys. |
-| Tenancy | Every tenant-scoped table has `TenantId uniqueidentifier NOT NULL` with an FK to `Tenants`. It is the **first column of every non-clustered index** and every unique index. EF applies a global query filter `TenantId == current`, a save interceptor sets it on inserts and rejects mismatches, and `TenantId` is part of the WHERE clause of every UPDATE and DELETE (BR-002, ADR 0009, ADR 0015). |
+| Tenancy | Every tenant-scoped table has `TenantId uniqueidentifier NOT NULL` with an FK to `Tenants`, `FK_<Table>_TenantId`, added by a convention of the context. It is the **first column of every non-clustered index** and every unique index; a model that breaks this fails to build (`TenantLeadingIndexConvention`). EF creates no index per foreign key of its own accord: each table declares the indexes it needs, tenant first. EF applies a global query filter `TenantId == current`, a save interceptor sets it on inserts and rejects mismatches, and `TenantId` is part of the WHERE clause of every UPDATE and DELETE (BR-002, ADR 0009, ADR 0015). |
 | Money | `decimal(18,2)` for every amount (BR-001). `decimal(19,4)` unit prices, `decimal(9,3)` quantities, `decimal(5,2)` percentages. The value objects `Money`, `UnitPrice`, `Quantity` and `Percent` get these columns from a convention of the context (ADR 0004, ADR 0015); any other decimal needs an explicit precision and scale in its configuration, and one without them fails the EF model, which stops the API at startup, the tests and the EF tools (ADR 0015). |
 | Instants | `datetimeoffset(3)`, always stored with offset `+00:00`; the `…AtUtc` suffix says so. Read from `IClock.UtcNow` only (BR-003, ADR 0010). |
 | Business dates | `date`, IST calendar dates; suffix `…Date` (BR-003). Fiscal year as `char(7)` label `2026-27` (BR-004). |
 | Enums and codes | `varchar(n)` with a `CHECK (col IN (...))`. Readable in SQL and in exports; EF maps enums as strings. For an enum the constraint `CK_<Table>_<Column>` is generated from the enum's members, so adding a value is a migration that replaces the CHECK (ADR 0015). |
 | Text | `nvarchar(n)` for user-entered text; `varchar(n)` for ASCII codes and references. A text column without a length fails the EF model, like an unsized decimal. No `nvarchar(max)` except JSON and response bodies, which are marked `IsUnbounded()` in their configuration (ADR 0015). |
 | Concurrency | `RowVersion rowversion NOT NULL` on every mutable aggregate root, mapped as an EF concurrency token (BR-804, ADR 0007). Child rows (`BillLines`) and caches updated set-based (`PayerBalances`) carry none. |
-| Deletes | No `ON DELETE CASCADE` anywhere. The application login has no `DELETE` permission on any table except `IdempotencyKeys` (BR-005, §7). Reference data is deactivated by `Status`/`IsActive`. |
+| Deletes | No `ON DELETE CASCADE` anywhere: every foreign key is `ON DELETE NO ACTION`, set by a convention of the context whatever a configuration says (ADR 0015). The application login has no `DELETE` permission on any table except `IdempotencyKeys` and `BillLines`, the lines of draft bills (BR-005, §7, ADR 0019), and the context refuses to delete a row of any other entity. Reference data is deactivated by `Status`/`IsActive`. |
 | Append-only | `LedgerPostings`, `LedgerEntries`, `AuditRecords`: `INSERT`/`SELECT` only for the application login (BR-402, BR-702). |
 | Nulls | Nullable only where "absent" is meaningful (unposted number, optional reference). Every other column `NOT NULL`. |
 | Defaults | Only for `RowVersion`, `bit` flags, zero balances and identity columns. Application code sets everything else explicitly: where a table below says "initially", the value is set by the aggregate's factory method, not by the database. |
@@ -168,53 +178,63 @@ table has `CreatedAtUtc` only, set by `Tenant.Create`; changes to its settings a
 
 ### 3.2 Payers
 
+Migration `0002_SyncCurrentModel` (Prompt 2.2, ADR 0018; the name it was scaffolded under, §8). Both tables are tenant-scoped: `FK_Patients_TenantId` and
+`FK_Payers_TenantId` refer to `Tenants`, and every index leads with `TenantId` (§1). Text is stored without its
+surrounding white space, and a blank optional value as null; the limits of the columns are checked by the validators
+of the use cases first.
+
 **Patients**
 
 | Column | Type | Null | Notes |
 |---|---|---|---|
 | Id | uniqueidentifier | | PK |
-| T | | | |
-| Mrn | nvarchar(30) | | `UX_Patients_TenantId_Mrn` (BR-101) |
+| T | | | `FK_Patients_TenantId` |
+| Mrn | nvarchar(30) | | As entered, no control characters. `UX_Patients_TenantId_Mrn` (BR-101); under the database's case-insensitive collation, MRNs that differ only in case are the same MRN, as the `Mrn` value object says |
 | FullName | nvarchar(200) | | `IX_Patients_TenantId_FullName` |
-| DateOfBirth | date | • | |
-| Sex | varchar(10) | • | CK `Male`, `Female`, `Other`, `Unknown` |
+| DateOfBirth | date | • | not in the future, not before 1900 (validator) |
+| Sex | varchar(10) | • | `CK_Patients_Sex`: `Male`, `Female`, `Other`, `Unknown` |
 | Phone | nvarchar(20) | • | |
 | Email | nvarchar(256) | • | |
 | AddressLine1, AddressLine2 | nvarchar(200) | • | |
 | City, State | nvarchar(100) | • | |
-| PinCode | varchar(10) | • | |
-| Status | varchar(20) | | CK `Active`, `Inactive` (BR-102) |
-| Stamp, RV | | | |
+| PinCode | varchar(10) | • | ASCII letters, digits, spaces and hyphens: an Indian PIN code or a foreign postal code |
+| Status | varchar(20) | | `CK_Patients_Status`: `Active`, `Inactive` (BR-102) |
+| Stamp, Touch, RV | | | `CreatedByUserId` and `UpdatedByUserId` get their FK to `Users` with the Users migration |
 
 **Payers**
 
 | Column | Type | Null | Notes |
 |---|---|---|---|
 | Id | uniqueidentifier | | PK |
-| T | | | |
-| Kind | varchar(20) | | CK `SelfPay` in R1; R4 migration adds `Insurer`, `Corporate` (BR-103) |
+| T | | | `FK_Payers_TenantId` |
+| Kind | varchar(20) | | `CK_Payers_Kind`: `SelfPay`, `Insurer`, `Corporate`, generated from the enum (ADR 0015). Only `SelfPay` is ever written in R1: the aggregate refuses the others (BR-103) |
 | Name | nvarchar(200) | | `IX_Payers_TenantId_Name` |
-| PatientId | uniqueidentifier | • | FK `Patients`; `UX_Payers_TenantId_PatientId WHERE PatientId IS NOT NULL` (BR-104) |
+| PatientId | uniqueidentifier | • | `FK_Payers_PatientId` to `Patients(Id)`; `UX_Payers_TenantId_PatientId WHERE [PatientId] IS NOT NULL` (BR-104), which also serves the FK. Null for a guarantor. Never changes |
 | Phone | nvarchar(20) | • | |
 | Email | nvarchar(256) | • | |
-| Status | varchar(20) | | CK `Active`, `Inactive` (BR-105) |
-| Stamp, RV | | | |
+| Status | varchar(20) | | `CK_Payers_Status`: `Active`, `Inactive` (BR-105) |
+| Stamp, Touch, RV | | | |
+
+`FK_Payers_PatientId` does not include the tenant: a payer naming another tenant's patient is prevented by the use case
+(its lookup of the patient is filtered by the tenant), not by the database. Whether to make such keys composite is an
+open question (ADR 0015, built note of 2026-10-17).
 
 ### 3.3 Billing
 
-**ServiceItems** — chargemaster, reference data.
+**ServiceItems** — chargemaster, reference data. Migration `0003_ServiceItems` (Prompt 2.3). Tenant-scoped:
+`FK_ServiceItems_TenantId` refers to `Tenants`, and both indexes lead with `TenantId` (§1).
 
 | Column | Type | Null | Notes |
 |---|---|---|---|
 | Id | uniqueidentifier | | PK |
-| T | | | |
-| Code | varchar(30) | | `UX_ServiceItems_TenantId_Code` |
-| Name | nvarchar(200) | | |
-| Category | nvarchar(50) | • | |
-| DefaultUnitPrice | decimal(19,4) | | CK ≥ 0 |
-| TaxRatePercent | decimal(5,2) | | CK 0–100 |
-| IsActive | bit | | default 1 |
-| Stamp, RV | | | |
+| T | | | `FK_ServiceItems_TenantId` |
+| Code | varchar(30) | | As entered: ASCII letters, digits and `. - _ /`. `UX_ServiceItems_TenantId_Code`; under the database's case-insensitive collation, codes that differ only in case are the same code, as the `ServiceItemCode` value object says. Never changes |
+| Name | nvarchar(200) | | `IX_ServiceItems_TenantId_Name` |
+| Category | nvarchar(50) | • | free text |
+| DefaultUnitPrice | decimal(19,4) | | `CK_ServiceItems_DefaultUnitPrice`: `>= 0` (BR-201) |
+| TaxRatePercent | decimal(5,2) | | `CK_ServiceItems_TaxRatePercent`: `BETWEEN 0 AND 100` (BR-201). The property is `TaxRate` |
+| Status | varchar(20) | | `CK_ServiceItems_Status`: `Active`, `Inactive`, generated from the enum (ADR 0015). It replaces the `IsActive bit` of the first design, so that patients, payers and service items are deactivated the same way |
+| Stamp, Touch, RV | | | The table is mutable, so it has Touch as well |
 
 **Bills**
 
@@ -239,9 +259,36 @@ Additional checks:
 
 - `CK_Bills_NumberIffPosted`: `(Status IN ('Draft','PendingApproval','Voided') AND Number IS NULL AND PostedAtUtc IS NULL) OR (Status IN ('Posted','PartiallyPaid','Settled') AND Number IS NOT NULL AND PostedAtUtc IS NOT NULL)` (BR-206).
 - `CK_Bills_StatusMatchesBalance`: `(Status <> 'Posted' OR (BalanceDue = Total AND Total > 0)) AND (Status <> 'PartiallyPaid' OR (BalanceDue > 0 AND BalanceDue < Total)) AND (Status <> 'Settled' OR BalanceDue = 0)` (BR-208).
-- `CK_Bills_VoidedIffVoided`: `(Status = 'Voided') = (VoidedAtUtc IS NOT NULL)`.
+- `CK_Bills_VoidedIffVoided`: a voided bill has `VoidedAtUtc` and `VoidReason`; any other bill has neither, and no
+  `VoidedByUserId`. Written as two alternatives joined by `OR`, because SQL Server has no equality of conditions.
 
-**BillLines** — owned by `Bills`; no rowversion (the bill's covers it).
+**Built so far: migration `0004_Bills` (Prompt 2.4, ADR 0019), the table as drafts need it.** The table above is the
+target; the migration creates this part of it, and the posting slices add the rest by migration, with the code that
+sets it:
+
+- *In the table now:* `Id`, T, `PatientId`, `PayerId`, `BillDate`, `DueDate`, `EncounterReference`, `Notes`,
+  `Status`, the four totals, `BalanceDue`, Voided (`VoidedAtUtc`, `VoidedByUserId`, `VoidReason nvarchar(500)`),
+  Stamp, Touch, RV.
+- *Constraints now:* `CK_Bills_Status` with `Draft` and `Voided` only (generated from the enum, which has no other
+  member yet); `CK_Bills_DueDate`; `CK_Bills_SubTotal`, `CK_Bills_DiscountTotal`, `CK_Bills_TaxTotal` (each `>= 0`);
+  `CK_Bills_Total` (`>= 0` and the identity of BR-203); `CK_Bills_BalanceDue`; `CK_Bills_VoidedIffVoided`;
+  `FK_Bills_TenantId`, `FK_Bills_PatientId`, `FK_Bills_PayerId`.
+- *Indexes now:* `IX_Bills_TenantId_PatientId`, `IX_Bills_TenantId_PayerId_Status INCLUDE (BalanceDue, Total)`,
+  `IX_Bills_TenantId_BillDate`.
+- *Not yet:* Doc# (`Number`, `FiscalYear`, `SequenceNumber`) and its two filtered unique indexes, Posted, the four
+  later statuses, the filtered index on `PendingApproval`, `CK_Bills_NumberIffPosted` and
+  `CK_Bills_StatusMatchesBalance`.
+- `UpdatedAtUtc` is not set by the aggregate: when only lines changed, the unit of work marks it as modified, the
+  audit stamp writes it, and the UPDATE checks and advances `RowVersion` (ADR 0019).
+
+**BillLines** — owned by `Bills`; no rowversion (the bill's covers it), no Stamp or Touch. Built with `0004_Bills`
+as listed here. `UX_BillLines_TenantId_BillId_LineNo` leads with the tenant, like every index of a tenant-scoped
+table (§1), and replaces the `UX_BillLines_BillId_LineNo` of the first design. `FK_BillLines_BillId` is
+`ON DELETE NO ACTION` like every key; a line taken out of a draft is deleted by Entity Framework, never by the
+database (ADR 0019). Constraint names: `CK_BillLines_LineNo` (`>= 1`), `CK_BillLines_Quantity`,
+`CK_BillLines_UnitPrice`, `CK_BillLines_LineAmount`, `CK_BillLines_DiscountAmount`, `CK_BillLines_TaxRatePercent`,
+`CK_BillLines_TaxAmount`, `CK_BillLines_LineTotal`; `FK_BillLines_TenantId`, `FK_BillLines_BillId`,
+`FK_BillLines_ServiceItemId`.
 
 | Column | Type | Null | Notes |
 |---|---|---|---|
@@ -411,6 +458,13 @@ reconciliation query in §5.6 also detects a violation.
 | CreatedAtUtc, UpdatedAtUtc | datetimeoffset(3) | | |
 | RowVersion | rowversion | | for prefix edits only; the number path uses the lock in §4 |
 
+Built with migration `0005_NumberSeries` (Prompt 3.1) as listed: `FK_NumberSeries_TenantId`,
+`CK_NumberSeries_DocumentType` (generated from the enum), `CK_NumberSeries_Prefix` (the same expression as the
+tenant's default prefixes, binary collation), `CK_NumberSeries_NextNumber`, and the one index,
+`UX_NumberSeries_TenantId_DocumentType_FiscalYear`. The table has no Stamp or Touch user columns: a series is
+created and advanced by the statement of §4.1, which no user edits, and the two instants are set there from the
+clock. `FiscalYear` is the value object, stored as its label by a convention of the context.
+
 **IdempotencyKeys** (BR-803, ADR 0006) — clustered on the lookup key; the only table the application login may `DELETE` from (expiry sweep).
 
 | Column | Type | Null | Notes |
@@ -429,6 +483,21 @@ reconciliation query in §5.6 also detects a violation.
 | CreatedAtUtc | datetimeoffset(3) | | |
 | CompletedAtUtc | datetimeoffset(3) | • | |
 | ExpiresAtUtc | datetimeoffset(3) | | `IX_IdempotencyKeys_ExpiresAtUtc`; 30 days |
+
+Built with migration `0006_IdempotencyKeys` (Prompt 3.2; ADR 0006, "Built 2026-11-20"), with these differences from
+the table above:
+
+- `UserId` is nullable until the Identity slice: a request without a user leaves it null, like the audit columns.
+- The index is `IX_IdempotencyKeys_TenantId_ExpiresAtUtc`: tenant first, like every index of a tenant-scoped table
+  (§1). The sweep of expired keys therefore goes tenant by tenant.
+- `RequestHash` covers more than the note says: the method, the path with its query string, the `If-Match` header
+  and the body bytes.
+- `PK_IdempotencyKeys` is `(TenantId, Key)`, clustered; `FK_IdempotencyKeys_TenantId`; `CK_IdempotencyKeys_Status`
+  (generated from the enum); and `CK_IdempotencyKeys_Completed`: a completed key has `StatusCode`,
+  `CompletedAtUtc` and `ResponseBody`, a key in progress has none of them.
+- `ResponseBody` is the body as text (the API answers in UTF-8 JSON); an answer without a body is stored as an
+  empty text.
+- Not the only table with a `DELETE` any more: `BillLines` has one too (§7, ADR 0019).
 
 ### 3.7 Receivables
 
@@ -555,6 +624,23 @@ SELECT @next AS SequenceNumber,
   failed posting consumes no number.
 - An equivalent single-statement form, `UPDATE … SET NextNumber += 1 OUTPUT deleted.NextNumber`,
   is acceptable for the existing-row path; the create-on-first-use path still needs the range lock.
+
+**As built (Prompt 3.1, `NumberSeriesAllocator`, ADR 0008 "Built 2026-11-20"):**
+
+- The statement above is sent as one batch with four parameters (`@tenant`, `@type`, `@fiscalYear`, `@now`). The
+  default prefix is not a parameter: when the row has to be created, the batch reads it from the tenant's own row
+  (`BillPrefix`, `CreditNotePrefix` and so on, by `@type`). A tenant without a row gets no series and no number.
+- The batch returns the sequence number and the prefix; the number is formatted in the application by
+  `DocumentNumber`, which refuses a number longer than 16 characters. The allocator then fails and the increment
+  rolls back: a number a tax invoice may not carry is never issued.
+- "The same connection and transaction": `NextAsync` opens a transaction on the request's context if none is open,
+  and the unit of work commits it with the save, or rolls it back.
+- **A new series can wait for a neighbour.** The range lock of `HOLDLOCK` covers the gap in the unique index where
+  the new row will go, up to the next row. If that next row is a series with a posting in flight, another tenant's
+  included, the first posting of the new series waits until that posting ends. Once per series, for milliseconds,
+  without a deadlock (a use case locks one series). An existing series locks its own row only.
+- This is the one raw SQL statement of the application; every other raw-SQL entry point of EF Core is a build
+  error (`src/BannedSymbols.txt`).
 
 ### 4.2 Fiscal year
 
@@ -746,6 +832,22 @@ Lifecycle of a row in `IdempotencyKeys` for a financial POST:
 
 Only 2xx and 4xx responses are stored; a 5xx leaves no `Completed` row.
 
+**As built (Prompt 3.2, `IdempotencyStore`; ADR 0006, "Built 2026-11-20"):**
+
+- Step 1 runs on a connection of its own. When the key was free, the store then opens the business transaction on
+  the request's connection and holds it: the unit of work of the use case saves into it and does not commit.
+- Step 3 is for a **success (2xx)** only: the UPDATE of the key's row and the COMMIT are the store's, after the
+  response has been written into a buffer and before the client sees it.
+- A **refusal (4xx)** is not written inside the business transaction: that transaction is rolled back first, so
+  that nothing the use case did before it refused stays, a document number it took included (§4), and the response
+  is then stored by a second short transaction on a connection of its own.
+- Step 4 is `ROLLBACK` of the business transaction and a `DELETE` of the reservation, on a connection of its own. It
+  also runs when storing or committing a success fails; the client is then answered 500.
+- A second request with the key while the first is between its UPDATE and its COMMIT waits for the row and is
+  then given the stored response.
+- No job deletes expired rows yet; `docs/runbook.md` section 7 has the manual procedure, and the one for a row left
+  `InProgress` by a process that died.
+
 ---
 
 ## 7. Database permissions
@@ -758,11 +860,13 @@ Two logins. Migrations run as `billingrecon_migrator` (ddl_admin, db_datawriter)
 | All tables not listed below | `SELECT`, `INSERT`, `UPDATE` |
 | `LedgerPostings`, `LedgerEntries`, `AuditRecords` | `SELECT`, `INSERT` (BR-402, BR-702) |
 | `IdempotencyKeys` | `SELECT`, `INSERT`, `UPDATE`, `DELETE` (expiry sweep and reservation cleanup) |
+| `BillLines` | `SELECT`, `INSERT`, `UPDATE`, `DELETE`. The one business table with `DELETE`: replacing the lines of a draft removes the ones no longer wanted (BR-204, ADR 0019). The grant cannot tell a draft's line from a posted bill's; the aggregate allows it for drafts only, and the context refuses to delete a row of any other entity |
 | `Roles` | `SELECT` |
 | `__EFMigrationsHistory` | `SELECT`. The readiness check compares the migrations this table lists with the ones in the build; without the grant the API can never report ready (ADR 0015). EF Core creates the table, so its grant is not part of any table's migration: it belongs to the step that creates the logins. |
 
-There is no `DELETE` grant on any financial table; an EF `Remove` on one would fail at the database
-even if an architecture test missed it (BR-005).
+There is no `DELETE` grant on any other financial table; an EF `Remove` on one would fail at the database
+even if an architecture test missed it (BR-005). Since Prompt 2.4 it fails before that, in the context:
+`HardDeleteGuardInterceptor` refuses a save that deletes a row of any entity but `BillLine` (ADR 0019).
 
 Neither login exists yet: development and the tests run as `sa`, and no migration contains a
 `GRANT`. Until the logins and their grants are created, nothing at the database stops a delete or an
@@ -779,7 +883,12 @@ update of an append-only table (CLAUDE.md, section 9).
   | Migration | Contents | Status |
   |---|---|---|
   | `0001_Tenants` | `Tenants` (§3.1) | In the repository: `20261003192738_0001_Tenants`, scaffolded with EF Core 10.0.12 and verified against §3.1 on 2026-10-17. Not yet applied to SQL Server 2022 (`docs/runbook.md` §2, step 7). |
-  | `0002_…` onward | Users and roles, then one per slice in the order of §3 | Not started. |
+  | `0002_SyncCurrentModel` | `Patients`, `Payers` (§3.2) | In the repository: `20261018182819_0002_SyncCurrentModel`, scaffolded with EF Core 10.0.12 on 2026-10-18 (Prompt 2.2) and compared with §3.2, the entity configurations and the model snapshot on 2026-11-20: no difference. The name was meant to be `0002_Payers`; it stays as scaffolded, because a migration is never renamed or edited afterwards. Not yet applied to SQL Server 2022 in a recorded test run. |
+  | `0003_ServiceItems` | `ServiceItems` (§3.3) | Written 2026-11-20 (Prompt 2.3). **To be scaffolded with EF Core 10 on the personal machine** (`docs/runbook.md` §3), under exactly this name. A scaffold with EF Core 9 in the throwaway copy created the one table, matched §3.3 and passed the database tests on LocalDB 2019. |
+  | `0004_Bills` | `Bills`, `BillLines` as drafts need them (§3.3, "Built so far") | Written 2026-11-20 (Prompt 2.4). **To be scaffolded with EF Core 10 on the personal machine, after `0003_ServiceItems` and separately from it** (`docs/runbook.md` §3 has the two steps), under exactly this name. Scaffolded that way with EF Core 9 in the throwaway copy: `0003` held `ServiceItems` alone, `0004` held the two tables, and the database tests passed on LocalDB 2019. |
+  | `0005_NumberSeries` | `NumberSeries` (§3.6, §4) | Written 2026-11-20 (Prompt 3.1). **To be scaffolded with EF Core 10 on the personal machine, after `0004_Bills` and separately from it** (`docs/runbook.md` §3 has the three steps), under exactly this name. Scaffolded that way with EF Core 9 in the throwaway copy: it held `NumberSeries` alone, and the database tests passed on LocalDB 2019. |
+  | `0006_IdempotencyKeys` | `IdempotencyKeys` (§3.6, §6) | Written 2026-11-20 (Prompt 3.2). **To be scaffolded with EF Core 10 on the personal machine, after `0005_NumberSeries` and separately from it** (`docs/runbook.md` §3 has the four steps), under exactly this name. Scaffolded that way with EF Core 9 in the throwaway copy: it held `IdempotencyKeys` alone, and the database tests passed on LocalDB 2019. |
+  | `0007_…` onward | One per slice, in the order of `docs/build-prompts.md`: receivables, audit and so on; users and roles come with the Identity slice in Phase 5 | Not started. |
 
 - CHECK constraints, unique and filtered indexes and computed columns are declared in the EF model
   (the entity configuration, or a convention of the context), so a scaffolded migration needs no
@@ -787,7 +896,7 @@ update of an append-only table (CLAUDE.md, section 9).
   express, such as the permission grants of §7, added in the migration that creates the table
   (ADR 0015).
 - A test without a database fails when the model has a change that no migration contains, and
-  another compares the script of the migrations with §3.1.
+  others compare the script of the migrations with §3.1, §3.2 and §3.3.
 - Applied automatically when the API starts **in Development only**; everywhere else they are a
   deployment step run as `billingrecon_migrator` (§7). `/health/ready` reports "not ready" while a
   migration is unapplied.

@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using BillingRecon.Api.Common;
+using BillingRecon.Application.Common;
 using Microsoft.AspNetCore.Mvc;
 using NetArchTest.Rules;
 
@@ -90,5 +91,18 @@ public sealed class ConventionTests
         {
             minimalApi.IsMatch(File.ReadAllText(RepositoryFiles.PathOf(file))).ShouldBeFalse($"{file} maps a minimal API endpoint");
         }
+    }
+
+    [Fact]
+    public void The_audit_trail_is_the_only_subscriber_of_domain_events()
+    {
+        // An effect in another module is a call through that module's port in the use case, where it can be seen,
+        // never a subscription (docs/domain-model.md section 8; ADR 0003, ADR 0020). A second subscriber needs an ADR.
+        var subscribers = Assemblies.All
+            .SelectMany(assembly => assembly.GetTypes())
+            .Where(type => type.IsClass && typeof(IDomainEventSubscriber).IsAssignableFrom(type))
+            .Select(type => type.FullName);
+
+        subscribers.ShouldBe(["BillingRecon.Application.Audit.AuditSubscriber"]);
     }
 }

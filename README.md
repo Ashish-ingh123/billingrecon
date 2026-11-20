@@ -95,13 +95,17 @@ dotnet run --project src/BillingRecon.Api
 ```
 
 The API listens on http://localhost:5080 (see `Properties/launchSettings.json`) and refuses to
-start without the connection string. In Development it creates the database on first start and
-applies the migrations; adding a migration and the other database commands are in
+start without the connection string. In Development it creates the database on first start, applies
+the migrations and adds the row of the development tenant; adding a migration and the other database
+commands are in
 [docs/runbook.md](docs/runbook.md), section 3.
 
 - Health: `/health/live` (the process is up) and `/health/ready` (the database is reachable and
   every migration has been applied).
 - Service info: `/api/v1/system/info`. Every API route is under `/api/v1`.
+- Patients and payers: `/api/v1/patients` and `/api/v1/payers` (register or create, read, list, correct,
+  deactivate, reactivate). A change of an existing record sends its ETag in `If-Match`. The contract is
+  in [docs/api.md](docs/api.md).
 - Logs: JSON on the console and, in Development, in Seq at http://localhost:5341. Every request has
   a correlation id: send `X-Correlation-Id` (a GUID) or let the API generate one; it comes back in
   the response header and is on every log line of the request.

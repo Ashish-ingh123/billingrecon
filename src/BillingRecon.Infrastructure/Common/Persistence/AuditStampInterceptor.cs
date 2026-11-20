@@ -14,7 +14,7 @@ namespace BillingRecon.Infrastructure.Common.Persistence;
 /// never part of an UPDATE; the model says so (<see cref="BillingReconDbContext"/>), not this class.</item>
 /// </list>
 /// The user is null for system work (seeding, migrations, background jobs). The clock is read once per save, so all
-/// rows of one save carry the same instant. Set-based statements (<c>ExecuteUpdate</c>, <c>ExecuteDelete</c>, raw
+/// rows of one save carry the same instant; a commit of the unit of work holds one reading for all of it. Set-based statements (<c>ExecuteUpdate</c>, <c>ExecuteDelete</c>, raw
 /// SQL) do not pass through here, which is why the first two are banned (<c>src/BannedSymbols.txt</c>). These
 /// columns say who touched the row first and last; the history is in the audit records (BR-701).
 /// <para>
@@ -24,6 +24,19 @@ namespace BillingRecon.Infrastructure.Common.Persistence;
 /// </summary>
 public sealed class AuditStampInterceptor(ICurrentUser currentUser, IClock clock) : SaveChangesInterceptor
 {
+    // The instant of the commit in progress, while the unit of work holds one; null otherwise.
+    private DateTimeOffset? _held;
+
+    /// <summary>
+    /// Reads the clock once for the commit that is starting and returns that instant. Until <see cref="Release"/>,
+    /// every stamp uses it: the one the unit of work applies before it dispatches domain events, and the one of the
+    /// save that follows. So the audit columns and the audit records of one use case carry the same instant (BR-003).
+    /// </summary>
+    public DateTimeOffset Hold() => _held ??= clock.UtcNow;
+
+    /// <summary>Ends the commit: the next save reads the clock again.</summary>
+    public void Release() => _held = null;
+
     /// <inheritdoc />
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {
@@ -69,7 +82,7 @@ public sealed class AuditStampInterceptor(ICurrentUser currentUser, IClock clock
                 continue;
             }
 
-            stamp ??= (clock.UtcNow, currentUser.UserId);
+            stamp ??= (_held ?? clock.UtcNow, currentUser.UserId);
 
             if (created)
             {

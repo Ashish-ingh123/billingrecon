@@ -34,7 +34,7 @@
 
 | Module | Aggregates / entities | Value objects and services | Notes |
 |---|---|---|---|
-| **Common** | `ApprovalRequest`, `NumberSeries` | `Money`, `UnitPrice`, `Quantity`, `Percent`, `FiscalYear`, `DocumentNumber`, typed ids (the `ITypedId` contract, and `TenantId` and `UserId`, which every module needs), the base types `Entity<TId>`, `AggregateRoot<TId>`, `ITenantScoped`, `ICreationAudited`, `IModificationAudited`, `IHasRowVersion` (ADR 0015), `IClock`, `IUnitOfWork`, `ITenantContext`, `ICurrentUser`, `INumberSeries`, `IIdempotencyStore`, `Result<T>`, `Error` | Cross-cutting; usable by every module. |
+| **Common** | `ApprovalRequest`, `NumberSeries` | `Money`, `UnitPrice`, `Quantity`, `Percent`, `FiscalYear`, `DocumentNumber`, typed ids (the `ITypedId` contract, and the ids other modules refer to: `TenantId` and `UserId`, which every module needs, and `PatientId` and `PayerId`, which bills, payments and the ledger name; modules share ids, never aggregates), `CommonErrors` (`validation_failed`, `concurrency_conflict`, `duplicate_key`), the base types `Entity<TId>`, `AggregateRoot<TId>`, `ITenantScoped`, `ICreationAudited`, `IModificationAudited`, `IHasRowVersion` (ADR 0015), `IClock`, `IUnitOfWork`, `ITenantContext`, `ICurrentUser`, `INumberSeries`, `IIdempotencyStore`, `Result<T>`, `Error` | Cross-cutting; usable by every module. |
 | **Identity** | `Tenant`, `User` (with roles) | `Role` | JWT issuance and validation live in Infrastructure/Api. |
 | **Payers** | `Patient`, `Payer` | `Mrn`, `PayerKind` | Reference data with lifecycle by status (BR-102, BR-105). |
 | **Billing** | `Bill` + `BillLine`, `CreditNote` + `CreditNoteLine` + `CreditNoteAllocation`, `ServiceItem` | `BillNumber`, `CreditNoteNumber` | Publishes `IBillReadService` (bill balances) for Payments and Adjustments. |
@@ -65,7 +65,7 @@ unless stated. Construction validates; an invalid value cannot exist.
 | `FiscalYear` | `(int StartYear)`; `Label` = `"2026-27"`; `Start` = 1 Apr, `End` = 31 Mar. | `FiscalYear.FromDate(DateOnly)`: month ≥ 4 → same year, else previous year (BR-004). |
 | `DocumentNumber` | `(DocumentType Type, FiscalYear Year, string Prefix, int Sequence)`; `ToString()` = `PREFIX/YY-YY/NNNNNN`, for example `BIL/26-27/000123` (≤ 16 characters, ADR 0008). | Only `INumberSeries` creates one, inside a posting transaction (BR-801). `BillNumber`, `CreditNoteNumber`, `PaymentNumber`, `AdjustmentNumber`, `RefundNumber` are thin typed wrappers so a bill number cannot be assigned to a payment. |
 | Typed ids | `TenantId`, `UserId`, `PatientId`, `PayerId`, `ServiceItemId`, `BillId`, `BillLineId`, `CreditNoteId`, `PaymentId`, `AllocationId`, `AdjustmentId`, `RefundId`, `ApprovalRequestId`, `PostingId`, `CorrelationId` — each `readonly record struct X(Guid Value) : ITypedId`. | Prevents passing a `PaymentId` where a `BillId` is expected. The `Guid` is generated client-side (sequential) by EF when the entity is added to the context: the id is empty before that and known before anything is saved (ADR 0015). |
-| `Mrn` | Non-empty, trimmed, ≤ 30 chars. | BR-101. |
+| `Mrn` | `readonly record struct` (Payers) over the text as entered: trimmed, 1 to 30 characters, no control characters. | BR-101. `Of` and `TryOf`. Equality ignores the case of letters, as the unique index does under the database's case-insensitive collation. A struct so that Entity Framework stores it as a column (ADR 0015, built note of 2026-10-17); its default value is empty and is not an MRN, and `Patient.Register` refuses it. Stored as `nvarchar(30)` through a converter in the entity configuration. |
 | `PaymentMethod` | enum `Cash, Card, Upi, BankTransfer, Cheque`. | BR-301. |
 | `PayerKind` | enum `SelfPay` (R1), `Insurer`, `Corporate` (reserved). | BR-103: only `SelfPay` is accepted in R1. |
 | `AdjustmentKind` | enum `Discount, WriteOff, Rounding`. | BR-501. |
@@ -107,9 +107,10 @@ an event must not copy the aggregate's id inside a factory method, where the id 
 |---|---|
 | **Root** | `Patient` |
 | **Fields** | `Mrn`, `FullName`, `DateOfBirth?`, `Sex?`, contact and address fields, `Status` (`Active`, `Inactive`) |
-| **Commands** | `Register`, `UpdateDemographics`, `Deactivate`, `Reactivate` |
-| **Invariants** | MRN unique per tenant (BR-101, enforced by unique index and checked in the use case). Never deleted (BR-102). `Inactive` patients cannot be billed (checked by `Bill.Create`). |
-| **Events** | `PatientRegistered`, `PatientDeactivated` |
+| **Commands** | `Register(mrn, details)`, `UpdateDemographics(details)` (replaces every field but the MRN and the status; a value left out is cleared), `Deactivate`, `Reactivate` (each refuses the status the patient already has: `patient_already_inactive`, `patient_already_active`) |
+| **Invariants** | MRN unique per tenant (BR-101, enforced by unique index and checked in the use case). Never deleted (BR-102). `Inactive` patients cannot be billed (checked by `Bill.Create`). Text without surrounding white space, blank optional values null, every value within its column (a value the validator would refuse is a bug and throws). |
+| **Events** | `PatientRegistered`, `PatientDeactivated`, `PatientReactivated` |
+| **Built** | 2026-10-17 (Prompt 2.2, ADR 0018): `Domain/Payers`, the use cases in `Application/Payers`, the table `Patients` (`database.md` §3.2), the endpoints in `docs/api.md` §8.1. The demographics travel as one `PatientDetails` record. |
 
 ### 4.2 Payer (Payers module)
 
@@ -117,17 +118,33 @@ an event must not copy the aggregate's id inside a factory method, where the id 
 |---|---|
 | **Root** | `Payer` |
 | **Fields** | `Kind` (`SelfPay`), `Name`, `PatientId?` (the patient this self-pay payer *is*), contact fields, `Status` |
-| **Commands** | `CreateSelfPay(patient?)`, `Update`, `Deactivate`, `Reactivate` |
-| **Invariants** | `Kind == SelfPay` in R1 (BR-103). At most one payer per `PatientId` (BR-104, filtered unique index). Never deleted; inactive payers receive no new bills, payments or refunds (BR-105, BR-309). |
-| **Events** | `PayerCreated`, `PayerDeactivated` |
+| **Commands** | `Create(kind, details, patientId?)`, which refuses `Insurer` and `Corporate` with `payer_kind_not_supported` (BR-103); `Update(details)` (the name and contact details; a contact detail left out is cleared); `Deactivate`, `Reactivate` |
+| **Invariants** | `Kind == SelfPay` in R1 (BR-103). At most one payer per `PatientId` (BR-104, filtered unique index, checked in the use case), and only for an active patient of the tenant (checked in the use case). The kind and the patient link never change. Never deleted; inactive payers receive no new bills, payments or refunds (BR-105, BR-309). |
+| **Events** | `PayerCreated`, `PayerDeactivated`, `PayerReactivated` |
+| **Built** | 2026-10-17 (Prompt 2.2, ADR 0018): `Domain/Payers`, the use cases in `Application/Payers`, the table `Payers` (`database.md` §3.2), the endpoints in `docs/api.md` §8.2. The zero `PayerBalance` row is created with the Receivables slice, which also creates it for every payer that exists by then. |
 
 `PayerBalance` is **not** part of this aggregate. It is a Receivables cache keyed by `PayerId` (§4.10).
 
 ### 4.3 ServiceItem (Billing module, reference data)
 
 Chargemaster entry: `Code` (unique per tenant), `Name`, `Category?`, `DefaultUnitPrice`,
-`TaxRate`, `IsActive`. A bill line may copy price and tax rate from it; the line keeps its own copy so
-later price changes never alter a bill. Deactivated, never deleted.
+`TaxRate`, `Status` (`Active`, `Inactive`). A bill line may copy price and tax rate from it; the line keeps its own
+copy so later price changes never alter a bill. Deactivated, never deleted.
+
+Built with Prompt 2.3 (2026-11-20), shaped like `Payer` (ADR 0018):
+
+- `Code` is the value object `ServiceItemCode` (Billing): kept as entered, trimmed, 1 to 30 ASCII characters, each
+  a letter, a digit or one of `. - _ /`; equality ignores the case of letters, as the unique index does. It is
+  **fixed at creation**: price lists and people refer to it, so it must not come to mean another service.
+- `DefaultUnitPrice` is a `UnitPrice` and `TaxRate` a `Percent` (§3, BR-201). Zero is valid for both; neither has
+  a default, the use case requires them.
+- `Status` replaces the `IsActive` flag of the first design, so that reference data has one shape: `Deactivate`
+  and `Reactivate` return `service_item_already_inactive` and `service_item_already_active` when there is nothing
+  to change.
+- Events: `ServiceItemCreated`, `ServiceItemDeactivated`, `ServiceItemReactivated`. A correction raises none yet;
+  the audit slice decides what a correction records.
+- `ServiceItemId` lives in Common, because bill lines and credit note lines will name the item they were priced
+  from.
 
 ### 4.4 Bill + BillLine (Billing module)
 
@@ -141,6 +158,34 @@ later price changes never alter a bill. Deactivated, never deleted.
 | **Events** | `BillPosted`, `BillVoided`, `BillSubmittedForApproval`, `BillBalanceChanged` |
 
 State machine: §5.
+
+**Built with Prompt 2.4 (2026-11-20, ADR 0019): the draft.** What exists so far, and where it differs from the table
+above:
+
+- **States:** `Draft` and `Voided` only. Every mutating method returns `bill_not_draft` (422) unless the bill is a
+  draft; `bill_already_posted` arrives with posting.
+- **Commands:** `Create`, `ReplaceLines` (in place of `AddLine`, `UpdateLine` and `RemoveLine`: one request replaces
+  every line, a line that keeps its position keeps its row, the rest are added or removed), `UpdateHeader` (in place
+  of `ChangeDates`: both dates, the encounter reference and the notes), `Void(reason, instant, user)`.
+- **Fields:** everything above except `Number` and `FiscalYear` and the posted stamps. The patient and the payer
+  are fixed at creation. `BalanceDue` equals `Total` on a draft.
+- **Lines:** `BillLine.Check` applies BR-201 to one line and returns its `LineAmounts`; the bill checks every line
+  before it keeps any. Two failures are business rules (422): `bill_line_discount_exceeds_amount` and
+  `bill_line_amount_too_large` (a line amount above 9,999,999,999.99). At most 200 lines.
+- **Dates:** the use case hands in a `BusinessDateWindow` built from `IClock.TodayIst` and the tenant's
+  `MaxBackdateDays`; the aggregate answers `bill_date_in_future`, `bill_date_too_old` or
+  `bill_due_date_before_bill_date` (BR-205). A bill date is checked when it is entered or changed, not on every
+  edit, and will be checked again at posting.
+- **Events:** `BillDrafted` and `BillVoided`. Edits of a draft raise none yet; the audit slice decides what they
+  record.
+- **Patient and payer:** checked by the use case through `IBillableParties`, a contract of the Payers module
+  (Application): both must exist for the tenant and be active (BR-102, BR-105). No link between them is required
+  (BR-106).
+- **Service items:** a line that names one takes from it the description, the unit price and the tax rate the
+  request leaves out, read through `IServiceItemReadService`, and keeps its own copy. An inactive item is refused
+  (`service_item_inactive`) unless the draft already has a line for it.
+- **Tenant settings:** read through `ITenantSettingsReader` (Application, Identity): `MaxBackdateDays` and
+  `DefaultDueDays`.
 
 ### 4.5 CreditNote + CreditNoteLine + CreditNoteAllocation (Billing module)
 
@@ -220,6 +265,24 @@ fiscalYear, ct)` runs inside the caller's transaction, locks the row (`UPDLOCK, 
 on first use with the tenant's default prefix, increments it and returns a `DocumentNumber` (BR-801,
 BR-802). Prefix changes go through `ApprovalRequest` with `Action = ChangePrefix`.
 
+**Built with Prompt 3.1 (2026-11-20; ADR 0008, "Built 2026-11-20").** `FiscalYear`, `DocumentType` and
+`DocumentNumber` are in Domain, Common; the port is in Application, Common; the implementation is
+`NumberSeriesAllocator` in Infrastructure, Common/Numbering. Where the build is more precise than the lines above:
+
+- `FiscalYear` is a `readonly record struct` with `Of(startYear)`, `FromDate`, `Parse` and `TryParse` of a label,
+  `Label` (`2026-27`), `ShortLabel` (`26-27`), `Start`, `End` and `Contains`. Its default value is not a fiscal year.
+- `DocumentNumber` is built by `DocumentNumber.Create(type, fiscalYear, prefix, sequence)` and has `Value`. A
+  number that would be longer than 16 characters cannot be built (CGST rule 46(b)), so a series whose next number
+  no longer fits is exhausted: the allocator fails, and nothing is issued. The typed wrappers (`BillNumber` and the
+  others) arrive with the documents that use them.
+- "The caller's transaction": `NextAsync` opens a transaction on the request's context when none is open, and
+  `IUnitOfWork.CommitAsync` commits it with the save or rolls it back. A use case that takes a number and does not
+  commit gives the number back when its request ends.
+- The tenant is the one of the current scope; it is not a parameter of `NextAsync`.
+- `NumberSeries` is an entity of the model that nothing creates or changes through code: the allocator's one
+  statement does both. It has no commands until the prefix change is built.
+- No document takes a number yet; bill posting is the first (Prompt 3.5).
+
 ### 4.12 Tenant and User (Identity module)
 
 `Tenant`: `Code`, `Name`, `Status`, settings (`PostingApprovalThreshold?`, `MaxBackdateDays`,
@@ -238,6 +301,11 @@ is an Infrastructure concern; the Domain only knows roles (BR-601, BR-602).
 Append-only: `OccurredAtUtc`, `UserId?`, `CorrelationId`, `EntityType`, `EntityId`, `DocumentNumber?`,
 `Action`, `BeforeJson?`, `AfterJson?`, `Reason?`. Written by `IAuditWriter` from domain events and from
 explicit calls in use cases, always inside the unit of work (BR-701, BR-702).
+
+*Built 2026-11-20 (Prompt 3.4, ADR 0020).* `AuditRecord` is created complete by `AuditRecord.Create` and has no
+behaviour; it carries `IAppendOnly`, and the persistence layer refuses to update or delete it. Its id is a number
+the database assigns, not a typed id. So far every record comes from a domain event, through the generic
+`AuditSubscriber`; no use case calls `IAuditWriter` itself yet.
 
 ---
 
@@ -376,8 +444,10 @@ and no broker in R1 (CLAUDE.md §2); R5 may add an outbox for external integrati
 
 | Event | Raised by | Payload (beyond ids and tenant) | Consumers |
 |---|---|---|---|
-| `PatientRegistered`, `PatientDeactivated` | `Patient` | MRN | Audit |
-| `PayerCreated`, `PayerDeactivated` | `Payer` | kind, name | Audit (the zero `PayerBalance` row is created by the Payers use case through a Receivables port, not by a subscriber: ADR 0003, amendment of 2026-10-17) |
+| `PatientRegistered`, `PatientUpdated`, `PatientDeactivated`, `PatientReactivated` | `Patient` | MRN (`PatientRegistered` carries no id: the id is assigned when the patient is added to the unit of work, after the event) | Audit |
+| `PayerCreated`, `PayerUpdated`, `PayerDeactivated`, `PayerReactivated` | `Payer` | kind, name, patient link (`PayerCreated` carries no payer id, for the same reason) | Audit (the zero `PayerBalance` row is created by the Payers use case through a Receivables port, not by a subscriber: ADR 0003, amendment of 2026-10-17) |
+| `ServiceItemCreated`, `ServiceItemUpdated`, `ServiceItemDeactivated`, `ServiceItemReactivated` | `ServiceItem` | code, name, price and tax rate | Audit |
+| `BillDrafted`, `BillHeaderUpdated`, `BillLinesReplaced` | `Bill` | parties, dates, line count, total | Audit |
 | `BillSubmittedForApproval` | `Bill` | total, maker | Audit (the `ApprovalRequest` is opened by the Billing use case through the approval port of Common, not by a subscriber) |
 | `BillPosted` | `Bill` | number, payer, total, business date | Audit |
 | `BillVoided` | `Bill` | reason | Audit |
@@ -399,6 +469,14 @@ skipped by a mis-wired subscriber (BR-401). The same holds for every effect in a
 `Audit` is the only subscriber, and it handles `IDomainEvent` generically, so no module depends on
 another module's events (ADR 0003, amendment of 2026-10-17).
 
+*Built 2026-11-20 (Prompt 3.4, ADR 0020).* `UnitOfWork.CommitAsync` stamps the tenant and the audit columns with
+one clock reading, takes the events off every tracked aggregate, and hands each to every `IDomainEventSubscriber`
+as a `DomainEventOccurrence`: the event plus the kind and id of its aggregate, the instant of the commit, and the
+aggregate before and after as JSON. Then it saves. An event is raised only when something changed: a correction
+that sends what is already stored raises none (the `...Updated` events, `BillHeaderUpdated`, `BillLinesReplaced`).
+An event that carries a reason implements `IHasReason`. The events of the documents that are not built yet are
+as the table plans them.
+
 ---
 
 ## 9. Domain services and Application ports
@@ -407,13 +485,16 @@ another module's events (ADR 0003, amendment of 2026-10-17).
 |---|---|---|
 | `IClock` | `UtcNow` (instant) and `TodayIst` (business date); the only time source (BR-003). | Infrastructure (`SystemClock`); tests use a fixed clock. |
 | `ITenantContext`, `ICurrentUser` | Tenant and user from the validated JWT, resolved once per request (BR-002, BR-602). | Api middleware → Infrastructure. |
-| `IUnitOfWork` | `CommitAsync(ct)`: dispatch domain events, save, commit the transaction (BR-007). | Infrastructure (EF Core `DbContext` + transaction). |
+| `ICommandHandler<TCommand, TResult>`, `IQueryHandler<TQuery, TResult>` | One plain class per use case, registered by convention, called by its controller; returns `Result<T>` (ADR 0018). | Application (the handlers themselves). |
+| `IUnitOfWork` | `CommitAsync(ct)`: dispatch domain events, save, commit the transaction (BR-007). Returns `concurrency_conflict` or `duplicate_key` for a lost race. Built 2026-10-17; the dispatch since 2026-11-20 (ADR 0020). | Infrastructure (EF Core `DbContext` + transaction). |
 | `INumberSeries` | `NextAsync(type, fiscalYear, ct)` inside the current transaction (BR-801). | Infrastructure (raw SQL with `UPDLOCK, HOLDLOCK`, ADR 0008). |
 | `IReceivablesLedger` | `PostAsync(template, ct)`: balanced entries + `PayerBalance` deltas (BR-401, BR-404). | Infrastructure (Receivables). |
 | `IIdempotencyStore` | Reserve, complete and look up keys (BR-803, ADR 0006). | Infrastructure. |
-| `IAuditWriter` | Append audit records (BR-701). | Infrastructure (Audit). |
+| `IAuditWriter` | Append audit records to the current unit of work (BR-701). | Infrastructure (Audit). |
+| `IDomainEventSubscriber`, `ICorrelationContext` | What the unit of work dispatches to (the audit subscriber is the only one), and the correlation id of the current request (BR-703). | Application (`AuditSubscriber`); Api (`HttpCorrelationContext`). |
+| `IAuditReadService` | The audit trail of one record, paged, oldest first (US-43). | Infrastructure (Audit). |
 | Repositories | `IPatientRepository`, `IPayerRepository`, `IBillRepository`, `ICreditNoteRepository`, `IPaymentRepository`, `IRefundRepository`, `IAdjustmentRepository`, `IApprovalRequestRepository`, `IUserRepository`, `ITenantRepository` — load by id (tenant-filtered), add, and nothing else. No `Remove` (BR-005). | Infrastructure. |
-| Read services | `IBillReadService`, `IPayerReadService`, reporting queries. | Infrastructure (EF queries, `AsNoTracking`). |
+| Read services | `IPatientReadService`, `IPayerReadService` (built 2026-10-17), `IBillReadService`, reporting queries. DTOs, pages, and the existence checks a command makes before it writes. | Infrastructure (EF queries, `AsNoTracking`). |
 | Domain services (Domain) | `LineCalculator` (BR-202), `FiscalYear.FromDate` (BR-004), `PostingTemplates` (the account pairs in `database.md` §5.3). | Domain. |
 
 ---
@@ -424,5 +505,6 @@ another module's events (ADR 0003, amendment of 2026-10-17).
    fast? Today BR-502 says no; a tenant setting `AutoApproveAdjustmentsBelow` would be an ADR.
 2. Does a tenant need more than one bill series (for example per department)? BR-801 assumes one
    series per document type.
-3. Whether `Sex` and address fields are needed for billing at all, or whether the HIS remains the
-   only place for demographics and BillingRecon stores just MRN and name.
+3. ~~Whether `Sex` and address fields are needed for billing at all, or whether the HIS remains the
+   only place for demographics and BillingRecon stores just MRN and name.~~ Resolved 2026-10-17 (owner's
+   approval of the Prompt 2.2 plan): the fields stay, as `database.md` §3.2 lists them.
