@@ -7,7 +7,7 @@ namespace BillingRecon.IntegrationTests.Persistence;
 /// sets of audit columns, a row version, an enum (required and optional), a decimal, an optional business date and
 /// an optional instant. It exists because the production model has no tenant-scoped entity yet.
 /// </summary>
-public sealed class Widget(string name) : AggregateRoot<WidgetId>, ITenantScoped, ICreationAudited, IModificationAudited, IHasRowVersion
+public sealed class Widget(string name) : AggregateRoot<WidgetId>, ITenantScoped, ICreationAudited, IModificationAudited, IHasRowVersion, IHardDeletable
 {
     public string Name { get; private set; } = name;
 

@@ -33,6 +33,10 @@ public sealed class ModuleDependencyTests
             "BillingRecon.Application.Adjustments",
             "BillingRecon.Domain.Billing",
             "Posting an adjustment commands the Adjustment and the Bill in one transaction (docs/domain-model.md section 6; ADR 0003)."),
+        new(
+            "BillingRecon.Infrastructure.Billing",
+            "BillingRecon.Domain.Payers",
+            "The Bills table has foreign keys to Patients and Payers (docs/database.md section 3.3); BillConfiguration names the two entity types to declare them and uses nothing else of them (ADR 0003, amendment of 2026-11-20)."),
     ];
 
     public static TheoryData<string> BusinessModules()

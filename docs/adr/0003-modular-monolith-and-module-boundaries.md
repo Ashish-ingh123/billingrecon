@@ -119,3 +119,36 @@ and its port are in `Common`.
 **Aggregates take ids, not each other.** The handler calls `payment.Allocate(bill.Id, amount)` and
 `bill.ApplyCredit(amount)`; `Domain.Payments` never references `Domain.Billing`, which keeps rule 2
 intact and the exceptions above at the Application layer.
+
+## Amendment 2026-11-20: a foreign key across modules (accepted by the owner, 2026-11-20)
+
+Prompt 2.4 built the first table of one business module that refers to tables of another: `Bills` has
+`FK_Bills_PatientId` and `FK_Bills_PayerId` (`docs/database.md` section 3.3). Entity Framework declares a foreign
+key by naming the entity type at its other end, so `BillingRecon.Infrastructure.Billing.BillConfiguration` names
+`Patient` and `Payer`, which rule 1 forbids. The architecture test caught it, as it should.
+
+**Decision.** A third allowed exception, listed in the test with its reason:
+
+| Depending namespace | May depend on | Why |
+|---|---|---|
+| `BillingRecon.Infrastructure.Billing` | `BillingRecon.Domain.Payers` | `BillConfiguration` names `Patient` and `Payer` to declare the two foreign keys of `Bills`, and uses nothing else of them. |
+
+As with the other exceptions, the test cannot tell which type a dependency reaches for, so it allows the whole
+namespace and review keeps it to the two `HasOne<...>()` calls. Everything else in Billing still reaches Payers
+through its Application contracts only: the use cases ask `IBillableParties` whether a patient may be billed and
+a payer may be given the bill, and never read a patient, a payer, their statuses or their errors.
+
+**Alternatives considered.**
+
+- *No foreign key in the database.* Rejected: the use case checks the two ids, but the database is the last line
+  of defence, and every other reference in the schema has its key.
+- *Name the entity types by string*, so that nothing compiles against them. Tried and rejected: it hides the same
+  dependency from the compiler, and the architecture test finds it anyway.
+- *A convention of the context* that gives every typed-id column a foreign key to the table whose key has that
+  type, so that no module names another's entity. It would remove this exception and the ones to come (payments,
+  credit notes, adjustments and refunds all refer to payers and bills), at the price of a convention that also
+  reaches columns that must not have a key. Not built; it is the alternative to weigh if these exceptions multiply.
+
+The owner accepted this exception on 2026-11-20. The same question returns with every later table that refers to a
+patient, a payer or a bill: each one is a new row in this table, decided then, or the convention above replaces them
+all.
