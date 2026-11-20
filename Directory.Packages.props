@@ -45,7 +45,7 @@
       it directly to lift it to a patched version. Remove the pin and the reference once the package that brings it in
       asks for a patched version itself.
     -->
-    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="9.0.21" />
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="11.0.0" />
     <!-- EF Core: same version for the provider, the design-time package and the dotnet-ef tool (.config/dotnet-tools.json). -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12" />
