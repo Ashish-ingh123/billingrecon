@@ -1,14 +1,4 @@
-
-**Built 2026-11-20 (Prompt 3.4, ADR 0020), as above with these precisions.** `AfterJson` is `NOT NULL`. `Id` is
-the one key in the model that is not a typed Guid id. `EntityType` is the name of the aggregate's class and
-`Action` the name of the domain event without it (`Registered`, `Updated`, `Deactivated`, `Reactivated`, `Created`,
-`Drafted`, `HeaderUpdated`, `LinesReplaced`, `Voided` so far). The two images hold the stored row, one member per
-column, and the children of the aggregate (a bill's `Lines`); the row version and the tenant are left out.
-`DocumentNumber` stays null until documents have numbers (Prompt 3.5). The third index ends in `Id`, so the trail
-of one record is read in the order it was written. Rows are written by the unit of work in the transaction of the
-change and refused for update and delete by `AppendOnlyGuardInterceptor`; the grants of section 7 are still to come.
-  | `0007_Audit` | `AuditRecords` (§3.8) | Written 2026-11-20 (Prompt 3.4, ADR 0020). **To be scaffolded with EF Core 10 on the personal machine, after `0006_IdempotencyKeys` and separately from it** (`docs/runbook.md` §3 has the five steps), under exactly this name. Scaffolded that way with EF Core 9 in the throwaway copy: it held `AuditRecords` alone, and the database tests passed on LocalDB 2019. The build prompts had this as `0008_Audit` after the receivables migration; Prompt 3.4 was built before 3.3, so the numbers follow the order of application. |
-  | `0008_…` onward | One per slice, in the order of `docs/build-prompts.md`: receivables (`0008_Receivables`), approvals and so on; users and roles come with the Identity slice in Phase 5 | Not started. |# Database
+# Database
 
 - **Status:** R1 schema designed 2026-09-29. Implemented incrementally by EF Core migrations in
   `src/BillingRecon.Infrastructure`; this document is the target the migrations converge on.
@@ -562,6 +552,18 @@ No rowversion: updated with `UPDATE PayerBalances SET Receivable += @d … WHERE
 the posting transaction, so concurrent postings for one payer queue on the row lock instead of
 failing with 409 (see `domain-model.md` §6).
 
+**Built 2026-11-20 (Prompt 3.3, ADR 0005 built note, ADR 0021), as above with these differences.**
+`LedgerPostings.PostedByUserId` is nullable and has no foreign key until `Users` exists (Prompt 5.1), like every
+other user column. `PayerBalances` has no `LastPostingId`: the balances are changed before the posting row is
+inserted, so the key could not hold at that moment. The unique index of `LedgerEntries` leads with the tenant, like
+every index of a tenant-scoped table: `UX_LedgerEntries_TenantId_PostingId_LineNo`. `Debit` and `Credit` have no
+default: the application always writes both. The foreign keys to `Payers` (`FK_LedgerPostings_PayerId`,
+`FK_LedgerEntries_PayerId`, `FK_PayerBalances_PayerId`) and `FK_LedgerPostings_ReversalOfPostingId` come from the
+typed-id convention of the context, not from the entity configurations. The row of `PayerBalances` is opened at
+zero by the use case that creates the payer, through the Receivables port `IPayerAccounts`; migration
+`0008_Receivables` opens it for every payer that existed before, with one hand-written statement. A posting changes
+the row with one batch: a read under `UPDLOCK, ROWLOCK`, then the change.
+
 ### 3.8 Audit
 
 **AuditRecords** — insert-only (BR-701, BR-702).
@@ -580,6 +582,15 @@ failing with 409 (see `domain-model.md` §6).
 | BeforeJson | nvarchar(max) | • | null on create |
 | AfterJson | nvarchar(max) | • | null never (state after the change) |
 | Reason | nvarchar(500) | • | void, reversal, rejection reason |
+
+**Built 2026-11-20 (Prompt 3.4, ADR 0020), as above with these precisions.** `AfterJson` is `NOT NULL`. `Id` is
+the one key in the model that is not a typed Guid id. `EntityType` is the name of the aggregate's class and
+`Action` the name of the domain event without it (`Registered`, `Updated`, `Deactivated`, `Reactivated`, `Created`,
+`Drafted`, `HeaderUpdated`, `LinesReplaced`, `Voided` so far). The two images hold the stored row, one member per
+column, and the children of the aggregate (a bill's `Lines`); the row version and the tenant are left out.
+`DocumentNumber` stays null until documents have numbers (Prompt 3.5). The third index ends in `Id`, so the trail
+of one record is read in the order it was written. Rows are written by the unit of work in the transaction of the
+change and refused for update and delete by `AppendOnlyGuardInterceptor`; the grants of section 7 are still to come.
 
 ---
 
@@ -888,7 +899,12 @@ update of an append-only table (CLAUDE.md, section 9).
   | `0004_Bills` | `Bills`, `BillLines` as drafts need them (§3.3, "Built so far") | Written 2026-11-20 (Prompt 2.4). **To be scaffolded with EF Core 10 on the personal machine, after `0003_ServiceItems` and separately from it** (`docs/runbook.md` §3 has the two steps), under exactly this name. Scaffolded that way with EF Core 9 in the throwaway copy: `0003` held `ServiceItems` alone, `0004` held the two tables, and the database tests passed on LocalDB 2019. |
   | `0005_NumberSeries` | `NumberSeries` (§3.6, §4) | Written 2026-11-20 (Prompt 3.1). **To be scaffolded with EF Core 10 on the personal machine, after `0004_Bills` and separately from it** (`docs/runbook.md` §3 has the three steps), under exactly this name. Scaffolded that way with EF Core 9 in the throwaway copy: it held `NumberSeries` alone, and the database tests passed on LocalDB 2019. |
   | `0006_IdempotencyKeys` | `IdempotencyKeys` (§3.6, §6) | Written 2026-11-20 (Prompt 3.2). **To be scaffolded with EF Core 10 on the personal machine, after `0005_NumberSeries` and separately from it** (`docs/runbook.md` §3 has the four steps), under exactly this name. Scaffolded that way with EF Core 9 in the throwaway copy: it held `IdempotencyKeys` alone, and the database tests passed on LocalDB 2019. |
-  | `0007_…` onward | One per slice, in the order of `docs/build-prompts.md`: receivables, audit and so on; users and roles come with the Identity slice in Phase 5 | Not started. |
+  | `0007_Audit` | `AuditRecords` (§3.8) | Written 2026-11-20 (Prompt 3.4, ADR 0020). **To be scaffolded with EF Core 10 on the personal machine, after `0006_IdempotencyKeys` and separately from it** (`docs/runbook.md` §8), under exactly this name. Scaffolded that way with EF Core 9 in the throwaway copy: it held `AuditRecords` alone, and the database tests passed on LocalDB 2019. The build prompts first had this as `0008_Audit`; Prompt 3.4 was built before 3.3, so the numbers follow the order of application. |
+  | `0008_Receivables` | `LedgerPostings`, `LedgerEntries`, `PayerBalances` (§3.7), and one data statement | Written 2026-11-20 (Prompt 3.3, ADR 0021). **To be scaffolded with EF Core 10 on the personal machine, after `0007_Audit`, and then completed by hand**: the statement that opens the balances of every payer that already exists is pasted at the end of `Up()` (`docs/runbook.md` §8 has the line; `MigrationsTests` fails without it). Scaffolded and completed that way with EF Core 9 in the throwaway copy: it held the three tables alone, and the database tests passed on LocalDB 2019. |
+  | `0009_BillPosting` | The number, fiscal year, sequence number and posted stamps of `Bills`, the later statuses and their constraints (§3.3) | Prompt 3.5. Not started. |
+  | `0010_Approvals` | `ApprovalRequests` (§3.6) | Prompt 3.6. Not started. |
+  | `0011_Payments`, `0012_CreditNotes`, `0013_Adjustments`, `0014_Refunds` | §3.4, §3.3, §3.5 | Prompts 4.1, 4.3, 4.4, 4.6. Not started. |
+  | `0015_Users` | `Users`, `Roles` (§3.1) | Prompt 5.1. Not started. |
 
 - CHECK constraints, unique and filtered indexes and computed columns are declared in the EF model
   (the entity configuration, or a convention of the context), so a scaffolded migration needs no

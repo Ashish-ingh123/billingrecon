@@ -149,6 +149,68 @@ public sealed class MigrationsTests : IDisposable
     }
 
     [Fact]
+    public void The_eighth_migration_is_0008_Receivables()
+    {
+        var migrations = _context.Database.GetMigrations().ToArray();
+
+        migrations.Length.ShouldBeGreaterThanOrEqualTo(8, $"The Receivables migration is missing. {HowToAdd.Replace("<name>", "0008_Receivables", StringComparison.Ordinal)}");
+        migrations[7].ShouldEndWith("_0008_Receivables");
+    }
+
+    [Fact]
+    public void The_migrations_create_the_ledger_and_the_payer_balances_as_documented()
+    {
+        var script = _context.GetService<IMigrator>().GenerateScript();
+
+        script.ShouldContain("CREATE TABLE [LedgerPostings]", customMessage: $"The migrations do not create the LedgerPostings table. {HowToAdd}");
+        script.ShouldContain("CREATE TABLE [LedgerEntries]", customMessage: $"The migrations do not create the LedgerEntries table. {HowToAdd}");
+        script.ShouldContain("CREATE TABLE [PayerBalances]", customMessage: $"The migrations do not create the PayerBalances table. {HowToAdd}");
+        script.ShouldContain("[Kind] varchar(30) NOT NULL", Case.Sensitive);
+        script.ShouldContain("[BusinessDate] date NOT NULL", Case.Sensitive);
+        script.ShouldContain("[Description] nvarchar(300) NOT NULL", Case.Sensitive);
+        script.ShouldContain("[ReversalOfPostingId] uniqueidentifier NULL", Case.Sensitive);
+        script.ShouldContain("[PostedByUserId] uniqueidentifier NULL", Case.Sensitive);
+        script.ShouldContain("[LineNo] smallint NOT NULL", Case.Sensitive);
+        script.ShouldContain("[Account] varchar(20) NOT NULL", Case.Sensitive);
+        script.ShouldContain("[SubjectType] varchar(20) NULL", Case.Sensitive);
+        script.ShouldContain("[Debit] decimal(18,2) NOT NULL", Case.Sensitive);
+        script.ShouldContain("[Credit] decimal(18,2) NOT NULL", Case.Sensitive);
+        script.ShouldContain("[NetOutstanding] AS [Receivable] - [UnappliedCash] - [CreditAvailable] PERSISTED", Case.Sensitive);
+        script.ShouldNotContain("LastPostingId");
+        script.ShouldContain("CONSTRAINT [CK_LedgerPostings_Kind] CHECK ([Kind] IN ('BillPosted', 'PaymentRecorded', 'PaymentAllocated', 'AllocationReversed', 'PaymentReversed', 'CreditNotePosted', 'CreditApplied', 'CreditApplicationReversed', 'AdjustmentPosted', 'RefundPosted'))", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [CK_LedgerPostings_DocumentType] CHECK ([DocumentType] IN ('Bill', 'Payment', 'PaymentAllocation', 'CreditNote', 'CreditNoteAllocation', 'Adjustment', 'Refund'))", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [CK_LedgerEntries_Account] CHECK ([Account] IN ('Receivable', 'UnappliedCash', 'CreditAvailable', 'Revenue', 'Cash', 'Adjustments'))", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [CK_LedgerEntries_OneSide] CHECK (([Debit] > 0 AND [Credit] = 0) OR ([Debit] = 0 AND [Credit] > 0))", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [CK_LedgerEntries_Subject] CHECK (([Account] = 'Receivable' AND [SubjectType] = 'Bill'", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [CK_PayerBalances_Receivable] CHECK ([Receivable] >= 0)", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [PK_PayerBalances] PRIMARY KEY ([PayerId])", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [FK_PayerBalances_PayerId] FOREIGN KEY ([PayerId]) REFERENCES [Payers] ([Id])", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [FK_LedgerPostings_PayerId] FOREIGN KEY ([PayerId]) REFERENCES [Payers] ([Id])", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [FK_LedgerPostings_ReversalOfPostingId] FOREIGN KEY ([ReversalOfPostingId]) REFERENCES [LedgerPostings] ([Id])", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [FK_LedgerEntries_PayerId] FOREIGN KEY ([PayerId]) REFERENCES [Payers] ([Id])", Case.Sensitive);
+        script.ShouldContain("CONSTRAINT [FK_LedgerEntries_PostingId] FOREIGN KEY ([PostingId]) REFERENCES [LedgerPostings] ([Id])", Case.Sensitive);
+        script.ShouldContain("CREATE UNIQUE INDEX [UX_LedgerEntries_TenantId_PostingId_LineNo] ON [LedgerEntries] ([TenantId], [PostingId], [LineNo])", Case.Sensitive);
+        script.ShouldContain("CREATE INDEX [IX_LedgerEntries_TenantId_SubjectType_SubjectId] ON [LedgerEntries] ([TenantId], [SubjectType], [SubjectId]) INCLUDE ([Account], [Debit], [Credit])", Case.Sensitive);
+        script.ShouldContain("CREATE INDEX [IX_LedgerEntries_TenantId_PayerId_Account] ON [LedgerEntries] ([TenantId], [PayerId], [Account]) INCLUDE ([Debit], [Credit])", Case.Sensitive);
+        script.ShouldContain("CREATE INDEX [IX_LedgerPostings_TenantId_DocumentType_DocumentId] ON [LedgerPostings] ([TenantId], [DocumentType], [DocumentId])", Case.Sensitive);
+    }
+
+    [Fact]
+    public void BR404_the_receivables_migration_opens_the_balances_of_every_payer_that_already_exists()
+    {
+        // The one statement a scaffold cannot write. It is added by hand at the end of Up() of 0008_Receivables
+        // (ADR 0021; docs/runbook.md section 8 has the line to paste). Without it a payer created before the
+        // migration has no row of balances, and the first posting for it fails. WHERE NOT EXISTS makes it safe to
+        // run on a database where some payers have the row already.
+        var script = _context.GetService<IMigrator>().GenerateScript();
+
+        script.ShouldContain(
+            "INSERT INTO [PayerBalances] ([PayerId], [TenantId], [Receivable], [UnappliedCash], [CreditAvailable], [UpdatedAtUtc]) SELECT p.[Id], p.[TenantId], 0, 0, 0, SYSUTCDATETIME() FROM [Payers] AS p WHERE NOT EXISTS (SELECT 1 FROM [PayerBalances] AS b WHERE b.[PayerId] = p.[Id])",
+            Case.Sensitive,
+            "0008_Receivables lacks the statement that opens the balances of existing payers. Paste the line from docs/runbook.md section 8 at the end of its Up method.");
+    }
+
+    [Fact]
     public void The_migrations_create_the_bills_and_bill_lines_tables_as_documented()
     {
         var script = _context.GetService<IMigrator>().GenerateScript();

@@ -15,10 +15,10 @@ is left; their numbering is mine, not the blueprint's.
 | 2.1 Money and the shared kernel | Done, commit `ae97209` on `phase-2-billing` |
 | 2.2 Patients and payers | Code, tests, docs and ADR 0018 written; migration scaffolded with EF Core 10.0.12 on 2026-10-18 under the name `0002_SyncCurrentModel`; **not committed**; no test result recorded |
 | 2.3, 2.4, 3.1, 3.2 and 3.4 (service catalogue, bill drafts, number series, idempotency, event dispatch and audit) | Written on 2026-11-20 on top of the uncommitted 2.2, each pre-checked on .NET 9 with LocalDB only; **not built on .NET 10, not committed**; migrations `0003` to `0007` still to be scaffolded (CLAUDE.md section 9, items 9 to 14) |
-| 3.3 Receivables ledger | **Skipped so far**: 3.4 was given before it. Its migration is now `0008_Receivables`, and the append-only guard it was to bring exists already (ADR 0020) |
-| Everything else in R1 | Not started: ledger, bill posting, approvals, payments, credit notes, adjustments, refunds, users and JWT, reports, frontend, delivery |
+| 3.3 Receivables ledger | Written on 2026-11-20 after 3.4, with the owner's decisions (ADR 0005 built note, ADR 0021); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0008_Receivables` still to be scaffolded and completed by hand (`docs/runbook.md` section 8) |
+| Everything else in R1 | Not started: bill posting, approvals, payments, credit notes, adjustments, refunds, users and JWT, reports, frontend, delivery |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile 2.2 to 3.4 are committed unverified, one commit per prompt. Next prompt: 3.3 alone; then 3.5. The owner's decisions for both are recorded under each prompt below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile 2.2 to 3.4 are committed unverified, one commit per prompt. Next prompt: 3.5. The owner's decisions for both are recorded under each prompt below.**
 
 ## How to use these prompts
 
@@ -206,6 +206,12 @@ Done when: a posting written through the port reconciles to zero drift.
 
 **Owner's decisions for 3.3, recorded 2026-11-20 (give 3.3 alone, after 2.2 to 3.4 are committed; verification is deferred, see `docs/runbook.md` section 8):**
 
+**Settled by the owner on 2026-11-20 and built:** the port (not a subscriber) opens the `PayerBalances` row; the
+foreign keys to `Payers` come from a typed-id convention of the context, with no new module exception; the ledger
+and the reconciliation are two more sanctioned raw-SQL files; `PayerBalances` has no `LastPostingId`;
+`PostedByUserId` is nullable with no key until `Users` exists. ADR 0021 and the built note of ADR 0005 record them.
+The list below is kept as the record of what was asked.
+
 - The plan shown for 3.3 must include, besides what the prompt says:
   1. **Renumber every later migration**, here and in `docs/database.md` section 8: `0008_Receivables`,
      `0009_BillPosting` (3.5, which needs columns on `Bills`), `0010_Approvals`, `0011_Payments`, `0012_CreditNotes`,
@@ -259,6 +265,7 @@ audit record: all in one IUnitOfWork commit. A posted bill refuses edit and void
 Tests: the happy path asserts number, ledger, caches, audit and zero reconciliation drift; a
 failure injected at each step leaves no number consumed, no ledger and no audit rows (US-25); two
 simultaneous posts of the same bill give one success and one 409; replay returns the same response.
+Migration 0009_BillPosting.
 Done when: every scenario ends with zero drift rows and a gapless series.
 ```
 
@@ -298,7 +305,7 @@ document. Approval handlers live with their documents (ADR 0003 amendment). Firs
 with Total at or above Tenant.PostingApprovalThreshold goes to PendingApproval, is locked, gets no
 number, and the checker's approval is the posting (same transaction as 3.5); rejection returns it
 to Draft. Until Identity exists, tests act as two users with the existing test identity helpers.
-Migration 0009_Approvals.
+Migration 0010_Approvals.
 Done when: US-22 passes, including approval by the maker being refused.
 ```
 
@@ -313,7 +320,7 @@ Read BR-301, BR-302, BR-309, US-30, docs/domain-model.md section 4.6, docs/datab
 Build Payment in the Payments module: amount > 0, method (Cash, Card, UPI, BankTransfer, Cheque),
 reference required except for Cash, date per BR-205, active payer only. Recording is posting:
 gapless payment number, Dr Cash / Cr UnappliedCash(payment), UnappliedAmount = Amount, audit, one
-transaction, Idempotency-Key required. Get and list. Migration 0010_Payments.
+transaction, Idempotency-Key required. Get and list. Migration 0011_Payments.
 Done when: US-30 passes with zero drift.
 ```
 
@@ -341,7 +348,7 @@ Build CreditNote with lines and allocations: against one posted bill, caps per B
 draft then submit (maker-checker, BR-604); approval takes the gapless number, posts
 Dr Revenue / Cr CreditAvailable, then applies min(Total, Bill.BalanceDue) to the bill; the rest
 stays as AvailableAmount and can be applied to another posted bill of the same payer.
-Migration 0011_CreditNotes.
+Migration 0012_CreditNotes.
 Done when: US-24 passes with zero drift, including a credit note larger than the balance due.
 ```
 
@@ -352,7 +359,7 @@ Read BR-501 to BR-503, docs/domain-model.md section 4.8, docs/database.md sectio
 Build Adjustment (Discount, WriteOff, Rounding under Rs 1.00): against one posted bill, amount
 capped by BalanceDue at posting, reason required, maker-checker, gapless number,
 Dr Adjustments / Cr Receivable(bill). Raise domain-model open question 1 with me before coding.
-Migration 0012_Adjustments.
+Migration 0013_Adjustments.
 Done when: an approved write-off settles a bill with zero drift.
 ```
 
@@ -373,7 +380,7 @@ Done when: US-32 and US-33 pass and a fully reversed payment leaves every balanc
 Read BR-307, BR-308, US-34, docs/domain-model.md section 4.7.
 Build Refund from one source (a payment's unapplied amount or a credit note's available amount):
 cap checked at posting, method and reference rules of BR-301, active payer, maker-checker, gapless
-number, Dr UnappliedCash or CreditAvailable / Cr Cash. Not reversible. Migration 0013_Refunds.
+number, Dr UnappliedCash or CreditAvailable / Cr Cash. Not reversible. Migration 0014_Refunds.
 Then write one end-to-end scenario test that walks bill -> part payment -> credit note ->
 adjustment -> allocation reversal -> refund and asserts zero drift and gapless series at the end.
 Done when: US-34 and the scenario test pass.
@@ -390,7 +397,7 @@ Read BR-601, US-01, docs/domain-model.md section 4.12, docs/database.md section 
 Build User with roles (TenantAdmin, Supervisor, BillingClerk, Cashier, Viewer): e-mail unique per
 tenant, enable/disable, password hashed with a slow salted BCL algorithm, admin password reset.
 Users and Roles tables, the development user row, and the foreign keys from CreatedByUserId and
-UpdatedByUserId that were waiting for it. Audited. Migration 0014_Users.
+UpdatedByUserId that were waiting for it. Audited. Migration 0015_Users.
 Done when: US-01 passes.
 ```
 

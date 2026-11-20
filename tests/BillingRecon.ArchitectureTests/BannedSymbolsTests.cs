@@ -19,8 +19,14 @@ public sealed class BannedSymbolsTests
         // Reads TimeProvider.System, once, so that everything else can take IClock (ADR 0010).
         "src/BillingRecon.Infrastructure/Common/Time/SystemClock.cs",
 
-        // Sends the one raw SQL statement of the system: the locked read-and-increment of a number series (ADR 0008).
+        // Raw SQL, one statement each (ADR 0021): the locked read-and-increment of a number series (ADR 0008),
         "src/BillingRecon.Infrastructure/Common/Numbering/NumberSeriesAllocator.cs",
+
+        // the locked read and change of the cached balances of a payer, which Entity Framework cannot express (ADR 0005),
+        "src/BillingRecon.Infrastructure/Receivables/ReceivablesLedger.cs",
+
+        // and the read-only reconciliation of the ledger with its caches (ADR 0005; docs/database.md section 5.6).
+        "src/BillingRecon.Infrastructure/Receivables/ReconciliationQuery.cs",
     ];
 
     private static readonly Assembly[] SearchedAssemblies =
@@ -134,7 +140,7 @@ public sealed class BannedSymbolsTests
     }
 
     [Fact]
-    public void The_one_file_that_sends_raw_sql_sends_one_statement_made_of_constants_and_parameters()
+    public void The_number_series_allocator_sends_one_statement_made_of_constants_and_parameters()
     {
         var allocator = File.ReadAllText(RepositoryFiles.PathOf("src/BillingRecon.Infrastructure/Common/Numbering/NumberSeriesAllocator.cs"));
 
@@ -145,6 +151,47 @@ public sealed class BannedSymbolsTests
         allocator.ShouldContain("WITH (UPDLOCK, HOLDLOCK)");
         allocator.ShouldNotContain("$\"\"\"");
         allocator.ShouldNotContain("string.Format");
+    }
+
+    [Theory]
+    [InlineData("src/BillingRecon.Infrastructure/Receivables/ReceivablesLedger.cs", "private const string MoveBalances =")]
+    [InlineData("src/BillingRecon.Infrastructure/Receivables/ReconciliationQuery.cs", "private const string FindDrift =")]
+    public void Each_receivables_file_that_sends_raw_sql_sends_one_statement_made_of_constants_and_parameters_within_the_tenant(string path, string constant)
+    {
+        var source = File.ReadAllText(RepositoryFiles.PathOf(path));
+
+        // One suppression, around one call, the SQL text is a constant, and it never leaves the current tenant (ADR 0021).
+        source.Split("#pragma warning disable RS0030").Length.ShouldBe(2);
+        source.Split("SqlQueryRaw<").Length.ShouldBe(2);
+        source.ShouldContain(constant);
+        source.ShouldContain("[TenantId] = @tenant");
+        source.ShouldNotContain("$\"\"\"");
+        source.ShouldNotContain("string.Format");
+        source.ShouldNotContain("ExecuteSql");
+        source.ShouldNotContain("FromSql");
+    }
+
+    [Fact]
+    public void BR404_the_ledger_reads_the_balances_of_the_payer_under_an_update_lock_before_it_changes_them()
+    {
+        var ledger = File.ReadAllText(RepositoryFiles.PathOf("src/BillingRecon.Infrastructure/Receivables/ReceivablesLedger.cs"));
+
+        var read = ledger.IndexOf("WITH (UPDLOCK, ROWLOCK)", StringComparison.Ordinal);
+        var change = ledger.IndexOf("UPDATE [dbo].[PayerBalances]", StringComparison.Ordinal);
+
+        read.ShouldBeGreaterThan(0, "the locked read is gone");
+        change.ShouldBeGreaterThan(read, "the change must follow the locked read");
+    }
+
+    [Fact]
+    public void The_reconciliation_only_reads()
+    {
+        var source = File.ReadAllText(RepositoryFiles.PathOf("src/BillingRecon.Infrastructure/Receivables/ReconciliationQuery.cs"));
+
+        foreach (var verb in new[] { "UPDATE ", "INSERT ", "DELETE ", "MERGE ", "TRUNCATE ", "EXEC " })
+        {
+            source.ShouldNotContain(verb, Case.Sensitive);
+        }
     }
 
     [Fact]

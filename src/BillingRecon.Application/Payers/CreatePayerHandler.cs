@@ -1,4 +1,5 @@
 using BillingRecon.Application.Common;
+using BillingRecon.Application.Receivables;
 using BillingRecon.Domain.Common;
 using BillingRecon.Domain.Payers;
 using FluentValidation;
@@ -16,6 +17,7 @@ public sealed class CreatePayerHandler(
     IPatientReadService patients,
     IPayerReadService payers,
     IPayerRepository repository,
+    IPayerAccounts accounts,
     IUnitOfWork unitOfWork) : ICommandHandler<CreatePayerCommand, PayerDto>
 {
     /// <inheritdoc />
@@ -57,6 +59,9 @@ public sealed class CreatePayerHandler(
 
         var payer = created.Value;
         repository.Add(payer);
+
+        // The cached balances of the payer, at zero, in the same commit (BR-404): the ledger moves that row later.
+        accounts.Open(payer.Id);
 
         var committed = await unitOfWork.CommitAsync(ct);
         if (committed.IsFailure)

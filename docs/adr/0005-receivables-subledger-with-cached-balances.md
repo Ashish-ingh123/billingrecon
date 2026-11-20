@@ -1,6 +1,6 @@
 # ADR 0005: Receivables subledger with cached balances
 
-- **Status:** Proposed (accept on review of the R1 design documents)
+- **Status:** Accepted since its implementation (Prompt 3.3, 2026-11-20); see "Built 2026-11-20" at the end for what the build decided
 - **Date:** 2026-09-29
 - **Deciders:** project owner, Claude Code
 
@@ -81,3 +81,40 @@ query** that proves the two agree.
 - Reporting (R1) and ageing (R3) read the caches; the reconciliation report reads the ledger.
 - Exporting journals to an external accounting package (R5) is a projection over `LedgerEntries`
   grouped by control account and business date; no schema change is needed.
+
+## Built 2026-11-20 (Prompt 3.3)
+
+Written on the office machine and pre-checked on .NET 9 with LocalDB 2019; not yet run on .NET 10 or SQL Server 2022.
+The cross-cutting rules this needed are in ADR 0021. What the build decided about the ledger itself:
+
+- **The port takes a `PostingTemplate`** (Application, Receivables): kind, document, payer, business date,
+  description and lines. Each financial event gets a named factory on it with the slice that builds its document
+  (the first is the bill posting of Prompt 3.5); a business module never spells out accounts and sides. The
+  constructor is public for those factories and for the ledger's tests.
+- **`LedgerPosting.Create` checks the invariants and throws** on a template that breaks them (fewer than two
+  lines, an amount on both sides or none, a subject where none belongs or the wrong kind, debits that differ from
+  credits): such a template is a bug in the code that built it.
+- **A balance may not go below zero (BR-405), and that is a result, not an exception.** Before a posting that
+  lowers the receivable of a bill, the unapplied cash of a payment or the available credit of a credit note, the
+  ledger adds up that subject's entries, those of the current request included, and answers
+  `ledger_balance_negative` (422) if the posting would take it below zero. Nothing is written. The document checks
+  its own cap first, under its row version; this is the ledger's second look.
+- **The payer's balances move at once, under a lock.** `PostAsync` reads the row with `UPDLOCK, ROWLOCK` and
+  changes it in one batch, in the transaction of the request, which it opens if nothing has opened it; the unit of
+  work commits it, as with a document number (ADR 0008). A second posting for the same payer waits. A payer
+  without the row is a fault. The posting row itself is inserted by the save of the unit of work.
+- **Lock order for every posting use case:** the number series, then the balances of the payer, both before the
+  save. Prompt 3.5 writes this up as its own ADR, with the place of the document's row.
+- **The row of balances is opened by the use case that creates the payer**, through the Receivables port
+  `IPayerAccounts`, in the same commit. Not by a subscriber to the payer's event: that would make Receivables name
+  an event of Payers, and the audit trail is the only subscriber (ADR 0020). The owner decided this on 2026-11-20.
+- **Differences from the first design, each in `docs/database.md` section 3.7:** `PayerBalances` has no
+  `LastPostingId` (the balances change before the posting row exists, so the key could not hold);
+  `LedgerPostings.PostedByUserId` is nullable with no key until `Users` exists; the unique index of the entries
+  leads with the tenant.
+- **The reconciliation covers the ledger's own identities so far:** unbalanced postings, the three cached balances
+  of a payer against the ledger, a payer with entries and no row, a subject below zero. A document's identities
+  (a bill's balance due against its receivable, a posted bill without its posting) join with the slice that posts
+  the document: the columns they read do not exist before.
+- **Not built, on purpose:** an endpoint for the reconciliation (Prompt 6.2); reads of a payer's balances for the
+  API (6.1); the posting templates of the documents that do not exist yet.

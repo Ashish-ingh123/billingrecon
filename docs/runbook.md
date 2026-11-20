@@ -197,6 +197,8 @@ dotnet ef migrations add 0003_ServiceItems --project src/BillingRecon.Infrastruc
 (That is the command for the third migration, the service catalogue of Prompt 2.3. The first was `0001_Tenants`; the
 second, Patients and Payers, was scaffolded as `0002_SyncCurrentModel` and keeps that name.)
 
+**The current list of every migration that is waiting, with its commands in order, is section 8; the recipe below is how it began and explains the method.**
+
 **The five migrations that are waiting (Prompts 2.3, 2.4, 3.1, 3.2 and 3.4), one after the other.** The five prompts were
 written before any of their migrations was scaffolded, so the model already holds the tables of all five, and the
 command above alone would put them all into `0003_ServiceItems`. To get one migration per slice, take the
@@ -414,7 +416,7 @@ dotnet tool restore
 
 ```powershell
 New-Item -ItemType Directory -Force ..\held | Out-Null
-Move-Item src\BillingRecon.Infrastructure\Billing\BillConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillLineConfiguration.cs, src\BillingRecon.Infrastructure\Common\Numbering\NumberSeriesConfiguration.cs, src\BillingRecon.Infrastructure\Common\Idempotency\IdempotencyKeyConfiguration.cs, src\BillingRecon.Infrastructure\Audit\AuditRecordConfiguration.cs ..\held\
+Move-Item src\BillingRecon.Infrastructure\Billing\BillConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillLineConfiguration.cs, src\BillingRecon.Infrastructure\Common\Numbering\NumberSeriesConfiguration.cs, src\BillingRecon.Infrastructure\Common\Idempotency\IdempotencyKeyConfiguration.cs, src\BillingRecon.Infrastructure\Audit\AuditRecordConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerPostingConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerEntryConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\PayerBalanceConfiguration.cs ..\held\
 dotnet ef migrations add 0003_ServiceItems --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
 Move-Item ..\held\BillConfiguration.cs, ..\held\BillLineConfiguration.cs src\BillingRecon.Infrastructure\Billing\
 dotnet ef migrations add 0004_Bills --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
@@ -424,6 +426,8 @@ Move-Item ..\held\IdempotencyKeyConfiguration.cs src\BillingRecon.Infrastructure
 dotnet ef migrations add 0006_IdempotencyKeys --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
 Move-Item ..\held\AuditRecordConfiguration.cs src\BillingRecon.Infrastructure\Audit\
 dotnet ef migrations add 0007_Audit --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
+Move-Item ..\held\LedgerPostingConfiguration.cs, ..\held\LedgerEntryConfiguration.cs, ..\held\PayerBalanceConfiguration.cs src\BillingRecon.Infrastructure\Receivables\
+dotnet ef migrations add 0008_Receivables --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
 ```
 
 | Migration | Prompt | Must create exactly |
@@ -433,6 +437,19 @@ dotnet ef migrations add 0007_Audit --project src/BillingRecon.Infrastructure --
 | `0005_NumberSeries` | 3.1 | `NumberSeries` |
 | `0006_IdempotencyKeys` | 3.2 | `IdempotencyKeys` |
 | `0007_Audit` | 3.4 | `AuditRecords` |
+| `0008_Receivables` | 3.3 | `LedgerPostings`, `LedgerEntries`, `PayerBalances`, and the hand-written line below |
+
+**`0008_Receivables` is finished by hand** (ADR 0021): a scaffold writes schema, and this migration also has to
+open the balances of every payer that already exists. Open `Common/Migrations/*_0008_Receivables.cs` (not the
+`.Designer.cs`), and paste this one line as the last statement of `Up()`, after the last `CreateIndex` and before
+the closing brace of the method:
+
+```csharp
+            migrationBuilder.Sql("INSERT INTO [PayerBalances] ([PayerId], [TenantId], [Receivable], [UnappliedCash], [CreditAvailable], [UpdatedAtUtc]) SELECT p.[Id], p.[TenantId], 0, 0, 0, SYSUTCDATETIME() FROM [Payers] AS p WHERE NOT EXISTS (SELECT 1 FROM [PayerBalances] AS b WHERE b.[PayerId] = p.[Id]);");
+```
+
+Change nothing else in the file, and nothing in `Down()`. If the line is missing or altered, the test
+`BR404_the_receivables_migration_opens_the_balances_of_every_payer_that_already_exists` fails and names it.
 
 `..\held` must be empty at the end. If a migration creates more than its row says, a file was not moved: run
 `dotnet ef migrations remove --project src/BillingRecon.Infrastructure` once per migration added and start B again.
@@ -454,13 +471,14 @@ dotnet test --filter "FullyQualifiedName~NumberSeriesOnSqlServerTests"
 dotnet test --filter "FullyQualifiedName~IdempotencyApiTests"
 dotnet test --filter "FullyQualifiedName~BillsApiTests"
 dotnet test --filter "FullyQualifiedName~AuditOnSqlServerTests|FullyQualifiedName~AuditTrailApiTests"
+dotnet test --filter "FullyQualifiedName~ReceivablesOnSqlServerTests"
 ```
 
 **E. Send back**
 
 - the output of A, C and D, and the names of the migration files B created;
-- the migration files themselves (`Common/Migrations/*_0003_*` to `*_0007_*` and the updated
-  `BillingReconDbContextModelSnapshot.cs`), which are then committed as "Migrations 0003 to 0007, scaffolded with
+- the migration files themselves (`Common/Migrations/*_0003_*` to `*_0008_*` and the updated
+  `BillingReconDbContextModelSnapshot.cs`), which are then committed as "Migrations 0003 to 0008, scaffolded with
   EF Core 10".
 
 **What that run has to show, because nothing here could** (the office machine has .NET 9 and LocalDB 2019 only):
@@ -473,5 +491,6 @@ dotnet test --filter "FullyQualifiedName~AuditOnSqlServerTests|FullyQualifiedNam
 | 3.1 | Fifty parallel takers of a number series, on SQL Server 2022. |
 | 3.2 | The response buffering of the idempotency filter on ASP.NET Core 10. |
 | 3.4 | The before and after images of `EntitySnapshot` on EF Core 10. |
+| 3.3 | The typed-id foreign key convention on EF Core 10 (migrations `0003` to `0007` must hold the same keys as before it; `0008` the four new ones). The locked change of `PayerBalances` and twenty simultaneous postings for one payer, on SQL Server 2022. The computed column `NetOutstanding`. The reconciliation statement. |
 
 A red result is reported as it is, with its output; the fix is its own commit on top, never an edit of history.

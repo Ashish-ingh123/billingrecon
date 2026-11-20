@@ -20,7 +20,8 @@ namespace BillingRecon.Infrastructure.Common.Persistence;
 /// <c>RowVersion</c> is a concurrency token; creation columns are never part of an UPDATE; a decimal or text column
 /// without an explicit size fails the model; every tenant-scoped entity is filtered by the current tenant, and its
 /// <c>TenantId</c> is a foreign key to the tenant row, <c>FK_&lt;Table&gt;_TenantId</c>; every index of a tenant-scoped
-/// entity leads with <c>TenantId</c>, or the model fails; no foreign key deletes anything, whatever a configuration
+/// entity leads with <c>TenantId</c>, or the model fails; a column that holds the typed id of another entity is a
+/// foreign key to that entity, <c>FK_&lt;Table&gt;_&lt;Column&gt;</c> (ADR 0021); no foreign key deletes anything, whatever a configuration
 /// says (<c>ON DELETE NO ACTION</c>), and none gets an index of its own by default; and the tenant row itself (the
 /// entity whose id is a <see cref="TenantId"/>) is filtered to the current tenant's own row. The model has no entity
 /// inheritance and no owned types; the conventions would need extending for those.
@@ -250,6 +251,8 @@ public class BillingReconDbContext : DbContext
             AddEnumCheckConstraints(modelBuilder, entityType);
         }
 
+        AddTypedIdForeignKeys(modelBuilder, entityTypes);
+
         // Nothing is ever deleted (CLAUDE.md section 4, rule 10), so no foreign key may delete or change its dependent
         // rows: every one is ON DELETE NO ACTION, whatever a configuration said. Entity Framework's default for a
         // required relationship would be ON DELETE CASCADE. The one behaviour a configuration may keep is
@@ -261,6 +264,62 @@ public class BillingReconDbContext : DbContext
             if (foreignKey.DeleteBehavior != DeleteBehavior.ClientCascade)
             {
                 foreignKey.DeleteBehavior = DeleteBehavior.Restrict;
+            }
+        }
+    }
+
+    // A column that holds the typed id of another entity is a foreign key to that entity's table, whichever module
+    // the entity belongs to: FK_<Table>_<Column>, with no navigation, so loading a row never loads the other
+    // (ADR 0021). A configuration therefore never has to name an entity of another module to declare such a key
+    // (ADR 0003). Left alone: the entity's own id; the tenant, which has its own key above; a column a configuration
+    // already made a foreign key, whose name and shape stay as written; and an id whose table does not exist yet
+    // (the users, until the Identity slice). When the id is the whole primary key, the row belongs to exactly one
+    // row of the other table (the balances of a payer), and the key is one-to-one.
+    private static void AddTypedIdForeignKeys(ModelBuilder modelBuilder, IReadOnlyList<IMutableEntityType> entityTypes)
+    {
+        var owners = new Dictionary<Type, IMutableEntityType>();
+        foreach (var entityType in entityTypes)
+        {
+            if (IdTypeOf(entityType.ClrType) is { } idType)
+            {
+                owners[idType] = entityType;
+            }
+        }
+
+        foreach (var entityType in entityTypes)
+        {
+            var table = entityType.GetTableName();
+            if (table is null)
+            {
+                continue;
+            }
+
+            foreach (var property in entityType.GetDeclaredProperties().ToList())
+            {
+                var idType = Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType;
+                if (!IsTypedId(idType) || idType == typeof(TenantId) || !owners.TryGetValue(idType, out var owner))
+                {
+                    continue;
+                }
+
+                var isOwnId = owner == entityType && property.IsPrimaryKey();
+                if (isOwnId || property.IsForeignKey())
+                {
+                    continue;
+                }
+
+                var entity = modelBuilder.Entity(entityType.ClrType);
+                var name = $"FK_{table}_{property.Name}";
+                var isWholeKey = entityType.FindPrimaryKey() is { Properties.Count: 1 } key && key.Properties[0] == property;
+
+                if (isWholeKey)
+                {
+                    entity.HasOne(owner.ClrType).WithOne().HasForeignKey(entityType.ClrType, property.Name).HasConstraintName(name);
+                }
+                else
+                {
+                    entity.HasOne(owner.ClrType).WithMany().HasForeignKey(property.Name).HasConstraintName(name);
+                }
             }
         }
     }

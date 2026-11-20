@@ -1,6 +1,7 @@
 using BillingRecon.Domain.Audit;
 using BillingRecon.Domain.Common;
 using BillingRecon.Domain.Payers;
+using BillingRecon.Domain.Receivables;
 using BillingRecon.Infrastructure.Common.Persistence;
 using BillingRecon.IntegrationTests.Support;
 using Microsoft.EntityFrameworkCore;
@@ -65,14 +66,14 @@ public sealed class AppendOnlyGuardTests
     }
 
     [Fact]
-    public void In_the_production_model_only_an_audit_record_is_append_only()
+    public void In_the_production_model_only_audit_records_and_the_ledger_are_append_only()
     {
         using var context = TestContexts.CreateProduction();
 
         var appendOnly = context.Model.GetEntityTypes().Select(entityType => entityType.ClrType).Where(type => typeof(IAppendOnly).IsAssignableFrom(type));
 
-        // The ledger postings and entries join it with the receivables ledger (Prompt 3.3).
-        appendOnly.ShouldBe([typeof(AuditRecord)]);
+        // The audit trail (BR-702) and the ledger (BR-402). The cached balances of a payer are not: the ledger moves them.
+        appendOnly.ShouldBe([typeof(AuditRecord), typeof(LedgerPosting), typeof(LedgerEntry)], ignoreOrder: true);
     }
 
     [Theory]

@@ -1,5 +1,6 @@
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Payers;
+using BillingRecon.Application.Receivables;
 using BillingRecon.Application.Tests.Support;
 using BillingRecon.Domain.Common;
 using BillingRecon.Domain.Payers;
@@ -19,6 +20,7 @@ public sealed class PayerHandlerTests
     private readonly IPatientReadService _patients = Substitute.For<IPatientReadService>();
     private readonly IPayerReadService _payers = Substitute.For<IPayerReadService>();
     private readonly IPayerRepository _repository = Substitute.For<IPayerRepository>();
+    private readonly IPayerAccounts _accounts = Substitute.For<IPayerAccounts>();
     private IUnitOfWork _unitOfWork = TestDoubles.UnitOfWork();
 
     [Fact]
@@ -30,6 +32,9 @@ public sealed class PayerHandlerTests
         result.Value.Kind.ShouldBe(PayerKind.SelfPay);
         await _patients.DidNotReceiveWithAnyArgs().GetAsync(default, default);
         _repository.Received(1).Add(Arg.Any<Payer>());
+
+        // BR-404: the balances of the new payer are opened in the same unit of work, once.
+        _accounts.Received(1).Open(Arg.Any<PayerId>());
         await _unitOfWork.Received(1).CommitAsync(Arg.Any<CancellationToken>());
     }
 
@@ -55,6 +60,7 @@ public sealed class PayerHandlerTests
         result.Error.Kind.ShouldBe(ErrorKind.BusinessRule);
         await _patients.DidNotReceiveWithAnyArgs().GetAsync(default, default);
         _repository.DidNotReceiveWithAnyArgs().Add(default!);
+        _accounts.DidNotReceiveWithAnyArgs().Open(default);
     }
 
     [Fact]
@@ -73,6 +79,7 @@ public sealed class PayerHandlerTests
 
         result.Error.Code.ShouldBe(PayersErrors.PatientNotFoundCode);
         _repository.DidNotReceiveWithAnyArgs().Add(default!);
+        _accounts.DidNotReceiveWithAnyArgs().Open(default);
     }
 
     [Fact]
@@ -88,6 +95,7 @@ public sealed class PayerHandlerTests
         result.Error.Code.ShouldBe(PayersErrors.PatientInactiveCode);
         result.Error.Kind.ShouldBe(ErrorKind.BusinessRule);
         _repository.DidNotReceiveWithAnyArgs().Add(default!);
+        _accounts.DidNotReceiveWithAnyArgs().Open(default);
     }
 
     [Fact]
@@ -101,6 +109,7 @@ public sealed class PayerHandlerTests
         result.Error.Code.ShouldBe(PayersErrors.PatientAlreadyLinkedCode);
         result.Error.Kind.ShouldBe(ErrorKind.Conflict);
         _repository.DidNotReceiveWithAnyArgs().Add(default!);
+        _accounts.DidNotReceiveWithAnyArgs().Open(default);
     }
 
     [Fact]
@@ -193,7 +202,7 @@ public sealed class PayerHandlerTests
         (await new ListPayersHandler(new ListPayersQueryValidator(), _payers).HandleAsync(new ListPayersQuery { Page = 0 }, CancellationToken.None)).Error.Code.ShouldBe(CommonErrors.ValidationFailedCode);
     }
 
-    private CreatePayerHandler Create() => new(new CreatePayerCommandValidator(), _patients, _payers, _repository, _unitOfWork);
+    private CreatePayerHandler Create() => new(new CreatePayerCommandValidator(), _patients, _payers, _repository, _accounts, _unitOfWork);
 
     private UpdatePayerHandler Update() => new(new UpdatePayerCommandValidator(), _repository, _unitOfWork);
 

@@ -258,6 +258,13 @@ never carries financial data.
 transaction. It has no rowversion and is never edited by hand; drift is detected by the
 reconciliation query (BR-404).
 
+*Built 2026-11-20 (Prompt 3.3; ADR 0005 built note, ADR 0021).* As above. `LedgerPosting` and `LedgerEntry` carry
+`IAppendOnly`. The port takes a `PostingTemplate` of the Application layer, and each financial event gets a named
+factory on it with the slice that builds its document. A posting that would take a subject balance below zero is
+refused with `ledger_balance_negative` before anything is written. The balances of the payer are read under an
+update lock and changed in the transaction of the request. `PayerBalance` is opened at zero by the use case that
+creates the payer, through `IPayerAccounts`; it has no `LastPostingId`.
+
 ### 4.11 NumberSeries (Common module)
 
 `(TenantId, DocumentType, FiscalYear)` → `Prefix`, `NextNumber`. `INumberSeries.NextAsync(type,
@@ -493,6 +500,7 @@ as the table plans them.
 | `IAuditWriter` | Append audit records to the current unit of work (BR-701). | Infrastructure (Audit). |
 | `IDomainEventSubscriber`, `ICorrelationContext` | What the unit of work dispatches to (the audit subscriber is the only one), and the correlation id of the current request (BR-703). | Application (`AuditSubscriber`); Api (`HttpCorrelationContext`). |
 | `IAuditReadService` | The audit trail of one record, paged, oldest first (US-43). | Infrastructure (Audit). |
+| `IReceivablesLedger`, `IPayerAccounts`, `IReconciliationQuery` | Built 2026-11-20 (Prompt 3.3, ADR 0005 built note): post a `PostingTemplate` inside the unit of work of the caller (BR-401, BR-404, BR-405); open the zero balances of a new payer; return the drift rows of the tenant. | Infrastructure (Receivables). |
 | Repositories | `IPatientRepository`, `IPayerRepository`, `IBillRepository`, `ICreditNoteRepository`, `IPaymentRepository`, `IRefundRepository`, `IAdjustmentRepository`, `IApprovalRequestRepository`, `IUserRepository`, `ITenantRepository` — load by id (tenant-filtered), add, and nothing else. No `Remove` (BR-005). | Infrastructure. |
 | Read services | `IPatientReadService`, `IPayerReadService` (built 2026-10-17), `IBillReadService`, reporting queries. DTOs, pages, and the existence checks a command makes before it writes. | Infrastructure (EF queries, `AsNoTracking`). |
 | Domain services (Domain) | `LineCalculator` (BR-202), `FiscalYear.FromDate` (BR-004), `PostingTemplates` (the account pairs in `database.md` §5.3). | Domain. |

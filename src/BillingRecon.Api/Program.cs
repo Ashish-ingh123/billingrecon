@@ -9,6 +9,7 @@ using BillingRecon.Infrastructure.Audit;
 using BillingRecon.Infrastructure.Billing;
 using BillingRecon.Infrastructure.Common;
 using BillingRecon.Infrastructure.Payers;
+using BillingRecon.Infrastructure.Receivables;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
 
@@ -22,6 +23,7 @@ builder.Services.AddInfrastructure(builder.Environment);
 // The ports of each business module, then every use case and validator of the Application layer (ADR 0018).
 builder.Services.AddPayers();
 builder.Services.AddBilling();
+builder.Services.AddReceivables();
 builder.Services.AddApplication();
 
 // The audit trail: one record for every domain event, written by the unit of work in the transaction of the change

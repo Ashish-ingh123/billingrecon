@@ -45,7 +45,7 @@ the domain model, the schema and the tests.
 | Web API | **ASP.NET Core Web API with controllers** | No minimal APIs. Controllers derive from `ApiControllerBase`, are `sealed`, end in `Controller` (architecture test). Every route is under `/api/v1` (ADR 0013). Every error is an RFC 9457 ProblemDetails (ADR 0011). Health checks at `/health/live` (process is up) and `/health/ready` (the application database is reachable and has no pending migration). |
 | OpenAPI | **Built-in OpenAPI + Scalar UI**, Development only | `AddOpenApi`/`MapOpenApi` (document at `/openapi/v1.json`) and `MapScalarApiReference` (`/scalar`), mapped only when the environment is Development. |
 | Data | **EF Core 10 + SQL Server** | One context, `BillingReconDbContext`, whose conventions do the repetitive work (ADR 0015, section 5 below). Migrations live in `Infrastructure/Common/Migrations`, are applied at startup in Development only, and are a deployment step elsewhere. `dotnet-ef` is a local tool (`.config/dotnet-tools.json`, `dotnet tool restore`) at the same version as the EF Core packages; it uses the Infrastructure project and its design-time factory, never the API. SQL Server 2022 in Docker for dev and tests. |
-| Banned APIs | **Microsoft.CodeAnalysis.BannedApiAnalyzers** | `src/BannedSymbols.txt` lists what production code must not call (system time and the machine's time zone, `IgnoreQueryFilters`, `EntityEntry.Reload`/`GetDatabaseValues`, `ExecuteUpdate`/`ExecuteDelete`, and since Prompt 3.1 every raw-SQL entry point of EF Core: `ExecuteSql*`, `SqlQuery*`, `FromSql*`, `GetDbConnection`); a call is build error RS0030. Two files may suppress it, each for one named reason: `SystemClock` and `NumberSeriesAllocator`. Tests guard the list and where the rule may be suppressed (ADR 0015). |
+| Banned APIs | **Microsoft.CodeAnalysis.BannedApiAnalyzers** | `src/BannedSymbols.txt` lists what production code must not call (system time and the machine's time zone, `IgnoreQueryFilters`, `EntityEntry.Reload`/`GetDatabaseValues`, `ExecuteUpdate`/`ExecuteDelete`, and since Prompt 3.1 every raw-SQL entry point of EF Core: `ExecuteSql*`, `SqlQuery*`, `FromSql*`, `GetDbConnection`); a call is build error RS0030. Four files may suppress it, each for one named reason: `SystemClock` (the system time), and three that each send one constant, parameterised, tenant-bound SQL statement: `NumberSeriesAllocator`, `ReceivablesLedger` (the locked change of a payer's balances) and `ReconciliationQuery` (read-only). A fifth needs an ADR. Tests guard the list and where the rule may be suppressed (ADR 0015, ADR 0021). |
 | Validation | **FluentValidation** (12.2.0) | One public validator per command or query that has a shape to check, in the Application layer, run by its handler as the handler's first step; it checks the shape (presence, lengths, formats, ranges), the domain and the handler the business rules. A failure is 400 `validation_failed` with messages per field (ADR 0018). The API registers the validators with its scan of the Application assembly. |
 | Logging | **Serilog** | Compact JSON on the console, plus Seq when `Seq:ServerUrl` is set. Every event of a request carries CorrelationId (from `X-Correlation-Id` or generated, BR-703), and TenantId and UserId when the request is authenticated. Phone numbers and e-mail addresses are masked before any sink (ADR 0012). |
 | Configuration | **appsettings + environment variables + user-secrets** | One strongly typed options class per section, validated at startup: the API refuses to start when misconfigured. Secrets (`Database:ConnectionString`, `Seq:ApiKey`) come from user-secrets or environment variables, never from a file in git. |
@@ -169,7 +169,9 @@ src/
                                 and its stored answer (ADR 0006). Since Prompt 3.4 (ADR 0020): AuditRecord
                                 (Audit), the markers IAppendOnly, IHasDomainEvents and IHasReason (Common), and
                                 an event for every correction (PatientUpdated, PayerUpdated, ServiceItemUpdated,
-                                BillHeaderUpdated, BillLinesReplaced).
+                                BillHeaderUpdated, BillLinesReplaced). Since Prompt 3.3 (ADR 0005 built):
+                                LedgerPosting with LedgerEntry, both append-only, PayerBalance and
+                                ReceivablesErrors (Receivables); LedgerPostingId (Common).
   BillingRecon.Application/     Use cases (command/query handlers as plain classes), FluentValidation validators,
                                 port interfaces (IClock, IUnitOfWork, repositories, INumberSeries,
                                 IIdempotencyStore, ITenantContext, ICurrentUser), DTOs and explicit mappers.
@@ -183,7 +185,8 @@ src/
                                 response records (Common, ADR 0006). ADR 0018, ADR 0019. IDomainEventSubscriber
                                 with DomainEventOccurrence, and ICorrelationContext (Common); IAuditWriter, the
                                 generic AuditSubscriber, AuditAction, and the query of an audit trail with its
-                                read service and DTO (Audit). ADR 0020.
+                                read service and DTO (Audit). ADR 0020. IReceivablesLedger with PostingTemplate,
+                                IPayerAccounts, IReconciliationQuery with DriftRow (Receivables, ADR 0005).
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -205,7 +208,10 @@ src/
                                 (BeginCommit/EndCommit of the context), EntitySnapshot builds the before and after
                                 images, AppendOnlyGuardInterceptor refuses an update or delete of an IAppendOnly
                                 row (Common/Persistence, ADR 0020); the AuditRecords table, AuditWriter,
-                                AuditReadService, registered by AddAudit (Audit).
+                                AuditReadService, registered by AddAudit (Audit). The LedgerPostings,
+                                LedgerEntries and PayerBalances tables, ReceivablesLedger, PayerAccounts and
+                                ReconciliationQuery, registered by AddReceivables (Receivables, ADR 0005); the
+                                typed-id foreign key convention of the context (ADR 0021).
                                 Migrations go to Common/Migrations.
   BillingRecon.Api/             Controllers, middleware and filters (correlation id, idempotency, tenant resolution),
                                 the error contract (Common/Errors: exception handler, Error to ProblemDetails mapper),
@@ -299,6 +305,9 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
    writes its balanced double-entry ledger lines in the same database transaction as the business
    document, via one `IUnitOfWork` commit per use case. A document without ledger lines, or ledger
    lines without a document, must be impossible. The posting templates are in `docs/database.md` §5.3.
+   As built (ADR 0005, built note): a posting use case calls `IReceivablesLedger.PostAsync` with a
+   `PostingTemplate` built by the named factory of its event, after its validation and after it has
+   taken its number. Lock order: the number series, then the balances of the payer, both before the save.
 
 4. **Cached balances must equal the ledger** (ADR 0005; BR-404, BR-405). Denormalised balances
    (`Bill.BalanceDue`, `Payment.UnappliedAmount`, `CreditNote.AvailableAmount`, `PayerBalances`) are
@@ -438,7 +447,11 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
   index is added per foreign key by default: a configuration declares each index it needs. A
   module's value object stored through a converter is a `readonly record struct` (a class would be
   taken for an entity), with the converter in the module's entity configuration (ADR 0015, built
-  note of 2026-10-17).
+  note of 2026-10-17). A column that holds the typed id of another entity gets its foreign key from
+  the context, `FK_<Table>_<Column>`, whichever module the other entity is in: a configuration does
+  not declare it and never names another module's entity for it (ADR 0021). A migration may carry
+  one hand-written, idempotent data statement at the end of `Up()` when the model cannot express
+  it; the line is in the runbook and a test checks it (ADR 0021).
 - **Use cases** (ADR 0018). One public sealed handler per command or query, behind
   `ICommandHandler<TCommand, TResult>` or `IQueryHandler<TQuery, TResult>`, returning `Result<T>`. A
   command handler validates (`validator.GetErrorAsync` first), loads through a repository, compares
@@ -518,12 +531,16 @@ Prompt 2.2 plan, 2026-10-17), 0019 bill drafts: replaceable lines, one version f
 guard against deletes (Accepted for the points of the Prompt 2.4 plan and, with it, the amendment of ADR 0003 for the foreign
 keys of `Bills`, 2026-11-20; its unit-of-work point awaits the owner's review), 0020 domain events are
 dispatched by the unit of work, and the audit trail is their one subscriber (Accepted with the approval of the
-Prompt 3.4 plan, 2026-11-20; it also builds the append-only guard and names the migration `0007_Audit`).
+Prompt 3.4 plan, 2026-11-20; it also builds the append-only guard and names the migration `0007_Audit`),
+0021 typed-id foreign keys by convention, a data step written by hand, and two more files with raw SQL
+(Accepted on the owner's decisions of 2026-11-20 for Prompt 3.3).
+ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
+decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
 differs from the first text (the store owns the business transaction, a refusal is stored after a rollback, the
 fingerprint includes the query and `If-Match`) and one change the owner accepted on 2026-11-20 (the tenant guard treats
 a temporary key value as not set).
-ADRs 0003, 0005, 0007, 0009 and 0010 are *Proposed* until the owner reviews the R1 design documents; flip their
+ADRs 0003, 0007, 0009 and 0010 are *Proposed* until the owner reviews the R1 design documents; flip their
 Status to Accepted then (ADR 0003 carries an amendment of 2026-10-17 with the precise module rule, and one of
 2026-11-20, accepted, for the foreign keys of `Bills`). ADR 0008 is Accepted since its implementation (Prompt 3.1,
 2026-11-20); its built note records what the build added (who opens the transaction, the sixteen-character limit as
@@ -851,9 +868,10 @@ Kept here so they survive between sessions. Remove an item when it is done.
       new module-dependency exception without approval, the data step of `0008` and its ADR, the zero-total bill,
       the lock order and its ADR, the three idempotency and concurrency cases with their error codes, and the
       extra tests.
-    - **Open with the owner before 3.3 is coded:** subscriber or port for the `PayerBalances` row; how the foreign
-      keys to `Payers` are declared without an unapproved exception; whether the ledger and the reconciliation
-      may each be a sanctioned raw-SQL file.
+    - **Settled by the owner on 2026-11-20, before 3.3 was coded:** the port opens the `PayerBalances` row; the
+      foreign keys to `Payers` come from the typed-id convention, with no new exception; the ledger and the
+      reconciliation are sanctioned raw-SQL files; no `LastPostingId`; `PostedByUserId` nullable without a key
+      (ADR 0021, ADR 0005 built note; item 17).
     - **Open with the owner before 3.5 is coded:** BR-401 read literally contradicts "a zero-total bill has no
       ledger posting", so BR-401 and identity 2 need an amendment or the decision changes; and which code a second
       posting gets after the first has committed (proposed: 409 `concurrency_conflict` for a stale version, 409
@@ -883,3 +901,38 @@ Kept here so they survive between sessions. Remove an item when it is done.
     - **Branch:** Phase 3 work (3.1, 3.2, 3.4 and what follows) is on `phase-2-billing` too, because the owner
       asked for the current branch; the branch-per-phase rule of item 8 resumes when the owner says so.
     - **If the run of section 8 is red:** the fix is a commit on top, with the output that showed it.
+17. **Prompt 3.3 (receivables ledger; ADR 0005 built, ADR 0021), written 2026-11-20 after 3.4, not built on
+    .NET 10 yet.** Verification is deferred with the rest (item 16).
+    - Built: `LedgerPosting` and `LedgerEntry` (append-only, balanced, the six accounts and subject rules of
+      BR-403), `PayerBalance`, the port `IReceivablesLedger` with `PostingTemplate`, `IPayerAccounts` (called by
+      the use case that creates a payer), `IReconciliationQuery`, the three tables, the typed-id foreign key
+      convention in `BillingReconDbContext`, and their tests.
+    - Decided by the owner before coding: see item 15 and ADR 0021.
+    - Changed in existing code and tests: `CreatePayerHandler` takes `IPayerAccounts` and opens the balances;
+      `Program.cs` calls `AddReceivables`; `BannedSymbolsTests` lists three raw-SQL files and checks each;
+      `TenantQueryFilterTests`, `AppendOnlyGuardTests`, `MigrationsTests` and `MigrationsOnSqlServerTests` know
+      the new tables and migration; `PayerHandlerTests` expects the balances to be opened once on success and
+      never on a refusal.
+    - **Repaired in the same commit:** `docs/database.md` had lost its title, and two passages of Prompt 3.4 (the
+      built note of section 3.8 and two rows of the migration table) sat at the top of the file, put there by a
+      scripted edit that went wrong and was committed unnoticed in `7fc0cda`. Both are where they belong now.
+    - Pre-checked in the .NET 9 copy: build, format gate, Domain 449 and Application 222 tests green,
+      Architecture 108 green and Integration 867 green on LocalDB 2019, with `0003` to `0008` scaffolded there
+      separately by EF Core 9 and the data step added to `0008` by script. Failing there, as before and by
+      design: the same eleven tests. The ledger, foreign-key, payer and migration tests (87) ran five times in a
+      row without a failure. Migrations `0003` to `0007` hold the same foreign keys with the convention as
+      without it.
+    - **To do on the personal machine:** `docs/runbook.md` section 8, which now ends with `0008_Receivables` and
+      the one line to paste into it by hand.
+    - Not proven anywhere yet: the convention, the locked balance change, the computed column and the
+      reconciliation statement on EF Core 10 and SQL Server 2022.
+    - Recorded for the owner: the exception that lets `BillConfiguration` name `Patient` and `Payer` is no longer
+      needed (the convention would add the same two keys under the same names) and can be removed whenever wanted;
+      it was left alone because nobody asked for a change to Prompt 2.4. When `Users` enters the model
+      (Prompt 5.1), every user column, the audit record's and the idempotency key's included, gets a foreign key
+      by the convention unless that prompt decides otherwise.
+    - Not built, on purpose: an endpoint for the reconciliation (6.2); reads of a payer's balances (6.1); the
+      bill identities of the reconciliation and `PostingTemplate.BillPosted` (3.5); the error code
+      `ledger_balance_negative` is not in the catalogue of `docs/api.md` yet, because no endpoint can answer it.
+    - Next: Prompt 3.5, with the owner's decisions recorded in `docs/build-prompts.md`; two questions are open
+      there (BR-401 and the zero-total bill; the code for a second posting after the first committed).
