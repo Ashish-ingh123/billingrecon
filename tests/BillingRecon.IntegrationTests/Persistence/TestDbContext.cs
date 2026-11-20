@@ -33,6 +33,17 @@ public sealed class TestDbContext(DbContextOptions<TestDbContext> options, ITena
             setting.Property(entity => entity.Json).IsUnbounded();
         });
 
+        // Numbered as the documents of the application will be: one number per tenant, and one sequence number per
+        // tenant, document type and fiscal year (docs/database.md, sections 3 and 4.3).
+        modelBuilder.Entity<NumberedDocument>(document =>
+        {
+            document.Property(entity => entity.DocumentType).HasMaxLength(20);
+            document.Property(entity => entity.Number).HasMaxLength(30).IsUnicode(false);
+            document.Property(entity => entity.Title).HasMaxLength(100);
+            document.HasIndex(entity => new { entity.TenantId, entity.Number }).IsUnique();
+            document.HasIndex(entity => new { entity.TenantId, entity.DocumentType, entity.FiscalYear, entity.SequenceNumber }).IsUnique();
+        });
+
         base.OnModelCreating(modelBuilder);
     }
 }

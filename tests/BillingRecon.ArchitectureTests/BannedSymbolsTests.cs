@@ -18,6 +18,9 @@ public sealed class BannedSymbolsTests
     [
         // Reads TimeProvider.System, once, so that everything else can take IClock (ADR 0010).
         "src/BillingRecon.Infrastructure/Common/Time/SystemClock.cs",
+
+        // Sends the one raw SQL statement of the system: the locked read-and-increment of a number series (ADR 0008).
+        "src/BillingRecon.Infrastructure/Common/Numbering/NumberSeriesAllocator.cs",
     ];
 
     private static readonly Assembly[] SearchedAssemblies =
@@ -110,6 +113,38 @@ public sealed class BannedSymbolsTests
 
         overloads.ShouldNotBeEmpty();
         ReadEntries().Select(entry => entry.Id).Where(id => overloads.Contains(id)).ShouldBe(overloads, ignoreOrder: true);
+    }
+
+    // Raw SQL goes around the tenant filter, the save guards and the audit stamps (ADR 0015); the number series is
+    // the one sanctioned use (ADR 0008). Every entry point EF Core has, and any it grows, must be on the list.
+    [Theory]
+    [InlineData(typeof(RelationalDatabaseFacadeExtensions), "ExecuteSql")]
+    [InlineData(typeof(RelationalDatabaseFacadeExtensions), "SqlQuery")]
+    [InlineData(typeof(RelationalDatabaseFacadeExtensions), "GetDbConnection")]
+    [InlineData(typeof(RelationalQueryableExtensions), "FromSql")]
+    public void Every_raw_sql_entry_point_of_ef_core_is_banned(Type owner, string namePrefix)
+    {
+        var entryPoints = owner.GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Where(candidate => candidate.Name.StartsWith(namePrefix, StringComparison.Ordinal))
+            .Select(DocumentationId.Of)
+            .ToArray();
+
+        entryPoints.ShouldNotBeEmpty();
+        ReadEntries().Select(entry => entry.Id).Where(id => entryPoints.Contains(id)).ShouldBe(entryPoints, ignoreOrder: true);
+    }
+
+    [Fact]
+    public void The_one_file_that_sends_raw_sql_sends_one_statement_made_of_constants_and_parameters()
+    {
+        var allocator = File.ReadAllText(RepositoryFiles.PathOf("src/BillingRecon.Infrastructure/Common/Numbering/NumberSeriesAllocator.cs"));
+
+        // One suppression, around one call, and the SQL text is a constant: nothing is ever spliced into it.
+        allocator.Split("#pragma warning disable RS0030").Length.ShouldBe(2);
+        allocator.Split("SqlQueryRaw").Length.ShouldBe(2);
+        allocator.ShouldContain("private const string TakeNext =");
+        allocator.ShouldContain("WITH (UPDLOCK, HOLDLOCK)");
+        allocator.ShouldNotContain("$\"\"\"");
+        allocator.ShouldNotContain("string.Format");
     }
 
     [Fact]

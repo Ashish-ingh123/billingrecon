@@ -1,6 +1,6 @@
 # ADR 0008: Gapless document numbering
 
-- **Status:** Proposed (accept on review of the R1 design documents)
+- **Status:** Accepted (built with Prompt 3.1 on 2026-11-20, with the owner's approval of its plan; see "Built 2026-11-20" below for what the build added and found)
 - **Date:** 2026-09-29
 - **Deciders:** project owner, Claude Code
 
@@ -85,3 +85,54 @@ document is written.
   posting (US-25) verifies.
 - The prefix limit (3 characters) and the short year label are visible to users on printed bills;
   `docs/api.md` and the front end use the stored `Number` string as-is.
+
+## Built 2026-11-20 (Prompt 3.1)
+
+`FiscalYear`, `DocumentType` and `DocumentNumber` (Domain, Common), the `NumberSeries` table, the port
+`INumberSeries` (Application, Common) and its implementation `NumberSeriesAllocator` (Infrastructure,
+Common/Numbering). No document takes a number yet; bill posting is the first (Prompt 3.5). What the build
+decided beyond the text above, each with the owner's approval of the plan unless marked:
+
+1. **Who opens the transaction.** A use case had no explicit transaction before: its unit of work was one
+   `SaveChanges`. `INumberSeries.NextAsync` now opens a transaction on the request's context when none is open and
+   takes the number on it; `UnitOfWork.CommitAsync` saves and commits that transaction, and rolls it back when the
+   save loses a race or fails. A use case that takes a number and then returns a failure without committing ends
+   with its request: the context is disposed, the transaction rolls back, and the number is free again. A use case
+   that takes no number runs exactly as before.
+2. **A number longer than sixteen characters is never issued.** The Decision above accepted that the sequence
+   widens to seven digits after 999 999. With a three-character prefix that is seventeen characters, which rule
+   46(b) does not allow. `DocumentNumber.Create` refuses to build such a number and the allocator turns that into a
+   fault ("the series is exhausted"); the increment rolls back with the transaction. A two-character prefix such as
+   `CN` still has room for seven digits. This replaces "accepted" in the Format paragraph.
+3. **Raw SQL is banned, and this is the one sanctioned use.** The entry points of EF Core for raw SQL
+   (`ExecuteSql*`, `SqlQuery*`, `FromSql*`, `GetDbConnection`) are now in `src/BannedSymbols.txt` (build error
+   RS0030), which answers the open question ADR 0015 left. `NumberSeriesAllocator.cs` is the one file allowed to
+   suppress the rule, for one call, listed in `BannedSymbolsTests` with its reason. Its statement is a constant;
+   every value is a parameter; the tenant comes from the current scope and is in every WHERE clause; the instants
+   come from the clock. A test checks that the file has one suppression, one call and no spliced text.
+4. **The tenant's default prefix is read inside the same statement**, from the tenant's row, only when the series
+   is created and under the same range lock. A tenant without a row gets no number and no series (a fault).
+5. **The typed wrappers** (`BillNumber`, `PaymentNumber` and the others) are not built: each arrives with the
+   document that uses it.
+6. **`NumberSeries` is in the model as a read-only entity.** Nothing creates or changes a series through it; it
+   gives the table its tenant filter, its foreign key and its migration, and lets a series be read. The prefix
+   change (BR-802, maker-checker) will add the first method.
+
+**Found while testing, and not in the text above (accepted by the owner on 2026-11-20):** the first number of a *new*
+series can wait for another series, even another tenant's. `HOLDLOCK` locks the gap in the unique index where the
+new row will go, and that lock reaches the next row in the index. When that row belongs to a series whose posting
+is in flight, the first posting waits until that posting commits or rolls back, which is milliseconds. It happens
+once per tenant, document type and fiscal year, it cannot deadlock (a use case locks one series), and nobody waits
+for ever: a test with eight tenants shows it. A series that exists locks its own row and nothing else, so two
+tenants with existing series never wait for each other, which another test shows. The Consequences paragraph
+above ("postings of one document type in one tenant and year serialise on one row") is therefore true for
+existing series and slightly too narrow for the first posting of each. Removing the wait would mean giving up
+the range lock for an insert-and-retry on the unique index; not done, because the wait is short and the lock is
+what this ADR chose. The owner accepted the wait on 2026-11-20.
+
+**Verification.** Pre-checked on 2026-11-20 in the throwaway .NET 9 copy against SQL Server LocalDB 2019: fifty
+parallel takers of a new series get 1 to 50 in three rounds, fifty and fifty more continue an existing series, a
+number that is taken and not committed, or whose save fails, is handed out again, and the gapless verification
+query of `docs/database.md` section 4.3 finds nothing after each. The number series tests ran eighteen times in a
+row without a failure. Still to do on the machine with .NET 10 and Docker: scaffold `0005_NumberSeries` with
+EF Core 10 and run the same tests against SQL Server 2022, repeatedly.
