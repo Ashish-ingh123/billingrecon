@@ -86,7 +86,10 @@ left open how the pieces meet over HTTP and what each party is told.
 
 - Credit notes, adjustments, refunds and reversals (Phase 4) follow the same shape: the maker's request to the
   document answers 202 and opens the request; `approve` and `reject` are actions of the document; the request
-  itself is only ever read.
+  itself is only ever read. The prefix change (Prompt 5.3b, ADR 0033) follows it too, with three differences: the
+  request creates the change, so it answers 201; its document type is `PrefixChange` (the unused `NumberSeries` was
+  renamed); and none of its posts carries `[Idempotent]`, since it is not a financial document: the filtered unique
+  index refuses a second waiting change and If-Match a repeated decision.
 - An approval saves two aggregates in one commit and writes an audit record for each: the bill's `Posted` and the
   request's `Approved`, with the same instant, user and correlation id.
 - Until Phase 5 the second person is any other user id. The API tests act as two users of one tenant through the

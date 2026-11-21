@@ -10,7 +10,7 @@ namespace BillingRecon.Api.Common.Authorization;
 /// </summary>
 public static class Policies
 {
-    /// <summary>The users, and with Prompt 5.3b the tenant's settings: TenantAdmin.</summary>
+    /// <summary>The users, the tenant's settings, and asking for a prefix change: TenantAdmin (ADR 0033).</summary>
     public const string ManageTenant = nameof(ManageTenant);
 
     /// <summary>Reading patients, payers and service items: every role.</summary>
@@ -49,7 +49,7 @@ public static class Policies
     /// <summary>Asking for the reversal of a payment, an allocation or an application of credit (the maker).</summary>
     public const string RequestReversals = nameof(RequestReversals);
 
-    /// <summary>Approving and rejecting, and the checker's inbox (BR-603, BR-605).</summary>
+    /// <summary>Approving and rejecting, the checker's inbox, and reading the prefix changes they decide (BR-603, BR-605, ADR 0033).</summary>
     public const string Decide = nameof(Decide);
 
     /// <summary>Reading the audit trail: every role (US-43); the trail of a user is the TenantAdmin's alone.</summary>

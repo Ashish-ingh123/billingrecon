@@ -33,10 +33,12 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
     private static readonly Role[] Everyone = [TenantAdmin, Supervisor, BillingClerk, Cashier, Viewer];
 
     // The rows of the matrix, with the decisions of ADR 0032: a blank cell is no access, except that a Cashier reads
-    // credit notes (point 3); applying credit is the credit notes' row (point 4); the inbox is the checkers' (point 5).
+    // credit notes (point 3); applying credit is the credit notes' row (point 4); the inbox is the checkers' (point 5);
+    // and, with ADR 0033, the checkers read the prefix changes they decide.
     private static readonly Dictionary<string, Role[]> Matrix = new(StringComparer.Ordinal)
     {
-        ["users"] = [TenantAdmin],
+        ["users, settings, prefixes"] = [TenantAdmin],
+        ["prefix changes: read"] = [TenantAdmin, Supervisor],
         ["reference data: change"] = [TenantAdmin, Supervisor, BillingClerk],
         ["reference data: read"] = Everyone,
         ["bills: change"] = [TenantAdmin, Supervisor, BillingClerk],
@@ -57,14 +59,22 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
     // Every endpoint of the API but the sign-in, by method and route template, with its row of the matrix.
     private static readonly (string Method, string Route, string Row)[] Endpoints =
     [
-        ("POST", "api/v1/users", "users"),
-        ("GET", "api/v1/users", "users"),
-        ("GET", "api/v1/users/{id:guid}", "users"),
-        ("PATCH", "api/v1/users/{id:guid}", "users"),
-        ("PUT", "api/v1/users/{id:guid}/roles", "users"),
-        ("POST", "api/v1/users/{id:guid}/disable", "users"),
-        ("POST", "api/v1/users/{id:guid}/enable", "users"),
-        ("POST", "api/v1/users/{id:guid}/password", "users"),
+        ("POST", "api/v1/users", "users, settings, prefixes"),
+        ("GET", "api/v1/users", "users, settings, prefixes"),
+        ("GET", "api/v1/users/{id:guid}", "users, settings, prefixes"),
+        ("PATCH", "api/v1/users/{id:guid}", "users, settings, prefixes"),
+        ("PUT", "api/v1/users/{id:guid}/roles", "users, settings, prefixes"),
+        ("POST", "api/v1/users/{id:guid}/disable", "users, settings, prefixes"),
+        ("POST", "api/v1/users/{id:guid}/enable", "users, settings, prefixes"),
+        ("POST", "api/v1/users/{id:guid}/password", "users, settings, prefixes"),
+
+        ("GET", "api/v1/settings", "users, settings, prefixes"),
+        ("PATCH", "api/v1/settings", "users, settings, prefixes"),
+        ("POST", "api/v1/settings/prefix-changes", "users, settings, prefixes"),
+        ("GET", "api/v1/settings/prefix-changes", "prefix changes: read"),
+        ("GET", "api/v1/settings/prefix-changes/{id:guid}", "prefix changes: read"),
+        ("POST", "api/v1/settings/prefix-changes/{id:guid}/approve", "approve or reject"),
+        ("POST", "api/v1/settings/prefix-changes/{id:guid}/reject", "approve or reject"),
 
         ("POST", "api/v1/patients", "reference data: change"),
         ("GET", "api/v1/patients", "reference data: read"),

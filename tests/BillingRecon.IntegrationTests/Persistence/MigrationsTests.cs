@@ -648,6 +648,52 @@ public sealed class MigrationsTests : IDisposable
         CreateTable(script, "Bills").ShouldNotContain("REFERENCES [Users]", Case.Sensitive);
     }
 
+    [Fact]
+    public void The_nineteenth_migration_is_0019_PrefixChanges()
+    {
+        var migrations = _context.Database.GetMigrations().ToArray();
+
+        migrations.Length.ShouldBeGreaterThanOrEqualTo(19, $"The PrefixChanges migration is missing. {HowToAdd.Replace("<name>", "0019_PrefixChanges", StringComparison.Ordinal)}");
+        migrations[18].ShouldEndWith("_0019_PrefixChanges");
+    }
+
+    [Fact]
+    public void The_migrations_create_the_prefix_changes_and_keep_the_five_prefixes_of_a_tenant_apart()
+    {
+        var script = _context.GetService<IMigrator>().GenerateScript();
+        var prefixChanges = Between(script, "_0018_Users", "_0019_PrefixChanges");
+        var createPrefixChanges = CreateTable(script, "PrefixChanges");
+
+        // One new table, in a migration that otherwise only replaces and adds checks: no column of an earlier table
+        // changes, and no data step (ADR 0033).
+        prefixChanges.Split("CREATE TABLE").Length.ShouldBe(2, "PrefixChanges");
+        prefixChanges.ShouldNotContain("ALTER COLUMN", Case.Sensitive);
+        prefixChanges.ShouldNotContain("ADD [", Case.Sensitive);
+        prefixChanges.ShouldNotContain("UPDATE [", Case.Sensitive);
+        createPrefixChanges.ShouldContain("[DocumentType] varchar(20) NOT NULL", Case.Sensitive);
+        createPrefixChanges.ShouldContain("[FromPrefix] varchar(3) NOT NULL", Case.Sensitive);
+        createPrefixChanges.ShouldContain("[ToPrefix] varchar(3) NOT NULL", Case.Sensitive);
+        createPrefixChanges.ShouldContain("[DecidedAtUtc] datetimeoffset(3) NULL", Case.Sensitive);
+        createPrefixChanges.ShouldContain("[RowVersion] rowversion NOT NULL", Case.Sensitive);
+        createPrefixChanges.ShouldContain("CONSTRAINT [CK_PrefixChanges_DocumentType] CHECK ([DocumentType] IN ('Bill', 'CreditNote', 'Payment', 'Adjustment', 'Refund'))", Case.Sensitive);
+        createPrefixChanges.ShouldContain("CONSTRAINT [CK_PrefixChanges_Status] CHECK ([Status] IN ('Pending', 'Approved', 'Rejected'))", Case.Sensitive);
+        createPrefixChanges.ShouldContain("CONSTRAINT [CK_PrefixChanges_ToPrefix] CHECK (LEN([ToPrefix]) BETWEEN 1 AND 3 AND [ToPrefix] NOT LIKE '%[^A-Z0-9]%' COLLATE Latin1_General_BIN2)", Case.Sensitive);
+        createPrefixChanges.ShouldContain("CONSTRAINT [CK_PrefixChanges_ChangesThePrefix] CHECK ([FromPrefix] <> [ToPrefix] COLLATE Latin1_General_BIN2)", Case.Sensitive);
+        createPrefixChanges.ShouldContain("CONSTRAINT [CK_PrefixChanges_Decided]", Case.Sensitive);
+        createPrefixChanges.ShouldContain("CONSTRAINT [FK_PrefixChanges_TenantId] FOREIGN KEY ([TenantId]) REFERENCES [Tenants] ([Id])", Case.Sensitive);
+        createPrefixChanges.ShouldContain("CONSTRAINT [FK_PrefixChanges_CreatedByUserId] FOREIGN KEY ([CreatedByUserId]) REFERENCES [Users] ([Id])", Case.Sensitive);
+        createPrefixChanges.ShouldNotContain("CASCADE", Case.Insensitive);
+        prefixChanges.ShouldContain("CREATE UNIQUE INDEX [UX_PrefixChanges_TenantId_DocumentType_Pending] ON [PrefixChanges] ([TenantId], [DocumentType]) WHERE [Status] = 'Pending'", Case.Sensitive);
+        prefixChanges.ShouldContain("CREATE INDEX [IX_PrefixChanges_TenantId_CreatedAtUtc] ON [PrefixChanges] ([TenantId], [CreatedAtUtc])", Case.Sensitive);
+
+        // The approval requests name the new document type instead of the one nothing used (ADR 0033 point 2), and the
+        // tenant's five prefixes differ and its threshold is above zero.
+        prefixChanges.ShouldContain("ALTER TABLE [ApprovalRequests] DROP CONSTRAINT [CK_ApprovalRequests_DocumentType]", Case.Sensitive);
+        prefixChanges.ShouldContain("ALTER TABLE [ApprovalRequests] ADD CONSTRAINT [CK_ApprovalRequests_DocumentType] CHECK ([DocumentType] IN ('Bill', 'CreditNote', 'Adjustment', 'Refund', 'Payment', 'PaymentAllocation', 'CreditNoteAllocation', 'PrefixChange'))", Case.Sensitive);
+        prefixChanges.ShouldContain("ALTER TABLE [Tenants] ADD CONSTRAINT [CK_Tenants_PrefixesDistinct] CHECK ([BillPrefix] NOT IN ([CreditNotePrefix], [PaymentPrefix], [AdjustmentPrefix], [RefundPrefix]) AND ", Case.Sensitive);
+        prefixChanges.ShouldContain("ALTER TABLE [Tenants] ADD CONSTRAINT [CK_Tenants_PostingApprovalThreshold] CHECK ([PostingApprovalThreshold] IS NULL OR [PostingApprovalThreshold] > 0)", Case.Sensitive);
+    }
+
     // The part of the script of all migrations that the migration named second adds: each migration's part ends with the
     // row it writes to the history, which names it, so the part runs from the name of the one before to its own.
     private static string Between(string script, string from, string to)

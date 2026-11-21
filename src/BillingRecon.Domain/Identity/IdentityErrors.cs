@@ -33,6 +33,21 @@ public static class IdentityErrors
     /// <summary>Code of <see cref="InvalidCredentials"/>.</summary>
     public const string InvalidCredentialsCode = "invalid_credentials";
 
+    /// <summary>Code of <see cref="PrefixChangeNotFound"/>.</summary>
+    public const string PrefixChangeNotFoundCode = "prefix_change_not_found";
+
+    /// <summary>Code of <see cref="PrefixChangeNotPending"/>.</summary>
+    public const string PrefixChangeNotPendingCode = "prefix_change_not_pending";
+
+    /// <summary>Code of <see cref="PrefixChangePending"/>.</summary>
+    public const string PrefixChangePendingCode = "prefix_change_pending";
+
+    /// <summary>Code of <see cref="PrefixUnchanged"/>.</summary>
+    public const string PrefixUnchangedCode = "prefix_unchanged";
+
+    /// <summary>Code of <see cref="PrefixInUse"/>.</summary>
+    public const string PrefixInUseCode = "prefix_in_use";
+
     /// <summary>
     /// A sign-in that is refused, whatever the reason: an unknown or suspended tenant, an unknown address, a wrong
     /// password, a disabled user (BR-601; ADR 0031). One answer for all, so that nobody learns which accounts exist.
@@ -67,4 +82,25 @@ public static class IdentityErrors
     /// <summary>A user disabling themselves (ADR 0030).</summary>
     public static Error UserCannotDisableSelf()
         => Error.BusinessRule(UserCannotDisableSelfCode, "You cannot disable your own user; another administrator can.");
+
+    /// <summary>No prefix change with that id exists for the tenant. Another tenant's gets the same answer.</summary>
+    public static Error PrefixChangeNotFound() => Error.NotFound(PrefixChangeNotFoundCode, "The prefix change does not exist.");
+
+    /// <summary>Deciding a prefix change that was decided already (BR-605).</summary>
+    public static Error PrefixChangeNotPending()
+        => Error.BusinessRule(PrefixChangeNotPendingCode, "The prefix change has been decided already; a decision is final.");
+
+    /// <summary>Asking for a second prefix change of a document type while one waits (ADR 0033).</summary>
+    public static Error PrefixChangePending()
+        => Error.Conflict(PrefixChangePendingCode, "A change of the prefix of this document type already waits for a decision.");
+
+    /// <summary>Asking for the prefix the document type already has.</summary>
+    public static Error PrefixUnchanged() => Error.BusinessRule(PrefixUnchangedCode, "The document type has this prefix already.");
+
+    /// <summary>
+    /// A prefix that another document type has, had, or waits to get: a prefix belongs to one kind of document for good,
+    /// so that two documents of different kinds never carry the same number (BR-802, ADR 0033).
+    /// </summary>
+    public static Error PrefixInUse()
+        => Error.Conflict(PrefixInUseCode, "This prefix belongs to another kind of document, now or in the past; choose another one (BR-802).");
 }

@@ -116,7 +116,10 @@ decided beyond the text above, each with the owner's approval of the plan unless
    document that uses it.
 6. **`NumberSeries` is in the model as a read-only entity.** Nothing creates or changes a series through it; it
    gives the table its tenant filter, its foreign key and its migration, and lets a series be read. The prefix
-   change (BR-802, maker-checker) will add the first method.
+   change (BR-802, maker-checker) will add the first method. *Done with Prompt 5.3b (ADR 0033):* `NumberSeries` is
+   an aggregate with one method, `ChangePrefix`, which the approval of a prefix change calls for the series of the
+   current fiscal year, through the model and its row version; numbers are still taken only by the allocator's
+   statement, and a series is still created only there.
 
 **Found while testing, and not in the text above (accepted by the owner on 2026-11-20):** the first number of a *new*
 series can wait for another series, even another tenant's. `HOLDLOCK` locks the gap in the unique index where the

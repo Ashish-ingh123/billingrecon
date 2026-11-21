@@ -116,6 +116,14 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IUserReadService, UserReadService>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
 
+        // The tenant's settings, its prefix changes, and the series whose prefix an approved change sets (BR-607,
+        // BR-802, ADR 0033). Numbers are still taken by INumberSeries alone.
+        services.AddScoped<ITenantRepository, TenantRepository>();
+        services.AddScoped<IPrefixChangeRepository, PrefixChangeRepository>();
+        services.AddScoped<IPrefixChangeReadService, PrefixChangeReadService>();
+        services.AddScoped<IPrefixUsage, PrefixUsage>();
+        services.AddScoped<INumberSeriesRepository, NumberSeriesRepository>();
+
         // Builds the model at startup (an invalid model stops the application) and, in Development, applies migrations.
         services.AddHostedService<DatabaseStartup>();
     }

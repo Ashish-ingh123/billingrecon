@@ -31,9 +31,9 @@ public sealed class IdempotencyConventionTests
     ];
 
     /// <summary>
-    /// Controllers whose POSTs are not financial (ADR 0030 point 7, ADR 0031 point 11): reference data, protected by its
-    /// unique indexes and by If-Match (docs/api.md, section 7), and the sign-in, which changes nothing a retry could
-    /// repeat. The users and the sign-in are here for a second reason too: their bodies hold passwords, and a stored
+    /// Controllers whose POSTs are not financial (ADR 0030 point 7, ADR 0031 point 11, ADR 0033): reference data and the
+    /// prefix changes, protected by their unique indexes and by If-Match (docs/api.md, section 7), and the sign-in, which
+    /// changes nothing a retry could repeat. The users and the sign-in are here for a second reason too: their bodies hold passwords, and a stored
     /// fingerprint of such a body would be a fast hash of the password.
     /// </summary>
     private static readonly Type[] NonFinancialControllers =
@@ -43,6 +43,7 @@ public sealed class IdempotencyConventionTests
         typeof(ServiceItemsController),
         typeof(UsersController),
         typeof(AuthController),
+        typeof(PrefixChangesController),
     ];
 
     private static readonly Type[] ControllersWithPosts =

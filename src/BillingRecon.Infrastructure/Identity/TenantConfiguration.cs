@@ -38,6 +38,12 @@ public sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant>
                     $"CK_Tenants_{column}",
                     $"LEN([{column}]) BETWEEN 1 AND {Tenant.PrefixMaxLength} AND [{column}] NOT LIKE '%[^A-Z0-9]%' COLLATE Latin1_General_BIN2");
             }
+
+            // A prefix belongs to one document type (ADR 0033): the five defaults differ, each from every other.
+            table.HasCheckConstraint("CK_Tenants_PrefixesDistinct", DistinctPrefixes());
+
+            // No threshold, or one above zero (BR-207, ADR 0033).
+            table.HasCheckConstraint("CK_Tenants_PostingApprovalThreshold", "[PostingApprovalThreshold] IS NULL OR [PostingApprovalThreshold] > 0");
         });
 
         builder.HasKey(tenant => tenant.Id);
@@ -54,5 +60,15 @@ public sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant>
         {
             builder.Property<string>(column).HasMaxLength(Tenant.PrefixMaxLength).IsUnicode(false);
         }
+
+        // Computed from the five columns above.
+        builder.Ignore(tenant => tenant.Prefixes);
     }
+
+    // [BillPrefix] NOT IN ([CreditNotePrefix], ...) AND [CreditNotePrefix] NOT IN (...) ...: every pair once.
+    private static string DistinctPrefixes()
+        => string.Join(
+            " AND ",
+            PrefixColumns.Take(PrefixColumns.Length - 1)
+                .Select((column, index) => $"[{column}] NOT IN ({string.Join(", ", PrefixColumns.Skip(index + 1).Select(other => $"[{other}]"))})"));
 }

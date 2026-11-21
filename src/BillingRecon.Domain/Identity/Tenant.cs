@@ -52,8 +52,7 @@ public sealed class Tenant : AggregateRoot<TenantId>, IHasRowVersion
 
     /// <summary>
     /// A bill whose total reaches this amount needs a checker's approval before it is posted; null means bills never
-    /// need approval (BR-207). Changing it is a TenantAdmin's audited action (BR-607), which arrives with the
-    /// Identity slice.
+    /// need approval (BR-207). Changing it is a TenantAdmin's audited action (BR-607, <see cref="ChangeSettings"/>).
     /// </summary>
     public Money? PostingApprovalThreshold { get; private set; }
 
@@ -83,6 +82,104 @@ public sealed class Tenant : AggregateRoot<TenantId>, IHasRowVersion
 
     /// <inheritdoc />
     public byte[] RowVersion { get; private set; }
+
+    /// <summary>The default prefix of every document type, in the order of <see cref="DocumentType"/>.</summary>
+    public IReadOnlyDictionary<DocumentType, string> Prefixes => new Dictionary<DocumentType, string>
+    {
+        [DocumentType.Bill] = BillPrefix,
+        [DocumentType.CreditNote] = CreditNotePrefix,
+        [DocumentType.Payment] = PaymentPrefix,
+        [DocumentType.Adjustment] = AdjustmentPrefix,
+        [DocumentType.Refund] = RefundPrefix,
+    };
+
+    /// <summary>The default prefix of <paramref name="documentType"/>: the prefix of its next new series (BR-802).</summary>
+    public string PrefixOf(DocumentType documentType) => documentType switch
+    {
+        DocumentType.Bill => BillPrefix,
+        DocumentType.CreditNote => CreditNotePrefix,
+        DocumentType.Payment => PaymentPrefix,
+        DocumentType.Adjustment => AdjustmentPrefix,
+        DocumentType.Refund => RefundPrefix,
+        _ => throw new ArgumentOutOfRangeException(nameof(documentType), documentType, "Not a document type that takes a number."),
+    };
+
+    /// <summary>
+    /// A TenantAdmin sets the three settings (BR-607): the approval threshold (null for none, otherwise above zero), the
+    /// back-date window and the default due days (each 0 to <see cref="MaxDays"/>). Returns false, and records nothing,
+    /// when nothing changes.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">A value outside those limits: a bug in the caller, whose validator refuses it first.</exception>
+    public bool ChangeSettings(Money? postingApprovalThreshold, int maxBackdateDays, int defaultDueDays)
+    {
+        if (postingApprovalThreshold is { IsPositive: false })
+        {
+            throw new ArgumentOutOfRangeException(nameof(postingApprovalThreshold), postingApprovalThreshold, "A threshold is above zero; none is null.");
+        }
+
+        ArgumentOutOfRangeException.ThrowIfNegative(maxBackdateDays);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(maxBackdateDays, MaxDays);
+        ArgumentOutOfRangeException.ThrowIfNegative(defaultDueDays);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(defaultDueDays, MaxDays);
+
+        if (postingApprovalThreshold == PostingApprovalThreshold && maxBackdateDays == MaxBackdateDays && defaultDueDays == DefaultDueDays)
+        {
+            return false;
+        }
+
+        PostingApprovalThreshold = postingApprovalThreshold;
+        MaxBackdateDays = maxBackdateDays;
+        DefaultDueDays = defaultDueDays;
+        AddDomainEvent(new TenantSettingsChanged(postingApprovalThreshold, maxBackdateDays, defaultDueDays));
+
+        return true;
+    }
+
+    /// <summary>
+    /// The approved prefix change of <paramref name="documentType"/> (BR-802, ADR 0033): its default prefix becomes
+    /// <paramref name="prefix"/>, which no other document type has as its default.
+    /// </summary>
+    /// <exception cref="ArgumentException">Not a prefix, or the type has it already: bugs in the caller.</exception>
+    /// <exception cref="InvalidOperationException">Another type has it as its default; the use case refuses that first.</exception>
+    public void ChangePrefix(DocumentType documentType, string prefix)
+    {
+        if (!DocumentNumber.IsPrefix(prefix))
+        {
+            throw new ArgumentException($"A prefix has 1 to {DocumentNumber.PrefixMaxLength} characters, each a capital letter or a digit (BR-802).", nameof(prefix));
+        }
+
+        var from = PrefixOf(documentType);
+        if (from == prefix)
+        {
+            throw new ArgumentException("The document type has this prefix already.", nameof(prefix));
+        }
+
+        if (Prefixes.Any(other => other.Key != documentType && other.Value == prefix))
+        {
+            throw new InvalidOperationException($"Prefix {prefix} is the default of another document type; a prefix belongs to one type (ADR 0033).");
+        }
+
+        switch (documentType)
+        {
+            case DocumentType.Bill:
+                BillPrefix = prefix;
+                break;
+            case DocumentType.CreditNote:
+                CreditNotePrefix = prefix;
+                break;
+            case DocumentType.Payment:
+                PaymentPrefix = prefix;
+                break;
+            case DocumentType.Adjustment:
+                AdjustmentPrefix = prefix;
+                break;
+            default:
+                RefundPrefix = prefix;
+                break;
+        }
+
+        AddDomainEvent(new TenantPrefixChanged(documentType, from, prefix));
+    }
 
     /// <summary>
     /// Creates an active tenant with the initial settings: no approval threshold, seven days of back-dating, due on

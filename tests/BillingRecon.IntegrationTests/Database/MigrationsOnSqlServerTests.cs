@@ -22,9 +22,9 @@ public sealed class MigrationsOnSqlServerTests(SqlServerFixture sqlServer) : Dat
         var migrations = context.Database.GetMigrations().ToArray();
 
         // The second migration creates Patients and Payers; it keeps the name it was scaffolded under
-        // (docs/database.md, section 8). The ids of the third to the eighteenth start with the time they are scaffolded,
+        // (docs/database.md, section 8). The ids of the third to the nineteenth start with the time they are scaffolded,
         // which is not known here; their names are.
-        migrations.Length.ShouldBe(18);
+        migrations.Length.ShouldBe(19);
         migrations[..2].ShouldBe(["20261003192738_0001_Tenants", "20261018182819_0002_SyncCurrentModel"]);
         migrations[2].ShouldEndWith("_0003_ServiceItems");
         migrations[3].ShouldEndWith("_0004_Bills");
@@ -42,6 +42,7 @@ public sealed class MigrationsOnSqlServerTests(SqlServerFixture sqlServer) : Dat
         migrations[15].ShouldEndWith("_0016_CreditApplicationReversals");
         migrations[16].ShouldEndWith("_0017_Refunds");
         migrations[17].ShouldEndWith("_0018_Users");
+        migrations[18].ShouldEndWith("_0019_PrefixChanges");
         (await context.Database.GetAppliedMigrationsAsync()).ShouldBe(migrations);
         (await context.Database.GetPendingMigrationsAsync()).ShouldBeEmpty();
     }
@@ -62,6 +63,7 @@ public sealed class MigrationsOnSqlServerTests(SqlServerFixture sqlServer) : Dat
             [
                 "CK_Tenants_Status", "CK_Tenants_MaxBackdateDays", "CK_Tenants_DefaultDueDays", "CK_Tenants_BillPrefix",
                 "CK_Tenants_CreditNotePrefix", "CK_Tenants_PaymentPrefix", "CK_Tenants_AdjustmentPrefix", "CK_Tenants_RefundPrefix",
+                "CK_Tenants_PrefixesDistinct", "CK_Tenants_PostingApprovalThreshold",
             ],
             ignoreOrder: true);
         uniqueIndexes.ShouldBe(["UX_Tenants_Code"]);
@@ -75,8 +77,8 @@ public sealed class MigrationsOnSqlServerTests(SqlServerFixture sqlServer) : Dat
 
         await using (var writer = ApiContext(SystemIdentity.Instance))
         {
-            // No use case sets the threshold yet (BR-607 arrives with the Identity slice); written here through the
-            // entry, so the Money column round-trips through its converter on a real SQL Server.
+            // Written here through the entry rather than through ChangeSettings (BR-607, ADR 0033), so the test stays
+            // about the round trip: the Money column goes through its converter on a real SQL Server.
             writer.Entry(tenant).Property(candidate => candidate.PostingApprovalThreshold).CurrentValue = threshold;
             writer.Add(tenant);
             await writer.SaveChangesAsync();
@@ -121,6 +123,7 @@ public sealed class MigrationsOnSqlServerTests(SqlServerFixture sqlServer) : Dat
     [InlineData(nameof(Tenant.BillPrefix), "bil")] // lower case: the binary collation of the CHECK refuses it
     [InlineData(nameof(Tenant.RefundPrefix), "R-F")] // a character outside A-Z0-9
     [InlineData(nameof(Tenant.PaymentPrefix), "")] // shorter than one character
+    [InlineData(nameof(Tenant.RefundPrefix), "BIL")] // the bills' prefix: a prefix belongs to one document type (ADR 0033)
     [InlineData(nameof(Tenant.MaxBackdateDays), 366)]
     [InlineData(nameof(Tenant.DefaultDueDays), -1)]
     public async Task A_value_the_check_constraints_forbid_is_refused_by_the_database(string property, object value)
@@ -133,6 +136,20 @@ public sealed class MigrationsOnSqlServerTests(SqlServerFixture sqlServer) : Dat
         var exception = await Should.ThrowAsync<DbUpdateException>(() => context.SaveChangesAsync());
 
         // 547: a CHECK constraint refused the row.
+        exception.InnerException.ShouldBeOfType<SqlException>().Number.ShouldBe(547);
+    }
+
+    [Fact]
+    public async Task A_threshold_of_zero_is_refused_by_the_database()
+    {
+        // No threshold is null; a threshold is above zero (BR-607, ADR 0033).
+        await using var context = ApiContext(SystemIdentity.Instance);
+        var tenant = TestData.NewTenant(Now);
+        context.Entry(tenant).Property(candidate => candidate.PostingApprovalThreshold).CurrentValue = Money.Zero;
+        context.Add(tenant);
+
+        var exception = await Should.ThrowAsync<DbUpdateException>(() => context.SaveChangesAsync());
+
         exception.InnerException.ShouldBeOfType<SqlException>().Number.ShouldBe(547);
     }
 

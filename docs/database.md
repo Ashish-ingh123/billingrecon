@@ -186,6 +186,27 @@ precisions.
   reversed by of the documents, the maker and checker of `ApprovalRequests`, and `UserId` of `AuditRecords` and
   `IdempotencyKeys`.
 
+**PrefixChanges** (BR-802, BR-604; ADR 0033) — a TenantAdmin's request for a new prefix of one document type, decided
+by a second person through its approval request (document type `PrefixChange`, action `ChangePrefix`). Built with
+migration `0019_PrefixChanges` (Prompt 5.3b).
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| Id | uniqueidentifier | | PK |
+| T | | | `FK_PrefixChanges_TenantId` |
+| DocumentType | varchar(20) | | `CK_PrefixChanges_DocumentType`: the five types that take a number |
+| FromPrefix, ToPrefix | varchar(3) | | the prefix when asked and the one to get; `CK_PrefixChanges_FromPrefix`, `CK_PrefixChanges_ToPrefix` as every prefix column; `CK_PrefixChanges_ChangesThePrefix` (they differ) |
+| Status | varchar(20) | | `CK_PrefixChanges_Status`: `Pending`, `Approved`, `Rejected`; `UX_PrefixChanges_TenantId_DocumentType_Pending (TenantId, DocumentType) WHERE Status = 'Pending'`: one change waits per type |
+| DecidedAtUtc | datetimeoffset(3) | • | `CK_PrefixChanges_Decided`: null exactly while pending |
+| Stamp, Touch | | | `CreatedAtUtc` is when it was asked for, `CreatedByUserId` the maker; keys to `Users` |
+| RowVersion | rowversion | | |
+
+`IX_PrefixChanges_TenantId_CreatedAtUtc` serves the list, the newest first. The same migration adds two checks to
+**Tenants**: `CK_Tenants_PrefixesDistinct` (the five default prefixes differ from each other) and
+`CK_Tenants_PostingApprovalThreshold` (null, or above zero); and it renames the unused value `NumberSeries` of
+`CK_ApprovalRequests_DocumentType` to `PrefixChange`. An approved change also sets `Prefix` of the type's
+`NumberSeries` row of the current fiscal year, through the model and its row version (section 3.6).
+
 ### 3.2 Payers
 
 Migration `0002_SyncCurrentModel` (Prompt 2.2, ADR 0018; the name it was scaffolded under, §8). Both tables are tenant-scoped: `FK_Patients_TenantId` and
@@ -528,7 +549,7 @@ adjustment is not reversed.
 |---|---|---|---|
 | Id | uniqueidentifier | | PK |
 | T | | | |
-| DocumentType | varchar(30) | | CK `Bill`, `CreditNote`, `Adjustment`, `Refund`, `Payment`, `PaymentAllocation`, `CreditNoteAllocation`, `NumberSeries` |
+| DocumentType | varchar(30) | | CK `Bill`, `CreditNote`, `Adjustment`, `Refund`, `Payment`, `PaymentAllocation`, `CreditNoteAllocation`, `PrefixChange` (it was `NumberSeries`, unused, until `0019`; ADR 0033) |
 | DocumentId | uniqueidentifier | | no FK (polymorphic); `UX_ApprovalRequests_TenantId_DocumentType_DocumentId WHERE Status = 'Pending'` (BR-605) |
 | Action | varchar(30) | | CK `Post`, `Reverse`, `ChangePrefix` |
 | MakerUserId | uniqueidentifier | | FK `Users` |

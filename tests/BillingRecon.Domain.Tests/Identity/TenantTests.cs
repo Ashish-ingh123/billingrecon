@@ -134,4 +134,65 @@ public sealed class TenantTests
 
         exception.ParamName.ShouldBe("createdAtUtc");
     }
+
+    [Fact]
+    public void US03_the_settings_change_together_and_only_a_change_is_an_event()
+    {
+        var tenant = Tenant.Create("city-hospital", "City Hospital", CreatedAt).Value;
+
+        tenant.ChangeSettings(null, 7, 0).ShouldBeFalse("nothing changed");
+        tenant.DomainEvents.ShouldBeEmpty();
+
+        tenant.ChangeSettings(Money.Of(50_000m), 3, 15).ShouldBeTrue();
+
+        (tenant.PostingApprovalThreshold, tenant.MaxBackdateDays, tenant.DefaultDueDays).ShouldBe((Money.Of(50_000m), 3, 15));
+        tenant.DomainEvents.ShouldHaveSingleItem().ShouldBe(new TenantSettingsChanged(Money.Of(50_000m), 3, 15));
+
+        tenant.ChangeSettings(null, 0, 365).ShouldBeTrue("the threshold goes back to none; the days reach both limits");
+        tenant.PostingApprovalThreshold.ShouldBeNull();
+    }
+
+    [Fact]
+    public void BR607_settings_outside_their_limits_are_a_bug_in_the_caller()
+    {
+        var tenant = Tenant.Create("city-hospital", "City Hospital", CreatedAt).Value;
+
+        Should.Throw<ArgumentOutOfRangeException>(() => tenant.ChangeSettings(Money.Zero, 7, 0));
+        Should.Throw<ArgumentOutOfRangeException>(() => tenant.ChangeSettings(null, -1, 0));
+        Should.Throw<ArgumentOutOfRangeException>(() => tenant.ChangeSettings(null, 7, Tenant.MaxDays + 1));
+    }
+
+    [Fact]
+    public void Each_document_type_has_its_default_prefix()
+    {
+        var tenant = Tenant.Create("city-hospital", "City Hospital", CreatedAt).Value;
+
+        Enum.GetValues<DocumentType>().Select(tenant.PrefixOf).ShouldBe(["BIL", "CN", "PAY", "ADJ", "REF"]);
+        tenant.Prefixes.Keys.ShouldBe(Enum.GetValues<DocumentType>());
+    }
+
+    [Fact]
+    public void BR802_an_approved_change_gives_one_type_a_new_default_prefix_and_says_so()
+    {
+        var tenant = Tenant.Create("city-hospital", "City Hospital", CreatedAt).Value;
+
+        tenant.ChangePrefix(DocumentType.Bill, "INV");
+
+        tenant.BillPrefix.ShouldBe("INV");
+        tenant.PrefixOf(DocumentType.CreditNote).ShouldBe("CN", "the other types keep theirs");
+        tenant.DomainEvents.ShouldHaveSingleItem().ShouldBe(new TenantPrefixChanged(DocumentType.Bill, "BIL", "INV"));
+    }
+
+    [Fact]
+    public void ADR0033_a_default_prefix_never_belongs_to_two_types_and_a_change_that_changes_nothing_is_a_bug()
+    {
+        var tenant = Tenant.Create("city-hospital", "City Hospital", CreatedAt).Value;
+
+        Should.Throw<InvalidOperationException>(() => tenant.ChangePrefix(DocumentType.Refund, "PAY"));
+        Should.Throw<ArgumentException>(() => tenant.ChangePrefix(DocumentType.Bill, "BIL"));
+        Should.Throw<ArgumentException>(() => tenant.ChangePrefix(DocumentType.Bill, "inv"));
+        Should.Throw<ArgumentException>(() => tenant.ChangePrefix(DocumentType.Bill, "INVO"));
+        tenant.RefundPrefix.ShouldBe("REF");
+        tenant.DomainEvents.ShouldBeEmpty();
+    }
 }

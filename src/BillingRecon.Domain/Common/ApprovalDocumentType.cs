@@ -24,6 +24,9 @@ public enum ApprovalDocumentType
     /// <summary>An application of a credit note, when it is reversed.</summary>
     CreditNoteAllocation = 6,
 
-    /// <summary>A number series, when its prefix is changed (BR-802).</summary>
-    NumberSeries = 7,
+    /// <summary>
+    /// A change of the prefix of one document type (BR-802, ADR 0033). It was <c>NumberSeries</c> until Prompt 5.3b,
+    /// when no request had used it: the request is about the change, not about a series.
+    /// </summary>
+    PrefixChange = 7,
 }

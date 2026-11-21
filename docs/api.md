@@ -40,7 +40,8 @@ at the next sign-in. In short:
 
 | Endpoints | TenantAdmin | Supervisor | BillingClerk | Cashier | Viewer |
 |---|---|---|---|---|---|
-| Users (section 8.11) | ✓ | | | | |
+| Users (section 8.11), settings (8.13), asking for a prefix change (8.14) | ✓ | | | | |
+| Reading the prefix changes (8.14) | ✓ | ✓ | | | |
 | Patients, payers, service items: read / change | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / | ✓ / |
 | Bills: read / draft, edit, void, post | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / | ✓ / |
 | Credit notes: read / draft, edit, void, submit, apply | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / | ✓ / |
@@ -49,7 +50,7 @@ at the next sign-in. In short:
 | Refunds: read / draft, edit, void, submit | ✓ / ✓ | ✓ / ✓ | | ✓ / ✓ | ✓ / |
 | Ask for a reversal (payment, allocation, application of credit) | ✓ | ✓ | ✓ | ✓ | |
 | Approve, reject, and the inbox `GET /approval-requests` | ✓ | ✓ | | | |
-| Audit trail (a user's trail: TenantAdmin only) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Audit trail (the trails of a user, the tenant, its prefix changes and its number series: TenantAdmin only) | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /api/v1/system/info` | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 A checker also has to be another user than the maker (BR-603): a decision by the maker is 403
@@ -76,12 +77,12 @@ with field errors lists the messages per field under `errors`, keyed by the JSON
 | 400 | A financial POST without a usable `Idempotency-Key` (section 7) | `idempotency_key_missing` |
 | 401 | No token, or one that is not valid: expired, not signed by this API, without a tenant or a user (section 2) | `unauthorized` |
 | 401 | A sign-in that is refused, whatever the reason (section 8.12) | `invalid_credentials` |
-| 403 | The user's roles do not allow the endpoint (section 2), or the trail of a user for anyone but a TenantAdmin | `forbidden` |
+| 403 | The user's roles do not allow the endpoint (section 2), or a trail that is the TenantAdmin's (section 8.5) for anyone else | `forbidden` |
 | 403 | A decision by the maker, or by a user who is neither Supervisor nor TenantAdmin (BR-603) | `approval_checker_is_maker`, `approval_checker_role` |
 | 404 | The record does not exist for the tenant (another tenant's included), also when a request only refers to it | `patient_not_found`, `payer_not_found`, `service_item_not_found`, `bill_not_found`, `payment_not_found`, `credit_note_not_found`, `adjustment_not_found`; `not_found` for an unknown route |
 | 409 | The record changed since it was read (BR-804) | `concurrency_conflict` |
 | 409 | The first request with this `Idempotency-Key` is still running (section 7) | `idempotency_in_progress` |
-| 409 | A uniqueness rule (BR-101, BR-104, the code of a service item) | `patient_mrn_duplicate`, `patient_already_linked`, `service_item_code_duplicate`; `duplicate_key` where no rule applies |
+| 409 | A uniqueness rule (BR-101, BR-104, the code of a service item, a prefix of one document type, one waiting prefix change per type) | `patient_mrn_duplicate`, `patient_already_linked`, `service_item_code_duplicate`, `prefix_in_use`, `prefix_change_pending`; `duplicate_key` where no rule applies |
 | 422 | A business rule refuses the request | see the endpoints |
 | 422 | The `Idempotency-Key` was used for a different request (section 7) | `idempotency_key_reuse` |
 | 428 | A change of an existing record without `If-Match` | `precondition_required` |
@@ -382,8 +383,10 @@ change. Nothing here can be created, changed or deleted: any other verb answers 
 
 `entityType` is `Patient`, `Payer`, `ServiceItem`, `Bill`, `ApprovalRequest` or the type of any later record (`User`,
 `Payment`, ...); `entityId` is the id of that record. Both are required. A record of another tenant, like an id nobody
-has, has an empty trail: 200 with no items, never 404 or 403. Every role reads the trail (US-43), except the trail of a
-user (`entityType=User`, in any case), which only a TenantAdmin reads: the users are the TenantAdmin's alone (ADR 0032).
+has, has an empty trail: 200 with no items, never 404 or 403. Every role reads the trail (US-43), except the trails of a
+user (`entityType=User`), of the tenant (`Tenant`), of its prefix changes (`PrefixChange`) and of its number series
+(`NumberSeries`), in any case, which only a TenantAdmin reads: the users and the settings are the TenantAdmin's alone
+(ADR 0032, ADR 0033).
 
 A record:
 
@@ -753,3 +756,51 @@ exist, and an unknown address costs as much time as a wrong password. Why a sign
 never are. A missing or over-long value is a 400 `validation_failed` like any other. A sign-in is recorded on the user
 (`lastSignInAtUtc`) and in the audit trail (`SignedIn`, by the user). Repeated attempts are not limited yet (ADR 0031,
 point 12).
+
+### 8.13 Settings (US-03; BR-205, BR-207, BR-607; ADR 0033)
+
+The tenant's settings, a TenantAdmin's alone. A change applies from the next request, since every use case reads the
+settings when it runs; a bill that already waits for approval keeps waiting.
+
+| Method and path | Success | Failures |
+|---|---|---|
+| `GET /api/v1/settings` | 200, the settings, `ETag` (the tenant's version) | |
+| `PATCH /api/v1/settings` (needs `If-Match`) | 200, the settings | 400; 409 `concurrency_conflict`; 428 |
+
+The body of a `PATCH` is the new state of the three settings (section 5; unknown members are refused):
+`postingApprovalThreshold`, an amount above zero, or left out or null for none (no bill needs approval, BR-207);
+`maxBackdateDays`, required, 0 to 365 (BR-205); `defaultDueDays`, required, 0 to 365 (BR-205). The answer:
+those three, `prefixes` (`bill`, `creditNote`, `payment`, `adjustment`, `refund`: the default prefix of each type) and
+`version`. The prefixes change only through a prefix change (section 8.14). A change is audited on the tenant
+(`entityType=Tenant`, the tenant's id: `SettingsChanged`), a trail only a TenantAdmin reads.
+
+### 8.14 Prefix changes (BR-802, BR-604; ADR 0033)
+
+A new prefix for one document type, asked for by a TenantAdmin and decided by a second person: a Supervisor or a
+TenantAdmin who is not the maker (BR-603). The approval gives the type the new prefix as its default and on its series
+of the current fiscal year (by today's date in India), so the next number carries it; numbers already issued keep
+theirs, and the series of earlier years keep their prefix. Not financial: no `Idempotency-Key`; one change waits per
+type, and `If-Match` guards the decisions. The requests are listed in the checkers' inbox (section 8.6) as
+`PrefixChange`.
+
+| Method and path | Who | Success | Failures |
+|---|---|---|---|
+| `POST /api/v1/settings/prefix-changes` | TenantAdmin | 201, the change (`Pending`), `Location`, `ETag` | 400; 409 `prefix_change_pending`, `prefix_in_use`; 422 `prefix_unchanged` |
+| `GET /api/v1/settings/prefix-changes/{id}` | TenantAdmin, Supervisor | 200, the change, `ETag` | 404 `prefix_change_not_found` |
+| `GET /api/v1/settings/prefix-changes?status=&documentType=&page=&pageSize=` | TenantAdmin, Supervisor | 200, a page, the newest first | 400 |
+| `POST /api/v1/settings/prefix-changes/{id}/approve` (needs `If-Match`; optional body `comment`) | TenantAdmin, Supervisor | 200, the change `Approved` | 403 `approval_checker_is_maker`, `approval_checker_role`; 404; 409 `concurrency_conflict`, `prefix_in_use`; 422 `prefix_change_not_pending`; 428 |
+| `POST /api/v1/settings/prefix-changes/{id}/reject` (needs `If-Match`; body `comment`, required) | TenantAdmin, Supervisor | 200, the change `Rejected` | 400; 403; 404; 409; 422; 428 |
+
+The body of a request: `documentType` (`Bill`, `CreditNote`, `Payment`, `Adjustment`, `Refund`), `prefix` (1 to 3
+letters or digits, trimmed and upper-cased: `inv` is `INV`), and an optional `comment` for the checker. A change:
+`id`, `documentType`, `fromPrefix`, `toPrefix`, `status` (`Pending`, `Approved`, `Rejected`), `requestedAtUtc`,
+`requestedByUserId`, `decidedAtUtc`, `version`.
+
+**A prefix belongs to one kind of document for good** (409 `prefix_in_use`): a new prefix may not be the default of
+another type, nor a prefix a series of another type ever had, nor one another type's change came from, went to, or
+waits to go to; so two documents of different kinds never carry the same number. A type's own earlier prefix may come
+back. This is asked when the change is requested and again when it is approved. A number taken in the very instant
+of an approval changes the series too, and the approval answers 409 `concurrency_conflict`: decide again.
+
+The trails of a change (`entityType=PrefixChange`: `Requested`, `Approved`, `Rejected`), of the tenant
+(`PrefixChanged`) and of the series (`entityType=NumberSeries`: `PrefixChanged`) are the TenantAdmin's alone.

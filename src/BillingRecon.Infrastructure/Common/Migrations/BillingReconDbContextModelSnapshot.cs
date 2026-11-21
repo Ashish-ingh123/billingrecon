@@ -924,7 +924,7 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                             t.HasCheckConstraint("CK_ApprovalRequests_Decided", "([Status] = 'Pending' AND [CheckerUserId] IS NULL AND [DecidedAtUtc] IS NULL) OR ([Status] <> 'Pending' AND [CheckerUserId] IS NOT NULL AND [DecidedAtUtc] IS NOT NULL)");
 
-                            t.HasCheckConstraint("CK_ApprovalRequests_DocumentType", "[DocumentType] IN ('Bill', 'CreditNote', 'Adjustment', 'Refund', 'Payment', 'PaymentAllocation', 'CreditNoteAllocation', 'NumberSeries')");
+                            t.HasCheckConstraint("CK_ApprovalRequests_DocumentType", "[DocumentType] IN ('Bill', 'CreditNote', 'Adjustment', 'Refund', 'Payment', 'PaymentAllocation', 'CreditNoteAllocation', 'PrefixChange')");
 
                             t.HasCheckConstraint("CK_ApprovalRequests_RejectionHasComment", "[Status] <> 'Rejected' OR [CheckerComment] IS NOT NULL");
 
@@ -1069,6 +1069,89 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BillingRecon.Domain.Identity.PrefixChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("DecidedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("FromPrefix")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(3)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ToPrefix")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(3)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "CreatedAtUtc")
+                        .HasDatabaseName("IX_PrefixChanges_TenantId_CreatedAtUtc");
+
+                    b.HasIndex("TenantId", "DocumentType")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PrefixChanges_TenantId_DocumentType_Pending")
+                        .HasFilter("[Status] = 'Pending'");
+
+                    b.ToTable("PrefixChanges", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PrefixChanges_ChangesThePrefix", "[FromPrefix] <> [ToPrefix] COLLATE Latin1_General_BIN2");
+
+                            t.HasCheckConstraint("CK_PrefixChanges_Decided", "([Status] = 'Pending' AND [DecidedAtUtc] IS NULL) OR ([Status] <> 'Pending' AND [DecidedAtUtc] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_PrefixChanges_DocumentType", "[DocumentType] IN ('Bill', 'CreditNote', 'Payment', 'Adjustment', 'Refund')");
+
+                            t.HasCheckConstraint("CK_PrefixChanges_FromPrefix", "LEN([FromPrefix]) BETWEEN 1 AND 3 AND [FromPrefix] NOT LIKE '%[^A-Z0-9]%' COLLATE Latin1_General_BIN2");
+
+                            t.HasCheckConstraint("CK_PrefixChanges_Status", "[Status] IN ('Pending', 'Approved', 'Rejected')");
+
+                            t.HasCheckConstraint("CK_PrefixChanges_ToPrefix", "LEN([ToPrefix]) BETWEEN 1 AND 3 AND [ToPrefix] NOT LIKE '%[^A-Z0-9]%' COLLATE Latin1_General_BIN2");
+                        });
+                });
+
             modelBuilder.Entity("BillingRecon.Domain.Identity.RoleDefinition", b =>
                 {
                     b.Property<string>("Code")
@@ -1207,6 +1290,10 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                             t.HasCheckConstraint("CK_Tenants_MaxBackdateDays", "[MaxBackdateDays] BETWEEN 0 AND 365");
 
                             t.HasCheckConstraint("CK_Tenants_PaymentPrefix", "LEN([PaymentPrefix]) BETWEEN 1 AND 3 AND [PaymentPrefix] NOT LIKE '%[^A-Z0-9]%' COLLATE Latin1_General_BIN2");
+
+                            t.HasCheckConstraint("CK_Tenants_PostingApprovalThreshold", "[PostingApprovalThreshold] IS NULL OR [PostingApprovalThreshold] > 0");
+
+                            t.HasCheckConstraint("CK_Tenants_PrefixesDistinct", "[BillPrefix] NOT IN ([CreditNotePrefix], [PaymentPrefix], [AdjustmentPrefix], [RefundPrefix]) AND [CreditNotePrefix] NOT IN ([PaymentPrefix], [AdjustmentPrefix], [RefundPrefix]) AND [PaymentPrefix] NOT IN ([AdjustmentPrefix], [RefundPrefix]) AND [AdjustmentPrefix] NOT IN ([RefundPrefix])");
 
                             t.HasCheckConstraint("CK_Tenants_RefundPrefix", "LEN([RefundPrefix]) BETWEEN 1 AND 3 AND [RefundPrefix] NOT LIKE '%[^A-Z0-9]%' COLLATE Latin1_General_BIN2");
 
@@ -2375,6 +2462,28 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_NumberSeries_TenantId");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Identity.PrefixChange", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_PrefixChanges_CreatedByUserId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_PrefixChanges_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_PrefixChanges_UpdatedByUserId");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Identity.User", b =>

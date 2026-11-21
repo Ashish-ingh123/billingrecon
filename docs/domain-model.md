@@ -389,8 +389,10 @@ BR-802). Prefix changes go through `ApprovalRequest` with `Action = ChangePrefix
   `IUnitOfWork.CommitAsync` commits it with the save or rolls it back. A use case that takes a number and does not
   commit gives the number back when its request ends.
 - The tenant is the one of the current scope; it is not a parameter of `NextAsync`.
-- `NumberSeries` is an entity of the model that nothing creates or changes through code: the allocator's one
-  statement does both. It has no commands until the prefix change is built.
+- `NumberSeries` is an entity of the model that nothing creates or advances through code: the allocator's one
+  statement does both. *Since Prompt 5.3b (ADR 0033)* it is an aggregate with one command, `ChangePrefix(prefix, at)`,
+  which an approved prefix change calls for the series of the current fiscal year; it raises `NumberSeriesPrefixChanged`
+  and leaves `NextNumber` alone. Its row version guards it against a number taken in the same instant.
 - No document takes a number yet; bill posting is the first (Prompt 3.5).
 
 ### 4.12 Tenant and User (Identity module)
@@ -401,8 +403,8 @@ Built so far: `Tenant.Create(code, name, createdAtUtc)`, which returns a validat
 (`tenant_invalid`, with messages per field) unless the code is 1–20 lower-case letters, digits and
 single hyphens and the name is 1–200 characters, and which sets the initial settings (active, no
 threshold, 7 days of back-dating, due on the bill date, prefixes `BIL`, `CN`, `PAY`, `ADJ`, `REF`).
-The threshold is a plain decimal until `Money` exists. Changing settings and suspending arrive with
-the Identity slice.
+The threshold is `Money`. Changing the settings was built with Prompt 5.3b (below); suspending a tenant is still to
+come.
 `User`: `Email` (unique per tenant), `DisplayName`, `PasswordHash`, `Status`, `Roles`. JWT issuance
 is an Infrastructure concern; the Domain only knows roles (BR-601, BR-602).
 
@@ -414,8 +416,18 @@ grantedAtUtc, grantedBy)` (a kept role keeps its grant, a new one is granted now
 are the Infrastructure's `IPasswordHasher`. That an address is free and that the user is not the tenant's last active
 administrator are the use cases' questions, since they are about other users. `Role` is an enum of the five roles;
 `RoleDefinition` is a row of the global `Roles` table. The events: `UserCreated`, `UserUpdated`, `UserRolesReplaced`,
-`UserDisabled`, `UserEnabled` and `UserPasswordReset`, none of which carries a password or a hash. Changing tenant
-settings and suspending a tenant are still to come (Prompt 5.3).
+`UserDisabled`, `UserEnabled` and `UserPasswordReset`, none of which carries a password or a hash. Suspending a
+tenant is still to come.
+
+*Tenant settings and `PrefixChange` built 2026-11-21 (Prompt 5.3b, ADR 0033).* `Tenant.ChangeSettings(threshold?,
+maxBackdateDays, defaultDueDays)` sets the three settings and raises `TenantSettingsChanged`, or returns false when
+nothing changes; `Tenant.ChangePrefix(type, prefix)` gives one type a new default and raises `TenantPrefixChanged`, and
+refuses a prefix another type has as its default; `PrefixOf(type)` and `Prefixes` read them. `PrefixChange` (Identity)
+is a TenantAdmin's request for a new prefix of one type: `Request(type, from, to)` (pending, `PrefixChangeRequested`),
+then `RecordApproval(at)` (`PrefixChangeApproved`) or `RecordRejection(reason, at)` (`PrefixChangeRejected`), once.
+The approval request (document type `PrefixChange`, action `ChangePrefix`) holds who decided; the use case asks whether
+the prefix belongs to another type, on the request and again on the approval, and on the approval changes the tenant's
+default and the series of the current fiscal year.
 
 ### 4.13 AuditRecord (Audit module)
 
