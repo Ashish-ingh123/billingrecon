@@ -33,4 +33,17 @@ public sealed class BillSettlement(IBillRepository bills) : IBillSettlement
         // A posted bill has its number; ApplyCredit refused one that has none.
         return new SettledBill(bill.Number ?? string.Empty, bill.BalanceDue);
     }
+
+    /// <inheritdoc />
+    public async Task<Result<PostedBill>> FindPostedAsync(BillId billId, CancellationToken ct)
+    {
+        var bill = await bills.GetAsync(billId, ct);
+        if (bill is null)
+        {
+            return BillingErrors.BillNotFound();
+        }
+
+        // Only a posted bill has a number (CK_Bills_NumberIffPosted).
+        return bill.Number is { } number ? new PostedBill(bill.PayerId, bill.BillDate, number, bill.BalanceDue) : BillingErrors.BillNotPosted();
+    }
 }

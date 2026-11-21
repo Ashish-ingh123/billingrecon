@@ -16,7 +16,8 @@ namespace BillingRecon.Infrastructure.Receivables;
 /// allocations, an allocation against its posting, and the payers of an allocation's two documents, since Prompt
 /// 4.2; a credit note's available amount against its available credit and against its applications, a credit note
 /// and an application against their postings, the payers of an application's two documents, and the credits of a
-/// bill against its total (BR-210), since Prompt 4.3.
+/// bill against its total (BR-210), since Prompt 4.3; a posted adjustment against its posting, and its payer against
+/// the payer of its bill, since Prompt 4.4.
 /// <para>
 /// This is one of the files of the production code that send SQL of their own (ADR 0021, BannedSymbolsTests). It is
 /// the SQL the design document gives: sums over the whole ledger, grouped, which Entity Framework cannot translate
@@ -192,6 +193,25 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
                 WHERE  [TenantId] = @tenant AND [Status] = 'Posted'
                 GROUP  BY [BillId]) AS t ON t.[BillId] = b.[Id]
         WHERE  b.[TenantId] = @tenant AND t.[Credited] > b.[Total]
+
+        UNION ALL
+        SELECT 'AdjustmentWithoutPosting', a.[Id], a.[Number], a.[Amount], 0
+        FROM   [dbo].[Adjustments] AS a
+        WHERE  a.[TenantId] = @tenant AND a.[Number] IS NOT NULL
+          AND  NOT EXISTS (SELECT 1 FROM [dbo].[LedgerPostings] AS lp
+                           WHERE lp.[TenantId] = @tenant AND lp.[DocumentType] = 'Adjustment' AND lp.[DocumentId] = a.[Id] AND lp.[Kind] = 'AdjustmentPosted')
+
+        UNION ALL
+        SELECT 'PostingWithoutAdjustment', lp.[Id], NULL, 0, 0
+        FROM   [dbo].[LedgerPostings] AS lp
+        WHERE  lp.[TenantId] = @tenant AND lp.[Kind] = 'AdjustmentPosted'
+          AND  NOT EXISTS (SELECT 1 FROM [dbo].[Adjustments] AS a WHERE a.[TenantId] = @tenant AND a.[Id] = lp.[DocumentId] AND a.[Number] IS NOT NULL)
+
+        UNION ALL
+        SELECT 'AdjustmentPayerMismatch', a.[Id], a.[Number], a.[Amount], 0
+        FROM   [dbo].[Adjustments] AS a
+        JOIN   [dbo].[Bills] AS b ON b.[Id] = a.[BillId]
+        WHERE  a.[TenantId] = @tenant AND a.[PayerId] <> b.[PayerId]
 
         UNION ALL
         SELECT 'PayerReceivable', pb.[PayerId], NULL, pb.[Receivable], ISNULL(l.[Receivable], 0)

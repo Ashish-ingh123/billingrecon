@@ -1,4 +1,5 @@
 using System.Reflection;
+using BillingRecon.Api.Adjustments;
 using BillingRecon.Api.Billing;
 using BillingRecon.Api.Common;
 using BillingRecon.Api.Common.Idempotency;
@@ -21,6 +22,7 @@ public sealed class IdempotencyConventionTests
     [
         typeof(BillsController),
         typeof(CreditNotesController),
+        typeof(AdjustmentsController),
         typeof(PaymentsController),
     ];
 

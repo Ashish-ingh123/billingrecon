@@ -268,6 +268,18 @@ of its own. On the other side `Bill.ApplyCredit(amount)` is the one change a pos
 | **Invariants** | One posted bill; `0 < Amount ≤ Bill.BalanceDue` at posting; `Rounding < 1.00` (BR-501). Reason required; maker-checker (BR-502). Reduces only (BR-503). |
 | **Events** | `AdjustmentPosted`, `AdjustmentVoided` |
 
+*Built 2026-11-21 (Prompt 4.4, ADR 0026).* `Adjustment.Create(billId, payerId, billDate, adjustmentDate, kind,
+amount, reason, window)` makes the draft; the aggregate takes the id and the date of its bill and what the bill is
+owed, never the bill. `Update` and `Void` change a draft. `CheckFits(billNumber, balanceDue)` is the cap of BR-501,
+which the use case asks when the maker submits and again when the checker approves. `SubmitForApproval` makes it
+`PendingApproval` (every adjustment, a rounding included); `PostApproved(number, ...)` posts it;
+`AttachPosting` keeps the id of its ledger posting; `ReturnToDraft(reason)` is the rejection. The module reaches
+the bill only through `IBillSettlement` of Billing (`FindPostedAsync` to read it, `ApplyAsync` to lower it); the
+exception `Application.Adjustments` to `Domain.Billing` that ADR 0003 lists was not needed and is not used. The
+events as built: `AdjustmentDrafted`, `AdjustmentUpdated`, `AdjustmentVoided`, `AdjustmentSubmittedForApproval`,
+`AdjustmentReturnedToDraft` and `AdjustmentPosted`; the bill raises `BillCreditApplied`. There is no reversal of a
+posted adjustment: a wrong one is corrected by a new bill (BR-503).
+
 ### 4.9 ApprovalRequest (Common module)
 
 | | |
@@ -555,7 +567,7 @@ as the table plans them.
 | `IDomainEventSubscriber`, `ICorrelationContext` | What the unit of work dispatches to (the audit subscriber is the only one), and the correlation id of the current request (BR-703). | Application (`AuditSubscriber`); Api (`HttpCorrelationContext`). |
 | `IAuditReadService` | The audit trail of one record, paged, oldest first (US-43). | Infrastructure (Audit). |
 | `IActivePayers` | Built 2026-11-20 (Prompt 4.1), in Payers: `EnsureActiveAsync(payerId, ct)` answers success, `payer_not_found` or `payer_inactive` (BR-309). What Payments asks before it records money. |
-| `IBillSettlement` | Built 2026-11-20 (Prompt 4.2, ADR 0024), in Billing: `ApplyAsync(billId, payerId, amount, ct)` lowers what is owed on a posted bill of that payer and answers its number and new balance, or `bill_not_found`, `allocation_payer_mismatch`, `bill_not_posted`, `allocation_exceeds_balance_due`. Nothing is saved there: the caller commits. What Payments asks when it allocates. | Application (Billing: `BillSettlement`, over `IBillRepository`). |
+| `IBillSettlement` | Since Prompt 4.4 also `FindPostedAsync(billId, ct)`: the payer, the bill date, the number and the balance due of a posted bill, or `bill_not_found` / `bill_not_posted`; what Adjustments reads before it drafts, submits or approves. Built 2026-11-20 (Prompt 4.2, ADR 0024), in Billing: `ApplyAsync(billId, payerId, amount, ct)` lowers what is owed on a posted bill of that payer and answers its number and new balance, or `bill_not_found`, `allocation_payer_mismatch`, `bill_not_posted`, `allocation_exceeds_balance_due`. Nothing is saved there: the caller commits. What Payments asks when it allocates. | Application (Billing: `BillSettlement`, over `IBillRepository`). |
 | `IReceivablesLedger`, `IPayerAccounts`, `IReconciliationQuery` | Since Prompt 4.2 `PostAsync` answers `ledger_balance_negative` when a cached balance of the payer would go below zero, found under its lock (`LedgerRefusal` tells a module that may not name the Receivables domain). Since Prompt 4.1 `PostAsync` answers the id of the posting it entered. Built 2026-11-20 (Prompt 3.3, ADR 0005 built note): post a `PostingTemplate` inside the unit of work of the caller (BR-401, BR-404, BR-405); open the zero balances of a new payer; return the drift rows of the tenant. | Infrastructure (Receivables). |
 | Repositories | `IPatientRepository`, `IPayerRepository`, `IBillRepository`, `ICreditNoteRepository`, `IPaymentRepository`, `IRefundRepository`, `IAdjustmentRepository`, `IApprovalRequestRepository`, `IUserRepository`, `ITenantRepository` — load by id (tenant-filtered), add, and nothing else. No `Remove` (BR-005). | Infrastructure. |
 | Read services | `IPatientReadService`, `IPayerReadService` (built 2026-10-17), `IBillReadService`, reporting queries. DTOs, pages, and the existence checks a command makes before it writes. | Infrastructure (EF queries, `AsNoTracking`). |
@@ -565,8 +577,10 @@ as the table plans them.
 
 ## 10. Open questions (to resolve before the corresponding slice is built)
 
-1. Should tiny `Rounding` adjustments (< ₹1) be exempt from maker-checker to keep the cashier flow
-   fast? Today BR-502 says no; a tenant setting `AutoApproveAdjustmentsBelow` would be an ADR.
+1. ~~Should tiny `Rounding` adjustments (< ₹1) be exempt from maker-checker to keep the cashier flow
+   fast? Today BR-502 says no; a tenant setting `AutoApproveAdjustmentsBelow` would be an ADR.~~ Resolved
+   2026-11-21 (owner's approval of the Prompt 4.4 plan, ADR 0026): no exemption in R1. Every adjustment waits
+   for a checker; an exemption can be added later beside the approval path, with its own ADR.
 2. Does a tenant need more than one bill series (for example per department)? BR-801 assumes one
    series per document type.
 3. ~~Whether `Sex` and address fields are needed for billing at all, or whether the HIS remains the

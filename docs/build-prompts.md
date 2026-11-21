@@ -21,10 +21,11 @@ is left; their numbering is mine, not the blueprint's.
 | 4.1 Record a payment | Written on 2026-11-20 with the owner's decisions (CLAUDE.md section 9, item 20); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0011_Payments` still to be scaffolded (`docs/runbook.md` section 8) |
 | 4.2 Allocate a payment to bills | Code and tests written on 2026-11-20, pre-checked and documented on 2026-11-21 (ADR 0024, Proposed; CLAUDE.md section 9, item 21); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0012_PaymentAllocations` still to be scaffolded (`docs/runbook.md` section 8) |
 | 4.3 Credit notes | Written on 2026-11-21 with the owner's decisions (ADR 0025; CLAUDE.md section 9, item 22); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0013_CreditNotes` still to be scaffolded (`docs/runbook.md` section 8) |
-| Everything else in R1 | Not started: adjustments, reversals, refunds, users and JWT, reports, frontend, delivery |
+| 4.4 Adjustments | Written on 2026-11-21 with the owner's decisions (ADR 0026; CLAUDE.md section 9, item 23). **Built and tested on .NET 10** (SDK 10.0.404, installed on the office machine that day) in a throwaway copy, with the database tests on LocalDB 2019; not run on SQL Server 2022; migration `0014_Adjustments` still to be brought into the repository (`docs/runbook.md` section 8) |
+| Everything else in R1 | Not started: reversals, refunds, users and JWT, reports, frontend, delivery |
 | 6.3 Dashboard figures and 7.6 Dashboard (added 2026-11-21, with theming in 7.1) | Not started. 6.3 runs after 6.2, 7.6 after 7.5; the layout reference `docs/ui/dashboard.png` is still to be added; the drift card's trend (none, or a snapshot table and a new migration) is the owner's open decision, asked in 6.3 |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills) and 4.3 (credit notes) are written. Next prompt: 4.4 (adjustments), which begins by raising open question 1 of the domain model with the owner. What was decided for each built prompt is recorded under it below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and only the run on SQL Server 2022 in Docker and the migration files in the repository are still owed. Next prompt: 4.5 (reversals). What was decided for each built prompt is recorded under it below.**
 
 ## How to use these prompts
 
@@ -397,6 +398,12 @@ Dr Adjustments / Cr Receivable(bill). Raise domain-model open question 1 with me
 Migration 0014_Adjustments.
 Done when: an approved write-off settles a bill with zero drift.
 ```
+
+**Owner's decisions for 4.4, recorded 2026-11-21 (the plan was approved "as recommended"; ADR 0026):** open
+question 1 of the domain model is answered **no**: a rounding under one rupee is not exempt from maker-checker in
+R1; the cap against the balance due is asked when the maker submits and again at approval; the adjustment date is
+not before the bill date, which BR-501 now says; the payer need not be active; a posted adjustment is not reversed.
+Built without a new module exception: Adjustments reaches the bill through `IBillSettlement` of Billing.
 
 #### 4.5 Reversals
 

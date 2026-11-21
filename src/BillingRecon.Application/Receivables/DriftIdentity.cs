@@ -64,6 +64,15 @@ public static class DriftIdentity
     /// <summary>The posted credit notes of a bill come to more than the bill (BR-210).</summary>
     public const string CreditNotesExceedBillTotal = "CreditNotesExceedBillTotal";
 
+    /// <summary>Identity 2: a posted adjustment without its posting.</summary>
+    public const string AdjustmentWithoutPosting = "AdjustmentWithoutPosting";
+
+    /// <summary>Identity 2, the other direction: an adjustment posting whose adjustment is not posted.</summary>
+    public const string PostingWithoutAdjustment = "PostingWithoutAdjustment";
+
+    /// <summary>An adjustment whose payer is not the payer of its bill (BR-501).</summary>
+    public const string AdjustmentPayerMismatch = "AdjustmentPayerMismatch";
+
     /// <summary>Identity 6: the receivable of a payer differs from the ledger.</summary>
     public const string PayerReceivable = "PayerReceivable";
 

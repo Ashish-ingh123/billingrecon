@@ -178,4 +178,38 @@ public sealed record PostingTemplate(
                 LedgerLine.Cr(LedgerAccount.Receivable, amount, new LedgerSubject(LedgerSubjectType.Bill, billId.Value)),
             ]);
     }
+
+    /// <summary>
+    /// An adjustment of <paramref name="amount"/> was posted against a bill (BR-502): Dr Adjustments,
+    /// Cr Receivable(bill). The payer owes <paramref name="amount"/> less, and no money and no credit moved.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="amount"/> is not above zero.</exception>
+    public static PostingTemplate AdjustmentPosted(
+        AdjustmentId adjustmentId,
+        BillId billId,
+        PayerId payerId,
+        Money amount,
+        DateOnly adjustmentDate,
+        DocumentNumber number,
+        string billNumber)
+    {
+        ArgumentNullException.ThrowIfNull(number);
+
+        if (!amount.IsPositive)
+        {
+            throw new ArgumentException("An adjustment is posted for an amount above zero.", nameof(amount));
+        }
+
+        return new PostingTemplate(
+            LedgerPostingKind.AdjustmentPosted,
+            LedgerDocumentType.Adjustment,
+            adjustmentId.Value,
+            payerId,
+            adjustmentDate,
+            $"Adjustment {number} posted against bill {billNumber}",
+            [
+                LedgerLine.Dr(LedgerAccount.Adjustments, amount),
+                LedgerLine.Cr(LedgerAccount.Receivable, amount, new LedgerSubject(LedgerSubjectType.Bill, billId.Value)),
+            ]);
+    }
 }

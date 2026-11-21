@@ -17,4 +17,11 @@ public interface IBillSettlement
     /// <c>allocation_exceeds_balance_due</c>. Nothing is saved here: the caller commits.
     /// </summary>
     public Task<Result<SettledBill>> ApplyAsync(BillId billId, PayerId payerId, Money amount, CancellationToken ct);
+
+    /// <summary>
+    /// What a module that lowers a bill needs to know of it before it does: who owes it, its date, its number and
+    /// what is still owed (BR-501). Fails with <c>bill_not_found</c>, or <c>bill_not_posted</c> for a draft, a voided
+    /// draft or a bill that waits for approval. Nothing is changed. Since Prompt 4.4, for Adjustments (ADR 0026).
+    /// </summary>
+    public Task<Result<PostedBill>> FindPostedAsync(BillId billId, CancellationToken ct);
 }

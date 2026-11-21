@@ -149,7 +149,7 @@ The checker must always be a different user from the maker (BR-603), whatever th
 
 | Id | Rule |
 |---|---|
-| **BR-501** | An adjustment is against exactly one posted bill, of kind `Discount`, `WriteOff` or `Rounding`, with `Amount > 0` and `Amount ≤ Bill.BalanceDue` at posting. A `Rounding` adjustment is less than ₹1.00. |
+| **BR-501** | An adjustment is against exactly one posted bill, of kind `Discount`, `WriteOff` or `Rounding`, with `Amount > 0` and `Amount ≤ Bill.BalanceDue` at posting. A `Rounding` adjustment is less than ₹1.00. The adjustment date is not before the bill date, subject to BR-205 (added 2026-11-21 with Prompt 4.4, ADR 0026). |
 | **BR-502** | Adjustments require maker-checker (BR-604) and a reason. Posting assigns the next gapless adjustment number and posts `Dr Adjustments / Cr Receivable(bill)`. |
 | **BR-503** | Adjustments only reduce a bill's balance. To charge more, raise a new bill. |
 

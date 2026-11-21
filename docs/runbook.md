@@ -403,6 +403,16 @@ SQL Server 2022, or had its migration scaffolded with EF Core 10**; every commit
 its message. This is the one list of what is owed. A prompt that adds a migration or a check adds its line here,
 in order; nothing is removed until the owner has run it and sent the output.
 
+**Partly run on 2026-11-21, on the office machine, which got the .NET 10 SDK (10.0.404) that day; it still has no
+Docker.** In a throwaway copy of the tip of the branch with Prompt 4.4, with no version substitution: A and B ran
+as written (the repository's `dotnet-ef` 10.0.12 scaffolded `0003` to `0014` one by one, each holding exactly what
+its row below says, and the hand-written line went into `0008`); C ran with the database fixture pointed at SQL
+Server LocalDB 2019 in the copy: strict build and format gate clean, Domain 560, Application 313, Architecture 113
+and Integration 977 tests green, none failing; D ran six times for all its classes together, five clean and once
+with one failure in `BillApprovalApiTests` that did not come back in 45 further runs (CLAUDE.md section 9,
+item 23). **Still owed:** B in the repository itself, with the migration files committed (E); C and D against SQL
+Server 2022 in Docker, which is the one thing LocalDB 2019 cannot stand in for.
+
 Run from the repository root, in PowerShell, with Docker Desktop running, on the tip of the branch.
 
 **A. Once**
@@ -416,7 +426,7 @@ dotnet tool restore
 
 ```powershell
 New-Item -ItemType Directory -Force ..\held | Out-Null
-Move-Item src\BillingRecon.Infrastructure\Billing\BillConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillLineConfiguration.cs, src\BillingRecon.Infrastructure\Common\Numbering\NumberSeriesConfiguration.cs, src\BillingRecon.Infrastructure\Common\Idempotency\IdempotencyKeyConfiguration.cs, src\BillingRecon.Infrastructure\Audit\AuditRecordConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerPostingConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerEntryConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\PayerBalanceConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillPostingConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillApprovalConfiguration.cs, src\BillingRecon.Infrastructure\Common\Approvals\ApprovalRequestConfiguration.cs, src\BillingRecon.Infrastructure\Payments\PaymentConfiguration.cs, src\BillingRecon.Infrastructure\Payments\PaymentWithAllocationsConfiguration.cs, src\BillingRecon.Infrastructure\Billing\CreditNoteConfiguration.cs, src\BillingRecon.Infrastructure\Billing\CreditNoteLineConfiguration.cs, src\BillingRecon.Infrastructure\Billing\CreditNoteAllocationConfiguration.cs ..\held\
+Move-Item src\BillingRecon.Infrastructure\Billing\BillConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillLineConfiguration.cs, src\BillingRecon.Infrastructure\Common\Numbering\NumberSeriesConfiguration.cs, src\BillingRecon.Infrastructure\Common\Idempotency\IdempotencyKeyConfiguration.cs, src\BillingRecon.Infrastructure\Audit\AuditRecordConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerPostingConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerEntryConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\PayerBalanceConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillPostingConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillApprovalConfiguration.cs, src\BillingRecon.Infrastructure\Common\Approvals\ApprovalRequestConfiguration.cs, src\BillingRecon.Infrastructure\Payments\PaymentConfiguration.cs, src\BillingRecon.Infrastructure\Payments\PaymentWithAllocationsConfiguration.cs, src\BillingRecon.Infrastructure\Billing\CreditNoteConfiguration.cs, src\BillingRecon.Infrastructure\Billing\CreditNoteLineConfiguration.cs, src\BillingRecon.Infrastructure\Billing\CreditNoteAllocationConfiguration.cs, src\BillingRecon.Infrastructure\Adjustments\AdjustmentConfiguration.cs ..\held\
 dotnet ef migrations add 0003_ServiceItems --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
 Move-Item ..\held\BillConfiguration.cs, ..\held\BillLineConfiguration.cs src\BillingRecon.Infrastructure\Billing\
 dotnet ef migrations add 0004_Bills --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
@@ -439,6 +449,8 @@ Move-Item ..\held\PaymentWithAllocationsConfiguration.cs src\BillingRecon.Infras
 dotnet ef migrations add 0012_PaymentAllocations --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
 Move-Item ..\held\CreditNoteConfiguration.cs, ..\held\CreditNoteLineConfiguration.cs, ..\held\CreditNoteAllocationConfiguration.cs src\BillingRecon.Infrastructure\Billing\
 dotnet ef migrations add 0013_CreditNotes --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
+Move-Item ..\held\AdjustmentConfiguration.cs src\BillingRecon.Infrastructure\Adjustments\
+dotnet ef migrations add 0014_Adjustments --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
 ```
 
 Mind the second line: `BillPostingConfiguration.cs` and `BillApprovalConfiguration.cs` are moved out with the others
@@ -460,6 +472,7 @@ same way `PaymentWithAllocationsConfiguration.cs` comes back **after** `0011_Pay
 | `0011_Payments` | 4.1 | `Payments`, with three foreign keys (`TenantId`, `PayerId`, `PostingId`), six CHECK constraints and four indexes; no reversal column |
 | `0012_PaymentAllocations` | 4.2 | `PaymentAllocations`, with four foreign keys (`TenantId`, `PaymentId`, `BillId`, `PostingId`), two CHECK constraints and two indexes; no row version and no reversal column. Nothing on `Payments` or `Bills` |
 | `0013_CreditNotes` | 4.3 | `CreditNotes`, `CreditNoteLines`, `CreditNoteAllocations`, with eleven foreign keys in all (four, three and four) and nine indexes (five, two and two). Nothing on `Bills` or `BillLines` |
+| `0014_Adjustments` | 4.4 | `Adjustments`, with four foreign keys (`TenantId`, `BillId`, `PayerId`, `PostingId`) and four indexes. Nothing on `Bills` |
 
 **`0008_Receivables` is finished by hand** (ADR 0021): a scaffold writes schema, and this migration also has to
 open the balances of every payer that already exists. Open `Common/Migrations/*_0008_Receivables.cs` (not the
@@ -499,13 +512,14 @@ dotnet test --filter "FullyQualifiedName~BillApprovalApiTests"
 dotnet test --filter "FullyQualifiedName~PaymentsApiTests"
 dotnet test --filter "FullyQualifiedName~PaymentAllocationsApiTests"
 dotnet test --filter "FullyQualifiedName~CreditNotesApiTests"
+dotnet test --filter "FullyQualifiedName~AdjustmentsApiTests"
 ```
 
 **E. Send back**
 
 - the output of A, C and D, and the names of the migration files B created;
 - the migration files themselves (`Common/Migrations/*_0003_*` to `*_0013_*` and the updated
-  `BillingReconDbContextModelSnapshot.cs`), which are then committed as "Migrations 0003 to 0013, scaffolded with
+  `BillingReconDbContextModelSnapshot.cs`), which are then committed as "Migrations 0003 to 0014, scaffolded with
   EF Core 10".
 
 **What that run has to show, because nothing here could** (the office machine has .NET 9 and LocalDB 2019 only):

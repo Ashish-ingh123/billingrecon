@@ -5,6 +5,7 @@ using BillingRecon.Api.Common.Errors;
 using BillingRecon.Api.Common.Idempotency;
 using BillingRecon.Api.Common.Logging;
 using BillingRecon.Application.Common;
+using BillingRecon.Infrastructure.Adjustments;
 using BillingRecon.Infrastructure.Audit;
 using BillingRecon.Infrastructure.Billing;
 using BillingRecon.Infrastructure.Common;
@@ -26,6 +27,7 @@ builder.Services.AddPayers();
 builder.Services.AddBilling();
 builder.Services.AddReceivables();
 builder.Services.AddPayments();
+builder.Services.AddAdjustments();
 builder.Services.AddApplication();
 
 // The audit trail: one record for every domain event, written by the unit of work in the transaction of the change

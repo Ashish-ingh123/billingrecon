@@ -120,6 +120,7 @@ public sealed class TypedIdForeignKeyTests
                 "FK_CreditNotes_BillId", "FK_CreditNotes_PayerId", "FK_CreditNotes_PatientId",
                 "FK_CreditNoteLines_CreditNoteId", "FK_CreditNoteLines_BillLineId",
                 "FK_CreditNoteAllocations_CreditNoteId", "FK_CreditNoteAllocations_BillId", "FK_CreditNoteAllocations_PostingId",
+                "FK_Adjustments_BillId", "FK_Adjustments_PayerId", "FK_Adjustments_PostingId",
             ],
             ignoreOrder: true);
     }

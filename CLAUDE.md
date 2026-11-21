@@ -118,9 +118,16 @@ Office machine:
   `SqlServerFixture` can also be pointed at LocalDB (a patch to the copy only, never to the repository), so the
   whole `Database` collection runs here as a pre-check; the run with Docker on the personal machine stays the
   proof. LocalDB 2022 is not installed: its installer needs a licence acceptance, which is the owner's to give.
-- **No .NET 10 SDK on this machine either, and the owner decided not to add it** (recorded 2026-10-03): it is
-  installed on the owner's personal machine, which is where the project is run. The repository targets .NET 10
-  (ADR 0014), so **`dotnet build` and `dotnet test` do not work here**. Code written here is pre-checked in a
+- **Since 2026-11-21 this machine has the .NET 10 SDK (10.0.404), installed by the owner.** `dotnet build`,
+  `dotnet format` and `dotnet test` work here, and so does the repository's `dotnet-ef` 10.0.12. What still cannot
+  run here is the `Database` collection as written: it needs Docker. Until the migrations `0003` onward are in the
+  repository (section 9, item 23), a change is verified in a throwaway copy with **no version substitution**: the
+  migrations scaffolded there one by one (`docs/runbook.md` section 8 B) and the database fixture pointed at
+  LocalDB 2019. Say "built and tested on .NET 10 with LocalDB 2019, not run on SQL Server 2022". The .NET 9
+  procedure below is history, kept for what was verified with it.
+- **Until 2026-11-21: no .NET 10 SDK on this machine, and the owner had decided not to add it** (recorded
+  2026-10-03): it was installed only on the owner's personal machine. The repository targets .NET 10
+  (ADR 0014), so `dotnet build` and `dotnet test` did not work here. Code written here was pre-checked in a
   throwaway copy moved down to .NET 9 (target framework `net9.0`, ASP.NET Core 9.0.20 and EF Core 9.0.1 packages
   from the local NuGet cache). That shows the code compiles and the tests pass on .NET 9; it does not show the
   C# 14 compiler, the .NET 10 analyzers, or behaviour that differs in ASP.NET Core 10 and EF Core 10. Say
@@ -184,6 +191,9 @@ src/
                                 PaymentAllocationId (Common). Since Prompt 4.3 (ADR 0025): the CreditNote
                                 aggregate with CreditNoteLine and CreditNoteAllocation, its statuses and events
                                 (Billing); CreditNoteId, CreditNoteLineId and CreditNoteAllocationId (Common).
+                                Since Prompt 4.4 (ADR 0026): the Adjustment aggregate with AdjustmentKind,
+                                AdjustmentStatus, its events and AdjustmentsErrors (Adjustments); AdjustmentId
+                                (Common).
   BillingRecon.Application/     Use cases (command/query handlers as plain classes), FluentValidation validators,
                                 port interfaces (IClock, IUnitOfWork, repositories, INumberSeries,
                                 IIdempotencyStore, ITenantContext, ICurrentUser), DTOs and explicit mappers.
@@ -214,6 +224,10 @@ src/
                                 replace lines, update header, void, post, approve, reject, apply, get, list)
                                 with ICreditNoteRepository and ICreditNoteReadService (Billing);
                                 PostingTemplate.CreditNotePosted and CreditApplied (Receivables). ADR 0025.
+                                The adjustment use cases (draft, update, void, post, approve, reject, get,
+                                list) with IAdjustmentRepository and IAdjustmentReadService (Adjustments);
+                                IBillSettlement.FindPostedAsync with PostedBill (Billing);
+                                PostingTemplate.AdjustmentPosted (Receivables). ADR 0026.
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -548,7 +562,7 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 | `docs/requirements.md` | Domain and vocabulary, actors and permissions, R1 scope, the **BR-nnn business-rule catalogue**, user stories with acceptance criteria, NFRs, R2–R5 outlines |
 | `docs/domain-model.md` | Module map, value objects, aggregates with invariants (citing BR-ids), Bill state machine, transaction boundaries and the allocation exception, domain events, ports |
 | `docs/database.md` | Conventions, ER diagram, every R1 table with types/keys/indexes/CHECKs, number-series lock, ledger accounts and posting templates, balance identities and reconciliation SQL, idempotency lifecycle, permissions, migrations |
-| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), and the credit note endpoints (Prompt 4.3) |
+| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), and the adjustment endpoints (Prompt 4.4) |
 | `docs/build-prompts.md` | The build prompts from zero to R1, reconstructed on 2026-11-20: what each finished prompt built, and the wording and order of the prompts still to give. Its phase numbers are the ones this file uses |
 | `docs/security.md` | Authentication, authorisation, tenancy, maker-checker, secrets, threat model |
 | `docs/testing-strategy.md` | Test pyramid, tooling, database tests, architecture tests, CI gates |
@@ -581,7 +595,10 @@ the owner's decisions of 2026-11-20 for Prompt 3.6),
 (**Proposed**: written 2026-11-21 from the code of Prompt 4.2; the owner confirms its points, see section 9
 item 21),
 0025 credit notes: always a second person, the caps of BR-210 and BR-211 measured again under the ledger's lock,
-and applying the credit (Accepted on the owner's approval of the Prompt 4.3 plan, 2026-11-21).
+and applying the credit (Accepted on the owner's approval of the Prompt 4.3 plan, 2026-11-21),
+0026 adjustments: no exemption from the second person, the cap asked twice, and the bill reached through
+`IBillSettlement` (Accepted on the owner's approval of the Prompt 4.4 plan, 2026-11-21; it resolves open question 1
+of the domain model and adds a sentence to BR-501).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1182,4 +1199,41 @@ Kept here so they survive between sessions. Remove an item when it is done.
       approvals on SQL Server 2022.
     - Follow-ups for later slices: adjustments lower a bill the same way (4.4); refunds from a credit note's
       available amount (4.6); the roles that may draft, approve and apply (5.3); available credit by payer (6.1).
-    - Next: Prompt 4.4 (adjustments), which begins with open question 1 of `docs/domain-model.md`.
+    - Next: Prompt 4.4 (adjustments), which is item 23.
+23. **Prompt 4.4 (adjustments, ADR 0026), written 2026-11-21, and the first prompt built and tested on .NET 10.**
+    On `phase-2-billing` like the rest. The plan was shown first and approved "as recommended".
+    - Built: the `Adjustment` aggregate (Adjustments module, the first code in its four folders; their README
+      placeholders are gone); eight endpoints under `/api/v1/adjustments` (create, get, list, `PUT`, `void`, `post`,
+      `approve`, `reject`); the `Adjustments` table; the posting template Dr Adjustments / Cr Receivable(bill);
+      three identities of the reconciliation; and their tests.
+    - Decided by the owner with the plan (ADR 0026): **no exemption from maker-checker for a small rounding**
+      (open question 1 of `docs/domain-model.md`, now resolved); the cap against the balance due is asked when the
+      maker submits and again at approval; the adjustment date is not before the bill date (**BR-501 gained that
+      sentence**); the payer need not be active; a posted adjustment is not reversed.
+    - **No new module-dependency exception, and one listed exception left unused.** Adjustments reaches the bill
+      through `IBillSettlement`, which gained `FindPostedAsync` (the payer, the date, the number and the balance of
+      a posted bill, with no Billing type in its answer). The exception `Application.Adjustments` to
+      `Domain.Billing` in `ModuleDependencyTests` and ADR 0003 is not used; whether to take it out of the list is
+      the owner's call. **Differs from the plan in one point:** the plan said Billing's read service; its DTO
+      carries a Billing enum, which Adjustments may not name.
+    - Changed in existing tests, none weakened: `IdempotencyConventionTests` lists `AdjustmentsController`;
+      `TenantQueryFilterTests`, `TypedIdForeignKeyTests` (three new keys), `MigrationsTests` and
+      `MigrationsOnSqlServerTests` know the new entity, table and migration; `BillSettlementTests` gained two tests.
+    - **Verified on .NET 10 (SDK 10.0.404), in a throwaway copy without any version substitution:** the
+      repository's `dotnet-ef` 10.0.12 scaffolded `0003` to `0014` one by one, each holding exactly its own tables,
+      which proves on EF Core 10 the device of ADR 0022 point 7 and ADR 0024 point 7; strict build and format gate
+      clean; Domain 560, Application 313, Architecture 113, Integration 977, **all green**. The database tests ran
+      against LocalDB 2019 through a patched fixture, in the copy only.
+    - **An intermittent failure in an older test, not explained yet.** In six runs of the concurrency classes
+      (221 tests) `BillApprovalApiTests.BR804_two_checkers_at_once_give_one_decision_and_one_conflict_whether_both_approve_or_one_rejects`
+      (Prompt 3.6) failed once and then passed 45 times in a row; its message was not captured. Reading the test:
+      when the rejection wins and the approval reads the bill after that commit, the bill is a draft and the right
+      answer is 422 `bill_not_pending_approval`, but the test accepts only 409. That would be an assumption of the
+      test about timing, not a defect of the code; it is a guess until a failure is caught. Not changed: it is a
+      test of another prompt.
+    - **Still to do:** bring the migrations `0003` to `0014` into the repository (`docs/runbook.md` section 8 B,
+      which can now run on this machine) and commit them on their own; the run on SQL Server 2022 in Docker.
+    - Follow-ups for later slices: the roles that may draft and approve (5.3); adjustments by kind in the reports
+      (6.1).
+    - Next: Prompt 4.5 (reversals). The question of item 22 is still open: whether 4.5 also reverses an
+      application of credit.

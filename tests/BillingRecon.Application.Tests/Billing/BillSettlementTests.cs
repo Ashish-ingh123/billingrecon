@@ -62,6 +62,29 @@ public sealed class BillSettlementTests
         (await new BillSettlement(_repository).ApplyAsync(Id, Payer, Money.Of(126.01m), CancellationToken.None)).Error.Code.ShouldBe(BillingErrors.AllocationExceedsBalanceDueCode);
     }
 
+    [Fact]
+    public async Task BR501_a_posted_bill_is_described_by_its_payer_its_date_its_number_and_what_it_is_owed_and_is_not_changed()
+    {
+        var bill = Stored(Posted());
+        bill.ApplyCredit(Money.Of(100m)).IsSuccess.ShouldBeTrue();
+        bill.ClearDomainEvents();
+
+        var result = await new BillSettlement(_repository).FindPostedAsync(Id, CancellationToken.None);
+
+        result.Value.ShouldBe(new PostedBill(Payer, TestDoubles.Today, "BIL/26-27/000042", Money.Of(26m)));
+        bill.DomainEvents.ShouldBeEmpty();
+        bill.BalanceDue.ShouldBe(Money.Of(26m));
+    }
+
+    [Fact]
+    public async Task BR501_a_bill_nobody_has_is_not_found_and_a_draft_is_not_posted()
+    {
+        (await new BillSettlement(_repository).FindPostedAsync(Id, CancellationToken.None)).Error.Code.ShouldBe(BillingErrors.BillNotFoundCode);
+
+        Stored(Draft());
+        (await new BillSettlement(_repository).FindPostedAsync(Id, CancellationToken.None)).Error.Code.ShouldBe(BillingErrors.BillNotPostedCode);
+    }
+
     private Bill Stored(Bill bill)
     {
         bill.WithId(Id);

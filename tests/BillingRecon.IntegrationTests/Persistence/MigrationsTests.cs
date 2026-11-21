@@ -436,6 +436,46 @@ public sealed class MigrationsTests : IDisposable
         script.ShouldContain("CREATE INDEX [IX_CreditNoteAllocations_TenantId_BillId] ON [CreditNoteAllocations] ([TenantId], [BillId]) INCLUDE ([Amount], [Status])", Case.Sensitive);
     }
 
+    [Fact]
+    public void The_fourteenth_migration_is_0014_Adjustments()
+    {
+        var migrations = _context.Database.GetMigrations().ToArray();
+
+        migrations.Length.ShouldBeGreaterThanOrEqualTo(14, $"The Adjustments migration is missing. {HowToAdd.Replace("<name>", "0014_Adjustments", StringComparison.Ordinal)}");
+        migrations[13].ShouldEndWith("_0014_Adjustments");
+    }
+
+    [Fact]
+    public void The_migrations_create_the_adjustments_table_as_documented()
+    {
+        var script = _context.GetService<IMigrator>().GenerateScript();
+        var createAdjustments = CreateTable(script, "Adjustments");
+
+        // The table comes after the credit notes, in a migration of its own (docs/runbook.md, section 8).
+        script.IndexOf("_0013_CreditNotes", StringComparison.Ordinal).ShouldBeLessThan(script.IndexOf("CREATE TABLE [Adjustments]", StringComparison.Ordinal));
+
+        createAdjustments.ShouldContain("[BillId] uniqueidentifier NOT NULL", Case.Sensitive);
+        createAdjustments.ShouldContain("[PayerId] uniqueidentifier NOT NULL", Case.Sensitive);
+        createAdjustments.ShouldContain("[AdjustmentDate] date NOT NULL", Case.Sensitive);
+        createAdjustments.ShouldContain("[Kind] varchar(20) NOT NULL", Case.Sensitive);
+        createAdjustments.ShouldContain("[Amount] decimal(18,2) NOT NULL", Case.Sensitive);
+        createAdjustments.ShouldContain("[Reason] nvarchar(500) NOT NULL", Case.Sensitive);
+        createAdjustments.ShouldContain("[Status] varchar(20) NOT NULL", Case.Sensitive);
+        createAdjustments.ShouldContain("[Number] varchar(16) NULL", Case.Sensitive);
+        createAdjustments.ShouldContain("[PostingId] uniqueidentifier NULL", Case.Sensitive);
+        createAdjustments.ShouldContain("[RowVersion] rowversion NOT NULL", Case.Sensitive);
+        createAdjustments.ShouldContain("CONSTRAINT [CK_Adjustments_Kind] CHECK ([Kind] IN ('Discount', 'WriteOff', 'Rounding'))", Case.Sensitive);
+        createAdjustments.ShouldContain("CONSTRAINT [CK_Adjustments_Status] CHECK ([Status] IN ('Draft', 'PendingApproval', 'Posted', 'Voided'))", Case.Sensitive);
+        createAdjustments.ShouldContain("CONSTRAINT [CK_Adjustments_Amount] CHECK ([Amount] > 0 AND ([Kind] <> 'Rounding' OR [Amount] < 1.00))", Case.Sensitive);
+        createAdjustments.ShouldContain("CONSTRAINT [CK_Adjustments_NumberIffPosted]", Case.Sensitive);
+        createAdjustments.ShouldContain("CONSTRAINT [FK_Adjustments_BillId] FOREIGN KEY ([BillId]) REFERENCES [Bills] ([Id])", Case.Sensitive);
+        createAdjustments.ShouldContain("CONSTRAINT [FK_Adjustments_PayerId] FOREIGN KEY ([PayerId]) REFERENCES [Payers] ([Id])", Case.Sensitive);
+        createAdjustments.ShouldContain("CONSTRAINT [FK_Adjustments_PostingId] FOREIGN KEY ([PostingId]) REFERENCES [LedgerPostings] ([Id])", Case.Sensitive);
+        script.ShouldContain("CREATE INDEX [IX_Adjustments_TenantId_BillId_Status] ON [Adjustments] ([TenantId], [BillId], [Status]) INCLUDE ([Amount])", Case.Sensitive);
+        script.ShouldContain("CREATE UNIQUE INDEX [UX_Adjustments_TenantId_Number] ON [Adjustments] ([TenantId], [Number]) WHERE [Number] IS NOT NULL", Case.Sensitive);
+        script.ShouldContain("CREATE UNIQUE INDEX [UX_Adjustments_TenantId_FiscalYear_SequenceNumber] ON [Adjustments] ([TenantId], [FiscalYear], [SequenceNumber]) WHERE [SequenceNumber] IS NOT NULL", Case.Sensitive);
+    }
+
     // The text of one CREATE TABLE statement of the script of all migrations.
     private static string CreateTable(string script, string table)
     {

@@ -1,3 +1,4 @@
+using BillingRecon.Domain.Adjustments;
 using BillingRecon.Domain.Audit;
 using BillingRecon.Domain.Billing;
 using BillingRecon.Domain.Common;
@@ -73,7 +74,7 @@ public sealed class TenantQueryFilterTests
         var protectedEntities = AssertEveryTenantColumnIsProtected(context);
 
         // The test model is the production model plus the probe entities.
-        protectedEntities.ShouldBe([typeof(Widget), typeof(LogLine), typeof(NumberedDocument), typeof(Patient), typeof(Payer), typeof(ServiceItem), typeof(Bill), typeof(BillLine), typeof(NumberSeries), typeof(IdempotencyKey), typeof(AuditRecord), typeof(LedgerPosting), typeof(LedgerEntry), typeof(PayerBalance), typeof(ApprovalRequest), typeof(Payment), typeof(PaymentAllocation), typeof(CreditNote), typeof(CreditNoteLine), typeof(CreditNoteAllocation)], ignoreOrder: true);
+        protectedEntities.ShouldBe([typeof(Widget), typeof(LogLine), typeof(NumberedDocument), typeof(Patient), typeof(Payer), typeof(ServiceItem), typeof(Bill), typeof(BillLine), typeof(NumberSeries), typeof(IdempotencyKey), typeof(AuditRecord), typeof(LedgerPosting), typeof(LedgerEntry), typeof(PayerBalance), typeof(ApprovalRequest), typeof(Payment), typeof(PaymentAllocation), typeof(CreditNote), typeof(CreditNoteLine), typeof(CreditNoteAllocation), typeof(Adjustment)], ignoreOrder: true);
     }
 
     [Fact]
@@ -86,7 +87,7 @@ public sealed class TenantQueryFilterTests
 
         var protectedEntities = AssertEveryTenantColumnIsProtected(context);
 
-        protectedEntities.ShouldBe([typeof(Patient), typeof(Payer), typeof(ServiceItem), typeof(Bill), typeof(BillLine), typeof(NumberSeries), typeof(IdempotencyKey), typeof(AuditRecord), typeof(LedgerPosting), typeof(LedgerEntry), typeof(PayerBalance), typeof(ApprovalRequest), typeof(Payment), typeof(PaymentAllocation), typeof(CreditNote), typeof(CreditNoteLine), typeof(CreditNoteAllocation)], ignoreOrder: true);
+        protectedEntities.ShouldBe([typeof(Patient), typeof(Payer), typeof(ServiceItem), typeof(Bill), typeof(BillLine), typeof(NumberSeries), typeof(IdempotencyKey), typeof(AuditRecord), typeof(LedgerPosting), typeof(LedgerEntry), typeof(PayerBalance), typeof(ApprovalRequest), typeof(Payment), typeof(PaymentAllocation), typeof(CreditNote), typeof(CreditNoteLine), typeof(CreditNoteAllocation), typeof(Adjustment)], ignoreOrder: true);
     }
 
     [Fact]

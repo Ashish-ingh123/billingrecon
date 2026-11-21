@@ -43,7 +43,7 @@ with field errors lists the messages per field under `errors`, keyed by the JSON
 |---|---|---|
 | 400 | A field is missing or invalid, the body cannot be read, a query value is out of range | `validation_failed` |
 | 400 | A financial POST without a usable `Idempotency-Key` (section 7) | `idempotency_key_missing` |
-| 404 | The record does not exist for the tenant (another tenant's included), also when a request only refers to it | `patient_not_found`, `payer_not_found`, `service_item_not_found`, `bill_not_found`, `payment_not_found`, `credit_note_not_found`; `not_found` for an unknown route |
+| 404 | The record does not exist for the tenant (another tenant's included), also when a request only refers to it | `patient_not_found`, `payer_not_found`, `service_item_not_found`, `bill_not_found`, `payment_not_found`, `credit_note_not_found`, `adjustment_not_found`; `not_found` for an unknown route |
 | 409 | The record changed since it was read (BR-804) | `concurrency_conflict` |
 | 409 | The first request with this `Idempotency-Key` is still running (section 7) | `idempotency_in_progress` |
 | 409 | A uniqueness rule (BR-101, BR-104, the code of a service item) | `patient_mrn_duplicate`, `patient_already_linked`, `service_item_code_duplicate`; `duplicate_key` where no rule applies |
@@ -491,3 +491,46 @@ again answers 422.
 answers 422 `credit_note_not_draft`. The audit trail is read with
 `GET /api/v1/audit-records?entityType=CreditNote&entityId=...`: `Drafted`, `LinesReplaced`, `HeaderUpdated`,
 `SubmittedForApproval`, `ReturnedToDraft`, `Posted`, `Applied`, `Voided`.
+
+### 8.9 Adjustments (BR-501 to BR-503, BR-604; ADR 0026)
+
+An adjustment lowers a posted bill by a discount, a write-off or a rounding difference of less than one rupee; no
+money and no credit note is involved. Every adjustment needs a second person, a rounding included: the maker's
+`post` hands it over, and the checker's `approve` is the posting, which takes the gapless number, lowers the bill
+and enters Dr Adjustments / Cr Receivable(bill). A posted adjustment is not reversed.
+
+| Method and path | Success | Failures |
+|---|---|---|
+| `POST /api/v1/adjustments` (needs `Idempotency-Key`) | 201, the adjustment, `Location`, `ETag` | 400; 404 `bill_not_found`; 422 `bill_not_posted`, `adjustment_rounding_too_large`, `adjustment_date_in_future`, `adjustment_date_too_old`, `adjustment_date_before_bill_date` |
+| `GET /api/v1/adjustments/{id}` | 200, the adjustment, `ETag` | 404 `adjustment_not_found` |
+| `GET /api/v1/adjustments?billId=&payerId=&status=&kind=&page=&pageSize=` | 200, a page of adjustments | 400 |
+| `PUT /api/v1/adjustments/{id}` (needs `If-Match`) | 200 | 400; 404; 409 `concurrency_conflict`, `adjustment_pending_approval`, `adjustment_already_posted`; 422 `adjustment_not_draft` and the codes of `POST`; 428 |
+| `POST /api/v1/adjustments/{id}/void` (needs `If-Match`, `Idempotency-Key`) | 200 | as `PUT` |
+| `POST /api/v1/adjustments/{id}/post` (needs `If-Match`, `Idempotency-Key`; no body) | **202**, the adjustment in `PendingApproval` | 403 `approval_needs_user`; 404; 409 as `PUT`; 422 `adjustment_not_draft`, `adjustment_exceeds_balance_due` and the date codes; 428 |
+| `POST /api/v1/adjustments/{id}/approve` (needs `If-Match`, `Idempotency-Key`; body optional) | 200, the posted adjustment | 403 `approval_checker_is_maker`, `approval_needs_user`; 404; 409 `concurrency_conflict`, `adjustment_already_posted`; 422 `adjustment_not_pending_approval`, `adjustment_not_draft`, `adjustment_exceeds_balance_due` and the date codes; 428 |
+| `POST /api/v1/adjustments/{id}/reject` (needs `If-Match`, `Idempotency-Key`) | 200, the adjustment as a draft again | 400 without a comment; 403, 404, 409, 422 as `approve`; 428 |
+
+The body of a draft, and of `PUT`, which replaces all of it (unknown members are refused):
+
+| Field | Required | Rule |
+|---|---|---|
+| `billId` | yes, on `POST` only | A posted bill of the tenant. Cannot be changed later |
+| `adjustmentDate` | no on `POST`, yes on `PUT` | `yyyy-MM-dd`; today in India when left out. Not in the future, not older than the back-dating limit (BR-205), not before the bill date (BR-501) |
+| `kind` | yes | `Discount`, `WriteOff` or `Rounding` |
+| `amount` | yes | Above zero, at most two decimals, at most 9,999,999,999.99; less than 1.00 for a `Rounding` |
+| `reason` | yes | At most 500 characters |
+
+`void` takes `reason`; `reject` takes `comment`, both required; `approve` takes an optional `comment`.
+
+An adjustment: `id`, `billId`, `payerId`, `adjustmentDate`, `kind`, `amount`, `reason`, `status` (`Draft`,
+`PendingApproval`, `Posted`, `Voided`), `number` (`ADJ/26-27/000001`), `fiscalYear` and `postedAtUtc` (all three null
+until it is posted), `voidedAtUtc`, `voidReason`, `createdAtUtc`, `updatedAtUtc`, `version`.
+
+**The cap (BR-501).** The amount is not more than the bill is still owed. It is asked when the maker submits and
+again when the checker approves: an adjustment that fitted and no longer does, because the bill was paid or
+credited meanwhile, answers 422 `adjustment_exceeds_balance_due`, takes no number and still waits; the checker
+rejects it and the maker corrects the amount. An approval and a payment for the same last rupees at the same
+moment: one succeeds, the other gets 409 or 422.
+
+The audit trail is read with `GET /api/v1/audit-records?entityType=Adjustment&entityId=...`: `Drafted`, `Updated`,
+`SubmittedForApproval`, `ReturnedToDraft`, `Posted` (with the reason), `Voided`. The bill shows `CreditApplied`.

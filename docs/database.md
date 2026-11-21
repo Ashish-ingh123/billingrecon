@@ -459,6 +459,16 @@ relationship), and `FK_PaymentAllocations_BillId` and `FK_PaymentAllocations_Pos
 | PostingId | uniqueidentifier | • | FK `LedgerPostings` |
 | Stamp, Posted, Voided, RV | | | |
 
+**Built 2026-11-21 (Prompt 4.4, ADR 0026; migration `0014_Adjustments`).** The table is as above, with these
+precisions. `Number` is `varchar(16)` with `FiscalYear`, `SequenceNumber`, `PostedAtUtc` and `PostedByUserId`, null
+until the adjustment is posted; `Reason` and `VoidReason` are `nvarchar(500)`. The constraints:
+`CK_Adjustments_Amount` (above zero, and under 1.00 for a rounding), `CK_Adjustments_Kind`, `CK_Adjustments_Status`,
+`CK_Adjustments_VoidedIffVoided`, `CK_Adjustments_NumberParts`, and `CK_Adjustments_NumberIffPosted`, which ties the
+number, the posted stamp and `PostingId` to the status `Posted`. The indexes: the one named above,
+`IX_Adjustments_TenantId_PayerId`, and the two filtered unique indexes of the number. `FK_Adjustments_BillId`,
+`_PayerId` and `_PostingId` come from the typed-id convention (ADR 0021). There is no reversal column: a posted
+adjustment is not reversed.
+
 ### 3.6 Common: approvals, number series, idempotency
 
 **ApprovalRequests** (BR-603 – BR-606)
@@ -888,6 +898,10 @@ form: `Total − Σ active applications`), `CreditNoteWithoutPosting` and `Posti
 `ApplicationPayerMismatch` (BR-213), and `CreditNotesExceedBillTotal` (BR-210: the posted credit notes of a bill
 come to more than the bill).
 
+*Built 2026-11-21 (Prompt 4.4):* three more, for adjustments: `AdjustmentWithoutPosting` and
+`PostingWithoutAdjustment` (identity 2, both directions) and `AdjustmentPayerMismatch` (the payer of an adjustment
+is not the payer of its bill). What an adjustment took off a bill is already covered by identity 3.
+
 A non-empty result is a **Sev-1 defect**: the runbook says stop postings for the tenant, capture the
 rows and the correlation ids from `AuditRecords`, and fix the code path. Caches are never
 "corrected" by hand; if a fix requires rebuilding a cache, it is rebuilt from the ledger by a
@@ -977,7 +991,8 @@ update of an append-only table (CLAUDE.md, section 9).
   | `0011_Payments` | `Payments` (§3.4), as recording needs it | Written 2026-11-20 (Prompt 4.1). **To be scaffolded with EF Core 10 on the personal machine, after `0010_Approvals`** (`docs/runbook.md` §8), with `PaymentConfiguration.cs` moved out of the project until then. Scaffolded that way with EF Core 9 in the throwaway copy: it held `Payments` alone, and the database tests passed on LocalDB 2019. |
   | `0012_PaymentAllocations` | `PaymentAllocations` (§3.4), as allocating needs it | Written 2026-11-20 (Prompt 4.2, ADR 0024). **To be scaffolded with EF Core 10 on the personal machine, after `0011_Payments`** (`docs/runbook.md` §8), with `PaymentWithAllocationsConfiguration.cs` moved out of the project until then, so that `0011_Payments` creates the table of payments alone. Scaffolded that way with EF Core 9 in the throwaway copy on 2026-11-21: `0011` held `Payments` alone, `0012` held `PaymentAllocations` alone with its four foreign keys and two indexes, and the database tests passed on LocalDB 2019. |
   | `0013_CreditNotes` | `CreditNotes`, `CreditNoteLines`, `CreditNoteAllocations` (§3.3, "Built 2026-11-21") | Written 2026-11-21 (Prompt 4.3, ADR 0025). **To be scaffolded with EF Core 10 on the personal machine, after `0012_PaymentAllocations`** (`docs/runbook.md` §8), with the three credit note configuration files moved out of the project until then. Scaffolded that way with EF Core 9 in the throwaway copy: it held the three tables alone, and the database tests passed on LocalDB 2019. |
-  | `0014_Adjustments`, `0015_Refunds` | §3.5, §3.4 | Prompts 4.4, 4.6. Not started. Each moved up by one when `PaymentAllocations` took `0012`. The reversal columns of `Payments` and `PaymentAllocations` (4.5) need a migration, numbered when that prompt is planned. |
+  | `0014_Adjustments` | `Adjustments` (§3.5, "Built 2026-11-21") | Written 2026-11-21 (Prompt 4.4, ADR 0026). **To be scaffolded into the repository after `0013_CreditNotes`** (`docs/runbook.md` §8), with `AdjustmentConfiguration.cs` moved out of the project until then. Scaffolded that way with EF Core 10.0.12 in a throwaway copy on 2026-11-21: it held `Adjustments` alone. |
+  | `0015_Refunds` | §3.4 | Prompt 4.6. Not started. Moved up by one when `PaymentAllocations` took `0012`. The reversal columns of `Payments` and `PaymentAllocations` (4.5) need a migration, numbered when that prompt is planned. |
   | `0016_Users` | `Users`, `Roles` (§3.1) | Prompt 5.1. Not started. |
 
 - CHECK constraints, unique and filtered indexes and computed columns are declared in the EF model
