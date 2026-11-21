@@ -403,6 +403,10 @@ SQL Server 2022, or had its migration scaffolded with EF Core 10**; every commit
 its message. This is the one list of what is owed. A prompt that adds a migration or a check adds its line here,
 in order; nothing is removed until the owner has run it and sent the output.
 
+**B and E done on 2026-11-21, in the repository: migrations `0003` to `0015` are committed ("Migrations 0003 to 0015,
+scaffolded with EF Core 10"), each scaffolded on its own with EF Core 10.0.12 as B describes, and EF Core reports no
+pending model change. Do not run B again.** A, C and D are still owed on a machine with Docker.
+
 **Partly run on 2026-11-21, on the office machine, which got the .NET 10 SDK (10.0.404) that day; it still has no
 Docker.** In a throwaway copy of the tip of the branch with Prompt 4.4, with no version substitution: A and B ran
 as written (the repository's `dotnet-ef` 10.0.12 scaffolded `0003` to `0014` one by one, each holding exactly what
@@ -422,7 +426,8 @@ dotnet --list-sdks
 dotnet tool restore
 ```
 
-**B. The migrations, one after the other** (section 3 explains why the configurations are moved out and back)
+**B. The migrations, one after the other** (section 3 explains why the configurations are moved out and back).
+**Done on 2026-11-21; kept as the record of how `0003` to `0015` were made, not to be run again.**
 
 ```powershell
 New-Item -ItemType Directory -Force ..\held | Out-Null
@@ -491,8 +496,9 @@ Change nothing else in the file, and nothing in `Down()`. If the line is missing
 
 `..\held` must be empty at the end. If a migration creates more than its row says, a file was not moved: run
 `dotnet ef migrations remove --project src/BillingRecon.Infrastructure` once per migration added and start B again.
-Every later prompt that adds a table adds its configuration file to the first `Move-Item`, and its own two lines
-and its row at the end.
+Since the migrations are in the repository, a later prompt adds its migration the ordinary way, with
+`dotnet ef migrations add NNNN_<Slice> --project src/BillingRecon.Infrastructure --output-dir Common/Migrations`, and
+holds no configuration back; it adds its row to the table above.
 
 **C. Build, format, tests**
 

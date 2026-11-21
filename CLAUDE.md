@@ -120,10 +120,14 @@ Office machine:
   proof. LocalDB 2022 is not installed: its installer needs a licence acceptance, which is the owner's to give.
 - **Since 2026-11-21 this machine has the .NET 10 SDK (10.0.404), installed by the owner.** `dotnet build`,
   `dotnet format` and `dotnet test` work here, and so does the repository's `dotnet-ef` 10.0.12. What still cannot
-  run here is the `Database` collection as written: it needs Docker. Until the migrations `0003` onward are in the
-  repository (section 9, item 23), a change is verified in a throwaway copy with **no version substitution**: the
-  migrations scaffolded there one by one (`docs/runbook.md` section 8 B) and the database fixture pointed at
-  LocalDB 2019. Say "built and tested on .NET 10 with LocalDB 2019, not run on SQL Server 2022". The .NET 9
+  run here is the `Database` collection as written: it needs Docker. **Since 2026-11-21 the migrations `0001` to
+  `0015` are in the repository**, so the build, the format gate and every test outside the `Database` collection run
+  in the repository itself; the `Database` collection runs in a throwaway copy whose database fixture is pointed at
+  LocalDB 2019, with no version substitution. **`dotnet ef` does not run in the repository on this machine:**
+  `.config/dotnet-tools.json` carries the Windows mark of a file that came from another computer (the tree came
+  from a zip), and the SDK refuses local tools from it. The owner can clear it (the file's Properties, Unblock);
+  until then a migration is scaffolded in the copy and its files are copied back, which gives the same files.
+  Say "built and tested on .NET 10 with LocalDB 2019, not run on SQL Server 2022". The .NET 9
   procedure below is history, kept for what was verified with it.
 - **Until 2026-11-21: no .NET 10 SDK on this machine, and the owner had decided not to add it** (recorded
   2026-10-03): it was installed only on the owner's personal machine. The repository targets .NET 10
@@ -968,9 +972,11 @@ Kept here so they survive between sessions. Remove an item when it is done.
       changes already: **only the last of the six commits is a state that builds**. Shared documents (this file,
       the README, the documents of `docs/` that are not ADRs) are in the last one. Recorded here so that nobody
       bisects those commits or checks one out expecting it to compile.
-    - **Migrations `0003` to `0007` are not in those commits.** They come as a commit of their own after the run
-      of section 8. Until then `MigrationsTests` and the whole database collection fail on a fresh clone, by
-      design.
+    - **Migrations `0003` to `0007` are not in those commits.** They came, with `0008` to `0015`, as a commit of
+      their own on 2026-11-21 ("Migrations 0003 to 0015, scaffolded with EF Core 10"), made on the office machine
+      once it had the .NET 10 SDK: B of `docs/runbook.md` section 8 is done. Every "scaffold the migration on the
+      personal machine" in items 9 to 24 is done with it. Before that commit `MigrationsTests` and the whole
+      database collection failed on a fresh clone, by design.
     - **Branch:** Phase 3 work (3.1, 3.2, 3.4 and what follows) is on `phase-2-billing` too, because the owner
       asked for the current branch; the branch-per-phase rule of item 8 resumes when the owner says so.
     - **If the run of section 8 is red:** the fix is a commit on top, with the output that showed it.
@@ -1242,8 +1248,8 @@ Kept here so they survive between sessions. Remove an item when it is done.
       test about timing, not a defect of the code; it is a guess until a failure is caught. Not changed: it is a
       test of another prompt. **That guess was wrong, and the failure is explained and fixed with Prompt 4.5
       (item 24, ADR 0027 point 9):** the losing request answered 500, a defect of the code.
-    - **Still to do:** bring the migrations `0003` to `0014` into the repository (`docs/runbook.md` section 8 B,
-      which can now run on this machine) and commit them on their own; the run on SQL Server 2022 in Docker.
+    - **Still to do:** the run on SQL Server 2022 in Docker. (The migrations `0003` to `0014` were committed on
+      their own on 2026-11-21, with `0015`.)
     - Follow-ups for later slices: the roles that may draft and approve (5.3); adjustments by kind in the reports
       (6.1).
     - Next: Prompt 4.5 (reversals), which is item 24.
@@ -1280,8 +1286,8 @@ Kept here so they survive between sessions. Remove an item when it is done.
       by one with EF Core 10.0.12 (`0015`: eight columns, two CHECK constraints, two foreign keys, no table); strict
       build and format gate clean; Domain 572, Application 322, Architecture 113, Integration 989, all green on
       LocalDB 2019; the concurrency classes (231 tests) twelve times in a row without a failure.
-    - **Still to do:** the migrations into the repository; SQL Server 2022 in Docker; the refund check of BR-306
-      with 4.6.
+    - **Still to do:** SQL Server 2022 in Docker; the refund check of BR-306 with 4.6. (The migrations are in the
+      repository since 2026-11-21.)
     - **For the owner:** confirm point 9 of ADR 0027, which reverses a decision of Prompt 3.6 (a missing request
       was a fault there).
     - Next: Prompt 4.5b (reverse an application of credit), then 4.6 (refunds).
