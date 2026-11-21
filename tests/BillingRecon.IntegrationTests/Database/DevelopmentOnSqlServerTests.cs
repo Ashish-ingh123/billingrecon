@@ -1,10 +1,16 @@
 using System.Net;
+using BillingRecon.Api.Identity;
+using BillingRecon.Application.Common;
+using BillingRecon.Application.Identity;
 using BillingRecon.Domain.Common;
 using BillingRecon.Domain.Identity;
+using BillingRecon.Infrastructure.Common.Persistence;
 using BillingRecon.Infrastructure.Identity;
+using BillingRecon.IntegrationTests.Persistence;
 using BillingRecon.IntegrationTests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace BillingRecon.IntegrationTests.Database;
 
@@ -77,6 +83,44 @@ public sealed class DevelopmentOnSqlServerTests(SqlServerFixture sqlServer) : Da
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync());
     }
+
+    [Fact]
+    public async Task ADR0031_in_development_a_sign_in_without_a_token_acts_for_nobody_and_finds_a_tenant_other_than_the_development_one()
+    {
+        // The development identity is for the endpoints that need a user; on the anonymous sign-in it would hide every
+        // other tenant's row, and a sign-in to any of them would fail as an unknown hospital.
+        const string password = "correct horse battery staple";
+        var connectionString = SqlServer.ConnectionStringFor("BillingRecon_Development");
+        using var factory = new DevelopmentOnSqlServerFactory(connectionString);
+        using var client = factory.CreateClient();
+        var hospital = FixedIdentity.Random();
+        var tenant = TestData.NewTenant(Now);
+
+        await using (var system = Context(connectionString, SystemIdentity.Instance))
+        {
+            system.Entry(tenant).Property(candidate => candidate.Id).CurrentValue = hospital.TenantId!.Value;
+            system.Add(tenant);
+            await system.SaveChangesAsync();
+        }
+
+        await using (var own = Context(connectionString, hospital))
+        {
+            var user = User.Create("asha.rao@example.in", "Asha Rao", new Pbkdf2PasswordHasher().Hash(password), [Role.Cashier], Now, grantedBy: null);
+            own.Entry(user).Property(candidate => candidate.Id).CurrentValue = hospital.UserId!.Value;
+            own.Add(user);
+            await own.SaveChangesAsync();
+        }
+
+        using var response = await client.PostJsonAsync(new Uri("/api/v1/auth/login", UriKind.Relative), new LoginRequest { Tenant = tenant.Code, Email = "asha.rao@example.in", Password = password });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+        var token = new JsonWebToken((await response.ReadAsAsync<SignedInDto>()).AccessToken);
+        token.Subject.ShouldBe(hospital.UserId.ToString());
+    }
+
+    private static BillingReconDbContext Context<TIdentity>(string connectionString, TIdentity identity)
+        where TIdentity : ITenantContext, ICurrentUser
+        => new(TestContexts.Options<BillingReconDbContext>(connectionString), identity, identity, new FakeClock(Now));
 
     private sealed class DevelopmentOnSqlServerFactory(string connectionString) : ApiFactory
     {

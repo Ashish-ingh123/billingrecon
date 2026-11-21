@@ -13,7 +13,7 @@ public sealed class CorrelationIdTests(ApiFactory factory) : IClassFixture<ApiFa
     public async Task A_supplied_correlation_id_round_trips()
     {
         var supplied = Guid.NewGuid();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClientFor(FixedIdentity.Random());
 
         using var response = await SendAsync(client, AnyPath, supplied.ToString());
 
@@ -25,7 +25,7 @@ public sealed class CorrelationIdTests(ApiFactory factory) : IClassFixture<ApiFa
     public async Task A_supplied_correlation_id_is_returned_in_canonical_lower_case()
     {
         var supplied = Guid.NewGuid();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClientFor(FixedIdentity.Random());
 
         using var response = await SendAsync(client, AnyPath, supplied.ToString().ToUpperInvariant());
 
@@ -35,7 +35,7 @@ public sealed class CorrelationIdTests(ApiFactory factory) : IClassFixture<ApiFa
     [Fact]
     public async Task A_request_without_a_correlation_id_gets_a_new_one_each_time()
     {
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClientFor(FixedIdentity.Random());
 
         using var first = await client.GetAsync(new Uri(AnyPath, UriKind.Relative));
         using var second = await client.GetAsync(new Uri(AnyPath, UriKind.Relative));
@@ -53,7 +53,7 @@ public sealed class CorrelationIdTests(ApiFactory factory) : IClassFixture<ApiFa
     [InlineData("3f2504e0-4f89-11d3-9a0c-0305e82c3301<script>alert(1)</script>")]
     public async Task A_malformed_correlation_id_is_replaced_not_echoed(string supplied)
     {
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClientFor(FixedIdentity.Random());
 
         using var response = await SendAsync(client, AnyPath, supplied);
 
@@ -71,7 +71,7 @@ public sealed class CorrelationIdTests(ApiFactory factory) : IClassFixture<ApiFa
         string path, HttpStatusCode status, string errorCode)
     {
         var supplied = Guid.NewGuid();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClientFor(FixedIdentity.Random());
 
         using var response = await SendAsync(client, path, supplied.ToString());
 

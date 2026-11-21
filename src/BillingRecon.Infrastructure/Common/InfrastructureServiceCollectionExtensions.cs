@@ -26,12 +26,13 @@ public static class InfrastructureServiceCollectionExtensions
     private static readonly TimeSpan ReadinessTimeout = TimeSpan.FromSeconds(5);
 
     /// <summary>
-    /// Adds strongly typed options (validated at startup), structured logging, the clock, the identity of the
-    /// current scope, the EF Core context with its unit of work, and the readiness health check. The ports of the
-    /// business modules are registered by each module (for example <c>AddPayers</c>), which this class may not name.
+    /// Adds strongly typed options (validated at startup), structured logging, the clock, what Development adds to
+    /// the identity of a request, the EF Core context with its unit of work, and the readiness health check. The
+    /// identity of a request itself is the Api's, from the token (ADR 0031). The ports of the business modules are
+    /// registered by each module (for example <c>AddPayers</c>), which this class may not name.
     /// </summary>
     /// <param name="services">The service collection of the host.</param>
-    /// <param name="environment">The environment of the host; it decides which identity is registered.</param>
+    /// <param name="environment">The environment of the host; Development adds the development identity.</param>
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IHostEnvironment environment)
     {
         services.AddOptions<DatabaseOptions>()
@@ -64,10 +65,14 @@ public static class InfrastructureServiceCollectionExtensions
         return services;
     }
 
-    // Until authentication arrives (Phase 5) there are two identities. Development: a fixed tenant and user from
-    // configuration. Everywhere else: none, and asking for one throws, so nothing acts for a tenant by accident.
+    // The tenant and the user of a request come from its token, which the Api reads (ADR 0031); this layer registers
+    // only what Development adds: the configured development tenant and user, whom a request without a token acts as
+    // there, and the seeder of their rows. The users of the tenant and the reads of a sign-in are here in every
+    // environment.
     private static void AddIdentity(IServiceCollection services, IHostEnvironment environment)
     {
+        services.AddScoped<ILoginUserLookup, LoginUserLookup>();
+
         if (environment.IsDevelopment())
         {
             services.AddOptions<DevelopmentIdentityOptions>()
@@ -75,19 +80,10 @@ public static class InfrastructureServiceCollectionExtensions
                 .Validate(DevelopmentIdentityOptions.IsComplete, DevelopmentIdentityOptions.IncompleteMessage)
                 .ValidateOnStart();
 
-            services.AddScoped<DevelopmentIdentity>();
-            services.AddScoped<ITenantContext>(provider => provider.GetRequiredService<DevelopmentIdentity>());
-            services.AddScoped<ICurrentUser>(provider => provider.GetRequiredService<DevelopmentIdentity>());
-
-            // The row of that tenant, which every tenant-scoped row refers to, where the database is migrated at startup.
+            // The rows of that tenant and that user, which every row of Development refers to, where the database is
+            // migrated at startup.
             services.AddHostedService<DevelopmentTenantSeeder>();
-
-            return;
         }
-
-        services.AddSingleton<UnavailableIdentity>();
-        services.AddSingleton<ITenantContext>(provider => provider.GetRequiredService<UnavailableIdentity>());
-        services.AddSingleton<ICurrentUser>(provider => provider.GetRequiredService<UnavailableIdentity>());
     }
 
     private static void AddPersistence(IServiceCollection services)

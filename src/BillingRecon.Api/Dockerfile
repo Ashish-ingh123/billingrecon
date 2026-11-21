@@ -5,8 +5,8 @@
 # Multi-stage: the SDK image restores, builds and publishes; the ASP.NET Core runtime image runs the result. The
 # runtime image is the Debian-based one, which ships the time zone data the API needs at startup (Asia/Kolkata,
 # ADR 0010). curl is the one addition to it, for the health check. The container runs as the image's non-root user
-# and listens on 8080, the image's default. It needs Database__ConnectionString in its environment and refuses to
-# start without it (docs/runbook.md section 6).
+# and listens on 8080, the image's default. It needs Database__ConnectionString and Jwt__SigningKey in its
+# environment and refuses to start without them (docs/runbook.md sections 6 and 9).
 
 # The tags follow the major version. global.json pins the SDK feature band (10.0.4xx on 2026-10-17) and must accept
 # the SDK the tag carries; if they ever drift apart, pass the exact tag: --build-arg SDK_TAG=10.0.402

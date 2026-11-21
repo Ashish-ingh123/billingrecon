@@ -164,7 +164,7 @@ public sealed class AuditStampTests
     public void A_save_without_audited_entities_reads_neither_the_clock_nor_the_user()
     {
         // This identity throws when it is asked for the user, so the test fails if the interceptor asks.
-        var noIdentity = new UnavailableIdentity();
+        var noIdentity = new ThrowingIdentity();
         var clock = new CountingClock(CreatedAt);
         using var context = TestContexts.Create(noIdentity, clock);
         context.Add(new Setting("colour"));

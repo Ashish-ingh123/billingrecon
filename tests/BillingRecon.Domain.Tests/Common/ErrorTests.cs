@@ -57,6 +57,7 @@ public sealed class ErrorTests
     {
         Error.Validation("amount_invalid", "m").Kind.ShouldBe(ErrorKind.Validation);
         Error.NotFound("bill_not_found", "m").Kind.ShouldBe(ErrorKind.NotFound);
+        Error.Unauthorized("invalid_credentials", "m").Kind.ShouldBe(ErrorKind.Unauthorized);
         Error.Forbidden("checker_is_maker", "m").Kind.ShouldBe(ErrorKind.Forbidden);
         Error.Conflict("concurrency_conflict", "m").Kind.ShouldBe(ErrorKind.Conflict);
         Error.BusinessRule("bill_already_posted", "m").Kind.ShouldBe(ErrorKind.BusinessRule);

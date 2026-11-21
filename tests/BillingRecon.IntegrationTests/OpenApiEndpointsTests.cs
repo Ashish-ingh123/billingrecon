@@ -1,4 +1,5 @@
 using System.Net;
+using BillingRecon.IntegrationTests.Support;
 
 namespace BillingRecon.IntegrationTests;
 
@@ -11,7 +12,7 @@ public sealed class OpenApiEndpointsTests(ApiFactory factory) : IClassFixture<Ap
     [InlineData("/scalar/v1")]
     public async Task OpenApi_document_and_Scalar_ui_are_not_served_outside_development(string path)
     {
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClientFor(FixedIdentity.Random());
 
         using var response = await client.GetAsync(new Uri(path, UriKind.Relative));
 

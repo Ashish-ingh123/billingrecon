@@ -206,7 +206,7 @@ public sealed class TenantWriteGuardTests
     public void A_save_that_writes_no_tenant_scoped_entity_never_asks_for_the_tenant()
     {
         // This identity throws when it is asked for the tenant, so the test fails if the guard asks.
-        var noIdentity = new UnavailableIdentity();
+        var noIdentity = new ThrowingIdentity();
         using var context = TestContexts.Create(noIdentity);
         context.Add(new Setting("colour"));
 

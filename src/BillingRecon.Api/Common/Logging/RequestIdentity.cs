@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using BillingRecon.Api.Common.Authentication;
 using Serilog.Context;
 using Serilog.Core;
 using Serilog.Core.Enrichers;
@@ -6,17 +7,17 @@ using Serilog.Core.Enrichers;
 namespace BillingRecon.Api.Common.Logging;
 
 /// <summary>
-/// The tenant and user of an authenticated request, for log enrichment only. Nothing is read for an anonymous request.
-/// Authorisation never uses these values: it will go through <c>ITenantContext</c> and <c>ICurrentUser</c> when the
-/// Identity slice lands, and this class will then read from them instead of from the claims.
+/// The tenant and user of an authenticated request, for log enrichment only: the claims of <see cref="TokenClaims"/>,
+/// as text. Nothing is read for an anonymous request. What the request may do is decided through <c>ITenantContext</c>
+/// and <c>ICurrentUser</c> (<see cref="RequestPrincipalIdentity"/>), which read the same claims.
 /// </summary>
 public static class RequestIdentity
 {
     /// <summary>JWT claim that carries the tenant id (BR-602).</summary>
-    public const string TenantIdClaim = "tenant_id";
+    public const string TenantIdClaim = TokenClaims.TenantIdClaim;
 
     /// <summary>JWT claim that carries the user id (BR-602).</summary>
-    public const string UserIdClaim = "sub";
+    public const string UserIdClaim = TokenClaims.UserIdClaim;
 
     /// <summary>Name of the log event property that carries the tenant id.</summary>
     public const string TenantIdProperty = "TenantId";
@@ -27,15 +28,15 @@ public static class RequestIdentity
     /// <summary>The tenant id and user id of an authenticated principal; both null for an anonymous one.</summary>
     public static (string? TenantId, string? UserId) Read(ClaimsPrincipal user)
     {
+        ArgumentNullException.ThrowIfNull(user);
+
         if (user.Identity?.IsAuthenticated != true)
         {
             return (null, null);
         }
 
-        // The JWT handler may rename "sub" to the long name-identifier claim type, so both are accepted.
-        return (
-            user.FindFirst(TenantIdClaim)?.Value,
-            user.FindFirst(UserIdClaim)?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+        // The bearer scheme keeps the names of the token's claims (MapInboundClaims is off, ADR 0031): "sub" stays "sub".
+        return (user.FindFirst(TenantIdClaim)?.Value, user.FindFirst(UserIdClaim)?.Value);
     }
 
     /// <summary>

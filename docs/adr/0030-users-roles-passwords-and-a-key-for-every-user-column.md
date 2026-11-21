@@ -1,7 +1,8 @@
 # ADR 0030: Users and roles, their passwords, and a key for every column that names a user
 
 - **Status:** Accepted. The owner approved the plan of Prompt 5.1 on 2026-11-21 with the six recommended answers,
-  which are points 1 to 6 below; point 7 was settled while building and is the owner's to confirm. Built and tested
+  which are points 1 to 6 below; point 7 was settled while building, and the owner confirmed it with the plan of
+  Prompt 5.2 on 2026-11-21 (ADR 0031, point 11). Built and tested
   on .NET 10 (SDK 10.0.404, EF Core 10.0.12) on the office machine: build, format gate and the tests without a
   database in the repository, the database tests in a throwaway copy against SQL Server LocalDB 2019. SQL Server 2022
   in Docker is still to come.
@@ -47,8 +48,8 @@ may do is Prompt 5.3.
 6. **The development user** is created by `DevelopmentTenantSeeder` with the development tenant: the id of
    `DevelopmentIdentity:UserId`, a TenantAdmin, address `admin@development.local`, and a password hash that matches no
    password (`!`), until 5.2 decides how a developer signs in. An administrator's reset can give it a real one.
-7. **Users are reference data, and their POSTs take no Idempotency-Key** (settled while building, for the owner to
-   confirm). The plan said the POSTs would need a key "as elsewhere"; the convention of ADR 0006 is that only financial
+7. **Users are reference data, and their POSTs take no Idempotency-Key** (settled while building; confirmed by the
+   owner with the plan of Prompt 5.2). The plan said the POSTs would need a key "as elsewhere"; the convention of ADR 0006 is that only financial
    POSTs do, and patients and payers do not. There is a second reason: the store of keys keeps a SHA-256 fingerprint of
    the method, the path, `If-Match` and the bytes of the body, and the body of a creation or a reset holds the password.
    A stored fast hash of a body with a password in it is a target for offline guessing, so no such fingerprint may

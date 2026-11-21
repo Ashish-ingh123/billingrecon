@@ -25,7 +25,7 @@ public sealed class ApiVersioningTests(ApiFactory factory) : IClassFixture<ApiFa
     [Fact]
     public async Task The_unversioned_path_does_not_exist()
     {
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClientFor(FixedIdentity.Random());
 
         using var response = await client.GetAsync(new Uri("/api/system/info", UriKind.Relative));
 

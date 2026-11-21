@@ -54,11 +54,11 @@ internal static class TestUsers
         }
     }
 
-    // The roles named by the client, as far as they are roles; a tenant administrator when none is.
+    // The roles named by the client, as its token carries them (TestRoles).
     private static void Add(BillingReconDbContext context, UserId userId, IEnumerable<string> roleNames)
     {
-        Role[] roles = [.. roleNames.Select(name => Enum.TryParse<Role>(name, out var role) ? role : (Role?)null).OfType<Role>()];
-        var user = User.Create($"{userId.Value:N}@users.test", "Test user", Pbkdf2PasswordHasher.Unusable, roles.Length > 0 ? roles : [Role.TenantAdmin], CreatedAt, grantedBy: null);
+        Role[] roles = [.. TestRoles.Of(roleNames)];
+        var user = User.Create($"{userId.Value:N}@users.test", "Test user", Pbkdf2PasswordHasher.Unusable, roles, CreatedAt, grantedBy: null);
         context.Entry(user).Property(candidate => candidate.Id).CurrentValue = userId;
         context.Add(user);
     }

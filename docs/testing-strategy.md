@@ -35,8 +35,10 @@ behaviour is the question.
   tenant-scoped tables exist.
 - **Empty tables before every test.** Respawn deletes the data of both databases; the schema and
   `__EFMigrationsHistory` stay. Writes commit for real; nothing is rolled back behind the test's back.
-- **Acting for a tenant.** `DatabaseApiFactory` hosts the API with `TestRequestIdentity`, which reads
-  the tenant, user and roles from the `X-Test-*` headers that `CreateClientFor` sets on a client. A
+- **Acting for a tenant.** A client made with `CreateClientFor` sends with every request a bearer
+  token minted for it by the API's own issuer (ADR 0031), for the tenant, user and roles it names; a
+  client that names no role is a TenantAdmin, like the user row behind it. A client made with
+  `CreateClient` is anonymous and gets 401 everywhere but the sign-in and the health endpoints. A
   context built by hand takes a `FixedIdentity` (tenant and user) or `SystemIdentity.Instance` (none).
 - **Time.** `FakeClock` everywhere; the API's clock is the factory's `Clock`, which a test moves.
 - **Data.** `TestData` draws from one seeded Bogus generator: the same tenants and names every run.

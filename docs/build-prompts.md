@@ -29,7 +29,7 @@ is left; their numbering is mine, not the blueprint's.
 | Everything else in R1 | Not started: sign-in and JWT, role permissions, reports, frontend, delivery |
 | 6.3 Dashboard figures and 7.6 Dashboard (added 2026-11-21, with theming in 7.1) | Not started. 6.3 runs after 6.2, 7.6 after 7.5; the layout reference `docs/ui/dashboard.png` is still to be added; the drift card's trend (none, or a snapshot table and a new migration) is the owner's open decision, asked in 6.3 |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. Next prompt: 5.2 (sign-in and JWT). What was decided for each built prompt is recorded under it below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. Next prompt: 5.3 (role permissions and tenant settings). What was decided for each built prompt is recorded under it below.**
 
 ## How to use these prompts
 
@@ -493,9 +493,9 @@ is disposable and is dropped before `0018` (no data step); passwords are PBKDF2-
 a 16-byte salt and a 32-byte hash, 12 to 128 characters without rules of composition, and an administrator's reset
 sets a given password with no forced change; a user holds at least one role, the tenant's last active administrator
 keeps the role and cannot be disabled, and nobody disables themselves; no role check before 5.2 and 5.3; the
-development user is a TenantAdmin with a password nothing matches. Settled while building, for the owner to confirm:
-the user POSTs take no Idempotency-Key, because the stored fingerprint of a body with a password would be a fast hash
-of the password (ADR 0030 point 7).
+development user is a TenantAdmin with a password nothing matches. Settled while building, and confirmed by the owner
+with the plan of 5.2: the user POSTs take no Idempotency-Key, because the stored fingerprint of a body with a password
+would be a fast hash of the password (ADR 0030 point 7).
 
 #### 5.2 Sign-in and JWT
 
@@ -509,6 +509,16 @@ Tests: no token is 401, disabled user refused, a token of tenant A reading tenan
 on every resource built so far.
 Done when: every existing API test runs with real tokens.
 ```
+
+**Owner's decisions for 5.2, recorded 2026-11-21 (the plan was approved "as recommended"; ADR 0031):** the package
+`Microsoft.AspNetCore.Authentication.JwtBearer` 10.0.12 in the Api project; HS256 with a key of at least 256 bits from
+`Jwt:SigningKey`, a key for Development in `appsettings.Development.json` that is refused anywhere else; every refused
+sign-in answers the same 401 `invalid_credentials` (unknown or suspended tenant, unknown address, wrong password,
+disabled user), with the reason in the log only; the sign-in is recorded (`LastSignInAtUtc` and a `SignedIn` audit
+record), the sign-in request acting as the user it has verified through the `ISignInScope` port; a token stays valid
+for its 60 minutes after its user is disabled; in Development a request without a token acts as the development
+user; the tests use tokens minted by the API's own issuer for every request; the sign-in takes no Idempotency-Key, and
+the owner confirmed ADR 0030 point 7 for the user POSTs with it. Rate limiting of sign-ins is a follow-up.
 
 #### 5.3 Role permissions and tenant settings
 

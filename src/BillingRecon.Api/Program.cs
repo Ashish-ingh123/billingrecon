@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using BillingRecon.Api.Common;
+using BillingRecon.Api.Common.Authentication;
 using BillingRecon.Api.Common.Correlation;
 using BillingRecon.Api.Common.Errors;
 using BillingRecon.Api.Common.Idempotency;
@@ -17,10 +18,14 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Options validated at startup, structured logging, the clock, the identity of the request, the EF Core context with
-// its unit of work, and the readiness check. Configuration comes from appsettings, environment variables and, in
-// Development, user-secrets.
+// Options validated at startup, structured logging, the clock, the EF Core context with its unit of work, and the
+// readiness check. Configuration comes from appsettings, environment variables and, in Development, user-secrets.
 builder.Services.AddInfrastructure(builder.Environment);
+
+// Who a request acts for: the tenant, the user and the roles of its token, which this API issues at sign-in and
+// validates on every request; in Development, the development user when a request carries no token. Every endpoint
+// needs a user unless it is marked anonymous (ADR 0031).
+builder.Services.AddRequestIdentity(builder.Environment);
 
 // The ports of each business module, then every use case and validator of the Application layer (ADR 0018).
 builder.Services.AddPayers();
@@ -64,24 +69,29 @@ app.UseRequestLogging();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
-// Authentication and authorisation go here when the Identity slice lands; the identity log scope must stay after them.
+// The token makes the user of the request, then every endpoint not marked anonymous refuses a request without one:
+// 401 (ADR 0031). Inside the error handling, so a refusal is a ProblemDetails like any error; before the identity log
+// scope, which needs the user.
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseMiddleware<RequestIdentityLoggingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
     // Built-in OpenAPI document at /openapi/v1.json and the Scalar UI at /scalar. Development only.
-    app.MapOpenApi();
-    app.MapScalarApiReference();
+    app.MapOpenApi().AllowAnonymous();
+    app.MapScalarApiReference().AllowAnonymous();
 }
 
 app.MapControllers();
 
 // Liveness runs no checks: the process answers, so it is alive. Readiness runs the checks tagged for it: the
-// application database is reachable and has no pending migrations.
-app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
+// application database is reachable and has no pending migrations. Both answer without a token: an orchestrator
+// probes them.
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     Predicate = registration => registration.Tags.Contains(InfrastructureServiceCollectionExtensions.ReadinessTag),
-});
+}).AllowAnonymous();
 
 app.Run();

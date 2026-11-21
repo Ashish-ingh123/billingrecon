@@ -5,7 +5,8 @@ namespace BillingRecon.IntegrationTests.Identity;
 /// <summary>
 /// The password hasher (BR-601; docs/database.md section 3.1; ADR 0030): PBKDF2-HMAC-SHA-256 with 600,000 iterations and
 /// a salt of its own per hash, in the stored format <c>pbkdf2-sha256$iterations$salt$hash</c>; a password is checked
-/// against any iteration count the text names, and a text it cannot read matches no password.
+/// against any iteration count the text names, a text it cannot read matches no password, and a verification with no
+/// hash at all costs the same work and matches nothing (ADR 0031).
 /// </summary>
 public sealed class Pbkdf2PasswordHasherTests
 {
@@ -50,6 +51,26 @@ public sealed class Pbkdf2PasswordHasherTests
             System.Text.Encoding.UTF8.GetBytes(Password), Convert.FromBase64String("AAECAwQFBgcICQoLDA0ODw=="), 1000, System.Security.Cryptography.HashAlgorithmName.SHA256, 32);
 
         _hasher.Verify(Password, madeWithOneThousand + Convert.ToBase64String(expected)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void ADR0031_a_verification_without_a_hash_matches_nothing_and_costs_about_what_a_real_one_costs()
+    {
+        // A sign-in for an address that does not exist must not answer faster than one with a wrong password.
+        var hash = _hasher.Hash(Password);
+        _hasher.Verify(Password, hash);
+
+        var withHash = System.Diagnostics.Stopwatch.StartNew();
+        _hasher.Verify("wrong password", hash).ShouldBeFalse();
+        withHash.Stop();
+
+        var withoutHash = System.Diagnostics.Stopwatch.StartNew();
+        _hasher.VerifyWithoutHash(Password).ShouldBeFalse();
+        withoutHash.Stop();
+
+        // The same derivation; a quarter is far below what scheduling noise can take away from it.
+        withoutHash.Elapsed.ShouldBeGreaterThan(withHash.Elapsed / 4);
+        Should.Throw<ArgumentNullException>(() => _hasher.VerifyWithoutHash(null!));
     }
 
     [Theory]

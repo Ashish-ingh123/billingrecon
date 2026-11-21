@@ -223,6 +223,14 @@ never registered as the identity of a request).
 The Development environment therefore means "no authentication": everyone is the configured tenant
 and user. It must never be the environment of a machine that others can reach.
 
+**Refined by ADR 0031 (2026-11-21), with authentication.** `UnavailableIdentity` is gone. In every environment the
+identity of a request is the Api's `RequestPrincipalIdentity`, read from the principal its token gave it; asked
+outside a request it throws, as `UnavailableIdentity` did. `DevelopmentIdentity` is no longer registered: it is the
+identity of the context the development seeder writes its rows with, and in Development a request without a token
+gets a principal for the same tenant and user from the Api's development scheme. A request with a token is checked as
+everywhere else, so Development still means "no sign-in needed", not "no authentication". `SystemIdentity` is
+unchanged.
+
 ### 7. Migrations
 
 - Location `Infrastructure/Common/Migrations`, names `NNNN_<Slice>`. The first is `0001_Tenants`

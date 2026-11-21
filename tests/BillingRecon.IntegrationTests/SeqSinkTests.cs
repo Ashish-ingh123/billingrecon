@@ -22,7 +22,7 @@ public sealed class SeqSinkTests
 
         await using (var factory = new SeqApiFactory(seq.Url))
         {
-            using var client = factory.CreateClient();
+            using var client = factory.CreateClientFor(FixedIdentity.Random());
             using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/api/v1/probe/log", UriKind.Relative));
             request.Headers.Add(CorrelationIdMiddleware.HeaderName, correlationId.ToString());
 
@@ -56,7 +56,7 @@ public sealed class SeqSinkTests
         // the factory's own empty value must win, or the tests would ship their logs there.
         await using (var factory = new SeqConfiguredElsewhereApiFactory(seq.Url))
         {
-            using var client = factory.CreateClient();
+            using var client = factory.CreateClientFor(FixedIdentity.Random());
             using var response = await client.GetAsync(new Uri("/api/v1/probe/log", UriKind.Relative));
 
             response.StatusCode.ShouldBe(HttpStatusCode.NoContent);

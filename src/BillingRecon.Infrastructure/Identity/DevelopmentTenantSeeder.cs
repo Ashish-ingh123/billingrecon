@@ -45,8 +45,11 @@ public sealed class DevelopmentTenantSeeder(
             return;
         }
 
+        // No request is running, so the context is made here for the development tenant and user (ADR 0031, point 9).
         await using var scope = scopeFactory.CreateAsyncScope();
-        var context = scope.ServiceProvider.GetRequiredService<BillingReconDbContext>();
+        var development = new DevelopmentIdentity(identity);
+        await using var context = new BillingReconDbContext(
+            scope.ServiceProvider.GetRequiredService<DbContextOptions<BillingReconDbContext>>(), development, development, clock);
         var tenantId = new TenantId(identity.Value.TenantId);
         var userId = new UserId(identity.Value.UserId);
 

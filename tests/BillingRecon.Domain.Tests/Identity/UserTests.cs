@@ -4,8 +4,9 @@ using BillingRecon.Domain.Identity;
 namespace BillingRecon.Domain.Tests.Identity;
 
 /// <summary>
-/// The user aggregate (US-01; BR-601; ADR 0030): an address compared without regard to case, at least one role,
-/// roles replaced with their grants kept, disable and enable, and a password reset that says so without the hash.
+/// The user aggregate (US-01, US-02; BR-601; ADR 0030, ADR 0031): an address compared without regard to case, at least
+/// one role, roles replaced with their grants kept, disable and enable, a password reset that says so without the hash,
+/// and a sign-in recorded for an active user only.
 /// </summary>
 public sealed class UserTests
 {
@@ -102,6 +103,31 @@ public sealed class UserTests
         user.PasswordHash.ShouldBe("pbkdf2-sha256$600000$bmV3$bmV3");
         user.DomainEvents.ShouldHaveSingleItem().ShouldBe(new UserPasswordReset(user.Id));
         Should.Throw<ArgumentException>(() => user.ResetPassword(" "));
+    }
+
+    [Fact]
+    public void US02_a_sign_in_is_recorded_on_the_user_and_is_an_event_that_carries_nothing_secret()
+    {
+        var user = Created();
+        user.ClearDomainEvents();
+
+        user.RecordSignIn(Later);
+
+        user.LastSignInAtUtc.ShouldBe(Later);
+        user.DomainEvents.ShouldHaveSingleItem().ShouldBe(new UserSignedIn(user.Id, Later));
+    }
+
+    [Fact]
+    public void BR601_recording_a_sign_in_of_a_disabled_user_is_a_bug_in_the_caller()
+    {
+        var user = Created();
+        user.Disable();
+        user.ClearDomainEvents();
+
+        Should.Throw<InvalidOperationException>(() => user.RecordSignIn(Later)).Message.ShouldContain("BR-601");
+
+        user.LastSignInAtUtc.ShouldBeNull();
+        user.DomainEvents.ShouldBeEmpty();
     }
 
     [Fact]

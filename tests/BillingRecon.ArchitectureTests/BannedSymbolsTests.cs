@@ -27,6 +27,9 @@ public sealed class BannedSymbolsTests
 
         // and the read-only reconciliation of the ledger with its caches (ADR 0005; docs/database.md section 5.6).
         "src/BillingRecon.Infrastructure/Receivables/ReconciliationQuery.cs",
+
+        // The query filters switched off once, for the user a sign-in looks for: it has no tenant yet (ADR 0015, ADR 0031).
+        "src/BillingRecon.Infrastructure/Identity/LoginUserLookup.cs",
     ];
 
     private static readonly Assembly[] SearchedAssemblies =
@@ -181,6 +184,28 @@ public sealed class BannedSymbolsTests
 
         read.ShouldBeGreaterThan(0, "the locked read is gone");
         change.ShouldBeGreaterThan(read, "the change must follow the locked read");
+    }
+
+    [Fact]
+    public void The_sign_in_lookup_switches_the_query_filters_off_once_and_names_the_tenant_in_that_query()
+    {
+        var source = File.ReadAllText(RepositoryFiles.PathOf("src/BillingRecon.Infrastructure/Identity/LoginUserLookup.cs"));
+
+        // One suppression, around one query, whose predicate is the tenant the sign-in names (ADR 0031, point 6).
+        source.Split("#pragma warning disable RS0030").Length.ShouldBe(2);
+        source.Split(".IgnoreQueryFilters()").Length.ShouldBe(2);
+        var start = source.IndexOf("#pragma warning disable RS0030", StringComparison.Ordinal);
+        var end = source.IndexOf("#pragma warning restore RS0030", StringComparison.Ordinal);
+        end.ShouldBeGreaterThan(start);
+        var suppressed = source[start..end];
+        suppressed.ShouldContain(".IgnoreQueryFilters()");
+        suppressed.ShouldContain("candidate.TenantId == tenantId");
+        suppressed.ShouldContain(".AsNoTracking()");
+
+        foreach (var other in new[] { "SqlQuery", "ExecuteSql", "FromSql", "ExecuteUpdate", "ExecuteDelete", "Reload", "GetDatabaseValues" })
+        {
+            source.ShouldNotContain(other);
+        }
     }
 
     [Fact]

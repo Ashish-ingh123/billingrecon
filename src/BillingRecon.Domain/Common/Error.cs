@@ -61,6 +61,9 @@ public sealed record Error
     /// <summary>A business rule forbids the request (422).</summary>
     public static Error BusinessRule(string code, string message) => new(code, message, ErrorKind.BusinessRule);
 
+    /// <summary>The caller could not be authenticated (401).</summary>
+    public static Error Unauthorized(string code, string message) => new(code, message, ErrorKind.Unauthorized);
+
     /// <summary>Two errors are equal when code, message, kind and the content of the field errors are equal.</summary>
     public bool Equals(Error? other)
         => other is not null

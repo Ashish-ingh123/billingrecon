@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
-using System.Security.Claims;
 using BillingRecon.Api.Common;
+using BillingRecon.Api.Common.Authentication;
 using BillingRecon.Application.Common;
 using BillingRecon.Domain.Common;
 using Microsoft.AspNetCore.Http;
@@ -44,6 +44,7 @@ public sealed class ProbeController(ILogger<ProbeController> logger) : ApiContro
             "The amount is invalid.",
             new Dictionary<string, string[]> { ["amount"] = ["Must be greater than zero."] }),
         ErrorKind.NotFound => Error.NotFound("bill_not_found", "The bill does not exist."),
+        ErrorKind.Unauthorized => Error.Unauthorized("invalid_credentials", "The credentials are not right."),
         ErrorKind.Forbidden => Error.Forbidden("checker_is_maker", "The checker must be a different user from the maker."),
         ErrorKind.Conflict => Error.Conflict("concurrency_conflict", "The bill was changed by someone else."),
         ErrorKind.BusinessRule => Error.BusinessRule("bill_already_posted", "The bill is already posted."),
@@ -80,7 +81,7 @@ public sealed class ProbeController(ILogger<ProbeController> logger) : ApiContro
         => Ok(new IdentityResponse(
             tenantContext.TenantId?.Value,
             currentUser.UserId?.Value,
-            [.. User.FindAll(ClaimTypes.Role).Select(claim => claim.Value)]));
+            [.. User.FindAll(TokenClaims.RoleClaim).Select(claim => claim.Value)]));
 
     /// <summary>Logs <see cref="WaitingMessage"/> and then waits until the client gives up.</summary>
     [HttpGet("wait")]

@@ -14,4 +14,11 @@ public interface IPasswordHasher
     /// cannot read, such as the unusable one of the development user, matches no password.
     /// </summary>
     public bool Verify(string password, string hash);
+
+    /// <summary>
+    /// Does the work of one verification of <paramref name="password"/>, against a hash no password was made from, and
+    /// answers false. A refused sign-in for an address nobody has then takes as long as one with a wrong password, so the
+    /// time of the answer does not tell which addresses exist (ADR 0031).
+    /// </summary>
+    public bool VerifyWithoutHash(string password);
 }

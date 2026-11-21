@@ -20,4 +20,7 @@ public enum ErrorKind
 
     /// <summary>The request is well-formed but a business rule forbids it (422).</summary>
     BusinessRule,
+
+    /// <summary>The caller could not be authenticated, for example a refused sign-in (401; ADR 0031).</summary>
+    Unauthorized,
 }

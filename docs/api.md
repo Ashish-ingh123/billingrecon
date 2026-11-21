@@ -1,8 +1,8 @@
 # API
 
 The REST conventions of the BillingRecon API and its endpoints. Written with the first resources, patients and
-payers (Prompt 2.2, ADR 0018), and extended with the service catalogue (Prompt 2.3); authentication, the `Idempotency-Key` contract and the financial endpoints are added
-here with the slices that build them.
+payers (Prompt 2.2, ADR 0018), and extended with the service catalogue (Prompt 2.3); the `Idempotency-Key` contract,
+the financial endpoints, the users and sign-in (Prompts 5.1 and 5.2) were added here with the slices that built them.
 
 ---
 
@@ -20,10 +20,18 @@ here with the slices that build them.
 
 ## 2. Authentication and tenancy
 
-Phase 5 adds sign-in and JWT bearer tokens; the token carries the tenant, the user and the roles (BR-602), and the
-tenant comes from the token only, never from a body, a query string, a route or a header (BR-002). Until then the
-Development environment acts for one fixed tenant and user from `appsettings.Development.json`, and every other
-environment acts for nobody (ADR 0015, section 6). Role checks arrive with authentication.
+**Every request carries a bearer token** (`Authorization: Bearer <token>`) that the client got by signing in
+(section 8.12; ADR 0031). The token is a JWT the API issues and checks itself: signed with HS256, valid for 60 minutes,
+carrying the user (`sub`), the tenant (`tenant_id`) and the roles (`role`) (BR-602). **The tenant comes from the token
+only**, never from a body, a query string, a route or a header (BR-002). There is no refresh token: when the token
+expires, the client signs in again. A token stays valid until it expires, also for a user disabled after signing in.
+
+**Deny by default.** A request without a valid token gets 401 `unauthorized` and a bare `WWW-Authenticate: Bearer`
+(why a token was refused is not told), on every endpoint, also on a path that does not exist. The only exceptions are
+the sign-in, `/health/live`, `/health/ready` and, in Development, the OpenAPI document and the Scalar page; they read
+no token. In the **Development** environment a request without an `Authorization` header acts as the development
+user of `appsettings.Development.json` (a TenantAdmin), so the Scalar page works without signing in; a request with a
+token is checked as everywhere else. What each role may do is Prompt 5.3.
 
 **Another tenant's record answers 404**, with exactly the code and the message an id nobody has gets
 (`patient_not_found`, `payer_not_found`). The same holds for an id a request names in its body, such as the
@@ -43,6 +51,8 @@ with field errors lists the messages per field under `errors`, keyed by the JSON
 |---|---|---|
 | 400 | A field is missing or invalid, the body cannot be read, a query value is out of range | `validation_failed` |
 | 400 | A financial POST without a usable `Idempotency-Key` (section 7) | `idempotency_key_missing` |
+| 401 | No token, or one that is not valid: expired, not signed by this API, without a tenant or a user (section 2) | `unauthorized` |
+| 401 | A sign-in that is refused, whatever the reason (section 8.12) | `invalid_credentials` |
 | 404 | The record does not exist for the tenant (another tenant's included), also when a request only refers to it | `patient_not_found`, `payer_not_found`, `service_item_not_found`, `bill_not_found`, `payment_not_found`, `credit_note_not_found`, `adjustment_not_found`; `not_found` for an unknown route |
 | 409 | The record changed since it was read (BR-804) | `concurrency_conflict` |
 | 409 | The first request with this `Idempotency-Key` is still running (section 7) | `idempotency_in_progress` |
@@ -655,8 +665,8 @@ credit note shows `Refunded`, with its own number.
 The users of the tenant, each with an e-mail address unique in the tenant without regard to case, a display name, a
 password, a status and one or more roles. Users are reference data like patients and payers: the POSTs take **no**
 `Idempotency-Key` (a stored fingerprint of a body that holds a password is not allowed), and the unique address and
-`If-Match` protect them. No answer ever carries the password or its hash. Until Prompts 5.2 and 5.3 the endpoints
-check no role; then they are TenantAdmin only.
+`If-Match` protect them. No answer ever carries the password or its hash. They need a signed-in user (section 2);
+until Prompt 5.3 they check no role, then they are TenantAdmin only.
 
 | Method and path | Success | Failures |
 |---|---|---|
@@ -682,7 +692,8 @@ The body of a creation (unknown members are refused):
 `password` takes `password`, which an administrator sets; nothing forces a change at the next sign-in.
 
 A user: `id`, `email` (as entered, trimmed), `displayName`, `status` (`Active` or `Disabled`), `roles` (in the order
-above), `lastSignInAtUtc` (null until Prompt 5.2), `createdAtUtc`, `updatedAtUtc`, `version`.
+above), `lastSignInAtUtc` (null until the first sign-in), `createdAtUtc`, `updatedAtUtc`, `version`. A sign-in
+writes `lastSignInAtUtc`, so it changes the version: an administrator who read the user before reads it again.
 
 **Guards (ADR 0030).** The tenant always keeps an active TenantAdmin: the last one can neither lose the role nor be
 disabled (422 `user_last_tenant_admin`), and nobody disables themselves (422 `user_cannot_disable_self`). A user is
@@ -690,4 +701,27 @@ never deleted; a disabled user cannot sign in (BR-601) and everything that names
 that names a user is a foreign key to one.
 
 The audit trail is read with `GET /api/v1/audit-records?entityType=User&entityId=...`: `Created`, `Updated`,
-`RolesReplaced`, `Disabled`, `Enabled`, `PasswordReset`. The images hold every column but the password hash.
+`RolesReplaced`, `Disabled`, `Enabled`, `PasswordReset`, `SignedIn`. The images hold every column but the password
+hash.
+
+### 8.12 Sign-in (US-02; BR-601, BR-602; ADR 0031)
+
+The one endpoint that needs no token: it is how a client gets one. It takes no `Idempotency-Key` (its body holds a
+password, and the key store keeps a fingerprint of the body), and no answer of it may be cached
+(`Cache-Control: no-store`).
+
+| Method and path | Success | Failures |
+|---|---|---|
+| `POST /api/v1/auth/login` | 200, the token | 400; 401 `invalid_credentials` |
+
+The body (unknown members are refused): `tenant`, the code of the hospital; `email`; `password`. The code and the
+address are compared without regard to case or the spaces around them. The answer: `accessToken`, `tokenType`
+(`Bearer`), `expiresAtUtc`, `expiresInSeconds` (3600).
+
+**Every refusal is the same 401 `invalid_credentials`**, with the same message: an unknown or suspended hospital, an
+unknown address, a wrong password, a disabled user (BR-601). So the answer never tells which hospitals or addresses
+exist, and an unknown address costs as much time as a wrong password. Why a sign-in was refused is written to the log
+(a warning with the hospital's code and, when the address was found, the user's id); the address and the password
+never are. A missing or over-long value is a 400 `validation_failed` like any other. A sign-in is recorded on the user
+(`lastSignInAtUtc`) and in the audit trail (`SignedIn`, by the user). Repeated attempts are not limited yet (ADR 0031,
+point 12).

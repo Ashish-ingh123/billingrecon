@@ -28,11 +28,12 @@ public sealed class RequestIdentityTests
     }
 
     [Fact]
-    public void The_user_id_falls_back_to_the_name_identifier_claim()
+    public void The_long_name_identifier_claim_is_not_read_as_the_user()
     {
+        // The bearer scheme keeps the claims' own names (ADR 0031): a "sub" never arrives renamed, so nothing else is read.
         var principal = Authenticated(new Claim(RequestIdentity.TenantIdClaim, Tenant), new Claim(ClaimTypes.NameIdentifier, User));
 
-        RequestIdentity.Read(principal).ShouldBe((Tenant, User));
+        RequestIdentity.Read(principal).ShouldBe((Tenant, null));
     }
 
     [Theory]

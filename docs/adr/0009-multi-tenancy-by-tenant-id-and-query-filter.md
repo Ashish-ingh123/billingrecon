@@ -26,7 +26,10 @@ tenant-scoped entity**.
   builds an `ITenantContext` (`TenantId`) and `ICurrentUser` for the request scope, and rejects any
   request whose token lacks the claim. The tenant is **never** read from the route, query string,
   body or a custom header; an architecture test asserts that no controller binds a `TenantId`
-  parameter.
+  parameter. *(Built by ADR 0031, 2026-11-21: the bearer scheme refuses a token without a `tenant_id`
+  and a `sub` that are ids, and `RequestPrincipalIdentity` is the `ITenantContext` and `ICurrentUser`
+  of the request; the one other source of a request's tenant is a sign-in, after it has verified the
+  password.)*
 - **Schema.** Every tenant-scoped table has `TenantId uniqueidentifier NOT NULL` with an FK to
   `Tenants`, and `TenantId` is the leading column of every non-clustered and unique index
   (`docs/database.md` §1). Unfiltered table: `Roles` (global reference data). `Tenants` is the tenant

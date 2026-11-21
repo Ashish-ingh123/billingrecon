@@ -31,16 +31,18 @@ public sealed class IdempotencyConventionTests
     ];
 
     /// <summary>
-    /// Controllers whose POSTs are not financial: reference data, protected by its unique indexes and by If-Match
-    /// (docs/api.md, section 7). The users are among them for a second reason too: a stored fingerprint of a body that
-    /// holds a password would be a fast hash of the password (ADR 0030).
+    /// Controllers whose POSTs are not financial (ADR 0030 point 7, ADR 0031 point 11): reference data, protected by its
+    /// unique indexes and by If-Match (docs/api.md, section 7), and the sign-in, which changes nothing a retry could
+    /// repeat. The users and the sign-in are here for a second reason too: their bodies hold passwords, and a stored
+    /// fingerprint of such a body would be a fast hash of the password.
     /// </summary>
-    private static readonly Type[] ReferenceDataControllers =
+    private static readonly Type[] NonFinancialControllers =
     [
         typeof(PatientsController),
         typeof(PayersController),
         typeof(ServiceItemsController),
         typeof(UsersController),
+        typeof(AuthController),
     ];
 
     private static readonly Type[] ControllersWithPosts =
@@ -51,10 +53,10 @@ public sealed class IdempotencyConventionTests
     ];
 
     [Fact]
-    public void Every_controller_with_a_post_is_declared_financial_or_reference_data()
+    public void Every_controller_with_a_post_is_declared_financial_or_not()
     {
-        ControllersWithPosts.ShouldBe([.. FinancialControllers, .. ReferenceDataControllers], ignoreOrder: true);
-        FinancialControllers.Intersect(ReferenceDataControllers).ShouldBeEmpty();
+        ControllersWithPosts.ShouldBe([.. FinancialControllers, .. NonFinancialControllers], ignoreOrder: true);
+        FinancialControllers.Intersect(NonFinancialControllers).ShouldBeEmpty();
     }
 
     [Fact]
@@ -71,9 +73,9 @@ public sealed class IdempotencyConventionTests
     }
 
     [Fact]
-    public void No_post_of_a_reference_data_controller_asks_for_a_key_it_does_not_need()
+    public void No_post_of_a_non_financial_controller_asks_for_a_key_it_does_not_need()
     {
-        ReferenceDataControllers
+        NonFinancialControllers
             .SelectMany(PostActions)
             .Where(action => action.GetCustomAttribute<IdempotentAttribute>() is not null)
             .ShouldBeEmpty();

@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using BillingRecon.Api.Common.Authentication;
 using BillingRecon.IntegrationTests.Support;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -12,8 +14,9 @@ namespace BillingRecon.IntegrationTests;
 /// <summary>
 /// Hosts the API in-process. It runs as Production, the pipeline that ships, unless a derived factory says otherwise.
 /// On top of the API's own services it adds the test-only <see cref="ProbeController"/>, a sink that captures the log
-/// events (<see cref="Logs"/>), a stand-in for authentication (<see cref="TestPrincipalStartupFilter"/>) and the raw
-/// request target a real server would provide (<see cref="RawTargetStartupFilter"/>).
+/// events (<see cref="Logs"/>) and the raw request target a real server would provide (<see cref="RawTargetStartupFilter"/>).
+/// Requests are authenticated as they are in production, by tokens: <see cref="TestClientExtensions"/> makes clients
+/// that send one, minted by the host's own issuer (ADR 0031, point 10).
 /// </summary>
 public class ApiFactory : WebApplicationFactory<Program>
 {
@@ -23,7 +26,21 @@ public class ApiFactory : WebApplicationFactory<Program>
     /// </summary>
     public const string UnreachableSqlServer = "Server=127.0.0.1,1;Integrated Security=true;Encrypt=False;Connect Timeout=1";
 
+    /// <summary>The setting of the signing key.</summary>
+    public const string SigningKeySetting = "Jwt:SigningKey";
+
     private readonly TaskCompletionSource _listening = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    // Outside Development the host needs a key of its own, as a deployment does; every factory makes a new one. It is
+    // long enough for HS512 as well, so a test can sign with the right key and the wrong algorithm.
+    private readonly string _signingKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(2 * JwtOptions.MinimumKeyBytes));
+
+    /// <summary>
+    /// The key the host signs and checks tokens with: outside Development a random one of this factory, laid under
+    /// <see cref="Settings"/> (which may replace it); in Development the key of <c>appsettings.Development.json</c>,
+    /// as it ships.
+    /// </summary>
+    public string SigningKey => EnvironmentName == Environments.Development ? JwtOptions.DevelopmentSigningKey : _signingKey;
 
     /// <summary>Every log event the API wrote, as the sinks received it.</summary>
     public InMemoryLogSink Logs { get; } = new();
@@ -49,7 +66,15 @@ public class ApiFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(EnvironmentName);
-        builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(Settings));
+        builder.ConfigureAppConfiguration((_, configuration) =>
+        {
+            if (EnvironmentName != Environments.Development)
+            {
+                configuration.AddInMemoryCollection([new KeyValuePair<string, string?>(SigningKeySetting, _signingKey)]);
+            }
+
+            configuration.AddInMemoryCollection(Settings);
+        });
         builder.ConfigureTestServices(ConfigureTestServices);
     }
 
@@ -86,7 +111,6 @@ public class ApiFactory : WebApplicationFactory<Program>
         services.AddControllers().AddApplicationPart(typeof(ProbeController).Assembly);
         services.AddSingleton<ILogEventSink>(Logs);
         services.AddSingleton(IdempotencyProbe);
-        services.AddTransient<IStartupFilter, TestPrincipalStartupFilter>();
         services.AddTransient<IStartupFilter, RawTargetStartupFilter>();
     }
 

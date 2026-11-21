@@ -36,7 +36,7 @@ public sealed class HealthEndpointsTests(ApiFactory factory) : IClassFixture<Api
     [Fact]
     public async Task The_old_health_path_is_gone()
     {
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClientFor(FixedIdentity.Random());
 
         using var response = await client.GetAsync(new Uri("/health", UriKind.Relative));
 

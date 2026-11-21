@@ -22,13 +22,16 @@ public sealed class Pbkdf2PasswordHasher : IPasswordHasher
 
     /// <summary>
     /// A hash no password matches: the development user has it until a password is set (ADR 0030). Not in the format,
-    /// so <see cref="Verify"/> refuses it before any work.
+    /// so <see cref="Verify"/> refuses it, after the same work as for a real hash.
     /// </summary>
     public const string Unusable = "!";
 
     private const int SaltBytes = 16;
     private const int HashBytes = 32;
     private const char Separator = '$';
+
+    // The salt of the verification that has no hash to compare with: any value does, since nothing is compared.
+    private static readonly byte[] NoSalt = new byte[SaltBytes];
 
     /// <inheritdoc />
     public string Hash(string password)
@@ -56,10 +59,22 @@ public sealed class Pbkdf2PasswordHasher : IPasswordHasher
             || !TryFromBase64(parts[3], out var expected)
             || expected.Length != HashBytes)
         {
-            return false;
+            // A text that is no hash costs as much as one that is: the time does not tell them apart (ADR 0031).
+            return VerifyWithoutHash(password);
         }
 
         return CryptographicOperations.FixedTimeEquals(Derive(password, salt, iterations), expected);
+    }
+
+    /// <inheritdoc />
+    public bool VerifyWithoutHash(string password)
+    {
+        ArgumentNullException.ThrowIfNull(password);
+
+        // The work of a verification with today's iterations; the answer is false whatever it gives.
+        _ = Derive(password, NoSalt, Iterations);
+
+        return false;
     }
 
     private static byte[] Derive(string password, byte[] salt, int iterations)

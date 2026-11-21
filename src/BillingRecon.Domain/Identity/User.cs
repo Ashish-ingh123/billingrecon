@@ -203,6 +203,22 @@ public sealed class User : AggregateRoot<UserId>, ITenantScoped, ICreationAudite
         AddDomainEvent(new UserPasswordReset(Id));
     }
 
+    /// <summary>
+    /// The user signed in at <paramref name="signedInAtUtc"/> (US-02; ADR 0031): the time is kept, and the audit trail
+    /// says so. Only an active user signs in; the use case refuses a disabled one before it comes here.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The user is disabled: a bug in the caller.</exception>
+    public void RecordSignIn(DateTimeOffset signedInAtUtc)
+    {
+        if (Status != UserStatus.Active)
+        {
+            throw new InvalidOperationException("A disabled user does not sign in (BR-601).");
+        }
+
+        LastSignInAtUtc = signedInAtUtc;
+        AddDomainEvent(new UserSignedIn(Id, signedInAtUtc));
+    }
+
     // The roles once each, in the order of the enum; at least one, each defined.
     private static Role[] Distinct(IReadOnlyCollection<Role> roles)
     {

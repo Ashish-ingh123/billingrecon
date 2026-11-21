@@ -68,6 +68,11 @@ sets those headers on a client. It stands in for what Phase 5 resolves from the 
 goes away with it. Outside a request, or for an anonymous one, it throws: nothing acts for a tenant
 by accident, as in production.
 
+*Superseded on 2026-11-21 by ADR 0031, point 10:* the stand-in is gone with the headers. The API
+keeps its own identity, read from the token, and `CreateClientFor` gives a client a delegating
+handler that puts on every request a bearer token minted for it by the API's own issuer, with the
+factory's clock; so every test request goes through the whole validation of tokens.
+
 ### Test data
 
 `TestData` holds one Bogus generator with a fixed seed (Indian locale), behind a lock because test

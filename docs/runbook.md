@@ -31,7 +31,8 @@ malformed value stops it with a message that names the setting.
 | `Seq:ServerUrl` | `appsettings.Development.json` (`http://localhost:5341`); empty elsewhere | Empty turns the Seq sink off. The JSON console log is always on. |
 | `Seq:ApiKey` | user-secrets, or the `Seq__ApiKey` environment variable | Optional. A secret. Not needed for the local container. |
 | `Database:ApplyMigrationsOnStartup` | `appsettings.Development.json` (`true`); off elsewhere | Applies pending migrations when the API starts. Allowed in Development only: in any other environment the API refuses to start with it on. |
-| `DevelopmentIdentity:TenantId`, `DevelopmentIdentity:UserId` | `appsettings.Development.json` | The fixed tenant and user every request acts for in Development, until authentication exists (Phase 5). Not secrets. Outside Development there is no identity at all, and code that asks for one fails. |
+| `Jwt:SigningKey` | `appsettings.Development.json` (a key for Development only); user-secrets, or the `Jwt__SigningKey` environment variable, elsewhere | Required. The key that signs and checks the tokens (ADR 0031): base64 of at least 32 random bytes. A secret outside Development: never in a file in git. The API refuses to start without one, with a short one, or, outside Development, with the key of `appsettings.Development.json`. Section 9 says how to make one and what changing it does. |
+| `DevelopmentIdentity:TenantId`, `DevelopmentIdentity:UserId` | `appsettings.Development.json` | The development tenant and user: in Development a request without a token acts as this user (a TenantAdmin), and the API adds their rows when it migrates (ADR 0031). Not secrets. Outside Development they are not read: a request without a valid token gets 401. |
 | `Serilog` section | `appsettings.json` | Log levels. The whole section is read, so configuration can also add sinks or enrichers; it cannot remove the console sink, the Seq sink or the PII mask, which are set in code, and anything it adds still receives masked events (ADR 0012). |
 
 ### Health endpoints
@@ -340,14 +341,14 @@ Run it against the compose SQL Server. From a container, the host is `host.docke
 Desktop; the password is the one in `.env`:
 
 ```bash
-docker run --rm -p 8080:8080 -e "Database__ConnectionString=Server=host.docker.internal,1433;Database=BillingRecon;User Id=sa;Password=<your-sa-password>;TrustServerCertificate=True" billingrecon-api
+docker run --rm -p 8080:8080 -e "Database__ConnectionString=Server=host.docker.internal,1433;Database=BillingRecon;User Id=sa;Password=<your-sa-password>;TrustServerCertificate=True" -e "Jwt__SigningKey=<a key of your own, section 9>" billingrecon-api
 ```
 
 Then `http://localhost:8080/health/live` answers 200, and `/health/ready` answers 200 once the
 database has every migration. The container runs as Production and never migrates: apply the script
 of section 3, or let a Development run of the API do it first. Without `Database__ConnectionString`
-the container stops at startup with the message that names the setting. The health check is visible
-with `docker inspect --format "{{json .State.Health}}" <container>`.
+or `Jwt__SigningKey` the container stops at startup with the message that names the setting. The
+health check is visible with `docker inspect --format "{{json .State.Health}}" <container>`.
 
 The image tags follow the major version (`sdk:10.0`, `aspnet:10.0`), and `global.json` must accept the
 SDK the build image carries. If a build fails on the SDK version, pass the exact tag:
@@ -397,6 +398,43 @@ WHERE  TenantId = @tenant AND [Key] = @key AND Status = 'InProgress';
 
 After that the client's retry with the same key runs as a first request. Never delete a `Completed` row to "let a
 request run again": its work is already done, and the retry would do it a second time.
+
+---
+
+## 9. Sign-in and the signing key
+
+The API issues its own tokens at `POST /api/v1/auth/login` and checks them on every request (ADR 0031;
+`docs/api.md` sections 2 and 8.12). Everything about them hangs on one secret, `Jwt:SigningKey`.
+
+**Making a key.** 32 random bytes or more, in base64. In PowerShell 7 or bash:
+
+```powershell
+[Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+```
+
+```bash
+openssl rand -base64 32
+```
+
+Keep it where the connection string is kept (user-secrets on a developer's machine, the secret store of the
+deployment elsewhere) and set it as `Jwt__SigningKey`. The key of `appsettings.Development.json` is in the
+repository, so the API refuses it outside Development.
+
+**Changing the key** signs everybody out: every token issued with the old key is refused (401) from the moment the
+API starts with the new one, and each client signs in again. That is also what to do when the key may have leaked.
+There is no list of tokens to revoke; a token lives 60 minutes at most.
+
+**Signing in locally.** In Development nothing needs a token: a request without one acts as the development user, so
+the Scalar page works as it is. To try the real sign-in there, give a user a password first (a TenantAdmin creates
+one with `POST /api/v1/users`, or resets one with `POST /api/v1/users/{id}/password`), then sign in with the code of
+its tenant (the development tenant's is `development`), its address and that password, and send the token as
+`Authorization: Bearer <token>`.
+
+**A refused sign-in** answers 401 `invalid_credentials` whatever went wrong. The reason is in the log: a warning
+"A sign-in to tenant {TenantCode} was refused: {Refusal}", with the user's id when the address was found. The
+reasons are `UnknownTenant`, `TenantSuspended`, `UnknownUser`, `WrongPassword` and `UserDisabled`. The address and
+the password are never logged. Repeated failures are not limited yet (ADR 0031, point 12): watch for many warnings
+for one tenant or one user.
 
 ---
 

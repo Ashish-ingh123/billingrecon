@@ -6,7 +6,7 @@ namespace BillingRecon.IntegrationTests.Database;
 
 /// <summary>
 /// The client helper of the database-backed API tests: a client created for a tenant, user and roles acts for them in
-/// every request, as the Application ports see it, and an anonymous request acts for nobody.
+/// every request, as the Application ports see it, through the token it sends; an anonymous request is refused.
 /// </summary>
 [Collection(DatabaseCollectionDefinition.Name)]
 public sealed class ClientIdentityTests(SqlServerFixture sqlServer) : DatabaseTest(sqlServer)
@@ -30,13 +30,13 @@ public sealed class ClientIdentityTests(SqlServerFixture sqlServer) : DatabaseTe
     }
 
     [Fact]
-    public async Task An_anonymous_request_acts_for_nobody_and_fails_when_it_asks()
+    public async Task An_anonymous_request_is_refused_before_it_can_ask()
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(Identity);
 
-        await response.ShouldBeProblemAsync(HttpStatusCode.InternalServerError, "internal_error");
+        await response.ShouldBeProblemAsync(HttpStatusCode.Unauthorized, "unauthorized");
     }
 }

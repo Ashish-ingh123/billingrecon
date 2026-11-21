@@ -5,9 +5,10 @@ using Microsoft.Extensions.Options;
 namespace BillingRecon.Infrastructure.Identity;
 
 /// <summary>
-/// A stand-in for authentication: every request acts for one fixed tenant as one fixed user, both taken from
-/// configuration. It is registered in the Development environment only and goes away when the tenant and user come
-/// from the validated token (Phase 5, BR-602).
+/// The development tenant and user, from configuration (ADR 0015, ADR 0031 point 9). It is never the identity of a
+/// request: there the Api's development scheme gives a request without a token a principal for the same two ids. It
+/// is the identity of the context <see cref="DevelopmentTenantSeeder"/> writes their rows with, since no request runs
+/// then. Development only.
 /// </summary>
 public sealed class DevelopmentIdentity(IOptions<DevelopmentIdentityOptions> options) : ITenantContext, ICurrentUser
 {

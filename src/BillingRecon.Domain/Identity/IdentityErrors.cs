@@ -30,6 +30,16 @@ public static class IdentityErrors
     /// <summary>Code of <see cref="UserCannotDisableSelf"/>.</summary>
     public const string UserCannotDisableSelfCode = "user_cannot_disable_self";
 
+    /// <summary>Code of <see cref="InvalidCredentials"/>.</summary>
+    public const string InvalidCredentialsCode = "invalid_credentials";
+
+    /// <summary>
+    /// A sign-in that is refused, whatever the reason: an unknown or suspended tenant, an unknown address, a wrong
+    /// password, a disabled user (BR-601; ADR 0031). One answer for all, so that nobody learns which accounts exist.
+    /// </summary>
+    public static Error InvalidCredentials()
+        => Error.Unauthorized(InvalidCredentialsCode, "The hospital code, the e-mail address or the password is not right, or the user may not sign in.");
+
     /// <summary>The code or the name of a tenant is not valid; <paramref name="fieldErrors"/> says which, per field.</summary>
     public static Error TenantInvalid(IReadOnlyDictionary<string, string[]> fieldErrors)
         => Error.Validation(TenantInvalidCode, "The tenant is not valid.", fieldErrors);

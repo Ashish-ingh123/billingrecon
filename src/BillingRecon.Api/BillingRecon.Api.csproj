@@ -13,6 +13,8 @@
     <!-- Built-in OpenAPI document (AddOpenApi/MapOpenApi) and the Scalar UI that renders it. Both are mapped in Development only. -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Scalar.AspNetCore" />
+    <!-- Bearer tokens: the API issues and validates its own JWTs (ADR 0031). -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
   </ItemGroup>
 
 </Project>

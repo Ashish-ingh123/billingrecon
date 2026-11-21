@@ -16,6 +16,7 @@ public static class ErrorProblemDetailsMapper
         ErrorKind.Forbidden => StatusCodes.Status403Forbidden,
         ErrorKind.Conflict => StatusCodes.Status409Conflict,
         ErrorKind.BusinessRule => StatusCodes.Status422UnprocessableEntity,
+        ErrorKind.Unauthorized => StatusCodes.Status401Unauthorized,
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown error kind."),
     };
 

@@ -21,7 +21,7 @@ public sealed class LoggingTests(ApiFactory factory) : IClassFixture<ApiFactory>
     public async Task The_events_of_a_request_carry_its_correlation_id()
     {
         var correlationId = Guid.NewGuid();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClientFor(FixedIdentity.Random());
 
         using var response = await SendAsync(client, "/api/v1/probe/log", correlationId);
 
@@ -35,7 +35,7 @@ public sealed class LoggingTests(ApiFactory factory) : IClassFixture<ApiFactory>
     public async Task An_unhandled_exception_is_logged_exactly_once_with_the_correlation_id()
     {
         var correlationId = Guid.NewGuid();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClientFor(FixedIdentity.Random());
 
         using var response = await SendAsync(client, "/api/v1/probe/throw", correlationId);
 
@@ -61,17 +61,15 @@ public sealed class LoggingTests(ApiFactory factory) : IClassFixture<ApiFactory>
     public async Task Tenant_and_user_are_on_every_event_of_an_authenticated_request(string path)
     {
         var correlationId = Guid.NewGuid();
-        var tenantId = Guid.NewGuid().ToString();
-        var userId = Guid.NewGuid().ToString();
-        using var client = factory.CreateClient();
+        var identity = FixedIdentity.Random();
+        using var client = factory.CreateClientFor(identity);
         using var request = NewRequest(path, correlationId);
-        request.Headers.Add(TestPrincipalStartupFilter.TenantHeader, tenantId);
-        request.Headers.Add(TestPrincipalStartupFilter.UserHeader, userId);
 
         using var response = await client.SendAsync(request);
 
         var events = factory.Logs.ForCorrelationId(correlationId);
         events.Count.ShouldBeGreaterThanOrEqualTo(2);
+        var (tenantId, userId) = (identity.TenantId.ToString(), identity.UserId.ToString());
         events.ShouldAllBe(logEvent => Equals(logEvent.Scalar("TenantId"), tenantId) && Equals(logEvent.Scalar("UserId"), userId));
     }
 
@@ -83,6 +81,8 @@ public sealed class LoggingTests(ApiFactory factory) : IClassFixture<ApiFactory>
 
         using var response = await SendAsync(client, "/api/v1/probe/log", correlationId);
 
+        // Refused, since every endpoint needs a user (ADR 0031); its request is logged all the same.
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         var events = factory.Logs.ForCorrelationId(correlationId);
         events.ShouldNotBeEmpty();
         events.ShouldAllBe(logEvent => !logEvent.Properties.ContainsKey("TenantId") && !logEvent.Properties.ContainsKey("UserId"));
@@ -92,7 +92,7 @@ public sealed class LoggingTests(ApiFactory factory) : IClassFixture<ApiFactory>
     public async Task Phone_numbers_and_email_addresses_are_masked_before_they_reach_a_sink()
     {
         var correlationId = Guid.NewGuid();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClientFor(FixedIdentity.Random());
 
         using var response = await SendAsync(client, "/api/v1/probe/log", correlationId);
 
@@ -120,7 +120,7 @@ public sealed class LoggingTests(ApiFactory factory) : IClassFixture<ApiFactory>
     public async Task The_request_log_leaves_out_the_query_string()
     {
         var correlationId = Guid.NewGuid();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClientFor(FixedIdentity.Random());
 
         using var response = await SendAsync(client, "/api/v1/probe/validate?quantity=3&contact=priya.sharma%40example.com", correlationId);
 
@@ -150,7 +150,7 @@ public sealed class LoggingTests(ApiFactory factory) : IClassFixture<ApiFactory>
     public async Task A_request_abandoned_by_the_client_is_answered_499_and_is_not_logged_as_an_error()
     {
         var correlationId = Guid.NewGuid();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClientFor(FixedIdentity.Random());
         using var clientGivesUp = new CancellationTokenSource();
         using var request = NewRequest("/api/v1/probe/wait", correlationId);
 
