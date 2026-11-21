@@ -54,6 +54,11 @@ Linux images have it; a slimmed-down container image may not (see section 2, ste
 - `docker compose down -v` also deletes **both** volumes: the development database and the Seq history.
 - `MSSQL_SA_PASSWORD` and the Seq first-run settings are applied only when a volume is first created.
   Changing them later needs the volume to be removed.
+- **Before migration `0018_Users` reaches a development database that already holds data, drop that database**
+  (`DROP DATABASE [BillingRecon]` in the container's SQL Server, or `docker compose down -v`). `0018` makes every
+  column that names a user a foreign key to `Users`, and existing rows name users that have no row; there is no data
+  step for that (ADR 0030, point 2). At its next start the API creates the database again, with the development tenant
+  and the development user.
 
 ---
 
@@ -406,8 +411,8 @@ in order; nothing is removed until the owner has run it and sent the output.
 **B and E done on 2026-11-21, in the repository: migrations `0003` to `0015` are committed ("Migrations 0003 to 0015,
 scaffolded with EF Core 10"), each scaffolded on its own with EF Core 10.0.12 as B describes, and EF Core reports no
 pending model change. Do not run B again.** A, C and D are still owed on a machine with Docker. Since then
-`0016_CreditApplicationReversals` (Prompt 4.5b) and `0017_Refunds` (Prompt 4.6) were added the ordinary way,
-described in the paragraph after the table below; they are in the repository too.
+`0016_CreditApplicationReversals` (Prompt 4.5b), `0017_Refunds` (Prompt 4.6) and `0018_Users` (Prompt 5.1) were
+added the ordinary way, described in the paragraph after the table below; they are in the repository too.
 
 **Partly run on 2026-11-21, on the office machine, which got the .NET 10 SDK (10.0.404) that day; it still has no
 Docker.** In a throwaway copy of the tip of the branch with Prompt 4.4, with no version substitution: A and B ran
@@ -485,6 +490,7 @@ same way `PaymentWithAllocationsConfiguration.cs` comes back **after** `0011_Pay
 | `0015_PaymentReversals` | 4.5 | No table. On `Payments` and on `PaymentAllocations`: four columns each (`ReversedAtUtc`, `ReversedByUserId`, `ReversalReason`, `ReversalPostingId`), one CHECK constraint (`CK_..._ReversedIffReversed`) and one foreign key (`FK_..._ReversalPostingId`). `0011` and `0012` must hold none of these columns |
 | `0016_CreditApplicationReversals` | 4.5b | Added the ordinary way, not by B. No table. On `CreditNoteAllocations`: five columns (`AppliedAtPosting`, `ReversedAtUtc`, `ReversedByUserId`, `ReversalReason`, `ReversalPostingId`), `CK_CreditNoteAllocations_Status` dropped and created again with three states, two new CHECK constraints (`_ReversedIffReversed`, `_AtPostingStaysActive`) and one foreign key (`FK_CreditNoteAllocations_ReversalPostingId`). `0013` must hold none of these columns |
 | `0017_Refunds` | 4.6 | Added the ordinary way, not by B. `Refunds`, with five foreign keys (`TenantId`, `PayerId`, `SourcePaymentId`, `SourceCreditNoteId`, `PostingId`), nine CHECK constraints and five indexes. Nothing on `Payments` or `CreditNotes` |
+| `0018_Users` | 5.1 | Added the ordinary way, not by B. `Roles` with its five rows, `Users` and `UserRoles`; then 34 foreign keys `FK_<Table>_<Column>` from every earlier column that names a user to `Users`. No column of an earlier table changes. Applied to a development database with data, it fails: drop that database first (section 1) |
 
 **`0008_Receivables` is finished by hand** (ADR 0021): a scaffold writes schema, and this migration also has to
 open the balances of every payer that already exists. Open `Common/Migrations/*_0008_Receivables.cs` (not the
@@ -529,6 +535,7 @@ dotnet test --filter "FullyQualifiedName~AdjustmentsApiTests"
 dotnet test --filter "FullyQualifiedName~PaymentReversalsApiTests"
 dotnet test --filter "FullyQualifiedName~CreditApplicationReversalsApiTests"
 dotnet test --filter "FullyQualifiedName~RefundsApiTests|FullyQualifiedName~EndToEndScenarioTests"
+dotnet test --filter "FullyQualifiedName~UsersApiTests"
 ```
 
 **E. Send back**

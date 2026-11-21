@@ -16,7 +16,9 @@ namespace BillingRecon.Infrastructure.Common.Persistence;
 /// <para>
 /// Left out: the row version, which the database assigns after the save, and the tenant, which the audit record
 /// carries in a column of its own. A child leaves out the key of its parent as well. Children are in the order of
-/// their ids, the same in both images; that is not their order on the document, which their own columns give.
+/// their ids, the same in both images; that is not their order on the document, which their own columns give. A
+/// column whose configuration carries <see cref="NotAuditedAnnotation"/> is left out too: the password hash of a user
+/// (ADR 0030), which an audit trail must never be able to hand out.
 /// </para>
 /// <para>
 /// The image holds what the row holds, patient data included. It goes to the audit table, in the same database and
@@ -25,6 +27,9 @@ namespace BillingRecon.Infrastructure.Common.Persistence;
 /// </summary>
 public static class EntitySnapshot
 {
+    /// <summary>The annotation of a property that no audit image holds; its value is <see langword="true"/>.</summary>
+    public const string NotAuditedAnnotation = "BillingRecon:NotAudited";
+
     // Readable in the database: a name in Devanagari stays itself instead of becoming \u escapes. The text is stored
     // and returned as JSON, never written into HTML.
     private static readonly JsonSerializerOptions Options = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
@@ -91,7 +96,8 @@ public static class EntitySnapshot
         foreach (var property in entry.Metadata.GetProperties())
         {
             var isRowVersion = property.IsConcurrencyToken && property.ClrType == typeof(byte[]);
-            if (isRowVersion || property.Name == nameof(ITenantScoped.TenantId) || without.Contains(property))
+            var isNotAudited = property.FindAnnotation(NotAuditedAnnotation)?.Value is true;
+            if (isRowVersion || isNotAudited || property.Name == nameof(ITenantScoped.TenantId) || without.Contains(property))
             {
                 continue;
             }

@@ -41,18 +41,41 @@ public abstract class DatabaseTest(SqlServerFixture sqlServer) : IAsyncLifetime
     protected async Task<FixedIdentity> NewApiTenantAsync()
     {
         var identity = FixedIdentity.Random();
-        await AddTenantRowsAsync(ApiContext(SystemIdentity.Instance), [identity]);
+        await AddApiTenantRowsAsync(identity);
 
         return identity;
     }
 
-    /// <summary>The rows of the tenants of <paramref name="identities"/> in the probe database, which their probe rows refer to.</summary>
-    protected Task AddProbeTenantRowsAsync(params FixedIdentity[] identities)
-        => AddTenantRowsAsync(ProbeContext(SystemIdentity.Instance), identities);
+    /// <summary>
+    /// The rows of the tenants of <paramref name="identities"/> in the probe database, which their probe rows refer to, and
+    /// the row of each identity's user, which every column that names a user refers to (ADR 0030).
+    /// </summary>
+    protected async Task AddProbeTenantRowsAsync(params FixedIdentity[] identities)
+    {
+        await AddTenantRowsAsync(ProbeContext(SystemIdentity.Instance), identities);
 
-    /// <summary>The rows of the tenants of <paramref name="identities"/> in the application database.</summary>
-    protected Task AddApiTenantRowsAsync(params FixedIdentity[] identities)
-        => AddTenantRowsAsync(ApiContext(SystemIdentity.Instance), identities);
+        foreach (var identity in identities)
+        {
+            await TestUsers.EnsureAsync(ProbeContext(identity), identity, []);
+        }
+    }
+
+    /// <summary>The rows of the tenants of <paramref name="identities"/> in the application database, and of their users.</summary>
+    protected async Task AddApiTenantRowsAsync(params FixedIdentity[] identities)
+    {
+        await AddTenantRowsAsync(ApiContext(SystemIdentity.Instance), identities);
+
+        foreach (var identity in identities)
+        {
+            await TestUsers.EnsureAsync(ApiContext(identity), identity, []);
+        }
+    }
+
+    /// <summary>The row of the user of <paramref name="identity"/>, whose tenant row exists, in the application database.</summary>
+    protected Task AddApiUserRowAsync(FixedIdentity identity, params string[] roles) => TestUsers.EnsureAsync(ApiContext(identity), identity, roles);
+
+    /// <summary>The row of the user of <paramref name="identity"/>, whose tenant row exists, in the probe database.</summary>
+    protected Task AddProbeUserRowAsync(FixedIdentity identity) => TestUsers.EnsureAsync(ProbeContext(identity), identity, []);
 
     // Onboarding is system work: a context without a tenant may add any tenant row (ADR 0015).
     private static async Task AddTenantRowsAsync(BillingReconDbContext system, FixedIdentity[] identities)

@@ -123,7 +123,8 @@ public sealed class SqlServerFixture : IAsyncLifetime, IAsyncDisposable
         return await Respawner.CreateAsync(connection, new RespawnerOptions
         {
             DbAdapter = DbAdapter.SqlServer,
-            TablesToIgnore = [new Table("__EFMigrationsHistory")],
+            // The roles are reference data the migration (or the creation of the probe database) wrote once (docs/database.md section 8).
+            TablesToIgnore = [new Table("__EFMigrationsHistory"), new Table("Roles")],
         });
     }
 

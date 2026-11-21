@@ -47,7 +47,7 @@ public sealed class IdempotencyKeysOnSqlServerTests(SqlServerFixture sqlServer) 
         (await NamesAsync("SELECT [name] AS [Value] FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.IdempotencyKeys')"))
             .ShouldBe(["CK_IdempotencyKeys_Status", "CK_IdempotencyKeys_Completed"], ignoreOrder: true);
         (await NamesAsync("SELECT [name] + ':' + CAST(delete_referential_action AS varchar(1)) AS [Value] FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID(N'dbo.IdempotencyKeys')"))
-            .ShouldBe(["FK_IdempotencyKeys_TenantId:0"]);
+            .ShouldBe(["FK_IdempotencyKeys_TenantId:0", "FK_IdempotencyKeys_UserId:0"], ignoreOrder: true);
     }
 
     [Fact]

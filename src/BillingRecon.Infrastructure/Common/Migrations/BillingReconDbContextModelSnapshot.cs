@@ -1069,6 +1069,53 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BillingRecon.Domain.Identity.RoleDefinition", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Code");
+
+                    b.ToTable("Roles", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Roles_Code", "[Code] IN ('TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier', 'Viewer')");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Code = "TenantAdmin",
+                            Name = "Tenant administrator"
+                        },
+                        new
+                        {
+                            Code = "Supervisor",
+                            Name = "Supervisor"
+                        },
+                        new
+                        {
+                            Code = "BillingClerk",
+                            Name = "Billing clerk"
+                        },
+                        new
+                        {
+                            Code = "Cashier",
+                            Name = "Cashier"
+                        },
+                        new
+                        {
+                            Code = "Viewer",
+                            Name = "Viewer"
+                        });
+                });
+
             modelBuilder.Entity("BillingRecon.Domain.Identity.Tenant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1164,6 +1211,112 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                             t.HasCheckConstraint("CK_Tenants_RefundPrefix", "LEN([RefundPrefix]) BETWEEN 1 AND 3 AND [RefundPrefix] NOT LIKE '%[^A-Z0-9]%' COLLATE Latin1_General_BIN2");
 
                             t.HasCheckConstraint("CK_Tenants_Status", "[Status] IN ('Active', 'Suspended')");
+                        });
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Identity.User", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTimeOffset?>("LastSignInAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("NormalizedEmail")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(500)")
+                        .HasAnnotation("BillingRecon:NotAudited", true);
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "NormalizedEmail")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Users_TenantId_NormalizedEmail");
+
+                    b.ToTable("Users", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Users_Status", "[Status] IN ('Active', 'Disabled')");
+                        });
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Identity.UserRole", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Role")
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)")
+                        .HasColumnName("RoleCode");
+
+                    b.Property<DateTimeOffset>("GrantedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("GrantedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("UserId", "Role");
+
+                    b.HasIndex("TenantId", "Role")
+                        .HasDatabaseName("IX_UserRoles_TenantId_RoleCode");
+
+                    b.ToTable("UserRoles", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_UserRoles_RoleCode", "[RoleCode] IN ('TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier', 'Viewer')");
                         });
                 });
 
@@ -1894,12 +2047,24 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_Adjustments_BillId");
 
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Adjustments_CreatedByUserId");
+
                     b.HasOne("BillingRecon.Domain.Payers.Payer", null)
                         .WithMany()
                         .HasForeignKey("PayerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_Adjustments_PayerId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("PostedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Adjustments_PostedByUserId");
 
                     b.HasOne("BillingRecon.Domain.Receivables.LedgerPosting", null)
                         .WithMany()
@@ -1913,6 +2078,18 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_Adjustments_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Adjustments_UpdatedByUserId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("VoidedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Adjustments_VoidedByUserId");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Audit.AuditRecord", b =>
@@ -1923,10 +2100,22 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_AuditRecords_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_AuditRecords_UserId");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Billing.Bill", b =>
                 {
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Bills_CreatedByUserId");
+
                     b.HasOne("BillingRecon.Domain.Payers.Patient", null)
                         .WithMany()
                         .HasForeignKey("PatientId")
@@ -1941,12 +2130,30 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_Bills_PayerId");
 
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("PostedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Bills_PostedByUserId");
+
                     b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
                         .WithMany()
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_Bills_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Bills_UpdatedByUserId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("VoidedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Bills_VoidedByUserId");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Billing.BillLine", b =>
@@ -1981,6 +2188,12 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_CreditNotes_BillId");
 
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_CreditNotes_CreatedByUserId");
+
                     b.HasOne("BillingRecon.Domain.Payers.Patient", null)
                         .WithMany()
                         .HasForeignKey("PatientId")
@@ -1995,16 +2208,40 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_CreditNotes_PayerId");
 
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("PostedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_CreditNotes_PostedByUserId");
+
                     b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
                         .WithMany()
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_CreditNotes_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_CreditNotes_UpdatedByUserId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("VoidedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_CreditNotes_VoidedByUserId");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Billing.CreditNoteAllocation", b =>
                 {
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("AllocatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_CreditNoteAllocations_AllocatedByUserId");
+
                     b.HasOne("BillingRecon.Domain.Billing.Bill", null)
                         .WithMany()
                         .HasForeignKey("BillId")
@@ -2031,6 +2268,12 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasForeignKey("ReversalPostingId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("FK_CreditNoteAllocations_ReversalPostingId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("ReversedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_CreditNoteAllocations_ReversedByUserId");
 
                     b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
                         .WithMany()
@@ -2065,16 +2308,41 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
             modelBuilder.Entity("BillingRecon.Domain.Billing.ServiceItem", b =>
                 {
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_ServiceItems_CreatedByUserId");
+
                     b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
                         .WithMany()
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_ServiceItems_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_ServiceItems_UpdatedByUserId");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Common.ApprovalRequest", b =>
                 {
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CheckerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_ApprovalRequests_CheckerUserId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("MakerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_ApprovalRequests_MakerUserId");
+
                     b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
                         .WithMany()
                         .HasForeignKey("TenantId")
@@ -2091,6 +2359,12 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_IdempotencyKeys_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_IdempotencyKeys_UserId");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Common.NumberSeries", b =>
@@ -2103,18 +2377,88 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasConstraintName("FK_NumberSeries_TenantId");
                 });
 
+            modelBuilder.Entity("BillingRecon.Domain.Identity.User", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Users_CreatedByUserId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Users_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Users_UpdatedByUserId");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Identity.UserRole", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("GrantedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_UserRoles_GrantedByUserId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.RoleDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("Role")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_UserRoles_RoleCode");
+
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_UserRoles_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany("Roles")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.ClientCascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_UserRoles_UserId");
+                });
+
             modelBuilder.Entity("BillingRecon.Domain.Payers.Patient", b =>
                 {
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Patients_CreatedByUserId");
+
                     b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
                         .WithMany()
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_Patients_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Patients_UpdatedByUserId");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Payers.Payer", b =>
                 {
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Payers_CreatedByUserId");
+
                     b.HasOne("BillingRecon.Domain.Payers.Patient", null)
                         .WithMany()
                         .HasForeignKey("PatientId")
@@ -2127,10 +2471,22 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_Payers_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Payers_UpdatedByUserId");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Payments.Payment", b =>
                 {
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Payments_CreatedByUserId");
+
                     b.HasOne("BillingRecon.Domain.Payers.Payer", null)
                         .WithMany()
                         .HasForeignKey("PayerId")
@@ -2151,16 +2507,34 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("FK_Payments_ReversalPostingId");
 
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("ReversedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Payments_ReversedByUserId");
+
                     b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
                         .WithMany()
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_Payments_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Payments_UpdatedByUserId");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Payments.PaymentAllocation", b =>
                 {
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("AllocatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_PaymentAllocations_AllocatedByUserId");
+
                     b.HasOne("BillingRecon.Domain.Billing.Bill", null)
                         .WithMany()
                         .HasForeignKey("BillId")
@@ -2188,6 +2562,12 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("FK_PaymentAllocations_ReversalPostingId");
 
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("ReversedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_PaymentAllocations_ReversedByUserId");
+
                     b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
                         .WithMany()
                         .HasForeignKey("TenantId")
@@ -2198,12 +2578,24 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
             modelBuilder.Entity("BillingRecon.Domain.Payments.Refund", b =>
                 {
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Refunds_CreatedByUserId");
+
                     b.HasOne("BillingRecon.Domain.Payers.Payer", null)
                         .WithMany()
                         .HasForeignKey("PayerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_Refunds_PayerId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("PostedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Refunds_PostedByUserId");
 
                     b.HasOne("BillingRecon.Domain.Receivables.LedgerPosting", null)
                         .WithMany()
@@ -2229,6 +2621,18 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_Refunds_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Refunds_UpdatedByUserId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("VoidedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Refunds_VoidedByUserId");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Receivables.LedgerEntry", b =>
@@ -2262,6 +2666,12 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_LedgerPostings_PayerId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("PostedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_LedgerPostings_PostedByUserId");
 
                     b.HasOne("BillingRecon.Domain.Receivables.LedgerPosting", null)
                         .WithMany()
@@ -2304,6 +2714,11 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                     b.Navigation("Allocations");
 
                     b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Identity.User", b =>
+                {
+                    b.Navigation("Roles");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Payments.Payment", b =>

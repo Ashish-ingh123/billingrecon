@@ -115,6 +115,11 @@ public static class InfrastructureServiceCollectionExtensions
         // The settings of the current tenant, for the use cases of every module (BR-205, BR-607).
         services.AddScoped<ITenantSettingsReader, TenantSettingsReader>();
 
+        // The users of the tenant and the hashing of their passwords (BR-601, ADR 0030).
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IUserReadService, UserReadService>();
+        services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
+
         // Builds the model at startup (an invalid model stops the application) and, in Development, applies migrations.
         services.AddHostedService<DatabaseStartup>();
     }

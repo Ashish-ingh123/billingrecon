@@ -60,7 +60,7 @@ public sealed class ReceivablesOnSqlServerTests(SqlServerFixture sqlServer) : Da
         (await NamesAsync("SELECT [name] + ':' + CAST(delete_referential_action AS varchar(1)) AS [Value] FROM sys.foreign_keys WHERE parent_object_id IN (OBJECT_ID(N'dbo.LedgerPostings'), OBJECT_ID(N'dbo.LedgerEntries'), OBJECT_ID(N'dbo.PayerBalances'))"))
             .ShouldBe(
                 [
-                    "FK_LedgerPostings_TenantId:0", "FK_LedgerPostings_PayerId:0", "FK_LedgerPostings_ReversalOfPostingId:0",
+                    "FK_LedgerPostings_TenantId:0", "FK_LedgerPostings_PayerId:0", "FK_LedgerPostings_ReversalOfPostingId:0", "FK_LedgerPostings_PostedByUserId:0",
                     "FK_LedgerEntries_TenantId:0", "FK_LedgerEntries_PostingId:0", "FK_LedgerEntries_PayerId:0",
                     "FK_PayerBalances_TenantId:0", "FK_PayerBalances_PayerId:0",
                 ],

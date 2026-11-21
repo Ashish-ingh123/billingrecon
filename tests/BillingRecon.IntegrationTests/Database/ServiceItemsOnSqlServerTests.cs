@@ -42,7 +42,7 @@ public sealed class ServiceItemsOnSqlServerTests(SqlServerFixture sqlServer) : D
     {
         // delete_referential_action 0 is NO ACTION.
         (await NamesAsync("SELECT [name] + ':' + CAST(delete_referential_action AS varchar(1)) AS [Value] FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID(N'dbo.ServiceItems')"))
-            .ShouldBe(["FK_ServiceItems_TenantId:0"]);
+            .ShouldBe(["FK_ServiceItems_TenantId:0", "FK_ServiceItems_CreatedByUserId:0", "FK_ServiceItems_UpdatedByUserId:0"], ignoreOrder: true);
     }
 
     [Fact]

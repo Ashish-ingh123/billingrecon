@@ -25,10 +25,11 @@ is left; their numbering is mine, not the blueprint's.
 | 4.5 Reversals | Written on 2026-11-21 with the owner's decisions (ADR 0027; CLAUDE.md section 9, item 24). Built and tested on .NET 10 in a throwaway copy, with the database tests on LocalDB 2019; not run on SQL Server 2022; migration `0015_PaymentReversals` in the repository since 2026-11-21. It also corrects what a late decision answers in every approve and reject use case since 3.6 (409, not 500) |
 | 4.5b Reverse an application of credit | Written on 2026-11-21 with the owner's decisions (ADR 0028; CLAUDE.md section 9, item 25). Built and tested on .NET 10: build, format gate and the tests without a database in the repository, the database tests in a throwaway copy on LocalDB 2019; not run on SQL Server 2022; migration `0016_CreditApplicationReversals` in the repository, added the ordinary way on top of `0003` to `0015`, which were committed on their own first |
 | 4.6 Refunds | Written on 2026-11-21 with the owner's decisions (ADR 0029; CLAUDE.md section 9, item 26). Built and tested on .NET 10 like 4.5b: build, format gate and the tests without a database in the repository, the database tests in a throwaway copy on LocalDB 2019; not run on SQL Server 2022; migration `0017_Refunds` in the repository. With it the end-to-end scenario test of the prompt |
-| Everything else in R1 | Not started: users and JWT, reports, frontend, delivery |
+| 5.1 Users and roles | Written on 2026-11-21 with the owner's decisions (ADR 0030; CLAUDE.md section 9, item 27). Built and tested on .NET 10 like 4.6: build, format gate and the tests without a database in the repository, the database tests in a throwaway copy on LocalDB 2019; not run on SQL Server 2022; migration `0018_Users` in the repository. A development database with data must be dropped before `0018` |
+| Everything else in R1 | Not started: sign-in and JWT, role permissions, reports, frontend, delivery |
 | 6.3 Dashboard figures and 7.6 Dashboard (added 2026-11-21, with theming in 7.1) | Not started. 6.3 runs after 6.2, 7.6 after 7.5; the layout reference `docs/ui/dashboard.png` is still to be added; the drift card's trend (none, or a snapshot table and a new migration) is the owner's open decision, asked in 6.3 |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. Next prompt: 5.1 (users and roles). What was decided for each built prompt is recorded under it below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. Next prompt: 5.2 (sign-in and JWT). What was decided for each built prompt is recorded under it below.**
 
 ## How to use these prompts
 
@@ -485,6 +486,16 @@ Users and Roles tables, the development user row, and the foreign keys from Crea
 UpdatedByUserId that were waiting for it. Audited. Migration 0018_Users.
 Done when: US-01 passes.
 ```
+
+**Owner's decisions for 5.1, recorded 2026-11-21 (the plan was approved "as recommended"; ADR 0030):** every column
+that names a user becomes a foreign key to `Users`, not only the creation and update stamps; the development database
+is disposable and is dropped before `0018` (no data step); passwords are PBKDF2-HMAC-SHA-256 with 600,000 iterations,
+a 16-byte salt and a 32-byte hash, 12 to 128 characters without rules of composition, and an administrator's reset
+sets a given password with no forced change; a user holds at least one role, the tenant's last active administrator
+keeps the role and cannot be disabled, and nobody disables themselves; no role check before 5.2 and 5.3; the
+development user is a TenantAdmin with a password nothing matches. Settled while building, for the owner to confirm:
+the user POSTs take no Idempotency-Key, because the stored fingerprint of a body with a password would be a fast hash
+of the password (ADR 0030 point 7).
 
 #### 5.2 Sign-in and JWT
 

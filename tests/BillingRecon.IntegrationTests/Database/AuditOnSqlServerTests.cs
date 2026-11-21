@@ -53,7 +53,7 @@ public sealed class AuditOnSqlServerTests(SqlServerFixture sqlServer) : Database
             ],
             ignoreOrder: true);
         (await NamesAsync("SELECT [name] + ':' + CAST(delete_referential_action AS varchar(1)) AS [Value] FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID(N'dbo.AuditRecords')"))
-            .ShouldBe(["FK_AuditRecords_TenantId:0"]);
+            .ShouldBe(["FK_AuditRecords_TenantId:0", "FK_AuditRecords_UserId:0"], ignoreOrder: true);
         (await NamesAsync("SELECT c.[name] AS [Value] FROM sys.identity_columns AS c WHERE c.object_id = OBJECT_ID(N'dbo.AuditRecords')"))
             .ShouldBe(["Id"]);
     }

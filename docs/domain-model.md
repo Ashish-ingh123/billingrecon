@@ -403,6 +403,17 @@ the Identity slice.
 `User`: `Email` (unique per tenant), `DisplayName`, `PasswordHash`, `Status`, `Roles`. JWT issuance
 is an Infrastructure concern; the Domain only knows roles (BR-601, BR-602).
 
+*`User` built 2026-11-21 (Prompt 5.1, ADR 0030).* `User.Create(email, displayName, passwordHash, roles, createdAtUtc,
+grantedBy)` makes an active user with the address trimmed and its upper-cased `NormalizedEmail`, and each role once
+as a `UserRole` child (`Role`, `GrantedAtUtc`, `GrantedByUserId`). `Update(email, displayName)`, `ReplaceRoles(roles,
+grantedAtUtc, grantedBy)` (a kept role keeps its grant, a new one is granted now, one left out is deleted), `Disable`,
+`Enable` and `ResetPassword(passwordHash)` change it. The hash is opaque text to the aggregate; hashing and checking
+are the Infrastructure's `IPasswordHasher`. That an address is free and that the user is not the tenant's last active
+administrator are the use cases' questions, since they are about other users. `Role` is an enum of the five roles;
+`RoleDefinition` is a row of the global `Roles` table. The events: `UserCreated`, `UserUpdated`, `UserRolesReplaced`,
+`UserDisabled`, `UserEnabled` and `UserPasswordReset`, none of which carries a password or a hash. Changing tenant
+settings and suspending a tenant are still to come (Prompt 5.3).
+
 ### 4.13 AuditRecord (Audit module)
 
 Append-only: `OccurredAtUtc`, `UserId?`, `CorrelationId`, `EntityType`, `EntityId`, `DocumentNumber?`,

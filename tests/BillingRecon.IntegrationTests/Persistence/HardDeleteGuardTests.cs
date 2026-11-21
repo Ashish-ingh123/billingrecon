@@ -73,8 +73,9 @@ public sealed class HardDeleteGuardTests
         var deletable = context.Model.GetEntityTypes().Select(entityType => entityType.ClrType).Where(type => typeof(IHardDeletable).IsAssignableFrom(type));
 
         // A line of a draft bill (ADR 0019) and, since Prompt 4.3, a line of a draft credit note (ADR 0025), and the record of an idempotency key, which is a record of requests and
-        // not of money: a reservation that came to nothing is removed, and old keys are swept (ADR 0006).
-        deletable.ShouldBe([typeof(BillLine), typeof(CreditNoteLine), typeof(IdempotencyKey)], ignoreOrder: true);
+        // not of money: a reservation that came to nothing is removed, and old keys are swept (ADR 0006). Since Prompt 5.1, a role a
+        // user no longer holds (ADR 0030): the user's audit trail keeps every change.
+        deletable.ShouldBe([typeof(BillLine), typeof(CreditNoteLine), typeof(IdempotencyKey), typeof(UserRole)], ignoreOrder: true);
     }
 
     [Fact]

@@ -206,7 +206,9 @@ src/
                                 events (Billing). Since Prompt 4.6 (ADR 0029): the Refund aggregate with
                                 RefundSource, RefundSourceKind, RefundStatus and six events, Payment.PayRefund
                                 with PaymentRefunded (Payments); CreditNote.PayRefund with CreditNoteRefunded
-                                (Billing); RefundId (Common).
+                                (Billing); RefundId (Common). Since Prompt 5.1 (ADR 0030): the User aggregate with
+                                UserRole, Role, UserStatus, RoleDefinition (a row of the global Roles table) and
+                                six events (Identity).
   BillingRecon.Application/     Use cases (command/query handlers as plain classes), FluentValidation validators,
                                 port interfaces (IClock, IUnitOfWork, repositories, INumberSeries,
                                 IIdempotencyStore, ITenantContext, ICurrentUser), DTOs and explicit mappers.
@@ -253,7 +255,9 @@ src/
                                 IRefundReadService, and the refund check of the payment reversal request
                                 (Payments); ICreditNoteSettlement, what Billing answers when a credit note pays a
                                 refund (Billing); PostingTemplate.RefundFromPaymentPosted and
-                                RefundFromCreditNotePosted (Receivables). ADR 0029.
+                                RefundFromCreditNotePosted (Receivables). ADR 0029. The user use cases (create,
+                                update, replace roles, disable, enable, reset password, get, list) with
+                                IUserRepository, IUserReadService and IPasswordHasher (Identity). ADR 0030.
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -632,7 +636,10 @@ answers 409, not 500, and waits for the owner's confirmation),
 posting, and one decision at a time per application (Accepted on the owner's approval of the Prompt 4.5b plan,
 2026-11-21; it closes the open question of ADR 0025 point 5),
 0029 refunds: one source, the cap and the payer asked twice, and the payment with a posted refund that is never
-reversed (Accepted on the owner's approval of the Prompt 4.6 plan, 2026-11-21; it adds a sentence to BR-307).
+reversed (Accepted on the owner's approval of the Prompt 4.6 plan, 2026-11-21; it adds a sentence to BR-307),
+0030 users and roles, their passwords, and a key for every column that names a user (Accepted on the owner's approval
+of the Prompt 5.1 plan, 2026-11-21; it settles ADR 0021 point 1; its point 7, no Idempotency-Key on the user POSTs,
+waits for the owner's confirmation).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1375,4 +1382,33 @@ Kept here so they survive between sessions. Remove an item when it is done.
       concurrency tests ran five more times without a failure. `0017` was scaffolded in such a copy (the "came from
       another computer" mark still blocks `dotnet ef` in the repository) and copied back; no pending model change.
     - **Still to do:** SQL Server 2022 in Docker. The merge of the branch to `main` is the owner's step.
-    - Next: Prompt 5.1 (users and roles), the first of Phase 5.
+    - Next: Prompt 5.1 (users and roles), the first of Phase 5, which is item 27.
+27. **Prompt 5.1 (users and roles, ADR 0030), written 2026-11-21, built and tested on .NET 10.** On `phase-2-billing`
+    like the rest. The plan was shown first and approved "as recommended".
+    - Built: the `User` aggregate (Identity) with `UserRole` children and the global `Roles` table; PBKDF2 hashing
+      behind `IPasswordHasher` (`Pbkdf2PasswordHasher`); eight endpoints in `UsersController` (`POST`, `GET`, list,
+      `PATCH`, `PUT .../roles`, `disable`, `enable`, `password`); the development user, seeded with the development
+      tenant; the audit snapshot leaves out a column annotated `BillingRecon:NotAudited` (the password hash); migration
+      **`0018_Users`**; and their tests (Domain 8, Application 9, Integration 22 new).
+    - Decided by the owner with the plan (ADR 0030): every column that names a user is a foreign key to `Users` (39 in
+      all, 34 of them added to earlier tables); the development database is dropped before `0018` (runbook section 1;
+      no data step); PBKDF2-HMAC-SHA-256 with 600,000 iterations, passwords of 12 to 128 characters, an admin reset
+      with no forced change; at least one role, the last active TenantAdmin protected, no self-disable; no role check
+      before 5.2 and 5.3; the development user has a password nothing matches.
+    - **For the owner to confirm (ADR 0030 point 7):** the user POSTs take no Idempotency-Key. Users are reference data
+      like patients and payers, and the idempotency store keeps a SHA-256 fingerprint of the request body, which for a
+      creation or a reset holds the password: a fast hash of the password must not be stored.
+    - **Test support changed:** every database test identity is now a real user. `NewApiTenantAsync`,
+      `AddApiTenantRowsAsync`, `AddProbeTenantRowsAsync` and the new `DatabaseApiFactory.CreateClientFor` write the
+      identity's user row (`TestUsers`); Respawn leaves `Roles` alone. Two tests add the row of a second user they act as.
+    - **Changed expectations in existing tests, each called out, none weakened:** `TypedIdForeignKeyTests` expected no
+      key on the user columns ("until Prompt 5.1") and now expects the key to `Users`; the lists of keys of seven
+      SQL Server tests, the lists of `TenantQueryFilterTests`, `HardDeleteGuardTests`, `RelationalConventionTests` and
+      `IdempotencyConventionTests`, and `MigrationsOnSqlServerTests` (18) name the new tables, keys and controller.
+    - **Verified on .NET 10 (SDK 10.0.404):** in the repository, the strict build and
+      `dotnet format --verify-no-changes` are clean, and Domain 604, Application 350, Architecture 113 and the 595
+      integration tests without a database pass; in a throwaway copy on LocalDB 2019 the integration project passes in
+      full (1039 tests), and `UsersApiTests` with the 20 `BR804` tests ran three more times without a failure. `0018`
+      was scaffolded in such a copy and copied back; no pending model change.
+    - **Still to do:** SQL Server 2022 in Docker; drop any development database with data before `0018`.
+    - Next: Prompt 5.2 (sign-in and JWT).

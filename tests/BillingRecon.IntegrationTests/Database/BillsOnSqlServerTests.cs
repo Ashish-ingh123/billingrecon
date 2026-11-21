@@ -89,6 +89,7 @@ public sealed class BillsOnSqlServerTests(SqlServerFixture sqlServer) : Database
             .ShouldBe(
                 [
                     "FK_Bills_TenantId:0", "FK_Bills_PatientId:0", "FK_Bills_PayerId:0",
+                    "FK_Bills_CreatedByUserId:0", "FK_Bills_UpdatedByUserId:0", "FK_Bills_PostedByUserId:0", "FK_Bills_VoidedByUserId:0",
                     "FK_BillLines_TenantId:0", "FK_BillLines_BillId:0", "FK_BillLines_ServiceItemId:0",
                 ],
                 ignoreOrder: true);
@@ -133,6 +134,7 @@ public sealed class BillsOnSqlServerTests(SqlServerFixture sqlServer) : Database
     {
         var clerk = await NewApiTenantAsync();
         var supervisor = new FixedIdentity(clerk.TenantId, new UserId(Guid.NewGuid()));
+        await AddApiUserRowAsync(supervisor);
         var billId = await SaveBillAsync(clerk, Line("Dressing", 2m, 60m, 0m, 5m));
         byte[] before;
         await using (var reader = ApiContext(clerk))

@@ -649,3 +649,45 @@ allocated and the credit note applied. A posted refund lowers the payment's `una
 The audit trail is read with `GET /api/v1/audit-records?entityType=Refund&entityId=...`: `Drafted`, `Updated`,
 `SubmittedForApproval`, `ReturnedToDraft`, `Posted` (with the number and the reason), `Voided`. The payment or the
 credit note shows `Refunded`, with its own number.
+
+### 8.11 Users (US-01; BR-601; ADR 0030)
+
+The users of the tenant, each with an e-mail address unique in the tenant without regard to case, a display name, a
+password, a status and one or more roles. Users are reference data like patients and payers: the POSTs take **no**
+`Idempotency-Key` (a stored fingerprint of a body that holds a password is not allowed), and the unique address and
+`If-Match` protect them. No answer ever carries the password or its hash. Until Prompts 5.2 and 5.3 the endpoints
+check no role; then they are TenantAdmin only.
+
+| Method and path | Success | Failures |
+|---|---|---|
+| `POST /api/v1/users` | 201, the user, `Location`, `ETag` | 400; 409 `user_email_taken` |
+| `GET /api/v1/users/{id}` | 200, the user, `ETag` | 404 `user_not_found` |
+| `GET /api/v1/users?status=&role=&email=&page=&pageSize=` | 200, a page of users by address | 400 |
+| `PATCH /api/v1/users/{id}` (needs `If-Match`) | 200 | 400; 404; 409 `concurrency_conflict`, `user_email_taken`; 428 |
+| `PUT /api/v1/users/{id}/roles` (needs `If-Match`) | 200 | 400; 404; 409 `concurrency_conflict`; 422 `user_last_tenant_admin`; 428 |
+| `POST /api/v1/users/{id}/disable` (needs `If-Match`; no body) | 200, the user `Disabled` | 404; 409 `concurrency_conflict`; 422 `user_cannot_disable_self`, `user_last_tenant_admin`, `user_already_disabled`; 428 |
+| `POST /api/v1/users/{id}/enable` (needs `If-Match`; no body) | 200, the user `Active` | 404; 409 `concurrency_conflict`; 422 `user_already_active`; 428 |
+| `POST /api/v1/users/{id}/password` (needs `If-Match`) | 200, the user | 400; 404; 409 `concurrency_conflict`; 428 |
+
+The body of a creation (unknown members are refused):
+
+| Field | Required | Rule |
+|---|---|---|
+| `email` | yes | One `@`, a domain with a dot, no white space; at most 256 characters; unique in the tenant without regard to case |
+| `displayName` | yes | At most 200 characters |
+| `password` | yes | 12 to 128 characters, any characters (no rules of composition) |
+| `roles` | yes | At least one of `TenantAdmin`, `Supervisor`, `BillingClerk`, `Cashier`, `Viewer` |
+
+`PATCH` takes `email` and `displayName`, both required. `PUT .../roles` takes `roles`, every role the user is to hold.
+`password` takes `password`, which an administrator sets; nothing forces a change at the next sign-in.
+
+A user: `id`, `email` (as entered, trimmed), `displayName`, `status` (`Active` or `Disabled`), `roles` (in the order
+above), `lastSignInAtUtc` (null until Prompt 5.2), `createdAtUtc`, `updatedAtUtc`, `version`.
+
+**Guards (ADR 0030).** The tenant always keeps an active TenantAdmin: the last one can neither lose the role nor be
+disabled (422 `user_last_tenant_admin`), and nobody disables themselves (422 `user_cannot_disable_self`). A user is
+never deleted; a disabled user cannot sign in (BR-601) and everything that names it keeps its meaning. Every column
+that names a user is a foreign key to one.
+
+The audit trail is read with `GET /api/v1/audit-records?entityType=User&entityId=...`: `Created`, `Updated`,
+`RolesReplaced`, `Disabled`, `Enabled`, `PasswordReset`. The images hold every column but the password hash.

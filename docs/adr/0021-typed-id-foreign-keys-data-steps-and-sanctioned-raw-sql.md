@@ -39,7 +39,8 @@ entries and payer balances all name a payer. Three rules stood in its way.
      existed before this ADR is unchanged (a test lists them);
    - an id whose table does not exist yet. The user columns (`CreatedByUserId`, `PostedByUserId`, `UserId` of an
      audit record and of an idempotency key) get their keys the day `Users` enters the model (Prompt 5.1), without
-     a line of configuration; that prompt decides whether it wants all of them.
+     a line of configuration; that prompt decides whether it wants all of them. *Decided on 2026-11-21:* all of them
+     (ADR 0030; migration `0018_Users`).
    When the id is the whole primary key (`PayerBalances.PayerId`), the key is one-to-one.
    A column that can point at several tables (`LedgerEntries.SubjectId`, `AuditRecords.EntityId`) is a plain `Guid`
    and gets no key.

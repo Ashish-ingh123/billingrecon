@@ -3,6 +3,7 @@ using BillingRecon.Api.Adjustments;
 using BillingRecon.Api.Billing;
 using BillingRecon.Api.Common;
 using BillingRecon.Api.Common.Idempotency;
+using BillingRecon.Api.Identity;
 using BillingRecon.Api.Payers;
 using BillingRecon.Api.Payments;
 using Microsoft.AspNetCore.Mvc;
@@ -31,13 +32,15 @@ public sealed class IdempotencyConventionTests
 
     /// <summary>
     /// Controllers whose POSTs are not financial: reference data, protected by its unique indexes and by If-Match
-    /// (docs/api.md, section 7).
+    /// (docs/api.md, section 7). The users are among them for a second reason too: a stored fingerprint of a body that
+    /// holds a password would be a fast hash of the password (ADR 0030).
     /// </summary>
     private static readonly Type[] ReferenceDataControllers =
     [
         typeof(PatientsController),
         typeof(PayersController),
         typeof(ServiceItemsController),
+        typeof(UsersController),
     ];
 
     private static readonly Type[] ControllersWithPosts =

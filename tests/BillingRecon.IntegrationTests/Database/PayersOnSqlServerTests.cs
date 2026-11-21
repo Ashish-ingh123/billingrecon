@@ -48,7 +48,7 @@ public sealed class PayersOnSqlServerTests(SqlServerFixture sqlServer) : Databas
     {
         // delete_referential_action 0 is NO ACTION.
         (await NamesAsync("SELECT [name] + ':' + CAST(delete_referential_action AS varchar(1)) AS [Value] FROM sys.foreign_keys WHERE parent_object_id IN (OBJECT_ID(N'dbo.Patients'), OBJECT_ID(N'dbo.Payers'))"))
-            .ShouldBe(["FK_Patients_TenantId:0", "FK_Payers_TenantId:0", "FK_Payers_PatientId:0"], ignoreOrder: true);
+            .ShouldBe(["FK_Patients_TenantId:0", "FK_Payers_TenantId:0", "FK_Payers_PatientId:0", "FK_Patients_CreatedByUserId:0", "FK_Patients_UpdatedByUserId:0", "FK_Payers_CreatedByUserId:0", "FK_Payers_UpdatedByUserId:0"], ignoreOrder: true);
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 using BillingRecon.Domain.Audit;
 using BillingRecon.Domain.Billing;
 using BillingRecon.Domain.Common;
+using BillingRecon.Domain.Identity;
 using BillingRecon.Domain.Payers;
 using BillingRecon.Domain.Receivables;
 using BillingRecon.IntegrationTests.Support;
@@ -72,17 +73,22 @@ public sealed class TypedIdForeignKeyTests
     }
 
     [Theory]
-    [InlineData(typeof(Patient), "CreatedByUserId")]
-    [InlineData(typeof(Bill), "VoidedByUserId")]
-    [InlineData(typeof(AuditRecord), "UserId")]
-    [InlineData(typeof(IdempotencyKey), "UserId")]
-    [InlineData(typeof(LedgerPosting), "PostedByUserId")]
-    public void An_id_whose_table_does_not_exist_yet_gets_no_key(Type entity, string column)
+    [InlineData(typeof(Patient), "CreatedByUserId", "FK_Patients_CreatedByUserId")]
+    [InlineData(typeof(Bill), "VoidedByUserId", "FK_Bills_VoidedByUserId")]
+    [InlineData(typeof(AuditRecord), "UserId", "FK_AuditRecords_UserId")]
+    [InlineData(typeof(IdempotencyKey), "UserId", "FK_IdempotencyKeys_UserId")]
+    [InlineData(typeof(LedgerPosting), "PostedByUserId", "FK_LedgerPostings_PostedByUserId")]
+    [InlineData(typeof(User), "CreatedByUserId", "FK_Users_CreatedByUserId")]
+    public void A_user_column_is_a_key_to_the_users_since_they_exist(Type entity, string column, string name)
     {
-        // The users arrive with the Identity slice (Prompt 5.1); every user column gets its key then, by this convention.
+        // Until Prompt 5.1 these had no key: the table of users did not exist (ADR 0021). It decided they all get one (ADR 0030).
         using var context = TestContexts.CreateProduction(FixedIdentity.Random());
 
-        ForeignKeyOn(context, entity, column).ShouldBeNull();
+        var foreignKey = ForeignKeyOn(context, entity, column).ShouldNotBeNull($"{entity.Name}.{column} has no foreign key");
+
+        foreignKey.PrincipalEntityType.ClrType.ShouldBe(typeof(User));
+        foreignKey.GetConstraintName().ShouldBe(name);
+        foreignKey.IsRequired.ShouldBeFalse("a row that no user wrote names nobody");
     }
 
     [Fact]
@@ -124,6 +130,23 @@ public sealed class TypedIdForeignKeyTests
                 "FK_Payments_ReversalPostingId", "FK_PaymentAllocations_ReversalPostingId",
                 "FK_CreditNoteAllocations_ReversalPostingId",
                 "FK_Refunds_PayerId", "FK_Refunds_SourcePaymentId", "FK_Refunds_SourceCreditNoteId", "FK_Refunds_PostingId",
+
+                // Since Prompt 5.1 (ADR 0030): every column that names a user, and the roles of a user.
+                "FK_Patients_CreatedByUserId", "FK_Patients_UpdatedByUserId",
+                "FK_Payers_CreatedByUserId", "FK_Payers_UpdatedByUserId",
+                "FK_ServiceItems_CreatedByUserId", "FK_ServiceItems_UpdatedByUserId",
+                "FK_Bills_CreatedByUserId", "FK_Bills_UpdatedByUserId", "FK_Bills_PostedByUserId", "FK_Bills_VoidedByUserId",
+                "FK_CreditNotes_CreatedByUserId", "FK_CreditNotes_UpdatedByUserId", "FK_CreditNotes_PostedByUserId", "FK_CreditNotes_VoidedByUserId",
+                "FK_CreditNoteAllocations_AllocatedByUserId", "FK_CreditNoteAllocations_ReversedByUserId",
+                "FK_Adjustments_CreatedByUserId", "FK_Adjustments_UpdatedByUserId", "FK_Adjustments_PostedByUserId", "FK_Adjustments_VoidedByUserId",
+                "FK_Payments_CreatedByUserId", "FK_Payments_UpdatedByUserId", "FK_Payments_ReversedByUserId",
+                "FK_PaymentAllocations_AllocatedByUserId", "FK_PaymentAllocations_ReversedByUserId",
+                "FK_Refunds_CreatedByUserId", "FK_Refunds_UpdatedByUserId", "FK_Refunds_PostedByUserId", "FK_Refunds_VoidedByUserId",
+                "FK_LedgerPostings_PostedByUserId",
+                "FK_ApprovalRequests_MakerUserId", "FK_ApprovalRequests_CheckerUserId",
+                "FK_AuditRecords_UserId", "FK_IdempotencyKeys_UserId",
+                "FK_Users_CreatedByUserId", "FK_Users_UpdatedByUserId",
+                "FK_UserRoles_UserId", "FK_UserRoles_GrantedByUserId", "FK_UserRoles_RoleCode",
             ],
             ignoreOrder: true);
     }

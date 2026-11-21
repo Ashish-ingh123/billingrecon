@@ -46,6 +46,7 @@ public sealed class AuditStampsOnSqlServerTests(SqlServerFixture sqlServer) : Da
         }
 
         var editor = new FixedIdentity(_creator.TenantId, new UserId(Guid.NewGuid()));
+        await AddProbeUserRowAsync(editor);
         var later = new FakeClock(Now.AddHours(3));
         await using (var context = ProbeContext(editor, later))
         {

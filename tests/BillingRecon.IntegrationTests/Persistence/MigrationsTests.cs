@@ -602,6 +602,52 @@ public sealed class MigrationsTests : IDisposable
         script.ShouldContain("CREATE UNIQUE INDEX [UX_Refunds_TenantId_FiscalYear_SequenceNumber] ON [Refunds] ([TenantId], [FiscalYear], [SequenceNumber]) WHERE [SequenceNumber] IS NOT NULL", Case.Sensitive);
     }
 
+    [Fact]
+    public void The_eighteenth_migration_is_0018_Users()
+    {
+        var migrations = _context.Database.GetMigrations().ToArray();
+
+        migrations.Length.ShouldBeGreaterThanOrEqualTo(18, $"The Users migration is missing. {HowToAdd.Replace("<name>", "0018_Users", StringComparison.Ordinal)}");
+        migrations[17].ShouldEndWith("_0018_Users");
+    }
+
+    [Fact]
+    public void The_migrations_create_the_users_and_their_roles_and_then_make_every_user_column_a_key()
+    {
+        var script = _context.GetService<IMigrator>().GenerateScript();
+        var users = Between(script, "_0017_Refunds", "_0018_Users");
+        var createUsers = CreateTable(script, "Users");
+        var createUserRoles = CreateTable(script, "UserRoles");
+
+        // The three tables, and the five roles written from the model (docs/database.md section 3.1).
+        users.Split("CREATE TABLE").Length.ShouldBe(4, "Roles, Users and UserRoles");
+        CreateTable(script, "Roles").ShouldContain("[Code] varchar(30) NOT NULL", Case.Sensitive);
+        foreach (var role in new[] { "TenantAdmin", "Supervisor", "BillingClerk", "Cashier", "Viewer" })
+        {
+            users.ShouldContain($"('{role}', N'", Case.Sensitive);
+        }
+
+        createUsers.ShouldContain("[Email] nvarchar(256) NOT NULL", Case.Sensitive);
+        createUsers.ShouldContain("[NormalizedEmail] nvarchar(256) NOT NULL", Case.Sensitive);
+        createUsers.ShouldContain("[PasswordHash] varchar(500) NOT NULL", Case.Sensitive);
+        createUsers.ShouldContain("[LastSignInAtUtc] datetimeoffset(3) NULL", Case.Sensitive);
+        createUsers.ShouldContain("CONSTRAINT [CK_Users_Status] CHECK ([Status] IN ('Active', 'Disabled'))", Case.Sensitive);
+        createUsers.ShouldContain("CONSTRAINT [FK_Users_CreatedByUserId] FOREIGN KEY ([CreatedByUserId]) REFERENCES [Users] ([Id])", Case.Sensitive);
+        script.ShouldContain("CREATE UNIQUE INDEX [UX_Users_TenantId_NormalizedEmail] ON [Users] ([TenantId], [NormalizedEmail])", Case.Sensitive);
+        createUserRoles.ShouldContain("CONSTRAINT [PK_UserRoles] PRIMARY KEY ([UserId], [RoleCode])", Case.Sensitive);
+        createUserRoles.ShouldContain("CONSTRAINT [FK_UserRoles_RoleCode] FOREIGN KEY ([RoleCode]) REFERENCES [Roles] ([Code])", Case.Sensitive);
+        createUserRoles.ShouldContain("CONSTRAINT [FK_UserRoles_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id])", Case.Sensitive);
+        createUserRoles.ShouldNotContain("CASCADE", Case.Insensitive);
+
+        // Every column of the earlier tables that names a user becomes a key to it, in this migration (ADR 0030).
+        users.Split("FOREIGN KEY (").Length.ShouldBeGreaterThan(34, "the 34 keys added to the earlier tables, besides those of the new ones");
+        users.ShouldContain("ALTER TABLE [Bills] ADD CONSTRAINT [FK_Bills_PostedByUserId] FOREIGN KEY ([PostedByUserId]) REFERENCES [Users] ([Id])", Case.Sensitive);
+        users.ShouldContain("ALTER TABLE [ApprovalRequests] ADD CONSTRAINT [FK_ApprovalRequests_MakerUserId] FOREIGN KEY ([MakerUserId]) REFERENCES [Users] ([Id])", Case.Sensitive);
+        users.ShouldContain("ALTER TABLE [AuditRecords] ADD CONSTRAINT [FK_AuditRecords_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id])", Case.Sensitive);
+        users.ShouldNotContain("ALTER COLUMN", Case.Sensitive);
+        CreateTable(script, "Bills").ShouldNotContain("REFERENCES [Users]", Case.Sensitive);
+    }
+
     // The part of the script of all migrations that the migration named second adds: each migration's part ends with the
     // row it writes to the history, which names it, so the part runs from the name of the one before to its own.
     private static string Between(string script, string from, string to)

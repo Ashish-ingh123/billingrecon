@@ -166,6 +166,26 @@ table has `CreatedAtUtc` only, set by `Tenant.Create`; changes to its settings a
 | GrantedAtUtc | datetimeoffset(3) | | |
 | GrantedByUserId | uniqueidentifier | | FK `Users` |
 
+**Built 2026-11-21 (Prompt 5.1, ADR 0030; migration `0018_Users`).** The three tables are as above, with these
+precisions.
+
+- `Users`: tenant-scoped, so with `FK_Users_TenantId`; `PasswordHash` is `varchar(500)` (the text is ASCII: the
+  algorithm, the iterations, and salt and hash in base64), kept out of every audit image; Stamp and Touch as on every
+  mutable table (`CreatedAtUtc`, `CreatedByUserId`, `UpdatedAtUtc`, `UpdatedByUserId`, the user columns keys to
+  `Users` itself); `CK_Users_Status`; `UX_Users_TenantId_NormalizedEmail`. `LastSignInAtUtc` stays null until sign-in
+  (Prompt 5.2).
+- `Roles`: `CK_Roles_Code` lists the five codes; the rows are written from the model (`HasData`), not by a
+  hand-written statement. The tests' reset leaves the table alone.
+- `UserRoles`: `PK_UserRoles (UserId, RoleCode)`, `CK_UserRoles_RoleCode`, `FK_UserRoles_UserId`,
+  `FK_UserRoles_RoleCode`, `FK_UserRoles_GrantedByUserId`, `FK_UserRoles_TenantId`, and
+  `IX_UserRoles_TenantId_RoleCode` (the administrators of a tenant). A role taken away is deleted: the key from the role
+  to its user is the third client-cascading key of the model (ON DELETE NO ACTION in the database), after the lines of
+  draft bills and draft credit notes.
+- **Every earlier column that names a user is now a foreign key to `Users`** (ADR 0021 point 1, ADR 0030 point 1): 34
+  keys `FK_<Table>_<Column>` added by `0018`, on the stamps of every mutable table, the posted, voided, allocated and
+  reversed by of the documents, the maker and checker of `ApprovalRequests`, and `UserId` of `AuditRecords` and
+  `IdempotencyKeys`.
+
 ### 3.2 Payers
 
 Migration `0002_SyncCurrentModel` (Prompt 2.2, ADR 0018; the name it was scaffolded under, §8). Both tables are tenant-scoped: `FK_Patients_TenantId` and
@@ -1041,7 +1061,7 @@ update of an append-only table (CLAUDE.md, section 9).
   | `0015_PaymentReversals` | The reversal columns of `Payments` and `PaymentAllocations` (§3.4, "Built 2026-11-21 (Prompt 4.5)") | In the repository: `20261121081452_0015_PaymentReversals`, scaffolded with EF Core 10.0.12 on 2026-11-21 on the office machine, each migration on its own as `docs/runbook.md` §8 B describes, and verified in the repository: no pending model change. No table: eight columns, two CHECK constraints and two foreign keys on `Payments` and `PaymentAllocations`. Not yet applied to SQL Server 2022. |
   | `0016_CreditApplicationReversals` | The reversal columns of `CreditNoteAllocations` and `AppliedAtPosting` (§3.3, "Added by migration `0016_CreditApplicationReversals`") | In the repository: `20261121082530_0016_CreditApplicationReversals`, scaffolded with EF Core 10.0.12 on 2026-11-21 on the office machine with the repository's `dotnet-ef` in a throwaway copy (the tool manifest in the repository carries the "came from another computer" mark, CLAUDE.md section 2) and copied back; verified in the repository: no pending model change. No table: five columns, three CHECK constraints (one of them created again) and one foreign key on `CreditNoteAllocations`. Not yet applied to SQL Server 2022. |
   | `0017_Refunds` | `Refunds` (§3.4, "Built 2026-11-21 (Prompt 4.6)") | In the repository: `20261121095549_0017_Refunds`, scaffolded with EF Core 10.0.12 on 2026-11-21 on the office machine with the repository's `dotnet-ef` in a throwaway copy (as `0016`) and copied back; verified in the repository: no pending model change. It holds `Refunds` alone: nine CHECK constraints, five foreign keys and five indexes, and nothing on another table. Not yet applied to SQL Server 2022. |
-  | `0018_Users` | `Users`, `Roles` (§3.1) | Prompt 5.1. Not started. |
+  | `0018_Users` | `Roles`, `Users`, `UserRoles` (§3.1, "Built 2026-11-21 (Prompt 5.1)") and the keys of every earlier user column | In the repository: `20261121103039_0018_Users`, scaffolded with EF Core 10.0.12 on 2026-11-21 on the office machine with the repository's `dotnet-ef` in a throwaway copy (as `0016`) and copied back; verified in the repository: no pending model change. Three tables, the five rows of `Roles`, and 34 foreign keys on earlier tables; no column of an earlier table changes. It fails on a development database whose rows name users that have no row: drop that database first (`docs/runbook.md` section 1). Not yet applied to SQL Server 2022. |
 
 - CHECK constraints, unique and filtered indexes and computed columns are declared in the EF model
   (the entity configuration, or a convention of the context), so a scaffolded migration needs no

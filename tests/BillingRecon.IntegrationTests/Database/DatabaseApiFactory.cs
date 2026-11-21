@@ -1,4 +1,6 @@
 using BillingRecon.Application.Common;
+using BillingRecon.Infrastructure.Common.Persistence;
+using BillingRecon.IntegrationTests.Persistence;
 using BillingRecon.IntegrationTests.Support;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -28,6 +30,23 @@ public sealed class DatabaseApiFactory(SqlServerFixture sqlServer, string databa
         // The fixture applied the migrations; the API never migrates in the tests, as it never does outside Development.
         new("Database:ApplyMigrationsOnStartup", "false"),
     ];
+
+    /// <summary>
+    /// A client that acts as <paramref name="identity"/> with <paramref name="roles"/>, once the identity is a user of its
+    /// tenant: every column that names a user is a foreign key to <c>Users</c> since Prompt 5.1 (ADR 0030). The tenant's
+    /// row must exist already.
+    /// </summary>
+    public HttpClient CreateClientFor(FixedIdentity identity, params string[] roles)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+
+        TestUsers.Ensure(
+            new BillingReconDbContext(TestContexts.Options<BillingReconDbContext>(sqlServer.ConnectionStringFor(database)), identity, identity, new FakeClock(InitialInstant)),
+            identity,
+            roles);
+
+        return TestClientExtensions.CreateClientFor(this, identity, roles);
+    }
 
     /// <inheritdoc />
     protected override void ConfigureTestServices(IServiceCollection services)
