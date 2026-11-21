@@ -178,7 +178,10 @@ src/
                                 and the bill's PendingApproval status with SubmitForApproval, PostApproved and
                                 ReturnToDraft. Since Prompt 4.1: the Payment aggregate with PaymentMethod,
                                 PaymentStatus, PaymentRecorded and PaymentsErrors (Payments); PaymentId and
-                                BusinessDateWindow, which bills and payments share (Common).
+                                BusinessDateWindow, which bills and payments share (Common). Since Prompt 4.2
+                                (ADR 0024): PaymentAllocation, a child of Payment, with Payment.Allocate and
+                                PaymentAllocated (Payments); Bill.ApplyCredit with BillCreditApplied (Billing);
+                                PaymentAllocationId (Common).
   BillingRecon.Application/     Use cases (command/query handlers as plain classes), FluentValidation validators,
                                 port interfaces (IClock, IUnitOfWork, repositories, INumberSeries,
                                 IIdempotencyStore, ITenantContext, ICurrentUser), DTOs and explicit mappers.
@@ -201,7 +204,11 @@ src/
                                 and list queries, IPaymentRepository and IPaymentReadService (Payments);
                                 IActivePayers, what Payers answers when money is received (Payers);
                                 PostingTemplate.PaymentRecorded, and IReceivablesLedger.PostAsync now answers
-                                the id of the posting it entered (Receivables).
+                                the id of the posting it entered (Receivables). AllocatePaymentHandler, the use
+                                case that changes a payment and its bills in one commit, and the query of a
+                                payment with its allocations (Payments); IBillSettlement, what Billing answers
+                                when a bill is settled (Billing); PostingTemplate.PaymentAllocated and
+                                LedgerRefusal (Receivables). ADR 0024.
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -536,7 +543,7 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 | `docs/requirements.md` | Domain and vocabulary, actors and permissions, R1 scope, the **BR-nnn business-rule catalogue**, user stories with acceptance criteria, NFRs, R2–R5 outlines |
 | `docs/domain-model.md` | Module map, value objects, aggregates with invariants (citing BR-ids), Bill state machine, transaction boundaries and the allocation exception, domain events, ports |
 | `docs/database.md` | Conventions, ER diagram, every R1 table with types/keys/indexes/CHECKs, number-series lock, ledger accounts and posting templates, balance identities and reconciliation SQL, idempotency lifecycle, permissions, migrations |
-| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4) and the audit trail endpoint (Prompt 3.4) |
+| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), and the payment endpoints with allocation (Prompts 4.1 and 4.2) |
 | `docs/build-prompts.md` | The build prompts from zero to R1, reconstructed on 2026-11-20: what each finished prompt built, and the wording and order of the prompts still to give. Its phase numbers are the ones this file uses |
 | `docs/security.md` | Authentication, authorisation, tenancy, maker-checker, secrets, threat model |
 | `docs/testing-strategy.md` | Test pyramid, tooling, database tests, architecture tests, CI gates |
@@ -564,7 +571,10 @@ Prompt 3.4 plan, 2026-11-20; it also builds the append-only guard and names the 
 0022 posting a bill: the order of its locks, the bill that comes to nothing, and what a posted bill answers
 (Accepted on the owner's decisions of 2026-11-20 for Prompt 3.5; it amends BR-401),
 0023 maker-checker: the approval request, where its decisions live, and what a waiting bill answers (Accepted on
-the owner's decisions of 2026-11-20 for Prompt 3.6).
+the owner's decisions of 2026-11-20 for Prompt 3.6),
+0024 allocating a payment: two aggregates through a Billing contract, the order of work, and the one lock
+(**Proposed**: written 2026-11-21 from the code of Prompt 4.2; the owner confirms its points, see section 9
+item 21).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1073,4 +1083,52 @@ Kept here so they survive between sessions. Remove an item when it is done.
     - Follow-ups for later slices: allocation and `PaymentAllocations` (4.2); reversal, its columns and states
       (4.5); refunds (4.6); the role that may record (5.3); the daily collection report over
       `IX_Payments_TenantId_PaymentDate` (6.1).
-    - Next: Prompt 4.2 (allocate a payment to bills).
+    - Next: Prompt 4.2 (allocate a payment to bills), which is item 21.
+21. **Prompt 4.2 (allocate a payment to bills, ADR 0024), code and tests written 2026-11-20, pre-checked and
+    documented 2026-11-21, not built on .NET 10 yet.** On `phase-2-billing` like the rest. Verification is deferred
+    with the rest (item 16). The code and tests are in commit `fbfebbd` ("20 nov 2026"), made before the pre-check
+    and the documents; the documents and ADR 0024 are the commit after it.
+    - Built: `PaymentAllocation`, a child of `Payment`; `POST /api/v1/payments/{id}/allocations` (`[Idempotent]`,
+      `If-Match` with the version of the payment, 200 with the payment and its allocations) and
+      `GET /api/v1/payments/{id}/allocations`; the `PaymentAllocations` table; `Bill.ApplyCredit`, the one change a
+      posted bill accepts (BR-208: `PartiallyPaid`, `Settled`); the posting template
+      Dr UnappliedCash(payment) / Cr Receivable(bill), one posting per allocation; four identities of the
+      reconciliation (`PaymentAllocations`, `AllocationWithoutPosting`, `PostingWithoutAllocation`,
+      `AllocationPayerMismatch`); and their tests.
+    - **No new module-dependency exception.** Payments reaches a bill only through `IBillSettlement`, a public
+      Application contract of Billing; the bill joins the unit of work of the request and is saved by the handler's
+      commit under its own row version.
+    - Order and lock (ADR 0024): shape; the payment and the version the client read; the sum against the unapplied
+      amount; each bill in the order of the bill ids; then the ledger, whose first posting takes the `UPDLOCK` on the
+      payer's row of `PayerBalances`, the one lock the use case waits for; then the save. No number is taken.
+    - **Changed in the ledger:** the locked statement that moves `PayerBalances` now answers when a balance would go
+      below zero and changes nothing; `PostAsync` returns `ledger_balance_negative` instead of the CHECK constraint
+      failing the batch (BR-405). The allocation handler answers that as 409 `concurrency_conflict`, like a stale
+      row version: both mean that a bill read by the request was changed by one that committed first.
+    - New error codes: 422 `allocation_exceeds_unapplied`, `allocation_exceeds_balance_due`,
+      `allocation_payer_mismatch`, `bill_not_posted`. One request names at most 50 bills, each once. A payment of a
+      payer who was deactivated since can still be allocated.
+    - **Migrations renumbered:** the table is `0012_PaymentAllocations`, kept out of `0011_Payments` by
+      `PaymentConfiguration` (which takes the allocations out of the model) and `PaymentWithAllocationsConfiguration`
+      (which puts them back; moved out of the project while `0011` is scaffolded). Credit notes, adjustments,
+      refunds and users are now `0013` to `0016` (`docs/build-prompts.md`, `docs/database.md` section 8).
+    - Changed in existing tests, none weakened: `PaymentsApiTests` expects a lowered `UnappliedAmount` to be reported
+      by two identities instead of one (the ledger, and now the amount less the allocations);
+      `RecordPaymentTests` names the overload of the repository's `Add`; `TenantQueryFilterTests`,
+      `TypedIdForeignKeyTests` (three new keys), `ErrorCodesTests`, `MigrationsTests` and
+      `MigrationsOnSqlServerTests` know the new entity, table and migration.
+    - Pre-checked in the .NET 9 copy on 2026-11-21: strict build, format gate, Domain 518 and Application 298 tests
+      green, Architecture 108 green and Integration 944 green on LocalDB 2019, with `0003` to `0012` scaffolded there
+      separately by EF Core 9 (`0011` held `Payments` alone, `0012` held `PaymentAllocations` alone). Failing there,
+      as before and by design: the same eleven tests. The allocation, payment, receivables, bill-posting and
+      migration tests (108) ran three times in a row without a failure.
+    - **To do on the personal machine:** `docs/runbook.md` section 8, which now ends with
+      `0012_PaymentAllocations`.
+    - **For the owner:** confirm the points of ADR 0024 (it is Proposed: it was written a day after the code, from
+      the code), then flip its Status.
+    - Not proven anywhere yet: two cashiers on the last rupee and ten payments allocated at once across overlapping
+      bills, on SQL Server 2022; the refusal of the ledger under its lock there; the split of `0011` and `0012` on
+      EF Core 10.
+    - Follow-ups for later slices: credit notes and adjustments lower a bill through the same `IBillSettlement`
+      (4.3, 4.4); reversal of an allocation, its columns and states (4.5); the role that may allocate (5.3).
+    - Next: Prompt 4.3 (credit notes), in a session of its own.

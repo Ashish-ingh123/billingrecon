@@ -383,13 +383,15 @@ decided through the document (`.../approve`, `.../reject`); nothing here can be 
 
 Money received from a payer. Recording a payment posts it: the gapless number, the ledger entry
 (Dr Cash / Cr UnappliedCash), the payer's unapplied cash and the audit record are written by one transaction or
-not at all (BR-007). A payment is never edited or deleted (BR-006), so no endpoint takes `If-Match`; allocations,
-reversals and refunds are separate actions that arrive with their own prompts.
+not at all (BR-007). A payment is never edited or deleted (BR-006). Allocating it to bills is an action of its own
+(below) and the one request here that takes `If-Match`; reversals and refunds arrive with their own prompts.
 
 | Method and path | Success | Failures |
 |---|---|---|
 | `POST /api/v1/payments` (needs `Idempotency-Key`) | 201, the payment, `Location`, `ETag` | 400; 404 `payer_not_found`; 409 `idempotency_in_progress`; 422 `payer_inactive`, `payment_date_in_future`, `payment_date_too_old`, `idempotency_key_reuse` |
 | `GET /api/v1/payments/{id}` | 200, the payment, `ETag` | 404 `payment_not_found` |
+| `POST /api/v1/payments/{id}/allocations` (needs `Idempotency-Key` and `If-Match`) | 200, the payment with its allocations, `ETag` | 400; 404 `payment_not_found`, `bill_not_found`; 409 `concurrency_conflict`, `idempotency_in_progress`; 422 `allocation_exceeds_unapplied`, `allocation_exceeds_balance_due`, `allocation_payer_mismatch`, `bill_not_posted`, `idempotency_key_reuse`; 428 |
+| `GET /api/v1/payments/{id}/allocations` | 200, the payment with its allocations, `ETag` | 404 `payment_not_found` |
 | `GET /api/v1/payments?payerId=&method=&status=&paymentDateFrom=&paymentDateTo=&page=&pageSize=` | 200, a page of payments | 400 |
 
 The body of a recording (unknown members are refused):
@@ -411,3 +413,24 @@ The list is ordered by payment date, newest first, then by number, newest first;
 `paymentDateTo` may not be before `paymentDateFrom`. The audit trail of a payment is read with
 `GET /api/v1/audit-records?entityType=Payment&entityId=...`; its first record has the action `Recorded` and the
 number of the payment.
+
+**Allocating a payment (US-31; BR-303, BR-304, BR-208; ADR 0024).** One request applies the payment to one or more
+posted bills of the payer it came from, all of them or none. For each bill the payment's `unappliedAmount` and the
+bill's `balanceDue` fall by the same amount, the ledger gets Dr UnappliedCash(payment) / Cr Receivable(bill), and
+the bill becomes `PartiallyPaid` or, when nothing is owed any more, `Settled`. `If-Match` carries the version of the
+**payment**. The body (unknown members are refused):
+
+| Field | Required | Rule |
+|---|---|---|
+| `allocations` | yes | Between 1 and 50 lines; a bill is named once |
+| `allocations[].billId` | yes | A posted bill of the tenant, owed by the payer of the payment |
+| `allocations[].amount` | yes | Above zero, at most two decimals; not more than the bill is owed, and the sum not more than the payment has unapplied |
+
+The answer, and what the `GET` returns: `payment` (as above, with its new `unappliedAmount` and `version`) and
+`allocations`, every allocation made from the payment, the oldest first: `id`, `billId`, `amount`, `status`
+(`Active` so far), `allocatedAtUtc`, `allocatedByUserId`.
+
+When two cashiers apply money to the same bill at the same moment and only one amount fits, one succeeds and the
+other gets 409 `concurrency_conflict` and nothing of its request is written: read the payment and the bill again. A
+request that arrives after the first has finished gets 422 `allocation_exceeds_balance_due`. A payment can be
+allocated after its payer was deactivated. Each allocation writes an audit record on the payment and one on the bill.

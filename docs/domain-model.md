@@ -222,7 +222,16 @@ raises `PaymentRecorded` (number, payer, method, amount, date), which the audit 
 window refuses is the one failure `Record` returns, and everything else it is handed wrong is a bug and throws
 (the validator refuses it first). `AttachPosting(postingId)` is called once, by the use case, with the id the
 ledger answered. The status has `Posted` alone so far. `BusinessDateWindow` is in `Domain/Common` since this
-prompt, shared with bills. Not built yet: `PaymentAllocation` and `Allocate` (4.2), the reversals (4.5).
+prompt, shared with bills.
+
+*Built 2026-11-20 (Prompt 4.2, ADR 0024): allocation.* `Payment.CheckCanAllocate(amount)` answers
+`allocation_exceeds_unapplied` for the sum of a request before anything changes. `Payment.Allocate(billId, amount,
+allocatedAtUtc, allocatedBy)` lowers `UnappliedAmount`, keeps a `PaymentAllocation` (status `Active`, the only one
+so far) and raises `PaymentAllocated` (the payment's number, the bill, the amount, what is left unapplied);
+`AttachAllocationPosting` gives the allocation the id of its ledger posting, once. An allocation has no row version
+of its own. On the other side `Bill.ApplyCredit(amount)` is the one change a posted bill accepts: it answers
+`bill_not_posted` or `allocation_exceeds_balance_due`, or lowers `BalanceDue`, sets `PartiallyPaid` or `Settled`
+(BR-208) and raises `BillCreditApplied`. Not built yet: the reversals (4.5).
 
 ### 4.7 Refund (Payments module)
 
@@ -416,6 +425,13 @@ posts the paired ledger entry `Dr UnappliedCash(payment) / Cr Receivable(bill)`,
 under **both** rowversions. If either rowversion is stale the whole transaction fails with 409
 `concurrency_conflict` (BR-804).
 
+*Built 2026-11-20 (Prompt 4.2, ADR 0024), with two precisions.* The handler is in Payments and does not load the
+bill itself: it asks `IBillSettlement.ApplyAsync(billId, payerId, amount)`, a contract of Billing, which loads the
+bill, checks the payer and calls `bill.ApplyCredit`; the bill is tracked by the same unit of work and saved by the
+handler's commit. And one request may name up to 50 bills: one `PaymentAllocation` and one ledger posting for each,
+all committed together. A ledger that finds the payer's balance going below zero under its lock is answered as the
+same 409: it means a bill read here was changed by a request that committed first.
+
 Why this is allowed rather than avoided:
 
 1. The two caps are invariants of two aggregates *at the same instant*. Checking them in memory is
@@ -524,7 +540,8 @@ as the table plans them.
 | `IDomainEventSubscriber`, `ICorrelationContext` | What the unit of work dispatches to (the audit subscriber is the only one), and the correlation id of the current request (BR-703). | Application (`AuditSubscriber`); Api (`HttpCorrelationContext`). |
 | `IAuditReadService` | The audit trail of one record, paged, oldest first (US-43). | Infrastructure (Audit). |
 | `IActivePayers` | Built 2026-11-20 (Prompt 4.1), in Payers: `EnsureActiveAsync(payerId, ct)` answers success, `payer_not_found` or `payer_inactive` (BR-309). What Payments asks before it records money. |
-| `IReceivablesLedger`, `IPayerAccounts`, `IReconciliationQuery` | Since Prompt 4.1 `PostAsync` answers the id of the posting it entered. Built 2026-11-20 (Prompt 3.3, ADR 0005 built note): post a `PostingTemplate` inside the unit of work of the caller (BR-401, BR-404, BR-405); open the zero balances of a new payer; return the drift rows of the tenant. | Infrastructure (Receivables). |
+| `IBillSettlement` | Built 2026-11-20 (Prompt 4.2, ADR 0024), in Billing: `ApplyAsync(billId, payerId, amount, ct)` lowers what is owed on a posted bill of that payer and answers its number and new balance, or `bill_not_found`, `allocation_payer_mismatch`, `bill_not_posted`, `allocation_exceeds_balance_due`. Nothing is saved there: the caller commits. What Payments asks when it allocates. | Application (Billing: `BillSettlement`, over `IBillRepository`). |
+| `IReceivablesLedger`, `IPayerAccounts`, `IReconciliationQuery` | Since Prompt 4.2 `PostAsync` answers `ledger_balance_negative` when a cached balance of the payer would go below zero, found under its lock (`LedgerRefusal` tells a module that may not name the Receivables domain). Since Prompt 4.1 `PostAsync` answers the id of the posting it entered. Built 2026-11-20 (Prompt 3.3, ADR 0005 built note): post a `PostingTemplate` inside the unit of work of the caller (BR-401, BR-404, BR-405); open the zero balances of a new payer; return the drift rows of the tenant. | Infrastructure (Receivables). |
 | Repositories | `IPatientRepository`, `IPayerRepository`, `IBillRepository`, `ICreditNoteRepository`, `IPaymentRepository`, `IRefundRepository`, `IAdjustmentRepository`, `IApprovalRequestRepository`, `IUserRepository`, `ITenantRepository` — load by id (tenant-filtered), add, and nothing else. No `Remove` (BR-005). | Infrastructure. |
 | Read services | `IPatientReadService`, `IPayerReadService` (built 2026-10-17), `IBillReadService`, reporting queries. DTOs, pages, and the existence checks a command makes before it writes. | Infrastructure (EF queries, `AsNoTracking`). |
 | Domain services (Domain) | `LineCalculator` (BR-202), `FiscalYear.FromDate` (BR-004), `PostingTemplates` (the account pairs in `database.md` §5.3). | Domain. |

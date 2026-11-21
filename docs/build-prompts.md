@@ -19,9 +19,10 @@ is left; their numbering is mine, not the blueprint's.
 | 3.5 Post a bill | Written on 2026-11-20 with the owner's decisions (ADR 0022); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0009_BillPosting` still to be scaffolded (`docs/runbook.md` section 8) |
 | 3.6 Maker-checker approvals | Written on 2026-11-20 with the owner's decisions (ADR 0023); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0010_Approvals` still to be scaffolded (`docs/runbook.md` section 8). The role of the checker is left to 5.3 |
 | 4.1 Record a payment | Written on 2026-11-20 with the owner's decisions (CLAUDE.md section 9, item 20); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0011_Payments` still to be scaffolded (`docs/runbook.md` section 8) |
-| Everything else in R1 | Not started: allocations, credit notes, adjustments, reversals, refunds, users and JWT, reports, frontend, delivery |
+| 4.2 Allocate a payment to bills | Code and tests written on 2026-11-20, pre-checked and documented on 2026-11-21 (ADR 0024, Proposed; CLAUDE.md section 9, item 21); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0012_PaymentAllocations` still to be scaffolded (`docs/runbook.md` section 8) |
+| Everything else in R1 | Not started: credit notes, adjustments, reversals, refunds, users and JWT, reports, frontend, delivery |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile 2.2 to 3.4 are committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment) is written. Next prompt: 4.2 (allocate a payment to bills). The owner's decisions for both are recorded under each prompt below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment) and 4.2 (allocate a payment to bills) are written. Next prompt: 4.3 (credit notes), in a session of its own. What was decided for each built prompt is recorded under it below.**
 
 ## How to use these prompts
 
@@ -352,6 +353,16 @@ Posted -> PartiallyPaid -> Settled, zero drift after each.
 Done when: US-31 passes under the concurrency test.
 ```
 
+**How 4.2 was built, recorded 2026-11-21 from the code (ADR 0024, which the owner still confirms):** Payments
+reaches a bill through `IBillSettlement`, a contract of Billing, with no new module-dependency exception; the lock
+order is that of ADR 0022 without a number (checks first, bills in the order of their ids, then the payer's row of
+`PayerBalances` under the ledger's lock, then the save under the row versions of the payment and of every bill); the
+loser of the last rupee gets 409 `concurrency_conflict`, whether its save or the ledger notices; the ledger now
+refuses a balance below zero instead of failing a CHECK constraint; one request names at most 50 bills, each once;
+a deactivated payer's payment can still be allocated. The table is its own migration, **`0012_PaymentAllocations`**,
+so the later migrations move up by one: `0013_CreditNotes`, `0014_Adjustments`, `0015_Refunds`, `0016_Users`. Built
+on `phase-2-billing`, like everything since 2.2.
+
 #### 4.3 Credit notes
 
 ```
@@ -360,7 +371,7 @@ Build CreditNote with lines and allocations: against one posted bill, caps per B
 draft then submit (maker-checker, BR-604); approval takes the gapless number, posts
 Dr Revenue / Cr CreditAvailable, then applies min(Total, Bill.BalanceDue) to the bill; the rest
 stays as AvailableAmount and can be applied to another posted bill of the same payer.
-Migration 0012_CreditNotes.
+Migration 0013_CreditNotes.
 Done when: US-24 passes with zero drift, including a credit note larger than the balance due.
 ```
 
@@ -371,7 +382,7 @@ Read BR-501 to BR-503, docs/domain-model.md section 4.8, docs/database.md sectio
 Build Adjustment (Discount, WriteOff, Rounding under Rs 1.00): against one posted bill, amount
 capped by BalanceDue at posting, reason required, maker-checker, gapless number,
 Dr Adjustments / Cr Receivable(bill). Raise domain-model open question 1 with me before coding.
-Migration 0013_Adjustments.
+Migration 0014_Adjustments.
 Done when: an approved write-off settles a bill with zero drift.
 ```
 
@@ -392,7 +403,7 @@ Done when: US-32 and US-33 pass and a fully reversed payment leaves every balanc
 Read BR-307, BR-308, US-34, docs/domain-model.md section 4.7.
 Build Refund from one source (a payment's unapplied amount or a credit note's available amount):
 cap checked at posting, method and reference rules of BR-301, active payer, maker-checker, gapless
-number, Dr UnappliedCash or CreditAvailable / Cr Cash. Not reversible. Migration 0014_Refunds.
+number, Dr UnappliedCash or CreditAvailable / Cr Cash. Not reversible. Migration 0015_Refunds.
 Then write one end-to-end scenario test that walks bill -> part payment -> credit note ->
 adjustment -> allocation reversal -> refund and asserts zero drift and gapless series at the end.
 Done when: US-34 and the scenario test pass.
@@ -409,7 +420,7 @@ Read BR-601, US-01, docs/domain-model.md section 4.12, docs/database.md section 
 Build User with roles (TenantAdmin, Supervisor, BillingClerk, Cashier, Viewer): e-mail unique per
 tenant, enable/disable, password hashed with a slow salted BCL algorithm, admin password reset.
 Users and Roles tables, the development user row, and the foreign keys from CreatedByUserId and
-UpdatedByUserId that were waiting for it. Audited. Migration 0015_Users.
+UpdatedByUserId that were waiting for it. Audited. Migration 0016_Users.
 Done when: US-01 passes.
 ```
 

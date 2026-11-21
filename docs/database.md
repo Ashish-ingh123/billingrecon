@@ -389,6 +389,16 @@ the payment is saved with it in the same commit.
 The rule "payment and bill share a payer" (BR-303) is cross-table and enforced in code; the
 reconciliation query in §5.6 also detects a violation.
 
+**Built 2026-11-20 (Prompt 4.2, ADR 0024; migration `0012_PaymentAllocations`), as allocating needs it.** The
+columns: `Id`, `TenantId`, `PaymentId`, `BillId`, `Amount` `decimal(18,2)`, `Status` `varchar(20)`, `AllocatedAtUtc`
+`datetimeoffset(3)`, `AllocatedByUserId` (null when no user acted), `PostingId` `NOT NULL`. There is **no row
+version**: an allocation is a child of its payment, whose version covers it. The constraints are
+`CK_PaymentAllocations_Amount` (`> 0`) and `CK_PaymentAllocations_Status`, which allows `Active` alone for now; the
+reversal columns and the statuses `PendingReversal` and `Reversed` arrive with reversals (Prompt 4.5). Four foreign
+keys, no cascade: `FK_PaymentAllocations_TenantId`, `FK_PaymentAllocations_PaymentId` (declared with the
+relationship), and `FK_PaymentAllocations_BillId` and `FK_PaymentAllocations_PostingId` from the typed-id convention
+(ADR 0021). The two indexes are the ones named above.
+
 **Refunds**
 
 | Column | Type | Null | Notes |
@@ -755,6 +765,13 @@ account: `Dr UnappliedCash(payment) / Cr Receivable(bill)`. Consequences:
 - Worked example. Bill `BIL/26-27/000042` for ₹5,000; payment `PAY/26-27/000017` of ₹3,000 by UPI;
   allocate ₹3,000: `Receivable(bill)` 5,000 → 2,000, `UnappliedCash(payment)` 3,000 → 0, bill becomes
   `PartiallyPaid`, payer net outstanding stays ₹2,000 before and after the allocation.
+- *Built 2026-11-20 (Prompt 4.2, ADR 0024).* One request may name up to 50 bills; each gets its own posting, and
+  all of them commit together or not at all. The order of the locks: nothing is locked while the request is
+  checked; the first posting takes the update lock on the payer's row of `PayerBalances` and holds it to the commit;
+  the save then writes the payment and the bills, each under its row version. Every request that writes a bill of
+  the payer holds that one lock first, so the rows of the bills are never waited for in two orders.
+  A posting that would take a cached balance of the payer below zero is refused under that lock
+  (`ledger_balance_negative`), before the CHECK constraint of the table could fail the batch.
 
 ### 5.5 Balance identities (BR-404)
 
@@ -839,6 +856,11 @@ JOIN   dbo.Payments p ON p.Id = a.PaymentId
 JOIN   dbo.Bills    b ON b.Id = a.BillId
 WHERE  a.TenantId = @tenant AND p.PayerId <> b.PayerId;
 ```
+
+*Built 2026-11-20 (Prompt 4.2):* the reconciliation query of the application reports four more identities, each
+under its own name: `PaymentAllocations` (a payment's `UnappliedAmount` differs from `Amount − Σ active
+allocations`, the second form of identity 4), `AllocationWithoutPosting` and `PostingWithoutAllocation` (identity 2
+for allocations, both directions), and `AllocationPayerMismatch` (the BR-303 statement above).
 
 A non-empty result is a **Sev-1 defect**: the runbook says stop postings for the tenant, capture the
 rows and the correlation ids from `AuditRecords`, and fix the code path. Caches are never
@@ -927,8 +949,9 @@ update of an append-only table (CLAUDE.md, section 9).
   | `0009_BillPosting` | The number, fiscal year, sequence number and posted stamps of `Bills` and their constraints and indexes (§3.3) | Written 2026-11-20 (Prompt 3.5, ADR 0022). **To be scaffolded with EF Core 10 on the personal machine, after `0008_Receivables`** (`docs/runbook.md` §8), with `BillPostingConfiguration.cs` moved out of the project until then, so that `0004_Bills` creates the table without these columns. Scaffolded that way with EF Core 9 in the throwaway copy: `0004` held no column of posting, `0009` added five columns, two indexes and three constraints, and the database tests passed on LocalDB 2019. |
   | `0010_Approvals` | `ApprovalRequests` (§3.6) and the filtered index of the bills that wait (§3.3) | Written 2026-11-20 (Prompt 3.6, ADR 0023). **To be scaffolded with EF Core 10 on the personal machine, after `0009_BillPosting`** (`docs/runbook.md` §8), with `ApprovalRequestConfiguration.cs` and `BillApprovalConfiguration.cs` moved out of the project until then. Scaffolded that way with EF Core 9 in the throwaway copy: it held the table and the one index, neither `0004` nor `0009` held that index, and the database tests passed on LocalDB 2019. |
   | `0011_Payments` | `Payments` (§3.4), as recording needs it | Written 2026-11-20 (Prompt 4.1). **To be scaffolded with EF Core 10 on the personal machine, after `0010_Approvals`** (`docs/runbook.md` §8), with `PaymentConfiguration.cs` moved out of the project until then. Scaffolded that way with EF Core 9 in the throwaway copy: it held `Payments` alone, and the database tests passed on LocalDB 2019. |
-  | `0012_CreditNotes`, `0013_Adjustments`, `0014_Refunds` | §3.3, §3.5, §3.4 | Prompts 4.3, 4.4, 4.6. Not started. `PaymentAllocations` (4.2) and the reversal columns of `Payments` (4.5) need a migration each, numbered when their prompts are planned. |
-  | `0015_Users` | `Users`, `Roles` (§3.1) | Prompt 5.1. Not started. |
+  | `0012_PaymentAllocations` | `PaymentAllocations` (§3.4), as allocating needs it | Written 2026-11-20 (Prompt 4.2, ADR 0024). **To be scaffolded with EF Core 10 on the personal machine, after `0011_Payments`** (`docs/runbook.md` §8), with `PaymentWithAllocationsConfiguration.cs` moved out of the project until then, so that `0011_Payments` creates the table of payments alone. Scaffolded that way with EF Core 9 in the throwaway copy on 2026-11-21: `0011` held `Payments` alone, `0012` held `PaymentAllocations` alone with its four foreign keys and two indexes, and the database tests passed on LocalDB 2019. |
+  | `0013_CreditNotes`, `0014_Adjustments`, `0015_Refunds` | §3.3, §3.5, §3.4 | Prompts 4.3, 4.4, 4.6. Not started. Each moved up by one when `PaymentAllocations` took `0012`. The reversal columns of `Payments` and `PaymentAllocations` (4.5) need a migration, numbered when that prompt is planned. |
+  | `0016_Users` | `Users`, `Roles` (§3.1) | Prompt 5.1. Not started. |
 
 - CHECK constraints, unique and filtered indexes and computed columns are declared in the EF model
   (the entity configuration, or a convention of the context), so a scaffolded migration needs no
