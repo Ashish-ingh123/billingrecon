@@ -50,5 +50,12 @@ public sealed class PaymentWithAllocationsConfiguration : IEntityTypeConfigurati
             .HasDatabaseName("IX_PaymentAllocations_TenantId_BillId");
 
         builder.Property(allocation => allocation.Status).HasMaxLength(StatusMaxLength);
+
+        // Put back by PaymentWithReversalsConfiguration, so that the columns of a reversal are a migration of their own.
+        builder.Ignore(allocation => allocation.ReversedAtUtc);
+        builder.Ignore(allocation => allocation.ReversedByUserId);
+        builder.Ignore(allocation => allocation.ReversalReason);
+        builder.Ignore(allocation => allocation.ReversalPostingId);
+        builder.Ignore(allocation => allocation.IsApplied);
     }
 }

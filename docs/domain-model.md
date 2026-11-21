@@ -246,7 +246,20 @@ so far) and raises `PaymentAllocated` (the payment's number, the bill, the amoun
 `AttachAllocationPosting` gives the allocation the id of its ledger posting, once. An allocation has no row version
 of its own. On the other side `Bill.ApplyCredit(amount)` is the one change a posted bill accepts: it answers
 `bill_not_posted` or `allocation_exceeds_balance_due`, or lowers `BalanceDue`, sets `PartiallyPaid` or `Settled`
-(BR-208) and raises `BillCreditApplied`. Not built yet: the reversals (4.5).
+(BR-208) and raises `BillCreditApplied`.
+
+*Built 2026-11-21 (Prompt 4.5, ADR 0027): reversals.* `RequestAllocationReversal(allocationId, reason)` makes an
+allocation `PendingReversal`; `ReverseAllocation(allocationId, reason, at, checker)` marks it `Reversed` and gives
+its amount back to `UnappliedAmount`; `RejectAllocationReversal` makes it `Active` again. `RequestReversal(reason)`
+makes the payment `PendingReversal`, which stops allocations; `Reverse(reason, at, checker)` takes back every
+allocation still applied, answers them in the order of their bills, and leaves the payment `Reversed` with nothing
+unapplied; `RejectReversal` makes it `Posted` again. One decision at a time: neither can be asked for while the
+other waits. `AttachAllocationReversalPosting` and `AttachReversalPosting` keep the mirror postings. `Reverse`
+throws if part of the payment went anywhere but to allocations: the refund check of BR-306 arrives with refunds.
+On the other side `Bill.ReverseCredit(amount)` is the mirror of `ApplyCredit` and raises `BillCreditReversed`.
+The events as built, each named after its aggregate: `PaymentAllocationReversalRequested`,
+`PaymentAllocationReversalRejected`, `PaymentAllocationReversed`, `PaymentReversalRequested`,
+`PaymentReversalRejected`, `PaymentReversed`.
 
 ### 4.7 Refund (Payments module)
 
@@ -567,7 +580,7 @@ as the table plans them.
 | `IDomainEventSubscriber`, `ICorrelationContext` | What the unit of work dispatches to (the audit subscriber is the only one), and the correlation id of the current request (BR-703). | Application (`AuditSubscriber`); Api (`HttpCorrelationContext`). |
 | `IAuditReadService` | The audit trail of one record, paged, oldest first (US-43). | Infrastructure (Audit). |
 | `IActivePayers` | Built 2026-11-20 (Prompt 4.1), in Payers: `EnsureActiveAsync(payerId, ct)` answers success, `payer_not_found` or `payer_inactive` (BR-309). What Payments asks before it records money. |
-| `IBillSettlement` | Since Prompt 4.4 also `FindPostedAsync(billId, ct)`: the payer, the bill date, the number and the balance due of a posted bill, or `bill_not_found` / `bill_not_posted`; what Adjustments reads before it drafts, submits or approves. Built 2026-11-20 (Prompt 4.2, ADR 0024), in Billing: `ApplyAsync(billId, payerId, amount, ct)` lowers what is owed on a posted bill of that payer and answers its number and new balance, or `bill_not_found`, `allocation_payer_mismatch`, `bill_not_posted`, `allocation_exceeds_balance_due`. Nothing is saved there: the caller commits. What Payments asks when it allocates. | Application (Billing: `BillSettlement`, over `IBillRepository`). |
+| `IBillSettlement` | Since Prompt 4.5 also `RestoreAsync(billId, payerId, amount, ct)`, the mirror of `ApplyAsync`, for the reversal of an allocation. Since Prompt 4.4 also `FindPostedAsync(billId, ct)`: the payer, the bill date, the number and the balance due of a posted bill, or `bill_not_found` / `bill_not_posted`; what Adjustments reads before it drafts, submits or approves. Built 2026-11-20 (Prompt 4.2, ADR 0024), in Billing: `ApplyAsync(billId, payerId, amount, ct)` lowers what is owed on a posted bill of that payer and answers its number and new balance, or `bill_not_found`, `allocation_payer_mismatch`, `bill_not_posted`, `allocation_exceeds_balance_due`. Nothing is saved there: the caller commits. What Payments asks when it allocates. | Application (Billing: `BillSettlement`, over `IBillRepository`). |
 | `IReceivablesLedger`, `IPayerAccounts`, `IReconciliationQuery` | Since Prompt 4.2 `PostAsync` answers `ledger_balance_negative` when a cached balance of the payer would go below zero, found under its lock (`LedgerRefusal` tells a module that may not name the Receivables domain). Since Prompt 4.1 `PostAsync` answers the id of the posting it entered. Built 2026-11-20 (Prompt 3.3, ADR 0005 built note): post a `PostingTemplate` inside the unit of work of the caller (BR-401, BR-404, BR-405); open the zero balances of a new payer; return the drift rows of the tenant. | Infrastructure (Receivables). |
 | Repositories | `IPatientRepository`, `IPayerRepository`, `IBillRepository`, `ICreditNoteRepository`, `IPaymentRepository`, `IRefundRepository`, `IAdjustmentRepository`, `IApprovalRequestRepository`, `IUserRepository`, `ITenantRepository` — load by id (tenant-filtered), add, and nothing else. No `Remove` (BR-005). | Infrastructure. |
 | Read services | `IPatientReadService`, `IPayerReadService` (built 2026-10-17), `IBillReadService`, reporting queries. DTOs, pages, and the existence checks a command makes before it writes. | Infrastructure (EF queries, `AsNoTracking`). |

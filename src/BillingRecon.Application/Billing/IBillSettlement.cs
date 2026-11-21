@@ -24,4 +24,13 @@ public interface IBillSettlement
     /// draft or a bill that waits for approval. Nothing is changed. Since Prompt 4.4, for Adjustments (ADR 0026).
     /// </summary>
     public Task<Result<PostedBill>> FindPostedAsync(BillId billId, CancellationToken ct);
+
+    /// <summary>
+    /// Gives back <paramref name="amount"/> that had been applied to <paramref name="billId"/>: what is owed rises by
+    /// it and the status moves back with the balance (BR-208, BR-305). The mirror of <see cref="ApplyAsync"/>, for
+    /// the reversal of an allocation. Fails, and changes nothing, with <c>bill_not_found</c>,
+    /// <c>allocation_payer_mismatch</c> or <c>bill_not_posted</c>. Nothing is saved here: the caller commits. Since
+    /// Prompt 4.5 (ADR 0027).
+    /// </summary>
+    public Task<Result<SettledBill>> RestoreAsync(BillId billId, PayerId payerId, Money amount, CancellationToken ct);
 }

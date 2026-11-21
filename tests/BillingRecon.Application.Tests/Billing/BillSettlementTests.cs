@@ -85,6 +85,32 @@ public sealed class BillSettlementTests
         (await new BillSettlement(_repository).FindPostedAsync(Id, CancellationToken.None)).Error.Code.ShouldBe(BillingErrors.BillNotPostedCode);
     }
 
+    [Fact]
+    public async Task BR305_an_amount_is_given_back_to_a_bill_of_the_payer_and_the_answer_names_the_bill_and_its_balance()
+    {
+        var bill = Stored(Posted());
+        bill.ApplyCredit(Money.Of(126m)).IsSuccess.ShouldBeTrue();
+
+        var result = await new BillSettlement(_repository).RestoreAsync(Id, Payer, Money.Of(100m), CancellationToken.None);
+
+        result.Value.ShouldBe(new SettledBill("BIL/26-27/000042", Money.Of(100m)));
+        (bill.BalanceDue, bill.Status).ShouldBe((Money.Of(100m), BillStatus.PartiallyPaid));
+    }
+
+    [Fact]
+    public async Task BR305_nothing_is_given_back_to_a_bill_nobody_has_of_another_payer_or_that_is_not_posted()
+    {
+        (await new BillSettlement(_repository).RestoreAsync(Id, Payer, Money.Of(1m), CancellationToken.None)).Error.Code.ShouldBe(BillingErrors.BillNotFoundCode);
+
+        var bill = Stored(Posted());
+        bill.ApplyCredit(Money.Of(126m)).IsSuccess.ShouldBeTrue();
+        (await new BillSettlement(_repository).RestoreAsync(Id, new PayerId(Guid.NewGuid()), Money.Of(1m), CancellationToken.None)).Error.Code.ShouldBe(BillingErrors.AllocationPayerMismatchCode);
+        bill.BalanceDue.ShouldBe(Money.Zero);
+
+        Stored(Draft());
+        (await new BillSettlement(_repository).RestoreAsync(Id, Payer, Money.Of(1m), CancellationToken.None)).Error.Code.ShouldBe(BillingErrors.BillNotPostedCode);
+    }
+
     private Bill Stored(Bill bill)
     {
         bill.WithId(Id);

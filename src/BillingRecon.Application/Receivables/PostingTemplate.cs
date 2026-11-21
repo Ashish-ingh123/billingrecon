@@ -212,4 +212,77 @@ public sealed record PostingTemplate(
                 LedgerLine.Cr(LedgerAccount.Receivable, amount, new LedgerSubject(LedgerSubjectType.Bill, billId.Value)),
             ]);
     }
+
+    /// <summary>
+    /// An allocation of <paramref name="amount"/> was reversed (BR-305): the mirror pair Dr Receivable(bill),
+    /// Cr UnappliedCash(payment), naming the posting it reverses. The payer owes the amount again and holds it again
+    /// as unapplied cash. The business date is the day of the reversal; the original posting is not touched.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="amount"/> is not above zero, or <paramref name="reversalOf"/> is empty.</exception>
+    public static PostingTemplate AllocationReversed(
+        PaymentAllocationId allocationId,
+        PaymentId paymentId,
+        BillId billId,
+        PayerId payerId,
+        Money amount,
+        DateOnly reversalDate,
+        string paymentNumber,
+        string billNumber,
+        LedgerPostingId reversalOf)
+    {
+        if (!amount.IsPositive)
+        {
+            throw new ArgumentException("An allocation is reversed for its amount, which is above zero.", nameof(amount));
+        }
+
+        if (reversalOf.Value == Guid.Empty)
+        {
+            throw new ArgumentException("A reversal names the posting it reverses.", nameof(reversalOf));
+        }
+
+        return new PostingTemplate(
+            LedgerPostingKind.AllocationReversed,
+            LedgerDocumentType.PaymentAllocation,
+            allocationId.Value,
+            payerId,
+            reversalDate,
+            $"Allocation of payment {paymentNumber} to bill {billNumber} reversed",
+            [
+                LedgerLine.Dr(LedgerAccount.Receivable, amount, new LedgerSubject(LedgerSubjectType.Bill, billId.Value)),
+                LedgerLine.Cr(LedgerAccount.UnappliedCash, amount, new LedgerSubject(LedgerSubjectType.Payment, paymentId.Value)),
+            ],
+            reversalOf);
+    }
+
+    /// <summary>
+    /// A payment of <paramref name="amount"/> was reversed (BR-306): Dr UnappliedCash(payment), Cr Cash, naming the
+    /// posting that recorded it. Its allocations were reversed before, so the whole amount was unapplied; afterwards
+    /// the payment holds nothing. The business date is the day of the reversal.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="amount"/> is not above zero, or <paramref name="reversalOf"/> is empty.</exception>
+    public static PostingTemplate PaymentReversed(PaymentId paymentId, PayerId payerId, Money amount, DateOnly reversalDate, string paymentNumber, LedgerPostingId reversalOf)
+    {
+        if (!amount.IsPositive)
+        {
+            throw new ArgumentException("A payment is reversed for its amount, which is above zero.", nameof(amount));
+        }
+
+        if (reversalOf.Value == Guid.Empty)
+        {
+            throw new ArgumentException("A reversal names the posting it reverses.", nameof(reversalOf));
+        }
+
+        return new PostingTemplate(
+            LedgerPostingKind.PaymentReversed,
+            LedgerDocumentType.Payment,
+            paymentId.Value,
+            payerId,
+            reversalDate,
+            $"Payment {paymentNumber} reversed",
+            [
+                LedgerLine.Dr(LedgerAccount.UnappliedCash, amount, new LedgerSubject(LedgerSubjectType.Payment, paymentId.Value)),
+                LedgerLine.Cr(LedgerAccount.Cash, amount),
+            ],
+            reversalOf);
+    }
 }

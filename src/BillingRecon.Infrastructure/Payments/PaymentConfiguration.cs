@@ -9,7 +9,7 @@ namespace BillingRecon.Infrastructure.Payments;
 /// The <c>Payments</c> table as recording needs it (docs/database.md, section 3.4; BR-301, BR-302, BR-405). A payment
 /// is posted when it is created, so its number is never null. The foreign keys to the payer and to the ledger posting
 /// come from the convention of the context for typed-id columns (ADR 0021), so this class names no entity of another
-/// module. The columns and states of a reversal arrive with reversals (Prompt 4.5).
+/// module. The columns of a reversal are added by <c>PaymentWithReversalsConfiguration</c> (Prompt 4.5).
 /// <para>
 /// The allocations of a payment are left out of the model here and put back by
 /// <c>PaymentWithAllocationsConfiguration</c>, which Entity Framework applies after this class (configurations
@@ -46,6 +46,13 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         }
 
         model.AddIgnored(typeof(PaymentAllocation));
+
+        // What a reversal adds is configured by PaymentWithReversalsConfiguration, which is applied after this class and
+        // names these properties again. Left out here, so that the table of a recorded payment is a migration of its own.
+        builder.Ignore(payment => payment.ReversedAtUtc);
+        builder.Ignore(payment => payment.ReversedByUserId);
+        builder.Ignore(payment => payment.ReversalReason);
+        builder.Ignore(payment => payment.ReversalPostingId);
 
         // The gapless number (BR-801): unique in the tenant, and one payment per position of the series of a fiscal year.
         builder.Property(payment => payment.Number).HasMaxLength(DocumentNumber.MaxLength).IsUnicode(false);

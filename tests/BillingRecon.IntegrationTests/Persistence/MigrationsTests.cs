@@ -321,7 +321,7 @@ public sealed class MigrationsTests : IDisposable
         createPayments.ShouldContain("CONSTRAINT [CK_Payments_UnappliedAmount] CHECK ([UnappliedAmount] BETWEEN 0 AND [Amount])", Case.Sensitive);
         createPayments.ShouldContain("CONSTRAINT [CK_Payments_Reference] CHECK ([Method] = 'Cash' OR [Reference] IS NOT NULL)", Case.Sensitive);
         createPayments.ShouldContain("CONSTRAINT [CK_Payments_Method] CHECK ([Method] IN ('Cash', 'Card', 'UPI', 'BankTransfer', 'Cheque'))", Case.Sensitive);
-        createPayments.ShouldContain("CONSTRAINT [CK_Payments_Status] CHECK ([Status] IN ('Posted'))", Case.Sensitive);
+        createPayments.ShouldContain("CONSTRAINT [CK_Payments_Status] CHECK ([Status] IN ('Posted', 'PendingReversal', 'Reversed'))", Case.Sensitive);
         createPayments.ShouldContain("CONSTRAINT [FK_Payments_TenantId] FOREIGN KEY ([TenantId]) REFERENCES [Tenants] ([Id])", Case.Sensitive);
         createPayments.ShouldContain("CONSTRAINT [FK_Payments_PayerId] FOREIGN KEY ([PayerId]) REFERENCES [Payers] ([Id])", Case.Sensitive);
         createPayments.ShouldContain("CONSTRAINT [FK_Payments_PostingId] FOREIGN KEY ([PostingId]) REFERENCES [LedgerPostings] ([Id])", Case.Sensitive);
@@ -361,7 +361,7 @@ public sealed class MigrationsTests : IDisposable
         createAllocations.ShouldContain("[PostingId] uniqueidentifier NOT NULL", Case.Sensitive);
         createAllocations.ShouldNotContain("RowVersion", Case.Sensitive, "the row version of the payment covers its allocations");
         createAllocations.ShouldContain("CONSTRAINT [CK_PaymentAllocations_Amount] CHECK ([Amount] > 0)", Case.Sensitive);
-        createAllocations.ShouldContain("CONSTRAINT [CK_PaymentAllocations_Status] CHECK ([Status] IN ('Active'))", Case.Sensitive);
+        createAllocations.ShouldContain("CONSTRAINT [CK_PaymentAllocations_Status] CHECK ([Status] IN ('Active', 'PendingReversal', 'Reversed'))", Case.Sensitive);
         createAllocations.ShouldContain("CONSTRAINT [FK_PaymentAllocations_TenantId] FOREIGN KEY ([TenantId]) REFERENCES [Tenants] ([Id])", Case.Sensitive);
         createAllocations.ShouldContain("CONSTRAINT [FK_PaymentAllocations_PaymentId] FOREIGN KEY ([PaymentId]) REFERENCES [Payments] ([Id])", Case.Sensitive);
         createAllocations.ShouldContain("CONSTRAINT [FK_PaymentAllocations_BillId] FOREIGN KEY ([BillId]) REFERENCES [Bills] ([Id])", Case.Sensitive);
@@ -474,6 +474,46 @@ public sealed class MigrationsTests : IDisposable
         script.ShouldContain("CREATE INDEX [IX_Adjustments_TenantId_BillId_Status] ON [Adjustments] ([TenantId], [BillId], [Status]) INCLUDE ([Amount])", Case.Sensitive);
         script.ShouldContain("CREATE UNIQUE INDEX [UX_Adjustments_TenantId_Number] ON [Adjustments] ([TenantId], [Number]) WHERE [Number] IS NOT NULL", Case.Sensitive);
         script.ShouldContain("CREATE UNIQUE INDEX [UX_Adjustments_TenantId_FiscalYear_SequenceNumber] ON [Adjustments] ([TenantId], [FiscalYear], [SequenceNumber]) WHERE [SequenceNumber] IS NOT NULL", Case.Sensitive);
+    }
+
+    [Fact]
+    public void The_fifteenth_migration_is_0015_PaymentReversals()
+    {
+        var migrations = _context.Database.GetMigrations().ToArray();
+
+        migrations.Length.ShouldBeGreaterThanOrEqualTo(15, $"The PaymentReversals migration is missing. {HowToAdd.Replace("<name>", "0015_PaymentReversals", StringComparison.Ordinal)}");
+        migrations[14].ShouldEndWith("_0015_PaymentReversals");
+    }
+
+    [Fact]
+    public void The_migrations_add_the_columns_of_a_reversal_to_payments_and_allocations_after_both_tables_and_not_with_them()
+    {
+        var script = _context.GetService<IMigrator>().GenerateScript();
+        var reversals = script[script.IndexOf("_0014_Adjustments", StringComparison.Ordinal)..];
+
+        // The two tables are created as recording and allocating need them, without a column of a reversal. Their
+        // status constraints name the states of a reversal from the start: they are generated from the enums.
+        foreach (var created in new[] { CreateTable(script, "Payments"), CreateTable(script, "PaymentAllocations") })
+        {
+            created.ShouldNotContain("[ReversedAtUtc]", Case.Sensitive);
+            created.ShouldNotContain("[ReversedByUserId]", Case.Sensitive);
+            created.ShouldNotContain("[ReversalReason]", Case.Sensitive);
+            created.ShouldNotContain("[ReversalPostingId]", Case.Sensitive);
+        }
+
+        // The fifteenth migration adds them, with the constraint that ties them to the status and the two keys.
+        foreach (var table in new[] { "Payments", "PaymentAllocations" })
+        {
+            reversals.ShouldContain($"ALTER TABLE [{table}] ADD [ReversedAtUtc] datetimeoffset(3) NULL", Case.Sensitive);
+            reversals.ShouldContain($"ALTER TABLE [{table}] ADD [ReversedByUserId] uniqueidentifier NULL", Case.Sensitive);
+            reversals.ShouldContain($"ALTER TABLE [{table}] ADD [ReversalReason] nvarchar(500) NULL", Case.Sensitive);
+            reversals.ShouldContain($"ALTER TABLE [{table}] ADD [ReversalPostingId] uniqueidentifier NULL", Case.Sensitive);
+            reversals.ShouldContain($"ALTER TABLE [{table}] ADD CONSTRAINT [CK_{table}_ReversedIffReversed] CHECK (([Status] = 'Reversed' AND [ReversedAtUtc] IS NOT NULL", Case.Sensitive);
+            reversals.ShouldContain($"ALTER TABLE [{table}] ADD CONSTRAINT [FK_{table}_ReversalPostingId] FOREIGN KEY ([ReversalPostingId]) REFERENCES [LedgerPostings] ([Id])", Case.Sensitive);
+        }
+
+        reversals.ShouldContain("[UnappliedAmount] = 0) OR ([Status] <> 'Reversed'", Case.Sensitive, "a reversed payment holds nothing (BR-306)");
+        reversals.ShouldNotContain("CREATE TABLE", Case.Sensitive);
     }
 
     // The text of one CREATE TABLE statement of the script of all migrations.

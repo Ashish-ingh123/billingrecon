@@ -435,6 +435,41 @@ other gets 409 `concurrency_conflict` and nothing of its request is written: rea
 request that arrives after the first has finished gets 422 `allocation_exceeds_balance_due`. A payment can be
 allocated after its payer was deactivated. Each allocation writes an audit record on the payment and one on the bill.
 
+**Reversing an allocation or a payment (US-32, US-33; BR-305, BR-306; ADR 0027).** A cashier asks with a reason;
+a second person approves, which is the reversal, or rejects, which leaves everything as it was. Nothing is deleted:
+the rows stay, marked `Reversed`, and the ledger gets mirror postings. Every request needs `If-Match` with the
+version of the **payment** and an `Idempotency-Key`, and answers the payment with its allocations.
+
+| Method and path | Success | Failures |
+|---|---|---|
+| `POST /api/v1/payments/{id}/allocations/{allocationId}/reverse` | **202**, the allocation in `PendingReversal` | 400; 403 `approval_needs_user`; 404 `payment_not_found`, `allocation_not_found`; 409 `concurrency_conflict`, `allocation_pending_reversal`, `allocation_reversed`, `payment_pending_reversal`, `payment_reversed`; 428 |
+| `POST .../allocations/{allocationId}/approve-reversal` (body optional) | 200, the allocation `Reversed` | 403 `approval_checker_is_maker`, `approval_needs_user`; 404; 409 `concurrency_conflict`, `allocation_reversed`; 422 `allocation_not_pending_reversal`; 428 |
+| `POST .../allocations/{allocationId}/reject-reversal` | 200, the allocation `Active` again | 400 without a comment; otherwise as `approve-reversal` |
+| `POST /api/v1/payments/{id}/reverse` | **202**, the payment in `PendingReversal` | 400; 403 `approval_needs_user`; 404 `payment_not_found`; 409 `concurrency_conflict`, `payment_pending_reversal`, `payment_reversed`, `allocation_pending_reversal`; 428 |
+| `POST /api/v1/payments/{id}/approve-reversal` (body optional) | 200, the payment `Reversed` | 403 `approval_checker_is_maker`, `approval_needs_user`; 404; 409 `concurrency_conflict`, `payment_reversed`; 422 `payment_not_pending_reversal`; 428 |
+| `POST /api/v1/payments/{id}/reject-reversal` | 200, the payment `Posted` again | 400 without a comment; otherwise as `approve-reversal` |
+
+`reverse` takes `reason` (required, at most 500 characters); `reject-reversal` takes `comment` (required);
+`approve-reversal` takes an optional `comment`.
+
+Approving the reversal of an allocation gives its amount back to the payment (`unappliedAmount` rises) and to the
+bill (`balanceDue` rises, and the status moves back to `PartiallyPaid` or `Posted`), and enters
+Dr Receivable(bill) / Cr UnappliedCash(payment). Approving the reversal of a payment first reverses every
+allocation that is still applied, then enters Dr UnappliedCash(payment) / Cr Cash for the whole amount: the payment
+ends `Reversed` with `unappliedAmount` 0, keeps its number, and is never used again. While a payment waits for its
+reversal nothing can be allocated from it (409 `payment_pending_reversal`). Only one decision waits at a time: a
+payment cannot be asked for reversal while one of its allocations waits, nor the other way round.
+
+A payment now also has `reversedAtUtc` and `reversalReason`, and its `status` is `Posted`, `PendingReversal` or
+`Reversed`. An allocation has `reversedAtUtc` and `reversalReason` too, and its `status` is `Active`,
+`PendingReversal` or `Reversed`. The audit trail of the payment shows `AllocationReversalRequested`,
+`AllocationReversalRejected`, `AllocationReversed`, `ReversalRequested`, `ReversalRejected` and `Reversed`, each
+with the reason; the bill shows `CreditReversed`.
+
+**Two checkers at the same moment (every `approve` and `reject` of this API).** One decision stands. The other gets
+409: `concurrency_conflict` when it had read the document before the first was committed, or the code of the new
+state when after. Until Prompt 4.5 a narrow ordering of the two answered 500 instead (ADR 0027, point 9).
+
 ### 8.8 Credit notes (US-24; BR-209 to BR-214, BR-604; ADR 0025)
 
 A credit note corrects a posted bill: it lowers what was billed, and with it what the payer owes. It is drafted

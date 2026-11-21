@@ -2,7 +2,8 @@ using BillingRecon.Domain.Payments;
 
 namespace BillingRecon.Application.Payments;
 
-/// <summary>A payment as the API returns it. <c>Version</c> is the row version, sent back as the ETag (BR-804).</summary>
+/// <summary>A payment as the API returns it. <c>ReversedAtUtc</c> and <c>ReversalReason</c> are null unless the payment was
+/// reversed (BR-306). <c>Version</c> is the row version, sent back as the ETag (BR-804).</summary>
 public sealed record PaymentDto(
     Guid Id,
     string Number,
@@ -15,6 +16,8 @@ public sealed record PaymentDto(
     decimal UnappliedAmount,
     PaymentStatus Status,
     string? Notes,
+    DateTimeOffset? ReversedAtUtc,
+    string? ReversalReason,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc,
     string Version);

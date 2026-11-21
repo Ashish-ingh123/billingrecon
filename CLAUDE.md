@@ -193,7 +193,9 @@ src/
                                 (Billing); CreditNoteId, CreditNoteLineId and CreditNoteAllocationId (Common).
                                 Since Prompt 4.4 (ADR 0026): the Adjustment aggregate with AdjustmentKind,
                                 AdjustmentStatus, its events and AdjustmentsErrors (Adjustments); AdjustmentId
-                                (Common).
+                                (Common). Since Prompt 4.5 (ADR 0027): the reversal of an allocation and of a
+                                payment on the Payment aggregate, with the states PendingReversal and Reversed
+                                and six events (Payments); Bill.ReverseCredit with BillCreditReversed (Billing).
   BillingRecon.Application/     Use cases (command/query handlers as plain classes), FluentValidation validators,
                                 port interfaces (IClock, IUnitOfWork, repositories, INumberSeries,
                                 IIdempotencyStore, ITenantContext, ICurrentUser), DTOs and explicit mappers.
@@ -227,7 +229,12 @@ src/
                                 The adjustment use cases (draft, update, void, post, approve, reject, get,
                                 list) with IAdjustmentRepository and IAdjustmentReadService (Adjustments);
                                 IBillSettlement.FindPostedAsync with PostedBill (Billing);
-                                PostingTemplate.AdjustmentPosted (Receivables). ADR 0026.
+                                PostingTemplate.AdjustmentPosted (Receivables). ADR 0026. The six reversal use
+                                cases (request, approve and reject, for an allocation and for a payment;
+                                Payments); IBillSettlement.RestoreAsync (Billing);
+                                PostingTemplate.AllocationReversed and PaymentReversed (Receivables);
+                                PendingApprovals.FindPendingAsync, how every approve and reject use case finds
+                                its request (Common). ADR 0027.
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -562,7 +569,7 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 | `docs/requirements.md` | Domain and vocabulary, actors and permissions, R1 scope, the **BR-nnn business-rule catalogue**, user stories with acceptance criteria, NFRs, R2–R5 outlines |
 | `docs/domain-model.md` | Module map, value objects, aggregates with invariants (citing BR-ids), Bill state machine, transaction boundaries and the allocation exception, domain events, ports |
 | `docs/database.md` | Conventions, ER diagram, every R1 table with types/keys/indexes/CHECKs, number-series lock, ledger accounts and posting templates, balance identities and reconciliation SQL, idempotency lifecycle, permissions, migrations |
-| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), and the adjustment endpoints (Prompt 4.4) |
+| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), the adjustment endpoints (Prompt 4.4), and the reversal endpoints of payments and allocations (Prompt 4.5) |
 | `docs/build-prompts.md` | The build prompts from zero to R1, reconstructed on 2026-11-20: what each finished prompt built, and the wording and order of the prompts still to give. Its phase numbers are the ones this file uses |
 | `docs/security.md` | Authentication, authorisation, tenancy, maker-checker, secrets, threat model |
 | `docs/testing-strategy.md` | Test pyramid, tooling, database tests, architecture tests, CI gates |
@@ -598,7 +605,10 @@ item 21),
 and applying the credit (Accepted on the owner's approval of the Prompt 4.3 plan, 2026-11-21),
 0026 adjustments: no exemption from the second person, the cap asked twice, and the bill reached through
 `IBillSettlement` (Accepted on the owner's approval of the Prompt 4.4 plan, 2026-11-21; it resolves open question 1
-of the domain model and adds a sentence to BR-501).
+of the domain model and adds a sentence to BR-501),
+0027 reversals of allocations and payments, and a decision that comes late (Accepted on the owner's approval of the
+Prompt 4.5 plan, 2026-11-21; its point 9 corrects ADR 0023: a decision that finds no pending approval request
+answers 409, not 500, and waits for the owner's confirmation).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1230,10 +1240,48 @@ Kept here so they survive between sessions. Remove an item when it is done.
       when the rejection wins and the approval reads the bill after that commit, the bill is a draft and the right
       answer is 422 `bill_not_pending_approval`, but the test accepts only 409. That would be an assumption of the
       test about timing, not a defect of the code; it is a guess until a failure is caught. Not changed: it is a
-      test of another prompt.
+      test of another prompt. **That guess was wrong, and the failure is explained and fixed with Prompt 4.5
+      (item 24, ADR 0027 point 9):** the losing request answered 500, a defect of the code.
     - **Still to do:** bring the migrations `0003` to `0014` into the repository (`docs/runbook.md` section 8 B,
       which can now run on this machine) and commit them on their own; the run on SQL Server 2022 in Docker.
     - Follow-ups for later slices: the roles that may draft and approve (5.3); adjustments by kind in the reports
       (6.1).
-    - Next: Prompt 4.5 (reversals). The question of item 22 is still open: whether 4.5 also reverses an
-      application of credit.
+    - Next: Prompt 4.5 (reversals), which is item 24.
+24. **Prompt 4.5 (reversals, ADR 0027), written 2026-11-21, built and tested on .NET 10.** On `phase-2-billing`
+    like the rest. The plan was shown first and approved "as recommended".
+    - Built: the reversal of an allocation (US-32, BR-305) and of a payment (US-33, BR-306) as maker-checker
+      actions on the `Payment` aggregate; six endpoints in `PaymentReversalsController` (`reverse`,
+      `approve-reversal`, `reject-reversal`, on a payment and on one of its allocations); `Bill.ReverseCredit` and
+      `IBillSettlement.RestoreAsync`; the mirror posting templates; the reversal columns of `Payments` and
+      `PaymentAllocations`; three identities of the reconciliation; and their tests.
+    - Decided by the owner with the plan (ADR 0027): reversing an application of credit is its own prompt,
+      **4.5b**, added to `docs/build-prompts.md`; the BR-306 check "refused when a refund exists" is built with
+      refunds (4.6); a payment and one of its allocations never wait for a reversal at the same time; a reversal
+      takes no document number; the maker's reason is kept by the approval request and copied to the row at
+      approval.
+    - **A defect found and fixed, in code of earlier prompts as well (ADR 0027, point 9).** Every approve and reject
+      use case read its document, then looked for the pending approval request, and threw when there was none.
+      Another decision committed between the two reads makes exactly that happen, and the client got **500**. All
+      ten handlers (bills since 3.6, credit notes, adjustments, and the four new ones) now answer **409
+      `concurrency_conflict`** through `PendingApprovals.FindPendingAsync`. Nothing was ever written wrongly: only
+      the answer was wrong. The new test `BillApprovalApiTests.BR804_a_decision_that_read_the_bill_before_another_decision_committed...`
+      forces the order; it answered 500 before the change. This was the intermittent failure of item 23.
+    - **Changed expectations in existing tests**, each called out: `BillApprovalHandlerTests` expected an
+      exception for a waiting bill without a request and now expects the conflict (renamed); `MigrationsTests`
+      expects the status constraints of `Payments` and `PaymentAllocations` to list the three states from `0011`
+      and `0012` on, because they are generated from the enums.
+    - Changed in other existing tests, none weakened: `IdempotencyConventionTests` lists
+      `PaymentReversalsController`; `TypedIdForeignKeyTests` (two new keys), `MigrationsTests` and
+      `MigrationsOnSqlServerTests` know the columns and the migration; `BillSettlementTests` gained tests.
+    - **Migrations renumbered:** the columns are `0015_PaymentReversals`, kept out of `0011` and `0012` by a third
+      configuration class, `PaymentWithReversalsConfiguration`. Refunds and users are now `0016` and `0017`, one
+      more each if 4.5b adds a migration first.
+    - **Verified on .NET 10 (SDK 10.0.404), in a throwaway copy made from scratch:** `0003` to `0015` scaffolded one
+      by one with EF Core 10.0.12 (`0015`: eight columns, two CHECK constraints, two foreign keys, no table); strict
+      build and format gate clean; Domain 572, Application 322, Architecture 113, Integration 989, all green on
+      LocalDB 2019; the concurrency classes (231 tests) twelve times in a row without a failure.
+    - **Still to do:** the migrations into the repository; SQL Server 2022 in Docker; the refund check of BR-306
+      with 4.6.
+    - **For the owner:** confirm point 9 of ADR 0027, which reverses a decision of Prompt 3.6 (a missing request
+      was a fault there).
+    - Next: Prompt 4.5b (reverse an application of credit), then 4.6 (refunds).

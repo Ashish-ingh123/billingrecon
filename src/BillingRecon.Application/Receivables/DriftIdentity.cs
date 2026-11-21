@@ -40,6 +40,15 @@ public static class DriftIdentity
     /// <summary>An allocation whose bill is owed by another payer than its payment came from (BR-303).</summary>
     public const string AllocationPayerMismatch = "AllocationPayerMismatch";
 
+    /// <summary>Identity 2: a reversed allocation without the mirror posting that names its own posting (BR-305).</summary>
+    public const string ReversedAllocationNoPosting = "ReversedAllocationNoPosting";
+
+    /// <summary>Identity 2: a reversed payment without the posting that reverses the one that recorded it (BR-306).</summary>
+    public const string ReversedPaymentNoPosting = "ReversedPaymentNoPosting";
+
+    /// <summary>Identity 2, the other direction: a reversal posting whose allocation or payment is not reversed.</summary>
+    public const string ReversalPostingNoDocument = "ReversalPostingNoDocument";
+
     /// <summary>Identity 5: the available amount of a posted credit note differs from its available credit in the ledger.</summary>
     public const string CreditNoteAvailable = "CreditNoteAvailable";
 

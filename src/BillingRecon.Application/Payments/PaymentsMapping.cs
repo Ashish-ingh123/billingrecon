@@ -23,6 +23,8 @@ public static class PaymentsMapping
             UnappliedAmount: payment.UnappliedAmount.Amount,
             Status: payment.Status,
             Notes: payment.Notes,
+            ReversedAtUtc: payment.ReversedAtUtc,
+            ReversalReason: payment.ReversalReason,
             CreatedAtUtc: payment.CreatedAtUtc,
             UpdatedAtUtc: payment.UpdatedAtUtc,
             Version: RowVersionText.Of(payment));
@@ -39,7 +41,9 @@ public static class PaymentsMapping
             Amount: allocation.Amount.Amount,
             Status: allocation.Status,
             AllocatedAtUtc: allocation.AllocatedAtUtc,
-            AllocatedByUserId: allocation.AllocatedByUserId?.Value);
+            AllocatedByUserId: allocation.AllocatedByUserId?.Value,
+            ReversedAtUtc: allocation.ReversedAtUtc,
+            ReversalReason: allocation.ReversalReason);
     }
 
     /// <summary>The payment with its allocations, the oldest first; allocations of one instant in the order of their ids.</summary>

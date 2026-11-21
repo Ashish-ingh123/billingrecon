@@ -46,4 +46,28 @@ public sealed class BillSettlement(IBillRepository bills) : IBillSettlement
         // Only a posted bill has a number (CK_Bills_NumberIffPosted).
         return bill.Number is { } number ? new PostedBill(bill.PayerId, bill.BillDate, number, bill.BalanceDue) : BillingErrors.BillNotPosted();
     }
+
+    /// <inheritdoc />
+    public async Task<Result<SettledBill>> RestoreAsync(BillId billId, PayerId payerId, Money amount, CancellationToken ct)
+    {
+        var bill = await bills.GetAsync(billId, ct);
+        if (bill is null)
+        {
+            return BillingErrors.BillNotFound();
+        }
+
+        if (bill.PayerId != payerId)
+        {
+            return BillingErrors.AllocationPayerMismatch();
+        }
+
+        var restored = bill.ReverseCredit(amount);
+        if (restored.IsFailure)
+        {
+            return restored.Error;
+        }
+
+        // A posted bill has its number; ReverseCredit refused one that has none.
+        return new SettledBill(bill.Number ?? string.Empty, bill.BalanceDue);
+    }
 }

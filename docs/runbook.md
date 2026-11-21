@@ -426,7 +426,7 @@ dotnet tool restore
 
 ```powershell
 New-Item -ItemType Directory -Force ..\held | Out-Null
-Move-Item src\BillingRecon.Infrastructure\Billing\BillConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillLineConfiguration.cs, src\BillingRecon.Infrastructure\Common\Numbering\NumberSeriesConfiguration.cs, src\BillingRecon.Infrastructure\Common\Idempotency\IdempotencyKeyConfiguration.cs, src\BillingRecon.Infrastructure\Audit\AuditRecordConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerPostingConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerEntryConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\PayerBalanceConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillPostingConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillApprovalConfiguration.cs, src\BillingRecon.Infrastructure\Common\Approvals\ApprovalRequestConfiguration.cs, src\BillingRecon.Infrastructure\Payments\PaymentConfiguration.cs, src\BillingRecon.Infrastructure\Payments\PaymentWithAllocationsConfiguration.cs, src\BillingRecon.Infrastructure\Billing\CreditNoteConfiguration.cs, src\BillingRecon.Infrastructure\Billing\CreditNoteLineConfiguration.cs, src\BillingRecon.Infrastructure\Billing\CreditNoteAllocationConfiguration.cs, src\BillingRecon.Infrastructure\Adjustments\AdjustmentConfiguration.cs ..\held\
+Move-Item src\BillingRecon.Infrastructure\Billing\BillConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillLineConfiguration.cs, src\BillingRecon.Infrastructure\Common\Numbering\NumberSeriesConfiguration.cs, src\BillingRecon.Infrastructure\Common\Idempotency\IdempotencyKeyConfiguration.cs, src\BillingRecon.Infrastructure\Audit\AuditRecordConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerPostingConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerEntryConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\PayerBalanceConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillPostingConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillApprovalConfiguration.cs, src\BillingRecon.Infrastructure\Common\Approvals\ApprovalRequestConfiguration.cs, src\BillingRecon.Infrastructure\Payments\PaymentConfiguration.cs, src\BillingRecon.Infrastructure\Payments\PaymentWithAllocationsConfiguration.cs, src\BillingRecon.Infrastructure\Billing\CreditNoteConfiguration.cs, src\BillingRecon.Infrastructure\Billing\CreditNoteLineConfiguration.cs, src\BillingRecon.Infrastructure\Billing\CreditNoteAllocationConfiguration.cs, src\BillingRecon.Infrastructure\Adjustments\AdjustmentConfiguration.cs, src\BillingRecon.Infrastructure\Payments\PaymentWithReversalsConfiguration.cs ..\held\
 dotnet ef migrations add 0003_ServiceItems --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
 Move-Item ..\held\BillConfiguration.cs, ..\held\BillLineConfiguration.cs src\BillingRecon.Infrastructure\Billing\
 dotnet ef migrations add 0004_Bills --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
@@ -451,6 +451,8 @@ Move-Item ..\held\CreditNoteConfiguration.cs, ..\held\CreditNoteLineConfiguratio
 dotnet ef migrations add 0013_CreditNotes --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
 Move-Item ..\held\AdjustmentConfiguration.cs src\BillingRecon.Infrastructure\Adjustments\
 dotnet ef migrations add 0014_Adjustments --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
+Move-Item ..\held\PaymentWithReversalsConfiguration.cs src\BillingRecon.Infrastructure\Payments\
+dotnet ef migrations add 0015_PaymentReversals --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
 ```
 
 Mind the second line: `BillPostingConfiguration.cs` and `BillApprovalConfiguration.cs` are moved out with the others
@@ -473,6 +475,7 @@ same way `PaymentWithAllocationsConfiguration.cs` comes back **after** `0011_Pay
 | `0012_PaymentAllocations` | 4.2 | `PaymentAllocations`, with four foreign keys (`TenantId`, `PaymentId`, `BillId`, `PostingId`), two CHECK constraints and two indexes; no row version and no reversal column. Nothing on `Payments` or `Bills` |
 | `0013_CreditNotes` | 4.3 | `CreditNotes`, `CreditNoteLines`, `CreditNoteAllocations`, with eleven foreign keys in all (four, three and four) and nine indexes (five, two and two). Nothing on `Bills` or `BillLines` |
 | `0014_Adjustments` | 4.4 | `Adjustments`, with four foreign keys (`TenantId`, `BillId`, `PayerId`, `PostingId`) and four indexes. Nothing on `Bills` |
+| `0015_PaymentReversals` | 4.5 | No table. On `Payments` and on `PaymentAllocations`: four columns each (`ReversedAtUtc`, `ReversedByUserId`, `ReversalReason`, `ReversalPostingId`), one CHECK constraint (`CK_..._ReversedIffReversed`) and one foreign key (`FK_..._ReversalPostingId`). `0011` and `0012` must hold none of these columns |
 
 **`0008_Receivables` is finished by hand** (ADR 0021): a scaffold writes schema, and this migration also has to
 open the balances of every payer that already exists. Open `Common/Migrations/*_0008_Receivables.cs` (not the
@@ -513,13 +516,14 @@ dotnet test --filter "FullyQualifiedName~PaymentsApiTests"
 dotnet test --filter "FullyQualifiedName~PaymentAllocationsApiTests"
 dotnet test --filter "FullyQualifiedName~CreditNotesApiTests"
 dotnet test --filter "FullyQualifiedName~AdjustmentsApiTests"
+dotnet test --filter "FullyQualifiedName~PaymentReversalsApiTests"
 ```
 
 **E. Send back**
 
 - the output of A, C and D, and the names of the migration files B created;
-- the migration files themselves (`Common/Migrations/*_0003_*` to `*_0013_*` and the updated
-  `BillingReconDbContextModelSnapshot.cs`), which are then committed as "Migrations 0003 to 0014, scaffolded with
+- the migration files themselves (`Common/Migrations/*_0003_*` to `*_0015_*` and the updated
+  `BillingReconDbContextModelSnapshot.cs`), which are then committed as "Migrations 0003 to 0015, scaffolded with
   EF Core 10".
 
 **What that run has to show, because nothing here could** (the office machine has .NET 9 and LocalDB 2019 only):

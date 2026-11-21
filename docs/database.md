@@ -408,6 +408,17 @@ the payment is saved with it in the same commit.
 The rule "payment and bill share a payer" (BR-303) is cross-table and enforced in code; the
 reconciliation query in §5.6 also detects a violation.
 
+**Built 2026-11-21 (Prompt 4.5, ADR 0027; migration `0015_PaymentReversals`).** `Payments` and `PaymentAllocations`
+each gained `ReversedAtUtc` `datetimeoffset(3)`, `ReversedByUserId` (the checker; no key until `Users` exists),
+`ReversalReason` `nvarchar(500)` and `ReversalPostingId`, all null unless the row is reversed, with
+`FK_Payments_ReversalPostingId` and `FK_PaymentAllocations_ReversalPostingId` from the typed-id convention.
+`CK_Payments_ReversedIffReversed` and `CK_PaymentAllocations_ReversedIffReversed` say that the four columns are
+set exactly when the status is `Reversed`; the first also says that a reversed payment has nothing unapplied
+(BR-306). They stand in for the two constraints of the table above that speak of reversal. `CK_Payments_Status`
+now allows `Posted`, `PendingReversal` and `Reversed`, and `CK_PaymentAllocations_Status` `Active`,
+`PendingReversal` and `Reversed`; both lists are in `0011` and `0012` already, because the constraints are
+generated from the enums. No row is ever deleted by a reversal.
+
 **Built 2026-11-20 (Prompt 4.2, ADR 0024; migration `0012_PaymentAllocations`), as allocating needs it.** The
 columns: `Id`, `TenantId`, `PaymentId`, `BillId`, `Amount` `decimal(18,2)`, `Status` `varchar(20)`, `AllocatedAtUtc`
 `datetimeoffset(3)`, `AllocatedByUserId` (null when no user acted), `PostingId` `NOT NULL`. There is **no row
@@ -902,6 +913,11 @@ come to more than the bill).
 `PostingWithoutAdjustment` (identity 2, both directions) and `AdjustmentPayerMismatch` (the payer of an adjustment
 is not the payer of its bill). What an adjustment took off a bill is already covered by identity 3.
 
+*Built 2026-11-21 (Prompt 4.5):* `PaymentAllocations` (identity 4, second form) now counts an allocation that waits
+for its reversal as applied and expects nothing unapplied on a reversed payment. Three more identities:
+`ReversedAllocationNoPosting` and `ReversedPaymentNoPosting` (a reversed row without the mirror posting that names
+its own posting) and `ReversalPostingNoDocument` (a reversal posting whose allocation or payment is not reversed).
+
 A non-empty result is a **Sev-1 defect**: the runbook says stop postings for the tenant, capture the
 rows and the correlation ids from `AuditRecords`, and fix the code path. Caches are never
 "corrected" by hand; if a fix requires rebuilding a cache, it is rebuilt from the ledger by a
@@ -992,8 +1008,9 @@ update of an append-only table (CLAUDE.md, section 9).
   | `0012_PaymentAllocations` | `PaymentAllocations` (§3.4), as allocating needs it | Written 2026-11-20 (Prompt 4.2, ADR 0024). **To be scaffolded with EF Core 10 on the personal machine, after `0011_Payments`** (`docs/runbook.md` §8), with `PaymentWithAllocationsConfiguration.cs` moved out of the project until then, so that `0011_Payments` creates the table of payments alone. Scaffolded that way with EF Core 9 in the throwaway copy on 2026-11-21: `0011` held `Payments` alone, `0012` held `PaymentAllocations` alone with its four foreign keys and two indexes, and the database tests passed on LocalDB 2019. |
   | `0013_CreditNotes` | `CreditNotes`, `CreditNoteLines`, `CreditNoteAllocations` (§3.3, "Built 2026-11-21") | Written 2026-11-21 (Prompt 4.3, ADR 0025). **To be scaffolded with EF Core 10 on the personal machine, after `0012_PaymentAllocations`** (`docs/runbook.md` §8), with the three credit note configuration files moved out of the project until then. Scaffolded that way with EF Core 9 in the throwaway copy: it held the three tables alone, and the database tests passed on LocalDB 2019. |
   | `0014_Adjustments` | `Adjustments` (§3.5, "Built 2026-11-21") | Written 2026-11-21 (Prompt 4.4, ADR 0026). **To be scaffolded into the repository after `0013_CreditNotes`** (`docs/runbook.md` §8), with `AdjustmentConfiguration.cs` moved out of the project until then. Scaffolded that way with EF Core 10.0.12 in a throwaway copy on 2026-11-21: it held `Adjustments` alone. |
-  | `0015_Refunds` | §3.4 | Prompt 4.6. Not started. Moved up by one when `PaymentAllocations` took `0012`. The reversal columns of `Payments` and `PaymentAllocations` (4.5) need a migration, numbered when that prompt is planned. |
-  | `0016_Users` | `Users`, `Roles` (§3.1) | Prompt 5.1. Not started. |
+  | `0015_PaymentReversals` | The reversal columns of `Payments` and `PaymentAllocations` (§3.4, "Built 2026-11-21 (Prompt 4.5)") | Written 2026-11-21 (Prompt 4.5, ADR 0027). **To be scaffolded into the repository after `0014_Adjustments`** (`docs/runbook.md` §8), with `PaymentWithReversalsConfiguration.cs` moved out of the project until then, so that `0011` and `0012` create the two tables without these columns. Scaffolded that way with EF Core 10.0.12 in a throwaway copy: eight columns, two CHECK constraints and two foreign keys, no table. |
+  | `0016_Refunds` | §3.4 | Prompt 4.6. Not started. Moved up again when the reversal columns took `0015`. The reversal columns of `Payments` and `PaymentAllocations` (4.5) need a migration, numbered when that prompt is planned. |
+  | `0017_Users` | `Users`, `Roles` (§3.1) | Prompt 5.1. Not started. One number later if Prompt 4.5b adds a migration first. |
 
 - CHECK constraints, unique and filtered indexes and computed columns are declared in the EF model
   (the entity configuration, or a convention of the context), so a scaffolded migration needs no

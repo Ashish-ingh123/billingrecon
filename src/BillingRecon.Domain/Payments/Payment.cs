@@ -15,7 +15,12 @@ namespace BillingRecon.Domain.Payments;
 /// A payment is applied to posted bills of its payer through <see cref="Allocate"/> (BR-303, BR-304): each
 /// allocation lowers <see cref="UnappliedAmount"/> and is kept as a <see cref="PaymentAllocation"/>. Whether the bill
 /// can take the amount is the bill's question, which the use case asks through the Billing module's contract.
-/// Reversals and refunds arrive with their slices.
+/// </para>
+/// <para>
+/// An allocation, or the whole payment, is taken back only by a reversal (BR-305, BR-306), which a cashier asks for
+/// and a second person approves: the rows stay, marked reversed, and the ledger gets the mirror postings. While the
+/// payment waits for that decision nothing can be allocated from it; once reversed it never changes again. Refunds
+/// arrive with their slice.
 /// </para>
 /// </summary>
 public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, ICreationAudited, IModificationAudited, IHasRowVersion
@@ -28,6 +33,9 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, ICreation
 
     /// <summary>The largest amount one payment may have: sums of payments stay far inside what a <c>decimal(18,2)</c> column holds.</summary>
     public const decimal MaxAmount = 9_999_999_999.99m;
+
+    /// <summary>Longest allowed reason of a reversal, of the payment or of one of its allocations.</summary>
+    public const int ReversalReasonMaxLength = 500;
 
     private readonly List<PaymentAllocation> _allocations = [];
 
@@ -76,6 +84,21 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, ICreation
 
     /// <summary>The ledger posting that recorded the payment: Dr Cash, Cr UnappliedCash (BR-302). Set by the use case before it saves.</summary>
     public LedgerPostingId PostingId { get; private set; }
+
+    /// <summary>When the payment was reversed; null unless it was.</summary>
+    public DateTimeOffset? ReversedAtUtc { get; private set; }
+
+    /// <summary>Who approved the reversal, the checker; null unless the payment was reversed.</summary>
+    public UserId? ReversedByUserId { get; private set; }
+
+    /// <summary>Why the payment was reversed, in the words of the cashier who asked; null unless it was.</summary>
+    public string? ReversalReason { get; private set; }
+
+    /// <summary>
+    /// The ledger posting of the reversal: Dr UnappliedCash(payment), Cr Cash (BR-306); null unless the payment was
+    /// reversed. Set by the use case before it saves.
+    /// </summary>
+    public LedgerPostingId? ReversalPostingId { get; private set; }
 
     /// <inheritdoc />
     public DateTimeOffset CreatedAtUtc { get; private set; }
@@ -211,7 +234,14 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, ICreation
     /// is unapplied. The use case asks for the sum of a request before it changes anything.
     /// </summary>
     public Result CheckCanAllocate(Money amount)
-        => amount > UnappliedAmount ? PaymentsErrors.AllocationExceedsUnapplied(Number, UnappliedAmount) : Result.Success();
+    {
+        if (RefuseUnlessPosted() is { } refused)
+        {
+            return refused;
+        }
+
+        return amount > UnappliedAmount ? PaymentsErrors.AllocationExceedsUnapplied(Number, UnappliedAmount) : Result.Success();
+    }
 
     /// <summary>
     /// Applies <paramref name="amount"/> of the payment to bill <paramref name="billId"/> (BR-303): the unapplied
@@ -264,5 +294,254 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, ICreation
         }
 
         allocation.AttachPosting(postingId);
+    }
+
+    /// <summary>
+    /// A cashier asks for one allocation to be reversed (BR-305, US-32). The allocation waits for a second person;
+    /// its amount stays applied to the bill until the approval. Refused when the payment itself waits for a reversal
+    /// or is reversed, when it has no such allocation, or when the allocation already waits or is already reversed.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="reason"/> is blank or too long.</exception>
+    public Result RequestAllocationReversal(PaymentAllocationId allocationId, string reason)
+    {
+        var why = Field.Required(reason, ReversalReasonMaxLength);
+
+        if (RefuseUnlessPosted() is { } refused)
+        {
+            return refused;
+        }
+
+        var found = FindAllocation(allocationId, PaymentAllocationStatus.Active);
+        if (found.IsFailure)
+        {
+            return found.Error;
+        }
+
+        found.Value.MarkPendingReversal();
+        AddDomainEvent(new PaymentAllocationReversalRequested(Number, allocationId, found.Value.BillId, found.Value.Amount, why));
+
+        return Result.Success();
+    }
+
+    /// <summary>The checker rejects the reversal of an allocation (BR-605): the allocation is in force again, as it was.</summary>
+    /// <exception cref="ArgumentException"><paramref name="reason"/> is blank or too long.</exception>
+    public Result RejectAllocationReversal(PaymentAllocationId allocationId, string reason)
+    {
+        var why = Field.Required(reason, ReversalReasonMaxLength);
+
+        var found = FindAllocation(allocationId, PaymentAllocationStatus.PendingReversal);
+        if (found.IsFailure)
+        {
+            return found.Error;
+        }
+
+        found.Value.MarkActive();
+        AddDomainEvent(new PaymentAllocationReversalRejected(Number, allocationId, why));
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Whether the reversal of allocation <paramref name="allocationId"/> can be decided: the payment has it, and it
+    /// waits. For a use case that wants to know before it looks for the approval request.
+    /// </summary>
+    public Result CheckAllocationAwaitsReversal(PaymentAllocationId allocationId)
+        => FindAllocation(allocationId, PaymentAllocationStatus.PendingReversal) is { IsFailure: true } missing ? missing.Error : Result.Success();
+
+    /// <summary>
+    /// The checker approves the reversal of an allocation (BR-305): the allocation is marked reversed, with who, when
+    /// and why, and its amount is unapplied again. The bill and the mirror ledger posting are the use case's, in the
+    /// same transaction. The row stays; nothing is deleted.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="reason"/> is blank or too long, or the checker's id is empty.</exception>
+    public Result<PaymentAllocation> ReverseAllocation(PaymentAllocationId allocationId, string reason, DateTimeOffset reversedAtUtc, UserId reversedBy)
+    {
+        var why = Field.Required(reason, ReversalReasonMaxLength);
+        RequireChecker(reversedBy);
+
+        var found = FindAllocation(allocationId, PaymentAllocationStatus.PendingReversal);
+        if (found.IsFailure)
+        {
+            return found.Error;
+        }
+
+        TakeBack(found.Value, why, reversedAtUtc, reversedBy);
+
+        return found.Value;
+    }
+
+    /// <summary>
+    /// A cashier asks for the payment to be reversed (BR-306, US-33), for example a dishonoured cheque. The payment
+    /// waits for a second person and nothing can be allocated from it meanwhile. Refused when it already waits or is
+    /// reversed, or when one of its allocations waits for a decision of its own: one decision at a time.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="reason"/> is blank or too long.</exception>
+    public Result RequestReversal(string reason)
+    {
+        var why = Field.Required(reason, ReversalReasonMaxLength);
+
+        if (RefuseUnlessPosted() is { } refused)
+        {
+            return refused;
+        }
+
+        if (_allocations.Any(allocation => allocation.Status == PaymentAllocationStatus.PendingReversal))
+        {
+            return PaymentsErrors.AllocationPendingReversal();
+        }
+
+        Status = PaymentStatus.PendingReversal;
+        AddDomainEvent(new PaymentReversalRequested(Number, Amount, why));
+
+        return Result.Success();
+    }
+
+    /// <summary>The checker rejects the reversal of the payment (BR-605): it is posted again, as it was.</summary>
+    /// <exception cref="ArgumentException"><paramref name="reason"/> is blank or too long.</exception>
+    public Result RejectReversal(string reason)
+    {
+        var why = Field.Required(reason, ReversalReasonMaxLength);
+
+        if (RefuseUnlessPendingReversal() is { } refused)
+        {
+            return refused;
+        }
+
+        Status = PaymentStatus.Posted;
+        AddDomainEvent(new PaymentReversalRejected(Number, why));
+
+        return Result.Success();
+    }
+
+    /// <summary>Whether the reversal of the payment can be decided: it waits for one.</summary>
+    public Result CheckAwaitsReversal() => RefuseUnlessPendingReversal() is { } refused ? refused : Result.Success();
+
+    /// <summary>
+    /// The checker approves the reversal of the payment (BR-306): every allocation that is still applied is reversed
+    /// first, so the whole amount is unapplied; then the payment itself is reversed and holds nothing. The answer is
+    /// the allocations this took back, in the order of their bills, for the use case to restore each bill and enter
+    /// each mirror posting before the posting of the payment itself.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="reason"/> is blank or too long, or the checker's id is empty.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// Something other than allocations took money from the payment: a refund. A payment with a refund is not
+    /// reversed (BR-306), and the use case must refuse it before it comes here.
+    /// </exception>
+    public Result<IReadOnlyList<PaymentAllocation>> Reverse(string reason, DateTimeOffset reversedAtUtc, UserId reversedBy)
+    {
+        var why = Field.Required(reason, ReversalReasonMaxLength);
+        RequireChecker(reversedBy);
+
+        if (RefuseUnlessPendingReversal() is { } refused)
+        {
+            return refused;
+        }
+
+        var applied = _allocations.Where(allocation => allocation.IsApplied).OrderBy(allocation => allocation.BillId.Value).ThenBy(allocation => allocation.Id.Value).ToArray();
+        if (UnappliedAmount + applied.Select(allocation => allocation.Amount).Sum() != Amount)
+        {
+            throw new InvalidOperationException($"Payment {Number} cannot be reversed: part of it was refunded (BR-306).");
+        }
+
+        foreach (var allocation in applied)
+        {
+            TakeBack(allocation, why, reversedAtUtc, reversedBy);
+        }
+
+        UnappliedAmount = Money.Zero;
+        Status = PaymentStatus.Reversed;
+        ReversedAtUtc = reversedAtUtc;
+        ReversedByUserId = reversedBy;
+        ReversalReason = why;
+        AddDomainEvent(new PaymentReversed(Number, PayerId, Amount, why));
+
+        return applied;
+    }
+
+    /// <summary>Records the mirror ledger posting of a reversed allocation, once, between the ledger and the save.</summary>
+    /// <exception cref="ArgumentException">The allocation is not one of this payment, or the posting id is empty.</exception>
+    /// <exception cref="InvalidOperationException">The allocation is not reversed, or has its reversal posting already.</exception>
+    public void AttachAllocationReversalPosting(PaymentAllocation allocation, LedgerPostingId postingId)
+    {
+        ArgumentNullException.ThrowIfNull(allocation);
+
+        if (!_allocations.Contains(allocation))
+        {
+            throw new ArgumentException("The allocation does not belong to this payment.", nameof(allocation));
+        }
+
+        allocation.AttachReversalPosting(postingId);
+    }
+
+    /// <summary>Records the ledger posting of the payment's reversal, once, between the ledger and the save.</summary>
+    /// <exception cref="ArgumentException">The posting id is empty.</exception>
+    /// <exception cref="InvalidOperationException">The payment is not reversed, or has its reversal posting already.</exception>
+    public void AttachReversalPosting(LedgerPostingId postingId)
+    {
+        if (postingId.Value == Guid.Empty)
+        {
+            throw new ArgumentException("A reversal belongs to a ledger posting; the empty id is not one.", nameof(postingId));
+        }
+
+        if (Status != PaymentStatus.Reversed || ReversalPostingId is not null)
+        {
+            throw new InvalidOperationException("Only a reversed payment takes its reversal posting, and only once (BR-006).");
+        }
+
+        ReversalPostingId = postingId;
+    }
+
+    // Marks one allocation reversed and gives its amount back to the payment.
+    private void TakeBack(PaymentAllocation allocation, string reason, DateTimeOffset reversedAtUtc, UserId reversedBy)
+    {
+        allocation.MarkReversed(reason, reversedAtUtc, reversedBy);
+        UnappliedAmount += allocation.Amount;
+        AddDomainEvent(new PaymentAllocationReversed(Number, allocation.Id, allocation.BillId, allocation.Amount, UnappliedAmount, reason));
+    }
+
+    // The allocation with that id when it is in the state the caller needs; otherwise why not.
+    private Result<PaymentAllocation> FindAllocation(PaymentAllocationId allocationId, PaymentAllocationStatus needed)
+    {
+        var allocation = _allocations.SingleOrDefault(candidate => candidate.Id == allocationId);
+        if (allocation is null)
+        {
+            return PaymentsErrors.AllocationNotFound();
+        }
+
+        if (allocation.Status == needed)
+        {
+            return allocation;
+        }
+
+        return allocation.Status switch
+        {
+            PaymentAllocationStatus.Reversed => PaymentsErrors.AllocationReversed(),
+            PaymentAllocationStatus.PendingReversal => PaymentsErrors.AllocationPendingReversal(),
+            _ => PaymentsErrors.AllocationNotPendingReversal(),
+        };
+    }
+
+    // Money moves in and out of a payment only while it is posted.
+    private Error? RefuseUnlessPosted() => Status switch
+    {
+        PaymentStatus.Posted => null,
+        PaymentStatus.PendingReversal => PaymentsErrors.PaymentPendingReversal(),
+        _ => PaymentsErrors.PaymentReversed(),
+    };
+
+    // Only a payment that waits for its reversal has one to decide.
+    private Error? RefuseUnlessPendingReversal() => Status switch
+    {
+        PaymentStatus.PendingReversal => null,
+        PaymentStatus.Posted => PaymentsErrors.PaymentNotPendingReversal(),
+        _ => PaymentsErrors.PaymentReversed(),
+    };
+
+    private static void RequireChecker(UserId reversedBy)
+    {
+        if (reversedBy.Value == Guid.Empty)
+        {
+            throw new ArgumentException("A reversal is approved by a user; the empty id is not one (BR-603).", nameof(reversedBy));
+        }
     }
 }

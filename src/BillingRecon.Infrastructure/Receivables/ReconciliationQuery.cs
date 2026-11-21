@@ -17,7 +17,9 @@ namespace BillingRecon.Infrastructure.Receivables;
 /// 4.2; a credit note's available amount against its available credit and against its applications, a credit note
 /// and an application against their postings, the payers of an application's two documents, and the credits of a
 /// bill against its total (BR-210), since Prompt 4.3; a posted adjustment against its posting, and its payer against
-/// the payer of its bill, since Prompt 4.4.
+/// the payer of its bill, since Prompt 4.4; a reversed allocation and a reversed payment against their mirror
+/// postings, both directions, since Prompt 4.5, which also teaches the identity of a payment's allocations that an
+/// allocation waiting for its reversal still counts and that a reversed payment holds nothing.
 /// <para>
 /// This is one of the files of the production code that send SQL of their own (ADR 0021, BannedSymbolsTests). It is
 /// the SQL the design document gives: sums over the whole ledger, grouped, which Entity Framework cannot translate
@@ -109,13 +111,15 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
           AND  NOT EXISTS (SELECT 1 FROM [dbo].[Payments] AS p WHERE p.[TenantId] = @tenant AND p.[Id] = lp.[DocumentId])
 
         UNION ALL
-        SELECT 'PaymentAllocations', p.[Id], p.[Number], p.[UnappliedAmount], p.[Amount] - ISNULL(a.[Allocated], 0)
+        SELECT 'PaymentAllocations', p.[Id], p.[Number], p.[UnappliedAmount],
+               CASE WHEN p.[Status] = 'Reversed' THEN 0 ELSE p.[Amount] - ISNULL(a.[Allocated], 0) END
         FROM   [dbo].[Payments] AS p
         LEFT JOIN (SELECT [PaymentId], SUM([Amount]) AS [Allocated]
                    FROM   [dbo].[PaymentAllocations]
-                   WHERE  [TenantId] = @tenant AND [Status] = 'Active'
+                   WHERE  [TenantId] = @tenant AND [Status] <> 'Reversed'
                    GROUP  BY [PaymentId]) AS a ON a.[PaymentId] = p.[Id]
-        WHERE  p.[TenantId] = @tenant AND p.[UnappliedAmount] <> p.[Amount] - ISNULL(a.[Allocated], 0)
+        WHERE  p.[TenantId] = @tenant
+          AND  p.[UnappliedAmount] <> CASE WHEN p.[Status] = 'Reversed' THEN 0 ELSE p.[Amount] - ISNULL(a.[Allocated], 0) END
 
         UNION ALL
         SELECT 'AllocationWithoutPosting', a.[Id], NULL, a.[Amount], 0
@@ -136,6 +140,33 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
         JOIN   [dbo].[Payments] AS p ON p.[Id] = a.[PaymentId]
         JOIN   [dbo].[Bills] AS b ON b.[Id] = a.[BillId]
         WHERE  a.[TenantId] = @tenant AND p.[PayerId] <> b.[PayerId]
+
+        UNION ALL
+        SELECT 'ReversedAllocationNoPosting', a.[Id], NULL, a.[Amount], 0
+        FROM   [dbo].[PaymentAllocations] AS a
+        WHERE  a.[TenantId] = @tenant AND a.[Status] = 'Reversed'
+          AND  NOT EXISTS (SELECT 1 FROM [dbo].[LedgerPostings] AS lp
+                           WHERE lp.[TenantId] = @tenant AND lp.[DocumentType] = 'PaymentAllocation' AND lp.[DocumentId] = a.[Id]
+                             AND lp.[Kind] = 'AllocationReversed' AND lp.[ReversalOfPostingId] = a.[PostingId])
+
+        UNION ALL
+        SELECT 'ReversedPaymentNoPosting', p.[Id], p.[Number], p.[Amount], 0
+        FROM   [dbo].[Payments] AS p
+        WHERE  p.[TenantId] = @tenant AND p.[Status] = 'Reversed'
+          AND  NOT EXISTS (SELECT 1 FROM [dbo].[LedgerPostings] AS lp
+                           WHERE lp.[TenantId] = @tenant AND lp.[DocumentType] = 'Payment' AND lp.[DocumentId] = p.[Id]
+                             AND lp.[Kind] = 'PaymentReversed' AND lp.[ReversalOfPostingId] = p.[PostingId])
+
+        UNION ALL
+        SELECT 'ReversalPostingNoDocument', lp.[Id], NULL, 0, 0
+        FROM   [dbo].[LedgerPostings] AS lp
+        WHERE  lp.[TenantId] = @tenant
+          AND  ((lp.[Kind] = 'AllocationReversed'
+                 AND NOT EXISTS (SELECT 1 FROM [dbo].[PaymentAllocations] AS a
+                                 WHERE a.[TenantId] = @tenant AND a.[Id] = lp.[DocumentId] AND a.[Status] = 'Reversed'))
+             OR (lp.[Kind] = 'PaymentReversed'
+                 AND NOT EXISTS (SELECT 1 FROM [dbo].[Payments] AS p
+                                 WHERE p.[TenantId] = @tenant AND p.[Id] = lp.[DocumentId] AND p.[Status] = 'Reversed')))
 
         UNION ALL
         SELECT 'CreditNoteAvailable', c.[Id], c.[Number], c.[AvailableAmount], ISNULL(l.[Balance], 0)

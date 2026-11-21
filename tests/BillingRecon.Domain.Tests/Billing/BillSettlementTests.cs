@@ -131,6 +131,38 @@ public sealed class BillSettlementTests
         bill.Void("Changed my mind", PostedAt, voidedBy: null).Error.Code.ShouldBe(BillingErrors.BillAlreadyPostedCode);
     }
 
+    [Fact]
+    public void BR208_an_amount_given_back_raises_what_is_owed_and_moves_the_status_back_with_the_balance()
+    {
+        var bill = Posted();
+        bill.ApplyCredit(Money.Of(590m)).IsSuccess.ShouldBeTrue();
+        bill.ClearDomainEvents();
+
+        // Settled -> PartiallyPaid: part of it is still settled.
+        bill.ReverseCredit(Money.Of(200m)).IsSuccess.ShouldBeTrue();
+        (bill.BalanceDue, bill.Status).ShouldBe((Money.Of(200m), BillStatus.PartiallyPaid));
+        bill.DomainEvents.ShouldHaveSingleItem().ShouldBe(new BillCreditReversed(bill.Id, "BIL/26-27/000042", Money.Of(200m), Money.Of(200m)));
+
+        // PartiallyPaid -> Posted: nothing is settled any more.
+        bill.ReverseCredit(Money.Of(390m)).IsSuccess.ShouldBeTrue();
+        (bill.BalanceDue, bill.Status).ShouldBe((Money.Of(590m), BillStatus.Posted));
+        bill.Total.ShouldBe(Money.Of(590m), "a posted bill keeps its total (BR-006)");
+    }
+
+    [Fact]
+    public void BR305_only_what_was_applied_can_be_given_back_and_only_to_a_posted_bill()
+    {
+        var bill = Posted();
+        bill.ApplyCredit(Money.Of(100m)).IsSuccess.ShouldBeTrue();
+
+        // More than was ever applied is a bug in the caller, not a business answer.
+        Should.Throw<ArgumentException>(() => bill.ReverseCredit(Money.Of(100.01m)));
+        Should.Throw<ArgumentException>(() => bill.ReverseCredit(Money.Zero));
+        bill.BalanceDue.ShouldBe(Money.Of(490m));
+
+        Draft().ReverseCredit(Money.Of(1m)).Error.Code.ShouldBe(BillingErrors.BillNotPostedCode);
+    }
+
     private static Bill Posted()
     {
         var bill = Draft();

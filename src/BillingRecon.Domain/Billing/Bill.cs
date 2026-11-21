@@ -441,6 +441,41 @@ public sealed class Bill : AggregateRoot<BillId>, ITenantScoped, ICreationAudite
     }
 
     /// <summary>
+    /// Gives back <paramref name="amount"/> that was applied to the bill (BR-305, BR-208): what is owed rises by it,
+    /// and the status moves back with the balance, to <see cref="BillStatus.PartiallyPaid"/> while part of the bill
+    /// is still settled and to <see cref="BillStatus.Posted"/> when nothing is. The mirror of
+    /// <see cref="ApplyCredit"/>, for the reversal of what applied the amount; the bill's lines and totals stay as
+    /// posted. A bill that is not posted refuses.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="amount"/> is not above zero, or more than was ever applied to the bill: a bug in the caller,
+    /// since only what was applied can be given back.
+    /// </exception>
+    public Result ReverseCredit(Money amount)
+    {
+        if (!amount.IsPositive)
+        {
+            throw new ArgumentException("An amount given back to a bill is above zero (BR-305).", nameof(amount));
+        }
+
+        if (Status is not (BillStatus.Posted or BillStatus.PartiallyPaid or BillStatus.Settled) || Number is null)
+        {
+            return BillingErrors.BillNotPosted();
+        }
+
+        if (BalanceDue + amount > Total)
+        {
+            throw new ArgumentException($"Bill {Number} comes to {Total} and is owed {BalanceDue}; {amount} was never applied to it.", nameof(amount));
+        }
+
+        BalanceDue += amount;
+        Status = BalanceDue == Total ? BillStatus.Posted : BillStatus.PartiallyPaid;
+        AddDomainEvent(new BillCreditReversed(Id, Number, amount, BalanceDue));
+
+        return Result.Success();
+    }
+
+    /// <summary>
     /// Whether the bill can still be edited: it is a draft. A voided draft answers <c>bill_not_draft</c>, a posted
     /// bill <c>bill_already_posted</c> (BR-204, BR-006). For a use case that wants to know before it does other work.
     /// </summary>

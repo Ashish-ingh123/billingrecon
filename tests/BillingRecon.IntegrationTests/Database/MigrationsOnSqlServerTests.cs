@@ -22,9 +22,9 @@ public sealed class MigrationsOnSqlServerTests(SqlServerFixture sqlServer) : Dat
         var migrations = context.Database.GetMigrations().ToArray();
 
         // The second migration creates Patients and Payers; it keeps the name it was scaffolded under
-        // (docs/database.md, section 8). The ids of the third to the fourteenth start with the time they are scaffolded,
+        // (docs/database.md, section 8). The ids of the third to the fifteenth start with the time they are scaffolded,
         // which is not known here; their names are.
-        migrations.Length.ShouldBe(14);
+        migrations.Length.ShouldBe(15);
         migrations[..2].ShouldBe(["20261003192738_0001_Tenants", "20261018182819_0002_SyncCurrentModel"]);
         migrations[2].ShouldEndWith("_0003_ServiceItems");
         migrations[3].ShouldEndWith("_0004_Bills");
@@ -38,6 +38,7 @@ public sealed class MigrationsOnSqlServerTests(SqlServerFixture sqlServer) : Dat
         migrations[11].ShouldEndWith("_0012_PaymentAllocations");
         migrations[12].ShouldEndWith("_0013_CreditNotes");
         migrations[13].ShouldEndWith("_0014_Adjustments");
+        migrations[14].ShouldEndWith("_0015_PaymentReversals");
         (await context.Database.GetAppliedMigrationsAsync()).ShouldBe(migrations);
         (await context.Database.GetPendingMigrationsAsync()).ShouldBeEmpty();
     }
