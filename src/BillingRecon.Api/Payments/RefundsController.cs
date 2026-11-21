@@ -1,8 +1,10 @@
 using BillingRecon.Api.Common;
+using BillingRecon.Api.Common.Authorization;
 using BillingRecon.Api.Common.Idempotency;
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Payments;
 using BillingRecon.Domain.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
@@ -25,6 +27,7 @@ public sealed class RefundsController : ApiControllerBase
     /// exist; 409 when the payment waits for its reversal or was reversed; 422 when the credit note is not posted, the
     /// payer is inactive (BR-309), or the date is not allowed or before the source's date (BR-205, BR-307).
     /// </summary>
+    [Authorize(Policy = Policies.DraftRefunds)]
     [HttpPost]
     [Idempotent]
     [ProducesResponseType<RefundDto>(StatusCodes.Status201Created)]
@@ -44,6 +47,7 @@ public sealed class RefundsController : ApiControllerBase
     }
 
     /// <summary>Reads one refund.</summary>
+    [Authorize(Policy = Policies.ReadRefunds)]
     [HttpGet("{id:guid}", Name = GetRefundRoute)]
     [ProducesResponseType<RefundDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -58,6 +62,7 @@ public sealed class RefundsController : ApiControllerBase
     }
 
     /// <summary>Lists the refunds one page at a time, the newest date first.</summary>
+    [Authorize(Policy = Policies.ReadRefunds)]
     [HttpGet]
     [ProducesResponseType<PageOf<RefundDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -72,6 +77,7 @@ public sealed class RefundsController : ApiControllerBase
     }
 
     /// <summary>Replaces the date, the amount, the method, the reference and the reason of a draft; the source stays. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.DraftRefunds)]
     [HttpPut("{id:guid}")]
     [ProducesResponseType<RefundDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -96,6 +102,7 @@ public sealed class RefundsController : ApiControllerBase
     }
 
     /// <summary>Voids a draft, with a reason. The refund keeps its content and can no longer change. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.DraftRefunds)]
     [HttpPost("{id:guid}/void")]
     [Idempotent]
     [ProducesResponseType<RefundDto>(StatusCodes.Status200OK)]
@@ -126,6 +133,7 @@ public sealed class RefundsController : ApiControllerBase
     /// its date is no longer allowed or its amount is more than the source has left (BR-307); 409 when the payment
     /// waits for its reversal or was reversed. Needs If-Match and an Idempotency-Key; no body.
     /// </summary>
+    [Authorize(Policy = Policies.DraftRefunds)]
     [HttpPost("{id:guid}/post")]
     [Idempotent]
     [ProducesResponseType<RefundDto>(StatusCodes.Status202Accepted)]
@@ -164,6 +172,7 @@ public sealed class RefundsController : ApiControllerBase
     /// approve their own refund: 403. The cap and the payer are asked again (BR-307, BR-309). Needs If-Match and an
     /// Idempotency-Key; the body, an optional comment, may be left out.
     /// </summary>
+    [Authorize(Policy = Policies.Decide)]
     [HttpPost("{id:guid}/approve")]
     [Idempotent]
     [ProducesResponseType<RefundDto>(StatusCodes.Status200OK)]
@@ -193,6 +202,7 @@ public sealed class RefundsController : ApiControllerBase
     /// A second person rejects a refund that waits, saying why (BR-605): it is a draft again and can be corrected
     /// and submitted once more. Needs If-Match and an Idempotency-Key.
     /// </summary>
+    [Authorize(Policy = Policies.Decide)]
     [HttpPost("{id:guid}/reject")]
     [Idempotent]
     [ProducesResponseType<RefundDto>(StatusCodes.Status200OK)]

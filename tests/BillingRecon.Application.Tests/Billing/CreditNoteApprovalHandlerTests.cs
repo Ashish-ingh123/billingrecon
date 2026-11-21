@@ -5,6 +5,7 @@ using BillingRecon.Application.Receivables;
 using BillingRecon.Application.Tests.Support;
 using BillingRecon.Domain.Billing;
 using BillingRecon.Domain.Common;
+using BillingRecon.Domain.Identity;
 using BillingRecon.Domain.Receivables;
 using NSubstitute;
 
@@ -43,6 +44,7 @@ public sealed class CreditNoteApprovalHandlerTests
         _clock.ToIstDate(Arg.Any<DateTimeOffset>()).Returns(TestDoubles.Today);
         _settings.GetDocumentSettingsAsync(Arg.Any<CancellationToken>()).Returns(new TenantDocumentSettings(MaxBackdateDays: 7, DefaultDueDays: 15));
         _currentUser.UserId.Returns(Checker);
+        _currentUser.Roles.Returns(new[] { Role.Supervisor });
         _numbers.NextAsync(DocumentType.CreditNote, Fy, Arg.Any<CancellationToken>()).Returns(DocumentNumber.Create(DocumentType.CreditNote, Fy, "CN", 9));
         _ledger.PostAsync(Arg.Do<PostingTemplate>(_posted.Add), Arg.Any<CancellationToken>()).Returns((Result<LedgerPostingId>)new LedgerPostingId(Guid.NewGuid()));
         _repository.ListPostedForBillAsync(BillId, Arg.Any<CancellationToken>()).Returns([]);

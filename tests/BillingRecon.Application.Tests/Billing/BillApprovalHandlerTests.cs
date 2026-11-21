@@ -6,6 +6,7 @@ using BillingRecon.Application.Receivables;
 using BillingRecon.Application.Tests.Support;
 using BillingRecon.Domain.Billing;
 using BillingRecon.Domain.Common;
+using BillingRecon.Domain.Identity;
 using BillingRecon.Domain.Payers;
 using NSubstitute;
 
@@ -45,6 +46,7 @@ public sealed class BillApprovalHandlerTests
         _settings.GetDocumentSettingsAsync(Arg.Any<CancellationToken>())
             .Returns(new TenantDocumentSettings(MaxBackdateDays: 7, DefaultDueDays: 15, PostingApprovalThreshold: Money.Of(100m)));
         _currentUser.UserId.Returns(Checker);
+        _currentUser.Roles.Returns(new[] { Role.Supervisor });
         _numbers.NextAsync(DocumentType.Bill, Fy, Arg.Any<CancellationToken>()).Returns(DocumentNumber.Create(DocumentType.Bill, Fy, "BIL", 42));
         _ledger.PostAsync(Arg.Any<PostingTemplate>(), Arg.Any<CancellationToken>()).Returns((Result<LedgerPostingId>)new LedgerPostingId(Guid.NewGuid()));
     }
@@ -90,6 +92,42 @@ public sealed class BillApprovalHandlerTests
         bill.Status.ShouldBe(BillStatus.PendingApproval);
         request.Status.ShouldBe(ApprovalStatus.Pending);
         await NothingWasTakenOrWrittenAsync();
+    }
+
+    [Theory]
+    [InlineData(Role.BillingClerk)]
+    [InlineData(Role.Cashier)]
+    [InlineData(Role.Viewer)]
+    public async Task BR603_a_checker_who_is_not_a_supervisor_or_a_tenant_admin_decides_nothing_and_no_number_is_taken(Role role)
+    {
+        // The API's policy refuses such a user first; the decision asks again, whatever the endpoint (ADR 0032).
+        var (bill, request) = Waiting();
+        _currentUser.Roles.Returns(new[] { role });
+
+        var approved = await Approve().HandleAsync(new ApproveBillPostingCommand(Id, Version(CurrentVersion), null), CancellationToken.None);
+
+        approved.Error.Code.ShouldBe(CommonErrors.ApprovalCheckerRoleCode);
+        approved.Error.Kind.ShouldBe(ErrorKind.Forbidden);
+        bill.Status.ShouldBe(BillStatus.PendingApproval);
+
+        // A rejection is refused the same way; like the maker's, it leaves the request pending and commits nothing.
+        var rejected = await Reject().HandleAsync(new RejectBillPostingCommand(Id, Version(CurrentVersion), "Wrong consultant fee"), CancellationToken.None);
+
+        rejected.Error.Code.ShouldBe(CommonErrors.ApprovalCheckerRoleCode);
+        request.Status.ShouldBe(ApprovalStatus.Pending);
+        await NothingWasTakenOrWrittenAsync();
+    }
+
+    [Fact]
+    public async Task BR603_the_checker_holds_the_role_its_token_gives_it_a_tenant_admin_decides_too()
+    {
+        var (_, request) = Waiting();
+        _currentUser.Roles.Returns(new[] { Role.TenantAdmin });
+
+        var result = await Approve().HandleAsync(new ApproveBillPostingCommand(Id, Version(CurrentVersion), null), CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        request.Status.ShouldBe(ApprovalStatus.Approved);
     }
 
     [Fact]

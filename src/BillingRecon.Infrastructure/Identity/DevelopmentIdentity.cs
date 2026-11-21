@@ -1,5 +1,6 @@
 using BillingRecon.Application.Common;
 using BillingRecon.Domain.Common;
+using BillingRecon.Domain.Identity;
 using Microsoft.Extensions.Options;
 
 namespace BillingRecon.Infrastructure.Identity;
@@ -17,4 +18,7 @@ public sealed class DevelopmentIdentity(IOptions<DevelopmentIdentityOptions> opt
 
     /// <inheritdoc />
     public UserId? UserId { get; } = new UserId(options.Value.UserId);
+
+    /// <summary>The development user is a tenant administrator, as its row says (ADR 0030).</summary>
+    public IReadOnlyCollection<Role> Roles { get; } = [Role.TenantAdmin];
 }

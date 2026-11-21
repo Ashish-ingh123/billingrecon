@@ -48,7 +48,7 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
         var (patient, payer) = await cashier.NewBillPartiesAsync();
         var bill = await PostedBillAsync(cashier, patient, payer, Consultation);
@@ -127,7 +127,7 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var clerk = factory.CreateClientFor(maker, "BillingClerk");
+        using var clerk = factory.CreateClientFor(maker, "BillingClerk", "Cashier");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
         var (patient, payer) = await clerk.NewBillPartiesAsync();
         var bill = await PostedBillAsync(clerk, patient, payer, Dressing);
@@ -175,7 +175,7 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
         var (patient, payer) = await cashier.NewBillPartiesAsync();
         var bill = await PostedBillAsync(cashier, patient, payer, Consultation);
@@ -218,7 +218,7 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, _) = await NewMakerAndCheckerAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         var (_, payer) = await cashier.NewBillPartiesAsync();
         var payment = await RecordedAsync(cashier, payer, 200m);
         var reversing = await RecordedAsync(cashier, payer, 50m);
@@ -252,8 +252,11 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
+
+        // The maker with a checker's role too is refused as the maker (BR-603); as a cashier, for the role (ADR 0032).
+        using var makerAsChecker = factory.CreateClientFor(maker, "Supervisor");
         var (_, payer) = await cashier.NewBillPartiesAsync();
         var payment = await RecordedAsync(cashier, payer, 200m);
         var draft = await DraftedAsync(cashier, new CreateRefundRequest { PaymentId = payment.Id, Amount = 50m, Method = PaymentMethod.Cash, Reason = "Paid twice" });
@@ -262,8 +265,10 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
         await early.ShouldBeProblemAsync(HttpStatusCode.UnprocessableEntity, PaymentsErrors.RefundNotPendingApprovalCode);
 
         var waiting = await SubmittedAsync(cashier, draft);
-        using var own = await cashier.SendWithIfMatchAsync(HttpMethod.Post, Refund(draft.Id, "approve"), body: null, PayersApi.ETag(waiting.Version));
-        using var ownRejection = await cashier.SendWithIfMatchAsync(HttpMethod.Post, Refund(draft.Id, "reject"), new RejectRefundRequest { Comment = "Mine" }, PayersApi.ETag(waiting.Version));
+        using var own = await makerAsChecker.SendWithIfMatchAsync(HttpMethod.Post, Refund(draft.Id, "approve"), body: null, PayersApi.ETag(waiting.Version));
+        using var ownRejection = await makerAsChecker.SendWithIfMatchAsync(HttpMethod.Post, Refund(draft.Id, "reject"), new RejectRefundRequest { Comment = "Mine" }, PayersApi.ETag(waiting.Version));
+        using var asCashier = await cashier.SendWithIfMatchAsync(HttpMethod.Post, Refund(draft.Id, "approve"), body: null, PayersApi.ETag(waiting.Version));
+        await asCashier.ShouldBeProblemAsync(HttpStatusCode.Forbidden, "forbidden");
         using var edit = await cashier.SendWithIfMatchAsync(HttpMethod.Put, Refund(draft.Id), new UpdateRefundRequest { RefundDate = Today, Amount = 1m, Method = PaymentMethod.Cash, Reason = "x" }, PayersApi.ETag(waiting.Version));
         using var voiding = await cashier.SendWithIfMatchAsync(HttpMethod.Post, Refund(draft.Id, "void"), new VoidRefundRequest { Reason = "x" }, PayersApi.ETag(waiting.Version));
         using var noComment = await supervisor.SendWithIfMatchAsync(HttpMethod.Post, Refund(draft.Id, "reject"), new RejectRefundRequest(), PayersApi.ETag(waiting.Version));
@@ -296,7 +301,7 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
         var (_, payer) = await cashier.NewBillPartiesAsync();
         var payment = await RecordedAsync(cashier, payer, 200m);
@@ -323,7 +328,7 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var first = factory.CreateClientFor(checker, "Supervisor");
         using var second = factory.CreateClientFor(new FixedIdentity(maker.TenantId, new UserId(Guid.NewGuid())), "TenantAdmin");
         var (_, payer) = await cashier.NewBillPartiesAsync();
@@ -364,7 +369,7 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
         var (patient, payer) = await cashier.NewBillPartiesAsync();
         var bill = await PostedBillAsync(cashier, patient, payer, Consultation);
@@ -418,7 +423,7 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
             }
         });
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
         var (_, payer) = await cashier.NewBillPartiesAsync();
         var payment = await RecordedAsync(cashier, payer, 200m);
@@ -443,7 +448,7 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
         var (_, payer) = await cashier.NewBillPartiesAsync();
         var payment = await RecordedAsync(cashier, payer, 200m);
@@ -467,7 +472,7 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, _) = await NewMakerAndCheckerAsync();
         var stranger = await NewApiTenantAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var outsider = factory.CreateClientFor(stranger, "TenantAdmin");
         var (_, payer) = await cashier.NewBillPartiesAsync();
         var payment = await RecordedAsync(cashier, payer, 200m);
@@ -492,7 +497,7 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
         var (_, payer) = await cashier.NewBillPartiesAsync();
         var (_, otherPayer) = await cashier.NewBillPartiesAsync();

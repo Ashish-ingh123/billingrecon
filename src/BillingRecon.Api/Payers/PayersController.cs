@@ -1,7 +1,9 @@
 using BillingRecon.Api.Common;
+using BillingRecon.Api.Common.Authorization;
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Payers;
 using BillingRecon.Domain.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BillingRecon.Api.Payers;
@@ -21,6 +23,7 @@ public sealed class PayersController : ApiControllerBase
     /// Creates a self-pay payer, for a patient or as a guarantor. 422 <c>payer_kind_not_supported</c> for Insurer and
     /// Corporate (BR-103); 409 <c>patient_already_linked</c> when the patient has a payer (BR-104).
     /// </summary>
+    [Authorize(Policy = Policies.WriteReferenceData)]
     [HttpPost]
     [ProducesResponseType<PayerDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -40,6 +43,7 @@ public sealed class PayersController : ApiControllerBase
     }
 
     /// <summary>Reads one payer.</summary>
+    [Authorize(Policy = Policies.ReadReferenceData)]
     [HttpGet("{id:guid}", Name = GetPayerRoute)]
     [ProducesResponseType<PayerDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -54,6 +58,7 @@ public sealed class PayersController : ApiControllerBase
     }
 
     /// <summary>Lists the payers one page at a time, by name; <c>search</c> matches part of a name.</summary>
+    [Authorize(Policy = Policies.ReadReferenceData)]
     [HttpGet]
     [ProducesResponseType<PageOf<PayerDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -68,6 +73,7 @@ public sealed class PayersController : ApiControllerBase
     }
 
     /// <summary>Replaces the name and contact details of a payer; a contact detail left out is cleared. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.WriteReferenceData)]
     [HttpPatch("{id:guid}")]
     [ProducesResponseType<PayerDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -91,6 +97,7 @@ public sealed class PayersController : ApiControllerBase
     }
 
     /// <summary>Deactivates a payer (BR-105): no new bill, payment or refund for it. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.WriteReferenceData)]
     [HttpPost("{id:guid}/deactivate")]
     [ProducesResponseType<PayerDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -113,6 +120,7 @@ public sealed class PayersController : ApiControllerBase
     }
 
     /// <summary>Makes an inactive payer active again. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.WriteReferenceData)]
     [HttpPost("{id:guid}/reactivate")]
     [ProducesResponseType<PayerDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]

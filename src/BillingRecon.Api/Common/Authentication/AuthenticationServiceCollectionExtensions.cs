@@ -2,7 +2,6 @@ using BillingRecon.Application.Common;
 using BillingRecon.Application.Identity;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -11,15 +10,14 @@ namespace BillingRecon.Api.Common.Authentication;
 /// <summary>
 /// Who a request acts for (ADR 0031): the key and the issuer of tokens, the bearer scheme that validates them, the
 /// identity of the request read from its principal, the sign-in's step into that identity and, in Development, the
-/// development identity for a request without a token. Every endpoint needs an authenticated user unless it is marked
-/// anonymous (a fallback policy): deny by default.
+/// development identity for a request without a token. What that user may do is the policies of AddPermissions.
 /// </summary>
 public static class AuthenticationServiceCollectionExtensions
 {
     /// <summary>The scheme of Development that sends a request to the bearer scheme or to the development identity.</summary>
     public const string DevelopmentSelectorScheme = "DevelopmentOrBearer";
 
-    /// <summary>Adds the authentication and authorisation of requests.</summary>
+    /// <summary>Adds the authentication of requests.</summary>
     /// <param name="services">The service collection of the host.</param>
     /// <param name="environment">The environment of the host; Development adds the development identity.</param>
     public static IServiceCollection AddRequestIdentity(this IServiceCollection services, IHostEnvironment environment)
@@ -56,9 +54,7 @@ public static class AuthenticationServiceCollectionExtensions
                     context.Request.Headers.Authorization.Count > 0 ? JwtBearerDefaults.AuthenticationScheme : DevelopmentAuthenticationHandler.SchemeName);
         }
 
-        services.AddAuthorizationBuilder()
-            .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
-
+        // What the user may do once known, deny by default included, is AddPermissions (ADR 0032).
         return services;
     }
 

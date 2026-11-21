@@ -271,6 +271,9 @@ public sealed class CreditNotesApiTests(SqlServerFixture sqlServer) : DatabaseTe
         var (maker, checker) = await NewMakerAndCheckerAsync();
         using var clerk = factory.CreateClientFor(maker, "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
+
+        // The maker with a checker's role too is refused as the maker (BR-603); as a clerk, for the role (ADR 0032).
+        using var makerAsChecker = factory.CreateClientFor(maker, "Supervisor");
         var (patient, payer) = await clerk.NewBillPartiesAsync();
         var bill = await PostedBillAsync(clerk, patient, payer, Dressing);
         var draft = await DraftedAsync(clerk, bill, WholeLine(bill, "Dressing"));
@@ -282,8 +285,10 @@ public sealed class CreditNotesApiTests(SqlServerFixture sqlServer) : DatabaseTe
         var waiting = await SubmittedAsync(clerk, draft);
 
         // The maker can neither approve nor reject; nobody can edit, void or ask again while it waits.
-        using var ownApproval = await clerk.SendWithIfMatchAsync(HttpMethod.Post, CreditNote(draft.Id, "approve"), body: null, PayersApi.ETag(waiting.Version));
-        using var ownRejection = await clerk.SendWithIfMatchAsync(HttpMethod.Post, CreditNote(draft.Id, "reject"), new RejectCreditNoteRequest { Comment = "Mine" }, PayersApi.ETag(waiting.Version));
+        using var ownApproval = await makerAsChecker.SendWithIfMatchAsync(HttpMethod.Post, CreditNote(draft.Id, "approve"), body: null, PayersApi.ETag(waiting.Version));
+        using var ownRejection = await makerAsChecker.SendWithIfMatchAsync(HttpMethod.Post, CreditNote(draft.Id, "reject"), new RejectCreditNoteRequest { Comment = "Mine" }, PayersApi.ETag(waiting.Version));
+        using var asClerk = await clerk.SendWithIfMatchAsync(HttpMethod.Post, CreditNote(draft.Id, "approve"), body: null, PayersApi.ETag(waiting.Version));
+        await asClerk.ShouldBeProblemAsync(HttpStatusCode.Forbidden, "forbidden");
         using var edit = await clerk.SendWithIfMatchAsync(HttpMethod.Put, CreditNote(draft.Id, "lines"), new ReplaceCreditNoteLinesRequest { Lines = [] }, PayersApi.ETag(waiting.Version));
         using var voiding = await clerk.SendWithIfMatchAsync(HttpMethod.Post, CreditNote(draft.Id, "void"), new VoidCreditNoteRequest { Reason = "Changed my mind" }, PayersApi.ETag(waiting.Version));
         using var again = await clerk.SendWithIfMatchAsync(HttpMethod.Post, CreditNote(draft.Id, "post"), body: null, PayersApi.ETag(waiting.Version));

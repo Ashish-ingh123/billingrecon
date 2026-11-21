@@ -43,6 +43,11 @@ Permission matrix (✓ = allowed, R = read only):
 
 The checker must always be a different user from the maker (BR-603), whatever the roles.
 
+*How the matrix is applied (ADR 0032, 2026-11-21):* a ✓ includes reading, and a blank cell is no access, not even
+reading, except that a Cashier reads credit notes (a refund may come from one). Applying a credit note's credit to
+another bill is in the credit notes' row; the checker's inbox of pending requests is in the checker's row; the audit
+trail is read by everyone (US-43), but the trail of a user by a TenantAdmin only.
+
 ---
 
 ## 2. R1 scope (MVP)

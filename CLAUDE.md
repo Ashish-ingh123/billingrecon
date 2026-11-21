@@ -43,7 +43,7 @@ the domain model, the schema and the tests.
 |---|---|---|
 | Runtime | **.NET 10 (LTS)** | `Directory.Build.props` holds the single `TargetFramework` (`net10.0`); `global.json` pins the SDK to the **10.0.400** feature band with `latestPatch` (the personal machine's band, read from its build outputs on 2026-10-17). Supported to November 2028. Framework-bound packages (ASP.NET Core, EF Core, `Serilog.AspNetCore`) stay on the same major version. **The office machine has no .NET 10 SDK and cannot build the repository** (dev machine notes below). See ADR 0014, which supersedes ADR 0001. |
 | Web API | **ASP.NET Core Web API with controllers** | No minimal APIs. Controllers derive from `ApiControllerBase`, are `sealed`, end in `Controller` (architecture test). Every route is under `/api/v1` (ADR 0013). Every error is an RFC 9457 ProblemDetails (ADR 0011). Health checks at `/health/live` (process is up) and `/health/ready` (the application database is reachable and has no pending migration), both anonymous. |
-| Authentication | **JWT bearer** (`Microsoft.AspNetCore.Authentication.JwtBearer` 10.0.12) | The API issues its own tokens at `POST /api/v1/auth/login` and checks them on every request: HS256 with `Jwt:SigningKey`, issuer `BillingRecon`, audience `BillingRecon.Api`, 60 minutes by the application's clock, claims `sub`, `tenant_id`, `role`. The tenant and user of a request come from its token only (`RequestPrincipalIdentity`). Deny by default: a fallback policy needs a user on every endpoint but the sign-in, the health checks and, in Development, OpenAPI and Scalar (an architecture test lists them). In Development a request without a token acts as the development user. ADR 0031. |
+| Authentication | **JWT bearer** (`Microsoft.AspNetCore.Authentication.JwtBearer` 10.0.12) | The API issues its own tokens at `POST /api/v1/auth/login` and checks them on every request: HS256 with `Jwt:SigningKey`, issuer `BillingRecon`, audience `BillingRecon.Api`, 60 minutes by the application's clock, claims `sub`, `tenant_id`, `role`. The tenant and user of a request come from its token only (`RequestPrincipalIdentity`). Deny by default: a fallback policy needs a user on every endpoint but the sign-in, the health checks and, in Development, OpenAPI and Scalar (an architecture test lists them). In Development a request without a token acts as the development user. ADR 0031. **Roles:** every action names exactly one policy of `Policies`, one per capability of the permission matrix (`docs/requirements.md` section 1); a role the policy does not admit gets 403 `forbidden`; a table-driven test walks every endpoint with every role. The checker's role (BR-603) is also checked by `ApprovalRequest` itself. ADR 0032. |
 | OpenAPI | **Built-in OpenAPI + Scalar UI**, Development only | `AddOpenApi`/`MapOpenApi` (document at `/openapi/v1.json`) and `MapScalarApiReference` (`/scalar`), mapped only when the environment is Development. |
 | Data | **EF Core 10 + SQL Server** | One context, `BillingReconDbContext`, whose conventions do the repetitive work (ADR 0015, section 5 below). Migrations live in `Infrastructure/Common/Migrations`, are applied at startup in Development only, and are a deployment step elsewhere. `dotnet-ef` is a local tool (`.config/dotnet-tools.json`, `dotnet tool restore`) at the same version as the EF Core packages; it uses the Infrastructure project and its design-time factory, never the API. SQL Server 2022 in Docker for dev and tests. |
 | Banned APIs | **Microsoft.CodeAnalysis.BannedApiAnalyzers** | `src/BannedSymbols.txt` lists what production code must not call (system time and the machine's time zone, `IgnoreQueryFilters`, `EntityEntry.Reload`/`GetDatabaseValues`, `ExecuteUpdate`/`ExecuteDelete`, and since Prompt 3.1 every raw-SQL entry point of EF Core: `ExecuteSql*`, `SqlQuery*`, `FromSql*`, `GetDbConnection`); a call is build error RS0030. Five files may suppress it, each for one named reason: `SystemClock` (the system time); three that each send one constant, parameterised, tenant-bound SQL statement: `NumberSeriesAllocator`, `ReceivablesLedger` (the locked change of a payer's balances) and `ReconciliationQuery` (read-only); and `LoginUserLookup`, the one `IgnoreQueryFilters`, around one query with the tenant in its predicate, because a sign-in has no tenant yet (ADR 0031). A sixth needs an ADR. Tests guard the list and where the rule may be suppressed (ADR 0015, ADR 0021). |
@@ -299,8 +299,10 @@ src/
                                 The payments controller with its request records (Payments). Common/Authentication
                                 (ADR 0031): JwtOptions, the token issuer, the claims, RequestPrincipalIdentity (the
                                 ITenantContext and ICurrentUser of a request), HttpSignInScope, the Development
-                                scheme and AddRequestIdentity with the fallback policy; the sign-in controller
-                                AuthController next to UsersController (Identity).
+                                scheme and AddRequestIdentity; the sign-in controller AuthController next to
+                                UsersController (Identity). Common/Authorization (ADR 0032): Policies, the named
+                                policies of the permission matrix with the roles each admits, and AddPermissions,
+                                which also sets the fallback policy (deny by default).
 tests/
   Directory.Build.props         Test defaults: xUnit, Shouldly, test SDK/runner, global usings.
   BillingRecon.Domain.Tests/  BillingRecon.Application.Tests/
@@ -318,7 +320,8 @@ tests/
                                    every type in a known module, banned packages in every project file, controller
                                    conventions, no minimal APIs; the guard of the banned-API list
                                    (BannedSymbolsTests); the one anonymous action and the one user of the sign-in
-                                   scope (AuthenticationConventionTests).
+                                   scope (AuthenticationConventionTests); one policy of the catalogue on every action,
+                                   and the checker's roles in every decision (PermissionConventionTests).
 frontend/                      React + TypeScript + Vite (planned)
 docs/                          Design documents and ADRs (see section 7)
 ```
@@ -599,9 +602,9 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 | `docs/requirements.md` | Domain and vocabulary, actors and permissions, R1 scope, the **BR-nnn business-rule catalogue**, user stories with acceptance criteria, NFRs, R2–R5 outlines |
 | `docs/domain-model.md` | Module map, value objects, aggregates with invariants (citing BR-ids), Bill state machine, transaction boundaries and the allocation exception, domain events, ports |
 | `docs/database.md` | Conventions, ER diagram, every R1 table with types/keys/indexes/CHECKs, number-series lock, ledger accounts and posting templates, balance identities and reconciliation SQL, idempotency lifecycle, permissions, migrations |
-| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), the adjustment endpoints (Prompt 4.4), the reversal endpoints of payments and allocations (Prompt 4.5), the refunds (Prompt 4.6), the users (Prompt 5.1), and authentication with the sign-in (Prompt 5.2) |
+| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), the adjustment endpoints (Prompt 4.4), the reversal endpoints of payments and allocations (Prompt 4.5), the refunds (Prompt 4.6), the users (Prompt 5.1), authentication with the sign-in (Prompt 5.2), and the permissions of each role (Prompt 5.3) |
 | `docs/build-prompts.md` | The build prompts from zero to R1, reconstructed on 2026-11-20: what each finished prompt built, and the wording and order of the prompts still to give. Its phase numbers are the ones this file uses |
-| `docs/security.md` | Authentication, authorisation, tenancy, maker-checker, secrets, threat model |
+| `docs/security.md` | Authentication, authorisation, tenancy, maker-checker, secrets, data protection, and the known gaps of the threat model. Written with Prompt 5.3 |
 | `docs/testing-strategy.md` | Test pyramid, tooling, database tests, architecture tests, CI gates |
 | `docs/runbook.md` | Written so far: local infrastructure, the "Verify on a Docker machine" checklist, migrations, tests, CI, the container image, idempotency keys, the deferred verification list, and sign-in with the signing key (section 9). Still to come: backups, incident procedures |
 | `docs/adr/` | Architecture Decision Records. ADR 0000 defines the format. |
@@ -649,7 +652,9 @@ of the Prompt 5.1 plan, 2026-11-21; it settles ADR 0021 point 1; its point 7, no
 the owner confirmed with the Prompt 5.2 plan),
 0031 sign-in and tokens: a JWT the API issues and checks, one answer for every refused sign-in, the sign-in's step
 into the user, deny by default and the Development fallback (Accepted on the owner's approval of the Prompt 5.2 plan,
-2026-11-21; it refines ADR 0009 and ADR 0015 section 6).
+2026-11-21; it refines ADR 0009 and ADR 0015 section 6),
+0032 role permissions: one named policy per capability of the matrix on every action, the blank cells, and the
+checker's role checked by the decision itself (Accepted on the owner's approval of the Prompt 5.3 plan, 2026-11-21).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -815,8 +820,9 @@ Kept here so they survive between sessions. Remove an item when it is done.
      port (docs/domain-model.md section 8), plus one for every payer that exists by then.
    - **Audit (Phase 3):** done with Prompt 3.4 (item 14): the domain events are dispatched, and patients and
      payers have their audit records (BR-701).
-   - **Identity (Phase 5):** the role checks of the permission matrix (`docs/requirements.md` section 1): patients
-     and payers are written by TenantAdmin, Supervisor and BillingClerk, read by everyone.
+   - **Identity (Phase 5):** done with Prompt 5.3 (item 29): the permission matrix (`docs/requirements.md`
+     section 1) is a named policy on every endpoint (ADR 0032); patients and payers are written by TenantAdmin,
+     Supervisor and BillingClerk, read by everyone.
    - **Open question for the owner:** composite foreign keys that include the tenant, so that the database refuses
      a payer naming another tenant's patient (ADR 0015, built note of 2026-10-17). Today the use case prevents it.
    - **Recorded deviations:** a 409 does not carry the current ETag (ADR 0007, built note); creating a guarantor is
@@ -1467,3 +1473,31 @@ Kept here so they survive between sessions. Remove an item when it is done.
       changed, it has not run); a rate limit or lockout of sign-ins (ADR 0031 point 12); the user commands and requests
       of 5.1 that hold a password print it in their generated `ToString` (nothing logs them; a small follow-up).
     - Next: Prompt 5.3 (role permissions and tenant settings).
+29. **Prompt 5.3, first half: role permissions (ADR 0032), written 2026-11-21, built and tested on .NET 10.** On
+    `phase-2-billing` like the rest. The plan was approved "as recommended", which split the prompt: this is 5.3, the
+    tenant settings are 5.3b (its decisions are recorded in `docs/build-prompts.md` already). No migration.
+    - Built: `Policies`, sixteen named policies, one per capability of the matrix, and `AddPermissions` with the
+      fallback policy; one `[Authorize(Policy = ...)]` on each of the 78 actions but the sign-in; `ICurrentUser.Roles`,
+      read from the token; `ApprovalRequest.Approve` and `Reject` take the checker's roles and refuse one without
+      Supervisor or TenantAdmin (403 `approval_checker_role`), passed by all fourteen decisions; the audit trail of a
+      user for a TenantAdmin only; `docs/security.md` written.
+    - Decided by the owner with the plan (ADR 0032): a blank cell is no access, except that a Cashier reads credit
+      notes; applying credit is the credit notes' row; the inbox is the checkers'; every role reads the audit trail but
+      a user's; the checker's role is checked by the policy and again by the decision.
+    - **Tests:** `PermissionMatrixApiTests` walks every endpoint with each of the five roles against its own copy of the
+      matrix and checks that it names every endpoint; `PermissionConventionTests` (one policy per action, no policy on a
+      controller, no unused policy, the checker's roles in every decision); `AuthorizationTests` without a database; the
+      approval request's and two handlers' tests of the checker's role.
+    - **Changed expectations in existing tests, each called out, none weakened:** clients that set up and act name both
+      roles (the cashiers of the payment, allocation, reversal and refund tests also hold BillingClerk; the clerk of the
+      refund and end-to-end tests also holds Cashier); Viewer clients that registered what they read are BillingClerks;
+      the five maker-cannot-decide tests act as the maker holding Supervisor and also assert the role's 403; the
+      last-administrator test acts with a token from before the demotion; the identity probe reports
+      `ICurrentUser.Roles`; the domain and application tests of decisions pass a supervisor's roles.
+    - **Verified on .NET 10 (SDK 10.0.404):** in the repository, the Release build and
+      `dotnet format --verify-no-changes` are clean, and Domain 612, Application 373, Architecture 121 and the 643
+      integration tests without a database pass; in a throwaway copy on LocalDB 2019 the integration project passes in
+      full (1104 tests), and the 20 `BR804` tests with the matrix and isolation tests ran three more times without a
+      failure.
+    - **Still to do:** SQL Server 2022 in Docker; Prompt 5.3b.
+    - Next: Prompt 5.3b (tenant settings and prefix changes).

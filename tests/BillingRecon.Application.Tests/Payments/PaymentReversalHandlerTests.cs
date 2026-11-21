@@ -4,6 +4,7 @@ using BillingRecon.Application.Payments;
 using BillingRecon.Application.Receivables;
 using BillingRecon.Application.Tests.Support;
 using BillingRecon.Domain.Common;
+using BillingRecon.Domain.Identity;
 using BillingRecon.Domain.Payments;
 using BillingRecon.Domain.Receivables;
 using NSubstitute;
@@ -40,6 +41,7 @@ public sealed class PaymentReversalHandlerTests
     {
         _clock.ToIstDate(Arg.Any<DateTimeOffset>()).Returns(TestDoubles.Today);
         _currentUser.UserId.Returns(Checker);
+        _currentUser.Roles.Returns(new[] { Role.Supervisor });
         _ledger.PostAsync(Arg.Do<PostingTemplate>(_posted.Add), Arg.Any<CancellationToken>()).Returns(_ => (Result<LedgerPostingId>)new LedgerPostingId(Guid.NewGuid()));
         _bills.RestoreAsync(FirstBill, Payer, Arg.Any<Money>(), Arg.Any<CancellationToken>()).Returns((Result<SettledBill>)new SettledBill("BIL/26-27/000001", Money.Of(500m)));
         _bills.RestoreAsync(SecondBill, Payer, Arg.Any<Money>(), Arg.Any<CancellationToken>()).Returns((Result<SettledBill>)new SettledBill("BIL/26-27/000002", Money.Of(100m)));

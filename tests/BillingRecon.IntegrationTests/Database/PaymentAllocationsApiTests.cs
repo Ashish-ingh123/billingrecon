@@ -45,7 +45,7 @@ public sealed class PaymentAllocationsApiTests(SqlServerFixture sqlServer) : Dat
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (patient, payer) = await client.NewBillPartiesAsync();
         var large = await PostedBillAsync(client, patient, payer, Consultation, Dressing);
         var small = await PostedBillAsync(client, patient, payer, Dressing);
@@ -160,7 +160,7 @@ public sealed class PaymentAllocationsApiTests(SqlServerFixture sqlServer) : Dat
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (patient, payer) = await client.NewBillPartiesAsync();
         var (otherPatient, otherPayer) = await client.NewBillPartiesAsync();
         var bill = await PostedBillAsync(client, patient, payer, Dressing);
@@ -199,7 +199,7 @@ public sealed class PaymentAllocationsApiTests(SqlServerFixture sqlServer) : Dat
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (patient, payer) = await client.NewBillPartiesAsync();
         var bill = await PostedBillAsync(client, patient, payer, Dressing);
         var payment = await RecordedAsync(client, payer, 100m);
@@ -244,7 +244,7 @@ public sealed class PaymentAllocationsApiTests(SqlServerFixture sqlServer) : Dat
             services.AddScoped<IReceivablesLedger>(provider => new GatedLedger(provider.GetRequiredService<ReceivablesLedger>(), gate));
         });
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (patient, payer) = await client.NewBillPartiesAsync();
         var bill = await PostedBillAsync(client, patient, payer, Dressing);
         var one = await RecordedAsync(client, payer, 126m);
@@ -284,7 +284,7 @@ public sealed class PaymentAllocationsApiTests(SqlServerFixture sqlServer) : Dat
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (patient, payer) = await client.NewBillPartiesAsync();
         var bill = await PostedBillAsync(client, patient, payer, Dressing);
         var one = await RecordedAsync(client, payer, 126m);
@@ -328,7 +328,7 @@ public sealed class PaymentAllocationsApiTests(SqlServerFixture sqlServer) : Dat
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (patient, payer) = await client.NewBillPartiesAsync();
         var bills = new List<BillDto>();
         var payments = new List<PaymentDto>();
@@ -384,7 +384,7 @@ public sealed class PaymentAllocationsApiTests(SqlServerFixture sqlServer) : Dat
 
         using (var failing = new DatabaseApiFactory(SqlServer, configure: services => FailAt(step, services)))
         {
-            using var client = failing.CreateClientFor(cashier, "Cashier");
+            using var client = failing.CreateClientFor(cashier, "Cashier", "BillingClerk");
             (var patient, payer) = await client.NewBillPartiesAsync();
             bill = await PostedBillAsync(client, patient, payer, Dressing);
             payment = await RecordedAsync(client, payer, 100m);
@@ -397,7 +397,7 @@ public sealed class PaymentAllocationsApiTests(SqlServerFixture sqlServer) : Dat
 
         // The same request again, with the same key, on an API that works.
         using var working = new DatabaseApiFactory(SqlServer);
-        using var retrying = working.CreateClientFor(cashier, "Cashier");
+        using var retrying = working.CreateClientFor(cashier, "Cashier", "BillingClerk");
         using var retried = await AllocateAsync(retrying, payment, key, (bill.Id, 100m));
 
         retried.StatusCode.ShouldBe(HttpStatusCode.OK, await retried.Content.ReadAsStringAsync());
@@ -412,7 +412,7 @@ public sealed class PaymentAllocationsApiTests(SqlServerFixture sqlServer) : Dat
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (patient, payer) = await client.NewBillPartiesAsync();
         var bill = await PostedBillAsync(client, patient, payer, Dressing);
         var payment = await RecordedAsync(client, payer, 100m);
@@ -441,7 +441,7 @@ public sealed class PaymentAllocationsApiTests(SqlServerFixture sqlServer) : Dat
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (patient, payer) = await client.NewBillPartiesAsync();
         var bill = await PostedBillAsync(client, patient, payer, Dressing);
         var payment = await RecordedAsync(client, payer, 126m);
@@ -460,8 +460,8 @@ public sealed class PaymentAllocationsApiTests(SqlServerFixture sqlServer) : Dat
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
         var other = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
-        using var stranger = factory.CreateClientFor(other, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
+        using var stranger = factory.CreateClientFor(other, "Cashier", "BillingClerk");
         var (patient, payer) = await client.NewBillPartiesAsync();
         var (theirPatient, theirPayer) = await stranger.NewBillPartiesAsync();
         var bill = await PostedBillAsync(client, patient, payer, Dressing);
@@ -490,7 +490,7 @@ public sealed class PaymentAllocationsApiTests(SqlServerFixture sqlServer) : Dat
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (patient, payer) = await client.NewBillPartiesAsync();
         var (otherPatient, otherPayer) = await client.NewBillPartiesAsync();
         var bill = await PostedBillAsync(client, patient, payer, Dressing);

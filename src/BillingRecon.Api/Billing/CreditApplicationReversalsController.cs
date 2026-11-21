@@ -1,8 +1,10 @@
 using BillingRecon.Api.Common;
+using BillingRecon.Api.Common.Authorization;
 using BillingRecon.Api.Common.Idempotency;
 using BillingRecon.Application.Billing;
 using BillingRecon.Application.Common;
 using BillingRecon.Domain.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
@@ -23,6 +25,7 @@ public sealed class CreditApplicationReversalsController : ApiControllerBase
     /// <c>PendingReversal</c>, still applied to its bill. 404 when the credit note has no such application; 409 when
     /// it already waits or is reversed; 422 when it is the application made at posting.
     /// </summary>
+    [Authorize(Policy = Policies.RequestReversals)]
     [HttpPost("{id:guid}/applications/{applicationId:guid}/reverse")]
     [Idempotent]
     [ProducesResponseType<CreditNoteDto>(StatusCodes.Status202Accepted)]
@@ -63,6 +66,7 @@ public sealed class CreditApplicationReversalsController : ApiControllerBase
     /// amount is available credit again, the bill is owed it again and its status moves back, and the ledger gets the
     /// mirror pair, in one transaction. The cashier who asked cannot approve: 403. The body may be left out.
     /// </summary>
+    [Authorize(Policy = Policies.Decide)]
     [HttpPost("{id:guid}/applications/{applicationId:guid}/approve-reversal")]
     [Idempotent]
     [ProducesResponseType<CreditNoteDto>(StatusCodes.Status200OK)]
@@ -91,6 +95,7 @@ public sealed class CreditApplicationReversalsController : ApiControllerBase
     }
 
     /// <summary>A second person rejects the reversal of the application, saying why (BR-605): the application is in force again, as it was.</summary>
+    [Authorize(Policy = Policies.Decide)]
     [HttpPost("{id:guid}/applications/{applicationId:guid}/reject-reversal")]
     [Idempotent]
     [ProducesResponseType<CreditNoteDto>(StatusCodes.Status200OK)]

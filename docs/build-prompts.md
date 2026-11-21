@@ -29,7 +29,7 @@ is left; their numbering is mine, not the blueprint's.
 | Everything else in R1 | Not started: sign-in and JWT, role permissions, reports, frontend, delivery |
 | 6.3 Dashboard figures and 7.6 Dashboard (added 2026-11-21, with theming in 7.1) | Not started. 6.3 runs after 6.2, 7.6 after 7.5; the layout reference `docs/ui/dashboard.png` is still to be added; the drift card's trend (none, or a snapshot table and a new migration) is the owner's open decision, asked in 6.3 |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. Next prompt: 5.3 (role permissions and tenant settings). What was decided for each built prompt is recorded under it below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. Next prompt: 5.3b (tenant settings and prefix changes). What was decided for each built prompt is recorded under it below.**
 
 ## How to use these prompts
 
@@ -529,6 +529,30 @@ endpoint with every role. The checker must hold Supervisor or TenantAdmin. Build
 settings endpoints (approval threshold, back-date window, default due days, default prefixes;
 prefix change is maker-checker, BR-802), audited.
 Done when: the matrix test passes and US-03 passes.
+```
+
+**Owner's decisions for 5.3, recorded 2026-11-21 (the plan was approved "as recommended"):** the prompt is built in two
+steps, each with its own commit: **5.3, the role permissions (ADR 0032)**, then **5.3b, the tenant settings**. For the
+permissions: a blank cell of the matrix is no access, not even reading, except that a Cashier reads credit notes (a
+refund may come from one); applying a credit note's credit is in the credit notes' row (TenantAdmin, Supervisor,
+BillingClerk); the checker's inbox `GET /approval-requests` is for TenantAdmin and Supervisor; the audit trail is read
+by every role, but the trail of a user by a TenantAdmin only; the checker's role is checked by the policy of every
+approve and reject endpoint and again by the decision itself, with 403 `approval_checker_role`. For 5.3b: a prefix
+change is one maker-checker request for one document type, kept in a new table (`PrefixChanges`), whose approval
+changes the tenant's default prefix and the prefix of that type's series of the current fiscal year, so the next number
+uses it and numbers already issued keep theirs; the five document types keep distinct prefixes.
+
+#### 5.3b Tenant settings and prefix changes
+
+```
+Read BR-607, BR-802, BR-604, US-03, ADR 0008, ADR 0023, ADR 0032 and the decisions of 5.3 above.
+Build GET and PATCH /api/v1/settings (TenantAdmin, If-Match): the approval threshold (empty or above
+zero), the back-date window and the default due days (0 to 365), applied from the next request and
+audited. Build the prefix change: a TenantAdmin asks for a new prefix of one document type, a
+Supervisor or TenantAdmin who is not the maker approves or rejects; the approval changes the default
+and the series of the current fiscal year; prefixes stay distinct and 1 to 3 characters [A-Z0-9].
+Migration 0019_PrefixChanges. The trail of the tenant's settings is the TenantAdmin's alone.
+Done when: US-03 passes and the matrix test names the new endpoints.
 ```
 
 #### 5.4 Database logins and hardening

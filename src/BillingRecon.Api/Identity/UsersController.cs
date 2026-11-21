@@ -1,7 +1,9 @@
 using BillingRecon.Api.Common;
+using BillingRecon.Api.Common.Authorization;
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Identity;
 using BillingRecon.Domain.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BillingRecon.Api.Identity;
@@ -11,8 +13,8 @@ namespace BillingRecon.Api.Identity;
 /// Users are reference data like patients and payers: their POSTs take no Idempotency-Key, because the store of keys
 /// keeps a fingerprint of the body and a body with a password must never be fingerprinted (ADR 0030); the unique
 /// address and If-Match protect them instead. Every response that returns one user carries its version as the ETag;
-/// no response carries a password or its hash. Another tenant's user answers 404. A signed-in user may call these
-/// (ADR 0031); which roles may is Prompt 5.3 (TenantAdmin only).
+/// no response carries a password or its hash. Another tenant's user answers 404. Only a TenantAdmin may call these
+/// (ADR 0032).
 /// </summary>
 [Route(ApiRoutes.V1 + "/users")]
 public sealed class UsersController : ApiControllerBase
@@ -20,6 +22,7 @@ public sealed class UsersController : ApiControllerBase
     private const string GetUserRoute = "GetUser";
 
     /// <summary>Creates a user with a password and at least one role. 409 when another user of the tenant has the address.</summary>
+    [Authorize(Policy = Policies.ManageTenant)]
     [HttpPost]
     [ProducesResponseType<UserDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -37,6 +40,7 @@ public sealed class UsersController : ApiControllerBase
     }
 
     /// <summary>Reads one user.</summary>
+    [Authorize(Policy = Policies.ManageTenant)]
     [HttpGet("{id:guid}", Name = GetUserRoute)]
     [ProducesResponseType<UserDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -51,6 +55,7 @@ public sealed class UsersController : ApiControllerBase
     }
 
     /// <summary>Lists the users one page at a time, by e-mail address.</summary>
+    [Authorize(Policy = Policies.ManageTenant)]
     [HttpGet]
     [ProducesResponseType<PageOf<UserDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -65,6 +70,7 @@ public sealed class UsersController : ApiControllerBase
     }
 
     /// <summary>Changes the e-mail address and the display name. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.ManageTenant)]
     [HttpPatch("{id:guid}")]
     [ProducesResponseType<UserDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -91,6 +97,7 @@ public sealed class UsersController : ApiControllerBase
     /// Replaces the roles of a user with at least one. 422 when it would take the role away from the tenant's last
     /// active administrator. Needs If-Match.
     /// </summary>
+    [Authorize(Policy = Policies.ManageTenant)]
     [HttpPut("{id:guid}/roles")]
     [ProducesResponseType<UserDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -118,6 +125,7 @@ public sealed class UsersController : ApiControllerBase
     /// Disables a user (BR-601). 422 for the caller themselves, for the tenant's last active administrator, and for a
     /// user who is disabled already. Needs If-Match; no body.
     /// </summary>
+    [Authorize(Policy = Policies.ManageTenant)]
     [HttpPost("{id:guid}/disable")]
     [ProducesResponseType<UserDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -140,6 +148,7 @@ public sealed class UsersController : ApiControllerBase
     }
 
     /// <summary>Enables a disabled user. 422 for a user who is active already. Needs If-Match; no body.</summary>
+    [Authorize(Policy = Policies.ManageTenant)]
     [HttpPost("{id:guid}/enable")]
     [ProducesResponseType<UserDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -162,6 +171,7 @@ public sealed class UsersController : ApiControllerBase
     }
 
     /// <summary>An administrator sets a new password for a user. The answer is the user, without the password. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.ManageTenant)]
     [HttpPost("{id:guid}/password")]
     [ProducesResponseType<UserDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]

@@ -56,7 +56,7 @@ public sealed class RejectCreditNoteHandler(
         }
 
         var request = pending.Value;
-        var decided = request.Reject(checker, command.Comment, clock.UtcNow);
+        var decided = request.Reject(checker, currentUser.Roles, command.Comment, clock.UtcNow);
         if (decided.IsFailure)
         {
             return decided.Error;

@@ -1,9 +1,11 @@
 using BillingRecon.Api.Common;
+using BillingRecon.Api.Common.Authorization;
 using BillingRecon.Api.Common.Idempotency;
 using BillingRecon.Application.Billing;
 using BillingRecon.Application.Common;
 using BillingRecon.Domain.Billing;
 using BillingRecon.Domain.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
@@ -26,6 +28,7 @@ public sealed class BillsController : ApiControllerBase
     /// service item does not exist; 422 when one of them is inactive, a date is not allowed (BR-205) or a line breaks
     /// BR-201.
     /// </summary>
+    [Authorize(Policy = Policies.WriteBills)]
     [HttpPost]
     [Idempotent]
     [ProducesResponseType<BillDto>(StatusCodes.Status201Created)]
@@ -45,6 +48,7 @@ public sealed class BillsController : ApiControllerBase
     }
 
     /// <summary>Reads one bill with its lines.</summary>
+    [Authorize(Policy = Policies.ReadBills)]
     [HttpGet("{id:guid}", Name = GetBillRoute)]
     [ProducesResponseType<BillDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -59,6 +63,7 @@ public sealed class BillsController : ApiControllerBase
     }
 
     /// <summary>Lists the bills one page at a time, the newest bill date first, without their lines.</summary>
+    [Authorize(Policy = Policies.ReadBills)]
     [HttpGet]
     [ProducesResponseType<PageOf<BillSummaryDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -73,6 +78,7 @@ public sealed class BillsController : ApiControllerBase
     }
 
     /// <summary>Replaces the dates and the two texts of a draft; a text left out is cleared. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.WriteBills)]
     [HttpPatch("{id:guid}")]
     [ProducesResponseType<BillDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -100,6 +106,7 @@ public sealed class BillsController : ApiControllerBase
     /// Replaces every line of a draft with the lines sent and recomputes the totals (BR-202, BR-203). Needs If-Match,
     /// with the version of the bill.
     /// </summary>
+    [Authorize(Policy = Policies.WriteBills)]
     [HttpPut("{id:guid}/lines")]
     [ProducesResponseType<BillDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -124,6 +131,7 @@ public sealed class BillsController : ApiControllerBase
     }
 
     /// <summary>Voids a draft, with a reason (US-23). The bill keeps its content and can no longer change. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.WriteBills)]
     [HttpPost("{id:guid}/void")]
     [Idempotent]
     [ProducesResponseType<BillDto>(StatusCodes.Status200OK)]
@@ -154,6 +162,7 @@ public sealed class BillsController : ApiControllerBase
     /// one transaction (BR-007). A bill at or above the approval threshold of the hospital is not posted: it answers
     /// 202 and waits for a second person (BR-207). Needs If-Match and an Idempotency-Key; no body.
     /// </summary>
+    [Authorize(Policy = Policies.WriteBills)]
     [HttpPost("{id:guid}/post")]
     [Idempotent]
     [ProducesResponseType<BillDto>(StatusCodes.Status200OK)]
@@ -194,6 +203,7 @@ public sealed class BillsController : ApiControllerBase
     /// the ledger entry and the audit records, in one transaction. The maker cannot approve their own bill: 403.
     /// Needs If-Match and an Idempotency-Key; the body, an optional comment, may be left out.
     /// </summary>
+    [Authorize(Policy = Policies.Decide)]
     [HttpPost("{id:guid}/approve")]
     [Idempotent]
     [ProducesResponseType<BillDto>(StatusCodes.Status200OK)]
@@ -223,6 +233,7 @@ public sealed class BillsController : ApiControllerBase
     /// A second person rejects a bill that waits for approval, saying why (BR-605): the bill is a draft again and can
     /// be corrected and posted once more. Needs If-Match and an Idempotency-Key.
     /// </summary>
+    [Authorize(Policy = Policies.Decide)]
     [HttpPost("{id:guid}/reject")]
     [Idempotent]
     [ProducesResponseType<BillDto>(StatusCodes.Status200OK)]

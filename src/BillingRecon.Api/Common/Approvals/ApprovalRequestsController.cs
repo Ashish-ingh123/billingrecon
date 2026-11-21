@@ -1,4 +1,6 @@
+using BillingRecon.Api.Common.Authorization;
 using BillingRecon.Application.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BillingRecon.Api.Common.Approvals;
@@ -12,6 +14,7 @@ namespace BillingRecon.Api.Common.Approvals;
 public sealed class ApprovalRequestsController : ApiControllerBase
 {
     /// <summary>Lists the requests one page at a time, oldest first; the pending ones unless <c>status</c> says otherwise.</summary>
+    [Authorize(Policy = Policies.Decide)]
     [HttpGet]
     [ProducesResponseType<PageOf<ApprovalRequestDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]

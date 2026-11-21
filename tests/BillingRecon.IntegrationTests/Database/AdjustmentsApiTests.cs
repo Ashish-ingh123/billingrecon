@@ -223,6 +223,9 @@ public sealed class AdjustmentsApiTests(SqlServerFixture sqlServer) : DatabaseTe
         var (maker, checker) = await NewMakerAndCheckerAsync();
         using var clerk = factory.CreateClientFor(maker, "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
+
+        // The maker with a checker's role too is refused as the maker (BR-603); as a clerk, for the role (ADR 0032).
+        using var makerAsChecker = factory.CreateClientFor(maker, "Supervisor");
         var (patient, payer) = await clerk.NewBillPartiesAsync();
         var bill = await PostedBillAsync(clerk, patient, payer, Dressing);
         var draft = await DraftedAsync(clerk, bill, AdjustmentKind.Discount, 26m);
@@ -234,8 +237,10 @@ public sealed class AdjustmentsApiTests(SqlServerFixture sqlServer) : DatabaseTe
         var waiting = await SubmittedAsync(clerk, draft);
 
         // The maker can neither approve nor reject; nobody can correct, void or ask again while it waits.
-        using var ownApproval = await clerk.SendWithIfMatchAsync(HttpMethod.Post, Adjustment(draft.Id, "approve"), body: null, PayersApi.ETag(waiting.Version));
-        using var ownRejection = await clerk.SendWithIfMatchAsync(HttpMethod.Post, Adjustment(draft.Id, "reject"), new RejectAdjustmentRequest { Comment = "Mine" }, PayersApi.ETag(waiting.Version));
+        using var ownApproval = await makerAsChecker.SendWithIfMatchAsync(HttpMethod.Post, Adjustment(draft.Id, "approve"), body: null, PayersApi.ETag(waiting.Version));
+        using var ownRejection = await makerAsChecker.SendWithIfMatchAsync(HttpMethod.Post, Adjustment(draft.Id, "reject"), new RejectAdjustmentRequest { Comment = "Mine" }, PayersApi.ETag(waiting.Version));
+        using var asClerk = await clerk.SendWithIfMatchAsync(HttpMethod.Post, Adjustment(draft.Id, "approve"), body: null, PayersApi.ETag(waiting.Version));
+        await asClerk.ShouldBeProblemAsync(HttpStatusCode.Forbidden, "forbidden");
         using var edit = await clerk.SendWithIfMatchAsync(HttpMethod.Put, Adjustment(draft.Id), Update(AdjustmentKind.Discount, 1m), PayersApi.ETag(waiting.Version));
         using var voiding = await clerk.SendWithIfMatchAsync(HttpMethod.Post, Adjustment(draft.Id, "void"), new VoidAdjustmentRequest { Reason = "Changed my mind" }, PayersApi.ETag(waiting.Version));
         using var again = await clerk.SendWithIfMatchAsync(HttpMethod.Post, Adjustment(draft.Id, "post"), body: null, PayersApi.ETag(waiting.Version));
@@ -291,7 +296,7 @@ public sealed class AdjustmentsApiTests(SqlServerFixture sqlServer) : DatabaseTe
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var clerk = factory.CreateClientFor(maker, "Cashier");
+        using var clerk = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
         var (patient, payer) = await clerk.NewBillPartiesAsync();
         var bill = await PostedBillAsync(clerk, patient, payer, Dressing);

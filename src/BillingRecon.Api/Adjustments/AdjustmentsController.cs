@@ -1,8 +1,10 @@
 using BillingRecon.Api.Common;
+using BillingRecon.Api.Common.Authorization;
 using BillingRecon.Api.Common.Idempotency;
 using BillingRecon.Application.Adjustments;
 using BillingRecon.Application.Common;
 using BillingRecon.Domain.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
@@ -23,6 +25,7 @@ public sealed class AdjustmentsController : ApiControllerBase
     /// Creates a draft adjustment against a posted bill. 404 when the bill does not exist; 422 when it is not posted,
     /// the date is not allowed, or a rounding is one rupee or more (BR-501).
     /// </summary>
+    [Authorize(Policy = Policies.DraftCreditNotesAndAdjustments)]
     [HttpPost]
     [Idempotent]
     [ProducesResponseType<AdjustmentDto>(StatusCodes.Status201Created)]
@@ -42,6 +45,7 @@ public sealed class AdjustmentsController : ApiControllerBase
     }
 
     /// <summary>Reads one adjustment.</summary>
+    [Authorize(Policy = Policies.ReadAdjustments)]
     [HttpGet("{id:guid}", Name = GetAdjustmentRoute)]
     [ProducesResponseType<AdjustmentDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -56,6 +60,7 @@ public sealed class AdjustmentsController : ApiControllerBase
     }
 
     /// <summary>Lists the adjustments one page at a time, the newest date first.</summary>
+    [Authorize(Policy = Policies.ReadAdjustments)]
     [HttpGet]
     [ProducesResponseType<PageOf<AdjustmentDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -70,6 +75,7 @@ public sealed class AdjustmentsController : ApiControllerBase
     }
 
     /// <summary>Replaces the date, the kind, the amount and the reason of a draft. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.DraftCreditNotesAndAdjustments)]
     [HttpPut("{id:guid}")]
     [ProducesResponseType<AdjustmentDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -94,6 +100,7 @@ public sealed class AdjustmentsController : ApiControllerBase
     }
 
     /// <summary>Voids a draft, with a reason. The adjustment keeps its content and can no longer change. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.DraftCreditNotesAndAdjustments)]
     [HttpPost("{id:guid}/void")]
     [Idempotent]
     [ProducesResponseType<AdjustmentDto>(StatusCodes.Status200OK)]
@@ -124,6 +131,7 @@ public sealed class AdjustmentsController : ApiControllerBase
     /// without a number and without any ledger effect. 422 when its date is no longer allowed or its amount is more
     /// than the bill is owed (BR-501). Needs If-Match and an Idempotency-Key; no body.
     /// </summary>
+    [Authorize(Policy = Policies.DraftCreditNotesAndAdjustments)]
     [HttpPost("{id:guid}/post")]
     [Idempotent]
     [ProducesResponseType<AdjustmentDto>(StatusCodes.Status202Accepted)]
@@ -162,6 +170,7 @@ public sealed class AdjustmentsController : ApiControllerBase
     /// approve their own adjustment: 403. Needs If-Match and an Idempotency-Key; the body, an optional comment, may be
     /// left out.
     /// </summary>
+    [Authorize(Policy = Policies.Decide)]
     [HttpPost("{id:guid}/approve")]
     [Idempotent]
     [ProducesResponseType<AdjustmentDto>(StatusCodes.Status200OK)]
@@ -191,6 +200,7 @@ public sealed class AdjustmentsController : ApiControllerBase
     /// A second person rejects an adjustment that waits, saying why (BR-605): it is a draft again and can be corrected
     /// and submitted once more. Needs If-Match and an Idempotency-Key.
     /// </summary>
+    [Authorize(Policy = Policies.Decide)]
     [HttpPost("{id:guid}/reject")]
     [Idempotent]
     [ProducesResponseType<AdjustmentDto>(StatusCodes.Status200OK)]

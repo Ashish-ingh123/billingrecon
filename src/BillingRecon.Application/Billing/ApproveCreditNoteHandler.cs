@@ -84,7 +84,7 @@ public sealed class ApproveCreditNoteHandler(
         }
 
         var request = pending.Value;
-        var decided = request.Approve(checker, command.Comment, now);
+        var decided = request.Approve(checker, currentUser.Roles, command.Comment, now);
         if (decided.IsFailure)
         {
             return decided.Error;

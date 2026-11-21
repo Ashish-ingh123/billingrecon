@@ -1,0 +1,106 @@
+# ADR 0032: Role permissions
+
+- **Status:** Accepted. The owner approved the plan of Prompt 5.3 on 2026-11-21 with the recommended answers; questions 1
+  to 6 of that plan are points 2 to 7 below, and questions 7 and 8, on prefixes, belong to Prompt 5.3b. The built note
+  at the end records what the build found.
+- **Date:** 2026-11-21
+- **Deciders:** project owner, Claude Code
+- **Refines:** ADR 0031 point 7 (deny by default), ADR 0023 (the checker).
+- **Implements:** the permission matrix of `docs/requirements.md` section 1, BR-603; US-43 (a Viewer reads the audit
+  trail).
+
+## Context
+
+Since Prompt 5.2 every endpoint but the sign-in and the health checks needs a signed-in user, and the token carries
+the user's roles, but no endpoint asks for one. The matrix says which role may do what; BR-603 adds that a checker
+holds Supervisor or TenantAdmin, "enforced server-side and cannot be bypassed by role". Prompt 5.3 was split with the
+plan: this ADR is the permissions, Prompt 5.3b the tenant settings.
+
+## Decision
+
+1. **Named policies, one per capability of the matrix**, each admitting the roles below. A user with several roles may
+   do what any of them may.
+
+   | Policy | Roles | Endpoints |
+   |---|---|---|
+   | `ManageTenant` | TenantAdmin | the users |
+   | `ReadReferenceData` | all five | read patients, payers, service items |
+   | `WriteReferenceData` | TenantAdmin, Supervisor, BillingClerk | change them |
+   | `ReadBills` | all five | read bills |
+   | `WriteBills` | TenantAdmin, Supervisor, BillingClerk | draft, edit, void, post |
+   | `ReadCreditNotes` | all five | read credit notes |
+   | `ReadAdjustments` | TenantAdmin, Supervisor, BillingClerk, Viewer | read adjustments |
+   | `DraftCreditNotesAndAdjustments` | TenantAdmin, Supervisor, BillingClerk | draft, edit, void, submit; apply a credit note's credit |
+   | `ReadPayments` | all five | read payments and their allocations |
+   | `RecordPayments` | TenantAdmin, Supervisor, BillingClerk, Cashier | record, allocate |
+   | `ReadRefunds` | TenantAdmin, Supervisor, Cashier, Viewer | read refunds |
+   | `DraftRefunds` | TenantAdmin, Supervisor, Cashier | draft, edit, void, submit |
+   | `RequestReversals` | TenantAdmin, Supervisor, BillingClerk, Cashier | ask for the reversal of a payment, an allocation, an application of credit |
+   | `Decide` | TenantAdmin, Supervisor | approve, reject, and the checker's inbox |
+   | `ReadAudit` | all five | the audit trail |
+   | `SignedIn` | any signed-in user | the service information |
+
+2. **Every action names exactly one policy**, on the action itself and never on a controller: two attributes would
+   combine as "both", and a reader would have to look in two places. The sign-in stays the one anonymous action. A
+   request the policy refuses gets 403 with the code `forbidden` that a bare 403 already had. An architecture test
+   checks that every action of the API carries one policy of the catalogue.
+3. **A blank cell of the matrix is no access, not even reading**, with one exception: a Cashier reads credit notes,
+   because a Cashier drafts refunds from a credit note's available credit (BR-307) and has to see it. So a Cashier
+   neither reads nor drafts adjustments, a BillingClerk neither reads nor drafts refunds, and a Viewer asks for no
+   reversal.
+4. **Applying a credit note's credit to another bill** is in the credit notes' row: TenantAdmin, Supervisor and
+   BillingClerk.
+5. **The checker's inbox** (`GET /api/v1/approval-requests`) is for checkers: TenantAdmin and Supervisor (BR-605,
+   "listed for checkers"). The pending-approvals report of BR-901 is a report, for everyone, when it is built.
+6. **The audit trail is read by every role (US-43), except the trail of a user**, which only a TenantAdmin reads, since
+   the users are the TenantAdmin's alone in the matrix: anyone else gets 403 `forbidden` for `entityType=User`, in any
+   case and with any spaces around it. Prompt 5.3b adds the trail of the tenant's settings to the same rule.
+7. **The checker's role is checked twice.** The `Decide` policy guards every approve and reject endpoint, and the
+   decision itself checks it again: `ApprovalRequest.Approve` and `Reject` take the checker's roles and refuse a checker
+   without Supervisor or TenantAdmin with 403 `approval_checker_role`, after the check that the checker is not the
+   maker. So no use case can decide without asking, whatever an endpoint says. `ICurrentUser` gains `Roles`, read from
+   the token like the user.
+8. **The roles are those of the token**, which are the user's roles when they signed in; a change of roles applies at
+   the next sign-in, within the 60 minutes ADR 0031 point 8 accepts.
+9. **One table-driven test walks every endpoint with every role**: against the database, a client holding one role
+   sends each request, and the test expects 403 `forbidden` exactly where its table says no. The table is the test's
+   own copy of the matrix, written from `docs/requirements.md` and these points, not the catalogue of point 1, so a
+   policy that admits the wrong role fails it; and it has to name every endpoint the API maps, so a new endpoint fails
+   it until someone decides.
+10. **Reports** have no endpoint yet. The matrix's row (everyone) applies when they arrive (Phase 6).
+
+## Alternatives
+
+- **The role checks in every use case.** Rejected: the matrix is about who may call what, which is the API's concern;
+  the use cases keep the one rule about roles that is business, BR-603.
+- **`RequireRole` written on each endpoint.** Rejected: a named capability makes the matrix readable in the code and
+  changes in one place.
+- **Every role reads everything; the blank cells restrict changes only.** Rejected with the plan: the matrix marks
+  reading with R where it allows it.
+
+## Consequences
+
+- A test client that names no role is a TenantAdmin, who may do everything; a test that acts as another role now gets
+  what that role may do, and a test whose role the matrix refuses changes its role (each named in the commit).
+- The development user is a TenantAdmin, so Development is unchanged.
+- A new endpoint needs a policy and a row in the matrix test before the build is green.
+
+## Built (2026-11-21)
+
+Built as decided, on .NET 10 (SDK 10.0.404); the database tests ran in a throwaway copy against SQL Server LocalDB
+2019, as for every prompt since 4.4. What the build added, none of it a change of a decision:
+
+- **`AddPermissions`** registers the policies and takes over the fallback policy from the authentication
+  (`AddRequestIdentity`), so everything about what a user may do is in one place, `Api/Common/Authorization`.
+- **A refusal is a bare 403**, which the status-code pages write as a ProblemDetails with the code `forbidden`, as they
+  write the bare 401 `unauthorized`.
+- **`ApprovalRequest` (Common) now names `Role` (Identity).** Both are cross-cutting modules, which the module rule lets
+  depend on each other.
+- **The trail of a user is recognised as the database compares the kind**: without regard to case or to the spaces
+  around it, since SQL Server's comparison would find the records for `user` or `User ` too.
+- **The matrix test also requires** that no admitted request answers 401 or a server error.
+- **Existing tests:** a client that sets up what it then acts on names both roles (`"Cashier", "BillingClerk"`); a
+  Viewer client that registered what it read became a BillingClerk; the tests that a maker cannot decide their own
+  request act as the maker holding Supervisor, so they still reach BR-603's first rule, and assert the refusal of the
+  maker's own role beside it; the users' test of the last administrator acts with a token from before the second
+  user lost the role, which is the one way that guard can still be reached.

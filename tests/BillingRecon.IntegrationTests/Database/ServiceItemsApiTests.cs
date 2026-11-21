@@ -256,7 +256,7 @@ public sealed class ServiceItemsApiTests(SqlServerFixture sqlServer) : DatabaseT
     public async Task Listing_the_catalogue_by_code_with_filters_for_the_status_and_a_part_of_the_code_or_the_name()
     {
         using var factory = new DatabaseApiFactory(SqlServer);
-        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "Viewer");
+        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "BillingClerk");
         var xray = await client.CreateServiceItemAsync(Item("RAD/XRAY-CHEST", "Chest X-ray"));
         var consultation = await client.CreateServiceItemAsync(Item("CONS-OPD", "OPD consultation"));
         var bloodCount = await client.CreateServiceItemAsync(Item("LAB/CBC", "Complete blood count"));
@@ -276,7 +276,7 @@ public sealed class ServiceItemsApiTests(SqlServerFixture sqlServer) : DatabaseT
     public async Task The_search_text_is_data_and_never_a_pattern()
     {
         using var factory = new DatabaseApiFactory(SqlServer);
-        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "Viewer");
+        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "BillingClerk");
         var percent = await client.CreateServiceItemAsync(Item("OXY-1", "Oxygen 100% per hour"));
         await client.CreateServiceItemAsync(Item("OXY-2", "Oxygen 1000 litres"));
         var underscore = await client.CreateServiceItemAsync(Item("BED_1", "Bed charge"));
@@ -293,7 +293,7 @@ public sealed class ServiceItemsApiTests(SqlServerFixture sqlServer) : DatabaseT
     public async Task The_catalogue_is_listed_one_page_at_a_time_with_the_total_count()
     {
         using var factory = new DatabaseApiFactory(SqlServer);
-        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "Viewer");
+        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "BillingClerk");
         var created = new List<ServiceItemDto>();
         foreach (var number in Enumerable.Range(1, 5))
         {

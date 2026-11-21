@@ -6,6 +6,7 @@ using BillingRecon.Application.Payments;
 using BillingRecon.Application.Receivables;
 using BillingRecon.Application.Tests.Support;
 using BillingRecon.Domain.Common;
+using BillingRecon.Domain.Identity;
 using BillingRecon.Domain.Payers;
 using BillingRecon.Domain.Payments;
 using BillingRecon.Domain.Receivables;
@@ -50,6 +51,7 @@ public sealed class RefundHandlerTests
         _clock.ToIstDate(Arg.Any<DateTimeOffset>()).Returns(TestDoubles.Today);
         _settings.GetDocumentSettingsAsync(Arg.Any<CancellationToken>()).Returns(new TenantDocumentSettings(MaxBackdateDays: 7, DefaultDueDays: 15));
         _currentUser.UserId.Returns(Checker);
+        _currentUser.Roles.Returns(new[] { Role.Supervisor });
         _correlation.CorrelationId.Returns(Guid.NewGuid());
         _payers.EnsureActiveAsync(Payer, Arg.Any<CancellationToken>()).Returns(Result.Success());
         _numbers.NextAsync(DocumentType.Refund, Fy, Arg.Any<CancellationToken>()).Returns(DocumentNumber.Create(DocumentType.Refund, Fy, "REF", 4));
@@ -105,6 +107,19 @@ public sealed class RefundHandlerTests
         template.Description.ShouldBe($"Refund REF/{Fy.ShortLabel}/000004 from credit note CN/26-27/000002");
         template.Lines.Select(line => line.Account).ShouldBe([LedgerAccount.CreditAvailable, LedgerAccount.Cash]);
         await _payments.DidNotReceiveWithAnyArgs().GetAsync(default, default);
+    }
+
+    [Fact]
+    public async Task BR603_a_cashier_who_is_not_the_maker_still_cannot_approve_a_refund_and_no_number_is_taken()
+    {
+        Recorded();
+        Waiting(RefundSource.FromPayment(PaymentId));
+        _currentUser.Roles.Returns(new[] { Role.Cashier });
+
+        var result = await Approve().HandleAsync(new ApproveRefundCommand(Id, Version(), null), CancellationToken.None);
+
+        result.Error.Code.ShouldBe(CommonErrors.ApprovalCheckerRoleCode);
+        await NothingWasTakenOrWrittenAsync();
     }
 
     [Fact]

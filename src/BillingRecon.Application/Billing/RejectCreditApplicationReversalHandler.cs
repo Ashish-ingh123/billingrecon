@@ -55,7 +55,7 @@ public sealed class RejectCreditApplicationReversalHandler(
             return pending.Error;
         }
 
-        var decided = pending.Value.Reject(checker, command.Comment, clock.UtcNow);
+        var decided = pending.Value.Reject(checker, currentUser.Roles, command.Comment, clock.UtcNow);
         if (decided.IsFailure)
         {
             return decided.Error;

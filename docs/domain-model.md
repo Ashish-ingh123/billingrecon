@@ -340,8 +340,11 @@ never carries financial data.
 decision with `approval_already_decided` (409). The events are named `ApprovalRequestOpened`,
 `ApprovalRequestApproved` and `ApprovalRequestRejected`, so that the audit trail derives `Opened`, `Approved` and
 `Rejected` from them (ADR 0020). There is no generic `ApproveRequestHandler`: the first use is the bill, with
-`ApproveBillPostingHandler` and `RejectBillPostingHandler` in Billing, and each later document brings its own. The
-check that the checker holds Supervisor or TenantAdmin waits for roles (Prompt 5.3).
+`ApproveBillPostingHandler` and `RejectBillPostingHandler` in Billing, and each later document brings its own.
+*Built 2026-11-21 (Prompt 5.3, ADR 0032):* the decision itself checks that the checker holds Supervisor or
+TenantAdmin. `Approve(checker, checkerRoles, comment?, at)` and `Reject(checker, checkerRoles, comment, at)` take the
+roles of `ICurrentUser`, and a checker without either role fails with `approval_checker_role` (403), after the check
+of the maker; the API's `Decide` policy refuses such a user before.
 
 ### 4.10 LedgerPosting + LedgerEntry, PayerBalance (Receivables module)
 

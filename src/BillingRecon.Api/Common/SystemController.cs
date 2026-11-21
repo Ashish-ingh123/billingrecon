@@ -1,4 +1,6 @@
 using System.Reflection;
+using BillingRecon.Api.Common.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BillingRecon.Api.Common;
@@ -12,6 +14,7 @@ public sealed class SystemController(IHostEnvironment environment) : ApiControll
         ?? "0.0.0";
 
     /// <summary>Returns the product name, the API version and the hosting environment.</summary>
+    [Authorize(Policy = Policies.SignedIn)]
     [HttpGet("info")]
     [ProducesResponseType<SystemInfoResponse>(StatusCodes.Status200OK)]
     public ActionResult<SystemInfoResponse> GetInfo()

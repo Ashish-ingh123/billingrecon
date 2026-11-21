@@ -1,7 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using BillingRecon.Api.Common;
-using BillingRecon.Api.Common.Authentication;
 using BillingRecon.Application.Common;
 using BillingRecon.Domain.Common;
 using Microsoft.AspNetCore.Http;
@@ -75,13 +74,13 @@ public sealed class ProbeController(ILogger<ProbeController> logger) : ApiContro
     [HttpGet("missing")]
     public IActionResult Missing() => NotFound();
 
-    /// <summary>Who the request acts for, as the Application ports see it, and the roles of the principal.</summary>
+    /// <summary>Who the request acts for, and with which roles, as the Application ports see it.</summary>
     [HttpGet("identity")]
     public IActionResult Identity([FromServices] ITenantContext tenantContext, [FromServices] ICurrentUser currentUser)
         => Ok(new IdentityResponse(
             tenantContext.TenantId?.Value,
             currentUser.UserId?.Value,
-            [.. User.FindAll(TokenClaims.RoleClaim).Select(claim => claim.Value)]));
+            [.. currentUser.Roles.Select(role => role.ToString())]));
 
     /// <summary>Logs <see cref="WaitingMessage"/> and then waits until the client gives up.</summary>
     [HttpGet("wait")]

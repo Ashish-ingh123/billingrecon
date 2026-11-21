@@ -73,7 +73,7 @@ public sealed class ApprovePaymentReversalHandler(
 
         var now = clock.UtcNow;
         var today = clock.ToIstDate(now);
-        var decided = request.Approve(checker, command.Comment, now);
+        var decided = request.Approve(checker, currentUser.Roles, command.Comment, now);
         if (decided.IsFailure)
         {
             return decided.Error;

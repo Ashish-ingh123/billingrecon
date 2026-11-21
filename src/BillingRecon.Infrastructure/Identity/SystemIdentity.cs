@@ -1,5 +1,6 @@
 using BillingRecon.Application.Common;
 using BillingRecon.Domain.Common;
+using BillingRecon.Domain.Identity;
 
 namespace BillingRecon.Infrastructure.Identity;
 
@@ -24,4 +25,7 @@ public sealed class SystemIdentity : ITenantContext, ICurrentUser
 
     /// <summary>Always null: no user is acting.</summary>
     public UserId? UserId => null;
+
+    /// <summary>Always none: no user is acting, so nothing is decided by a role.</summary>
+    public IReadOnlyCollection<Role> Roles => [];
 }

@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using BillingRecon.Api.Common;
 using BillingRecon.Api.Common.Authentication;
+using BillingRecon.Api.Common.Authorization;
 using BillingRecon.Api.Common.Correlation;
 using BillingRecon.Api.Common.Errors;
 using BillingRecon.Api.Common.Idempotency;
@@ -23,9 +24,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddInfrastructure(builder.Environment);
 
 // Who a request acts for: the tenant, the user and the roles of its token, which this API issues at sign-in and
-// validates on every request; in Development, the development user when a request carries no token. Every endpoint
-// needs a user unless it is marked anonymous (ADR 0031).
+// validates on every request; in Development, the development user when a request carries no token (ADR 0031).
 builder.Services.AddRequestIdentity(builder.Environment);
+
+// What that user may do: every action names one policy of the permission matrix, and an endpoint that names none
+// still needs a user unless it is marked anonymous (ADR 0032, ADR 0031).
+builder.Services.AddPermissions();
 
 // The ports of each business module, then every use case and validator of the Application layer (ADR 0018).
 builder.Services.AddPayers();

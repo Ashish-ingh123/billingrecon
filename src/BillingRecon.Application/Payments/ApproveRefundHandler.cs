@@ -87,7 +87,7 @@ public sealed class ApproveRefundHandler(
             return pending.Error;
         }
 
-        var decided = pending.Value.Approve(checker, command.Comment, now);
+        var decided = pending.Value.Approve(checker, currentUser.Roles, command.Comment, now);
         if (decided.IsFailure)
         {
             return decided.Error;

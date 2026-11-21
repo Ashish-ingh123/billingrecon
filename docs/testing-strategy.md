@@ -40,6 +40,10 @@ behaviour is the question.
   client that names no role is a TenantAdmin, like the user row behind it. A client made with
   `CreateClient` is anonymous and gets 401 everywhere but the sign-in and the health endpoints. A
   context built by hand takes a `FixedIdentity` (tenant and user) or `SystemIdentity.Instance` (none).
+- **Roles.** A client acts with the roles it names, and the matrix applies to it (ADR 0032): a test
+  gives each client the role of what it does, and a client that both sets up and acts names both
+  (`"Cashier", "BillingClerk"`). `PermissionMatrixApiTests` walks every endpoint with each role
+  against its own copy of the matrix; a new endpoint needs a row there before the suite is green.
 - **Time.** `FakeClock` everywhere; the API's clock is the factory's `Clock`, which a test moves.
 - **Data.** `TestData` draws from one seeded Bogus generator: the same tenants and names every run.
 - **Without Docker** the fixture fails with one message; the collection fails, every other test

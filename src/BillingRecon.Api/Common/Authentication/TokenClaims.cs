@@ -55,6 +55,17 @@ public static class TokenClaims
         return hasTenant && hasUser;
     }
 
+    /// <summary>
+    /// The roles <paramref name="principal"/> holds, in the order of <see cref="Role"/>: the <c>role</c> claims that name
+    /// a role exactly. Anything else in such a claim is no role at all.
+    /// </summary>
+    public static IReadOnlyList<Role> RolesOf(ClaimsPrincipal principal)
+    {
+        ArgumentNullException.ThrowIfNull(principal);
+
+        return [.. Enum.GetValues<Role>().Where(role => principal.HasClaim(RoleClaim, role.ToString()))];
+    }
+
     private static bool TryReadId(ClaimsPrincipal principal, string type, out Guid id)
     {
         id = Guid.Empty;

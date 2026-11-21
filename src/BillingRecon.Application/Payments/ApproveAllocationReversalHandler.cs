@@ -73,7 +73,7 @@ public sealed class ApproveAllocationReversalHandler(
 
         // One reading of the clock for the use case: the instant of the reversal, and today in India from it (BR-003).
         var now = clock.UtcNow;
-        var decided = request.Approve(checker, command.Comment, now);
+        var decided = request.Approve(checker, currentUser.Roles, command.Comment, now);
         if (decided.IsFailure)
         {
             return decided.Error;

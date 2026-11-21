@@ -1,8 +1,10 @@
 using BillingRecon.Api.Common;
+using BillingRecon.Api.Common.Authorization;
 using BillingRecon.Api.Common.Idempotency;
 using BillingRecon.Application.Billing;
 using BillingRecon.Application.Common;
 using BillingRecon.Domain.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
@@ -23,6 +25,7 @@ public sealed class CreditNotesController : ApiControllerBase
     /// Creates a draft credit note against a posted bill, with any lines sent. 404 when the bill does not exist; 422
     /// when it is not posted, the date is not allowed (BR-205, BR-214) or a line breaks BR-211.
     /// </summary>
+    [Authorize(Policy = Policies.DraftCreditNotesAndAdjustments)]
     [HttpPost]
     [Idempotent]
     [ProducesResponseType<CreditNoteDto>(StatusCodes.Status201Created)]
@@ -42,6 +45,7 @@ public sealed class CreditNotesController : ApiControllerBase
     }
 
     /// <summary>Reads one credit note with its lines and the applications of its credit.</summary>
+    [Authorize(Policy = Policies.ReadCreditNotes)]
     [HttpGet("{id:guid}", Name = GetCreditNoteRoute)]
     [ProducesResponseType<CreditNoteDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -56,6 +60,7 @@ public sealed class CreditNotesController : ApiControllerBase
     }
 
     /// <summary>Lists the credit notes one page at a time, the newest date first, without their lines.</summary>
+    [Authorize(Policy = Policies.ReadCreditNotes)]
     [HttpGet]
     [ProducesResponseType<PageOf<CreditNoteSummaryDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -70,6 +75,7 @@ public sealed class CreditNotesController : ApiControllerBase
     }
 
     /// <summary>Replaces the date and the reason of a draft. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.DraftCreditNotesAndAdjustments)]
     [HttpPatch("{id:guid}")]
     [ProducesResponseType<CreditNoteDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -94,6 +100,7 @@ public sealed class CreditNotesController : ApiControllerBase
     }
 
     /// <summary>Replaces every line of a draft with the lines sent and recomputes the totals. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.DraftCreditNotesAndAdjustments)]
     [HttpPut("{id:guid}/lines")]
     [ProducesResponseType<CreditNoteDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -118,6 +125,7 @@ public sealed class CreditNotesController : ApiControllerBase
     }
 
     /// <summary>Voids a draft, with a reason. The credit note keeps its content and can no longer change. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.DraftCreditNotesAndAdjustments)]
     [HttpPost("{id:guid}/void")]
     [Idempotent]
     [ProducesResponseType<CreditNoteDto>(StatusCodes.Status200OK)]
@@ -149,6 +157,7 @@ public sealed class CreditNotesController : ApiControllerBase
     /// the credits of the bill or of one of its lines would exceed it (BR-210, BR-211). Needs If-Match and an
     /// Idempotency-Key; no body.
     /// </summary>
+    [Authorize(Policy = Policies.DraftCreditNotesAndAdjustments)]
     [HttpPost("{id:guid}/post")]
     [Idempotent]
     [ProducesResponseType<CreditNoteDto>(StatusCodes.Status202Accepted)]
@@ -187,6 +196,7 @@ public sealed class CreditNotesController : ApiControllerBase
     /// in one transaction. The maker cannot approve their own credit note: 403. Needs If-Match and an
     /// Idempotency-Key; the body, an optional comment, may be left out.
     /// </summary>
+    [Authorize(Policy = Policies.Decide)]
     [HttpPost("{id:guid}/approve")]
     [Idempotent]
     [ProducesResponseType<CreditNoteDto>(StatusCodes.Status200OK)]
@@ -216,6 +226,7 @@ public sealed class CreditNotesController : ApiControllerBase
     /// A second person rejects a credit note that waits, saying why (BR-605): it is a draft again and can be corrected
     /// and submitted once more. Needs If-Match and an Idempotency-Key.
     /// </summary>
+    [Authorize(Policy = Policies.Decide)]
     [HttpPost("{id:guid}/reject")]
     [Idempotent]
     [ProducesResponseType<CreditNoteDto>(StatusCodes.Status200OK)]
@@ -247,6 +258,7 @@ public sealed class CreditNotesController : ApiControllerBase
     /// has available or the bill is owed, the bill is not posted, or it is owed by another payer. Needs If-Match,
     /// with the version of the credit note, and an Idempotency-Key.
     /// </summary>
+    [Authorize(Policy = Policies.DraftCreditNotesAndAdjustments)]
     [HttpPost("{id:guid}/applications")]
     [Idempotent]
     [ProducesResponseType<CreditNoteDto>(StatusCodes.Status200OK)]

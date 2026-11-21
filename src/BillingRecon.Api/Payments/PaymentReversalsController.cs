@@ -1,8 +1,10 @@
 using BillingRecon.Api.Common;
+using BillingRecon.Api.Common.Authorization;
 using BillingRecon.Api.Common.Idempotency;
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Payments;
 using BillingRecon.Domain.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
@@ -23,6 +25,7 @@ public sealed class PaymentReversalsController : ApiControllerBase
     /// payment waits in <c>PendingReversal</c> and nothing can be allocated from it meanwhile. 409 when it already
     /// waits, is reversed, or one of its allocations waits for a decision of its own.
     /// </summary>
+    [Authorize(Policy = Policies.RequestReversals)]
     [HttpPost("{id:guid}/reverse")]
     [Idempotent]
     [ProducesResponseType<PaymentAllocationsDto>(StatusCodes.Status202Accepted)]
@@ -52,6 +55,7 @@ public sealed class PaymentReversalsController : ApiControllerBase
     /// allocation still applied is reversed first, then the payment, each with its mirror ledger posting, in one
     /// transaction. The cashier who asked cannot approve: 403. The body, an optional comment, may be left out.
     /// </summary>
+    [Authorize(Policy = Policies.Decide)]
     [HttpPost("{id:guid}/approve-reversal")]
     [Idempotent]
     [ProducesResponseType<PaymentAllocationsDto>(StatusCodes.Status200OK)]
@@ -78,6 +82,7 @@ public sealed class PaymentReversalsController : ApiControllerBase
     }
 
     /// <summary>A second person rejects the reversal of the payment, saying why (BR-605): the payment is posted again, as it was.</summary>
+    [Authorize(Policy = Policies.Decide)]
     [HttpPost("{id:guid}/reject-reversal")]
     [Idempotent]
     [ProducesResponseType<PaymentAllocationsDto>(StatusCodes.Status200OK)]
@@ -108,6 +113,7 @@ public sealed class PaymentReversalsController : ApiControllerBase
     /// <c>PendingReversal</c>, still applied to its bill. 404 when the payment has no such allocation; 409 when it
     /// already waits or is reversed, or the payment itself waits for a reversal or is reversed.
     /// </summary>
+    [Authorize(Policy = Policies.RequestReversals)]
     [HttpPost("{id:guid}/allocations/{allocationId:guid}/reverse")]
     [Idempotent]
     [ProducesResponseType<PaymentAllocationsDto>(StatusCodes.Status202Accepted)]
@@ -139,6 +145,7 @@ public sealed class PaymentReversalsController : ApiControllerBase
     /// amount is unapplied again, the bill is owed it again and its status moves back, and the ledger gets the mirror
     /// pair, in one transaction. The cashier who asked cannot approve: 403. The body may be left out.
     /// </summary>
+    [Authorize(Policy = Policies.Decide)]
     [HttpPost("{id:guid}/allocations/{allocationId:guid}/approve-reversal")]
     [Idempotent]
     [ProducesResponseType<PaymentAllocationsDto>(StatusCodes.Status200OK)]
@@ -167,6 +174,7 @@ public sealed class PaymentReversalsController : ApiControllerBase
     }
 
     /// <summary>A second person rejects the reversal of the allocation, saying why (BR-605): the allocation is in force again, as it was.</summary>
+    [Authorize(Policy = Policies.Decide)]
     [HttpPost("{id:guid}/allocations/{allocationId:guid}/reject-reversal")]
     [Idempotent]
     [ProducesResponseType<PaymentAllocationsDto>(StatusCodes.Status200OK)]

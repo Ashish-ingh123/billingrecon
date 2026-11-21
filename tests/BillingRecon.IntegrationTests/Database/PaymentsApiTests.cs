@@ -37,7 +37,7 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (_, payer) = await client.NewBillPartiesAsync();
         factory.Clock.Advance(TimeSpan.FromMinutes(10));
 
@@ -118,7 +118,7 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (_, payer) = await client.NewBillPartiesAsync();
 
         // 18:45 UTC on the 17th is 00:15 on the 18th in India (BR-003).
@@ -140,7 +140,7 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
         using var factory = new DatabaseApiFactory(SqlServer);
         factory.Clock.Set(new DateTimeOffset(2027, 4, 2, 6, 30, 0, TimeSpan.Zero));
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (_, payer) = await client.NewBillPartiesAsync();
         var march = new DateOnly(2027, 3, 31);
         var april = new DateOnly(2027, 4, 1);
@@ -161,7 +161,7 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (_, payer) = await client.NewBillPartiesAsync();
 
         var refused = new (RecordPaymentRequest Request, string Field)[]
@@ -202,7 +202,7 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (_, payer) = await client.NewBillPartiesAsync();
         var (_, inactivePayer) = await client.NewBillPartiesAsync();
         using var deactivation = await client.SendWithIfMatchAsync(HttpMethod.Post, PayersApi.Payer(inactivePayer.Id, "deactivate"), body: null, PayersApi.ETag(inactivePayer.Version));
@@ -240,7 +240,7 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
 
         using (var failing = new DatabaseApiFactory(SqlServer, configure: services => FailAt(step, services)))
         {
-            using var client = failing.CreateClientFor(cashier, "Cashier");
+            using var client = failing.CreateClientFor(cashier, "Cashier", "BillingClerk");
             (_, payer) = await client.NewBillPartiesAsync();
 
             using var failed = await client.PostJsonAsync(Payments, Upi(payer, 126m), key);
@@ -252,7 +252,7 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
         // The same request again, with the same key, on an API that works: the key was freed by the fault, and the
         // payment gets the number the failed recording had taken and given back.
         using var working = new DatabaseApiFactory(SqlServer);
-        using var retrying = working.CreateClientFor(cashier, "Cashier");
+        using var retrying = working.CreateClientFor(cashier, "Cashier", "BillingClerk");
         using var retried = await retrying.PostJsonAsync(Payments, Upi(payer, 126m), key);
 
         retried.StatusCode.ShouldBe(HttpStatusCode.Created, await retried.Content.ReadAsStringAsync());
@@ -267,7 +267,7 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (_, payer) = await client.NewBillPartiesAsync();
 
         var recorded = await Task.WhenAll(Enumerable.Range(1, 20).Select(number => Task.Run(() => RecordedAsync(client, Upi(payer, number * 100m)))));
@@ -285,7 +285,7 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (_, payer) = await client.NewBillPartiesAsync();
         var key = Guid.NewGuid();
 
@@ -319,7 +319,7 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
             services.AddScoped<INumberSeries>(provider => new GatedNumberSeries(provider.GetRequiredService<NumberSeriesAllocator>(), gate));
         });
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (_, payer) = await client.NewBillPartiesAsync();
         var key = Guid.NewGuid();
 
@@ -341,7 +341,7 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (_, payer) = await client.NewBillPartiesAsync();
         var (_, otherPayer) = await client.NewBillPartiesAsync();
         var older = await RecordedAsync(client, Upi(payer, 100m) with { PaymentDate = Today.AddDays(-2) });
@@ -368,7 +368,7 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (_, payer) = await client.NewBillPartiesAsync();
         var payment = await RecordedAsync(client, Upi(payer, 126m));
 
@@ -389,8 +389,8 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
         var other = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
-        using var stranger = factory.CreateClientFor(other, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
+        using var stranger = factory.CreateClientFor(other, "Cashier", "BillingClerk");
         var (_, payer) = await client.NewBillPartiesAsync();
         var (_, theirPayer) = await stranger.NewBillPartiesAsync();
         var payment = await RecordedAsync(client, Upi(payer, 126m));
@@ -414,7 +414,7 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
-        using var client = factory.CreateClientFor(cashier, "Cashier");
+        using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (_, payer) = await client.NewBillPartiesAsync();
         var payment = await RecordedAsync(client, Upi(payer, 126m));
         await ShouldHaveNoDriftAndAGaplessSeriesAsync(cashier);

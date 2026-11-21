@@ -49,7 +49,7 @@ public sealed class EndToEndScenarioTests(SqlServerFixture sqlServer) : Database
         using var factory = new DatabaseApiFactory(SqlServer);
         var maker = await NewApiTenantAsync();
         var checker = new FixedIdentity(maker.TenantId, new UserId(Guid.NewGuid()));
-        using var clerk = factory.CreateClientFor(maker, "BillingClerk");
+        using var clerk = factory.CreateClientFor(maker, "BillingClerk", "Cashier");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
         var (patient, payer) = await clerk.NewBillPartiesAsync();
 

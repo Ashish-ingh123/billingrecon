@@ -14,9 +14,9 @@ namespace BillingRecon.Application.Billing;
 /// transaction (BR-007). It lives with the bill, not with the request: Common knows no document (ADR 0003).
 /// <para>
 /// The order is that of every posting (ADR 0022). First everything that can refuse, with nothing locked: the version
-/// the checker read, the bill (it waits, and its date is still allowed today, BR-205), the checker (a user, and not
-/// the maker, BR-603) and the payer (active, BR-105). Then the number, the ledger, and one commit that saves the bill
-/// and its request together. Whether the checker holds the role of a supervisor is asked when roles exist (Prompt 5.3).
+/// the checker read, the bill (it waits, and its date is still allowed today, BR-205), the checker (a user, not the
+/// maker, and a Supervisor or TenantAdmin, BR-603) and the payer (active, BR-105). Then the number, the ledger, and one
+/// commit that saves the bill and its request together.
 /// </para>
 /// </summary>
 public sealed class ApproveBillPostingHandler(
@@ -75,7 +75,7 @@ public sealed class ApproveBillPostingHandler(
 
         var request = pending.Value;
 
-        var decided = request.Approve(checker, command.Comment, now);
+        var decided = request.Approve(checker, currentUser.Roles, command.Comment, now);
         if (decided.IsFailure)
         {
             return decided.Error;

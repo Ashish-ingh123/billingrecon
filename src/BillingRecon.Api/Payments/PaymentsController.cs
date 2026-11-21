@@ -1,8 +1,10 @@
 using BillingRecon.Api.Common;
+using BillingRecon.Api.Common.Authorization;
 using BillingRecon.Api.Common.Idempotency;
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Payments;
 using BillingRecon.Domain.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BillingRecon.Api.Payments;
@@ -24,6 +26,7 @@ public sealed class PaymentsController : ApiControllerBase
     /// the bill is owed, the bill is not posted, or it is owed by another payer. Needs If-Match, with the version
     /// of the payment, and an Idempotency-Key.
     /// </summary>
+    [Authorize(Policy = Policies.RecordPayments)]
     [HttpPost("{id:guid}/allocations")]
     [Idempotent]
     [ProducesResponseType<PaymentAllocationsDto>(StatusCodes.Status200OK)]
@@ -49,6 +52,7 @@ public sealed class PaymentsController : ApiControllerBase
     }
 
     /// <summary>Reads one payment with every allocation made from it, the oldest first.</summary>
+    [Authorize(Policy = Policies.ReadPayments)]
     [HttpGet("{id:guid}/allocations")]
     [ProducesResponseType<PaymentAllocationsDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -66,6 +70,7 @@ public sealed class PaymentsController : ApiControllerBase
     /// Records money received from an active payer. 422 when the payer is inactive or the date is not allowed today
     /// (BR-205, BR-309). Needs an Idempotency-Key.
     /// </summary>
+    [Authorize(Policy = Policies.RecordPayments)]
     [HttpPost]
     [Idempotent]
     [ProducesResponseType<PaymentDto>(StatusCodes.Status201Created)]
@@ -85,6 +90,7 @@ public sealed class PaymentsController : ApiControllerBase
     }
 
     /// <summary>Reads one payment.</summary>
+    [Authorize(Policy = Policies.ReadPayments)]
     [HttpGet("{id:guid}", Name = GetPaymentRoute)]
     [ProducesResponseType<PaymentDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -99,6 +105,7 @@ public sealed class PaymentsController : ApiControllerBase
     }
 
     /// <summary>Lists the payments one page at a time, the newest payment date first.</summary>
+    [Authorize(Policy = Policies.ReadPayments)]
     [HttpGet]
     [ProducesResponseType<PageOf<PaymentDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]

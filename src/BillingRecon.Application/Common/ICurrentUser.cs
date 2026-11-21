@@ -1,4 +1,5 @@
 using BillingRecon.Domain.Common;
+using BillingRecon.Domain.Identity;
 
 namespace BillingRecon.Application.Common;
 
@@ -10,4 +11,11 @@ public interface ICurrentUser
     /// written then carry no user in their audit columns (ADR 0015).
     /// </summary>
     public UserId? UserId { get; }
+
+    /// <summary>
+    /// The roles of the acting user, as its token carries them (the user's roles when they signed in); none when no
+    /// user is acting. What a role may call is decided by the API's policies; the one business rule about roles that a
+    /// use case asks is the checker's (BR-603, ADR 0032).
+    /// </summary>
+    public IReadOnlyCollection<Role> Roles { get; }
 }

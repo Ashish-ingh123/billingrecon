@@ -201,7 +201,7 @@ public sealed class PayersApiTests(SqlServerFixture sqlServer) : DatabaseTest(sq
     public async Task Listing_payers_by_name_with_filters_for_the_patient_the_status_and_a_part_of_the_name()
     {
         using var factory = new DatabaseApiFactory(SqlServer);
-        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "Viewer");
+        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "BillingClerk");
         var patient = await client.RegisterPatientAsync(TestData.NewPatient() with { FullName = "Priya Sharma" });
         var linked = await client.CreatePayerAsync(ForPatient(patient));
         var guarantor = await client.CreatePayerAsync(Guarantor("Anil Kapoor"));

@@ -1,7 +1,9 @@
 using BillingRecon.Api.Common;
+using BillingRecon.Api.Common.Authorization;
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Payers;
 using BillingRecon.Domain.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BillingRecon.Api.Payers;
@@ -18,6 +20,7 @@ public sealed class PatientsController : ApiControllerBase
     private const string GetPatientRoute = "GetPatient";
 
     /// <summary>Registers a patient. 409 <c>patient_mrn_duplicate</c> when the tenant already has the MRN.</summary>
+    [Authorize(Policy = Policies.WriteReferenceData)]
     [HttpPost]
     [ProducesResponseType<PatientDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -35,6 +38,7 @@ public sealed class PatientsController : ApiControllerBase
     }
 
     /// <summary>Reads one patient.</summary>
+    [Authorize(Policy = Policies.ReadReferenceData)]
     [HttpGet("{id:guid}", Name = GetPatientRoute)]
     [ProducesResponseType<PatientDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -49,6 +53,7 @@ public sealed class PatientsController : ApiControllerBase
     }
 
     /// <summary>Lists the patients one page at a time, by name; <c>search</c> matches a whole MRN or part of a name.</summary>
+    [Authorize(Policy = Policies.ReadReferenceData)]
     [HttpGet]
     [ProducesResponseType<PageOf<PatientDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -63,6 +68,7 @@ public sealed class PatientsController : ApiControllerBase
     }
 
     /// <summary>Replaces the demographics of a patient; an optional field left out is cleared. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.WriteReferenceData)]
     [HttpPatch("{id:guid}")]
     [ProducesResponseType<PatientDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -86,6 +92,7 @@ public sealed class PatientsController : ApiControllerBase
     }
 
     /// <summary>Deactivates a patient (BR-102): no new bill may be raised for them. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.WriteReferenceData)]
     [HttpPost("{id:guid}/deactivate")]
     [ProducesResponseType<PatientDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -108,6 +115,7 @@ public sealed class PatientsController : ApiControllerBase
     }
 
     /// <summary>Makes an inactive patient active again. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.WriteReferenceData)]
     [HttpPost("{id:guid}/reactivate")]
     [ProducesResponseType<PatientDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]

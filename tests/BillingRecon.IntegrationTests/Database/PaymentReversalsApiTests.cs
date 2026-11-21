@@ -44,7 +44,7 @@ public sealed class PaymentReversalsApiTests(SqlServerFixture sqlServer) : Datab
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
         var (patient, payer) = await cashier.NewBillPartiesAsync();
         var large = await PostedBillAsync(cashier, patient, payer, Consultation);
@@ -127,7 +127,7 @@ public sealed class PaymentReversalsApiTests(SqlServerFixture sqlServer) : Datab
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
         var (patient, payer) = await cashier.NewBillPartiesAsync();
         var large = await PostedBillAsync(cashier, patient, payer, Consultation);
@@ -215,8 +215,11 @@ public sealed class PaymentReversalsApiTests(SqlServerFixture sqlServer) : Datab
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
+
+        // The maker with a checker's role too is refused as the maker (BR-603); as a cashier, for the role (ADR 0032).
+        using var makerAsChecker = factory.CreateClientFor(maker, "Supervisor");
         var (patient, payer) = await cashier.NewBillPartiesAsync();
         var bill = await PostedBillAsync(cashier, patient, payer, Dressing);
         var payment = await RecordedAsync(cashier, payer, 200m);
@@ -239,8 +242,10 @@ public sealed class PaymentReversalsApiTests(SqlServerFixture sqlServer) : Datab
 
         // The allocation waits: the cashier cannot decide, and the payment cannot be asked for meanwhile.
         var waiting = await RequestedAsync(cashier, Allocation(payment.Id, allocation.Id, "reverse"), allocated.Payment, "Wrong bill");
-        using var own = await cashier.SendWithIfMatchAsync(HttpMethod.Post, Allocation(payment.Id, allocation.Id, "approve-reversal"), body: null, PayersApi.ETag(waiting.Payment.Version));
-        using var ownRejection = await cashier.SendWithIfMatchAsync(HttpMethod.Post, Allocation(payment.Id, allocation.Id, "reject-reversal"), new RejectReversalRequest { Comment = "Mine" }, PayersApi.ETag(waiting.Payment.Version));
+        using var own = await makerAsChecker.SendWithIfMatchAsync(HttpMethod.Post, Allocation(payment.Id, allocation.Id, "approve-reversal"), body: null, PayersApi.ETag(waiting.Payment.Version));
+        using var ownRejection = await makerAsChecker.SendWithIfMatchAsync(HttpMethod.Post, Allocation(payment.Id, allocation.Id, "reject-reversal"), new RejectReversalRequest { Comment = "Mine" }, PayersApi.ETag(waiting.Payment.Version));
+        using var asCashier = await cashier.SendWithIfMatchAsync(HttpMethod.Post, Allocation(payment.Id, allocation.Id, "approve-reversal"), body: null, PayersApi.ETag(waiting.Payment.Version));
+        await asCashier.ShouldBeProblemAsync(HttpStatusCode.Forbidden, "forbidden");
         using var wholePayment = await cashier.SendWithIfMatchAsync(HttpMethod.Post, Payment(payment.Id, "reverse"), new RequestReversalRequest { Reason = "Cheque dishonoured" }, PayersApi.ETag(waiting.Payment.Version));
         using var noComment = await supervisor.SendWithIfMatchAsync(HttpMethod.Post, Allocation(payment.Id, allocation.Id, "reject-reversal"), new RejectReversalRequest(), PayersApi.ETag(waiting.Payment.Version));
         await own.ShouldBeProblemAsync(HttpStatusCode.Forbidden, CommonErrors.ApprovalCheckerIsMakerCode);
@@ -257,7 +262,7 @@ public sealed class PaymentReversalsApiTests(SqlServerFixture sqlServer) : Datab
 
         // The same for the payment: asked, then rejected, it is posted again and can be used.
         var paymentWaiting = await RequestedAsync(cashier, Payment(payment.Id, "reverse"), kept.Payment, "Cheque dishonoured");
-        using var ownPayment = await cashier.SendWithIfMatchAsync(HttpMethod.Post, Payment(payment.Id, "approve-reversal"), body: null, PayersApi.ETag(paymentWaiting.Payment.Version));
+        using var ownPayment = await makerAsChecker.SendWithIfMatchAsync(HttpMethod.Post, Payment(payment.Id, "approve-reversal"), body: null, PayersApi.ETag(paymentWaiting.Payment.Version));
         using var allocationMeanwhile = await cashier.SendWithIfMatchAsync(HttpMethod.Post, Allocation(payment.Id, allocation.Id, "reverse"), new RequestReversalRequest { Reason = "x" }, PayersApi.ETag(paymentWaiting.Payment.Version));
         await ownPayment.ShouldBeProblemAsync(HttpStatusCode.Forbidden, CommonErrors.ApprovalCheckerIsMakerCode);
         await allocationMeanwhile.ShouldBeProblemAsync(HttpStatusCode.Conflict, PaymentsErrors.PaymentPendingReversalCode);
@@ -279,7 +284,7 @@ public sealed class PaymentReversalsApiTests(SqlServerFixture sqlServer) : Datab
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
         var (patient, payer) = await cashier.NewBillPartiesAsync();
         var bill = await PostedBillAsync(cashier, patient, payer, Consultation);
@@ -372,7 +377,7 @@ public sealed class PaymentReversalsApiTests(SqlServerFixture sqlServer) : Datab
             }
         });
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
         var (patient, payer) = await cashier.NewBillPartiesAsync();
         var bill = await PostedBillAsync(cashier, patient, payer, Dressing);
@@ -399,7 +404,7 @@ public sealed class PaymentReversalsApiTests(SqlServerFixture sqlServer) : Datab
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
         var (patient, payer) = await cashier.NewBillPartiesAsync();
         var bill = await PostedBillAsync(cashier, patient, payer, Dressing);
@@ -425,7 +430,7 @@ public sealed class PaymentReversalsApiTests(SqlServerFixture sqlServer) : Datab
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, _) = await NewMakerAndCheckerAsync();
         var stranger = await NewApiTenantAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var outsider = factory.CreateClientFor(stranger, "TenantAdmin");
         var (patient, payer) = await cashier.NewBillPartiesAsync();
         var bill = await PostedBillAsync(cashier, patient, payer, Dressing);
@@ -450,7 +455,7 @@ public sealed class PaymentReversalsApiTests(SqlServerFixture sqlServer) : Datab
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
-        using var cashier = factory.CreateClientFor(maker, "Cashier");
+        using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
         var (patient, payer) = await cashier.NewBillPartiesAsync();
         var bill = await PostedBillAsync(cashier, patient, payer, Dressing);

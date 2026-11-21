@@ -31,7 +31,30 @@ expires, the client signs in again. A token stays valid until it expires, also f
 the sign-in, `/health/live`, `/health/ready` and, in Development, the OpenAPI document and the Scalar page; they read
 no token. In the **Development** environment a request without an `Authorization` header acts as the development
 user of `appsettings.Development.json` (a TenantAdmin), so the Scalar page works without signing in; a request with a
-token is checked as everywhere else. What each role may do is Prompt 5.3.
+token is checked as everywhere else.
+
+**Roles.** Every endpoint names one permission of the matrix in `docs/requirements.md` section 1 (ADR 0032). A
+signed-in user whose roles the permission does not admit gets 403 `forbidden`, before anything of the request is read;
+a user with several roles may do what any of them may. The roles are those of the token, so a change of roles applies
+at the next sign-in. In short:
+
+| Endpoints | TenantAdmin | Supervisor | BillingClerk | Cashier | Viewer |
+|---|---|---|---|---|---|
+| Users (section 8.11) | ✓ | | | | |
+| Patients, payers, service items: read / change | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / | ✓ / |
+| Bills: read / draft, edit, void, post | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / | ✓ / |
+| Credit notes: read / draft, edit, void, submit, apply | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / | ✓ / |
+| Adjustments: read / draft, edit, void, submit | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | | ✓ / |
+| Payments and allocations: read / record, allocate | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / |
+| Refunds: read / draft, edit, void, submit | ✓ / ✓ | ✓ / ✓ | | ✓ / ✓ | ✓ / |
+| Ask for a reversal (payment, allocation, application of credit) | ✓ | ✓ | ✓ | ✓ | |
+| Approve, reject, and the inbox `GET /approval-requests` | ✓ | ✓ | | | |
+| Audit trail (a user's trail: TenantAdmin only) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `GET /api/v1/system/info` | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+A checker also has to be another user than the maker (BR-603): a decision by the maker is 403
+`approval_checker_is_maker`, and the decision itself checks the role again (403 `approval_checker_role`), whatever the
+endpoint.
 
 **Another tenant's record answers 404**, with exactly the code and the message an id nobody has gets
 (`patient_not_found`, `payer_not_found`). The same holds for an id a request names in its body, such as the
@@ -53,6 +76,8 @@ with field errors lists the messages per field under `errors`, keyed by the JSON
 | 400 | A financial POST without a usable `Idempotency-Key` (section 7) | `idempotency_key_missing` |
 | 401 | No token, or one that is not valid: expired, not signed by this API, without a tenant or a user (section 2) | `unauthorized` |
 | 401 | A sign-in that is refused, whatever the reason (section 8.12) | `invalid_credentials` |
+| 403 | The user's roles do not allow the endpoint (section 2), or the trail of a user for anyone but a TenantAdmin | `forbidden` |
+| 403 | A decision by the maker, or by a user who is neither Supervisor nor TenantAdmin (BR-603) | `approval_checker_is_maker`, `approval_checker_role` |
 | 404 | The record does not exist for the tenant (another tenant's included), also when a request only refers to it | `patient_not_found`, `payer_not_found`, `service_item_not_found`, `bill_not_found`, `payment_not_found`, `credit_note_not_found`, `adjustment_not_found`; `not_found` for an unknown route |
 | 409 | The record changed since it was read (BR-804) | `concurrency_conflict` |
 | 409 | The first request with this `Idempotency-Key` is still running (section 7) | `idempotency_in_progress` |
@@ -353,10 +378,12 @@ change. Nothing here can be created, changed or deleted: any other verb answers 
 
 | Method and path | Success | Failures |
 |---|---|---|
-| `GET /api/v1/audit-records?entityType=&entityId=&page=&pageSize=` | 200, a page of records, oldest first | 400 when `entityType` or `entityId` is missing, or the page is outside the limits |
+| `GET /api/v1/audit-records?entityType=&entityId=&page=&pageSize=` | 200, a page of records, oldest first | 400 when `entityType` or `entityId` is missing, or the page is outside the limits; 403 for the trail of a user, unless the caller is a TenantAdmin |
 
-`entityType` is `Patient`, `Payer`, `ServiceItem`, `Bill` or `ApprovalRequest`; `entityId` is the id of that record. Both are required.
-A record of another tenant, like an id nobody has, has an empty trail: 200 with no items, never 404 or 403.
+`entityType` is `Patient`, `Payer`, `ServiceItem`, `Bill`, `ApprovalRequest` or the type of any later record (`User`,
+`Payment`, ...); `entityId` is the id of that record. Both are required. A record of another tenant, like an id nobody
+has, has an empty trail: 200 with no items, never 404 or 403. Every role reads the trail (US-43), except the trail of a
+user (`entityType=User`, in any case), which only a TenantAdmin reads: the users are the TenantAdmin's alone (ADR 0032).
 
 A record:
 
@@ -378,8 +405,9 @@ is stored changes nothing and writes no record, and the version of the record st
 
 ### 8.6 Approval requests (BR-605, ADR 0023)
 
-Read-only: the checker's inbox. A request is opened when a document that needs a second person is posted, and
-decided through the document (`.../approve`, `.../reject`); nothing here can be created, changed or deleted.
+Read-only: the checker's inbox, for Supervisors and TenantAdmins (ADR 0032). A request is opened when a document that
+needs a second person is posted, and decided through the document (`.../approve`, `.../reject`); nothing here can be
+created, changed or deleted.
 
 | Method and path | Success | Failures |
 |---|---|---|
@@ -665,8 +693,8 @@ credit note shows `Refunded`, with its own number.
 The users of the tenant, each with an e-mail address unique in the tenant without regard to case, a display name, a
 password, a status and one or more roles. Users are reference data like patients and payers: the POSTs take **no**
 `Idempotency-Key` (a stored fingerprint of a body that holds a password is not allowed), and the unique address and
-`If-Match` protect them. No answer ever carries the password or its hash. They need a signed-in user (section 2);
-until Prompt 5.3 they check no role, then they are TenantAdmin only.
+`If-Match` protect them. No answer ever carries the password or its hash. Only a TenantAdmin may call them, reading
+included (section 2; ADR 0032).
 
 | Method and path | Success | Failures |
 |---|---|---|

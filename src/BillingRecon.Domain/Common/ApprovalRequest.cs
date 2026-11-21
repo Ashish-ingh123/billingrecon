@@ -1,3 +1,5 @@
+using BillingRecon.Domain.Identity;
+
 namespace BillingRecon.Domain.Common;
 
 /// <summary>
@@ -16,6 +18,9 @@ public sealed class ApprovalRequest : AggregateRoot<ApprovalRequestId>, ITenantS
 {
     /// <summary>Longest allowed <see cref="MakerComment"/> and <see cref="CheckerComment"/>.</summary>
     public const int CommentMaxLength = 500;
+
+    /// <summary>The roles of which a checker holds at least one (BR-603).</summary>
+    public static readonly IReadOnlyList<Role> CheckerRoles = [Role.Supervisor, Role.TenantAdmin];
 
     // Entity Framework creates a request with this constructor and then sets the properties.
     private ApprovalRequest()
@@ -113,14 +118,16 @@ public sealed class ApprovalRequest : AggregateRoot<ApprovalRequestId>, ITenantS
 
     /// <summary>
     /// The checker approves (BR-606). Fails, and changes nothing, when the request is already decided
-    /// (<c>approval_already_decided</c>) or the checker is the maker (<c>approval_checker_is_maker</c>, BR-603).
+    /// (<c>approval_already_decided</c>), the checker is the maker (<c>approval_checker_is_maker</c>, BR-603), or the
+    /// checker holds neither Supervisor nor TenantAdmin among <paramref name="checkerRoles"/>
+    /// (<c>approval_checker_role</c>, BR-603, ADR 0032).
     /// </summary>
     /// <exception cref="ArgumentException">The checker's id is empty, or the comment is too long.</exception>
-    public Result Approve(UserId checker, string? comment, DateTimeOffset decidedAtUtc)
+    public Result Approve(UserId checker, IReadOnlyCollection<Role> checkerRoles, string? comment, DateTimeOffset decidedAtUtc)
     {
         var note = Field.Optional(comment, CommentMaxLength);
 
-        if (CheckDecision(checker) is { } refused)
+        if (CheckDecision(checker, checkerRoles) is { } refused)
         {
             return refused;
         }
@@ -132,15 +139,15 @@ public sealed class ApprovalRequest : AggregateRoot<ApprovalRequestId>, ITenantS
     }
 
     /// <summary>
-    /// The checker rejects, saying why (BR-605). Fails, and changes nothing, when the request is already decided or the
-    /// checker is the maker (BR-603).
+    /// The checker rejects, saying why (BR-605). Fails, and changes nothing, when the request is already decided, the
+    /// checker is the maker, or the checker holds neither Supervisor nor TenantAdmin (BR-603).
     /// </summary>
     /// <exception cref="ArgumentException">The checker's id is empty, or the comment is blank or too long.</exception>
-    public Result Reject(UserId checker, string comment, DateTimeOffset decidedAtUtc)
+    public Result Reject(UserId checker, IReadOnlyCollection<Role> checkerRoles, string comment, DateTimeOffset decidedAtUtc)
     {
         var why = Field.Required(comment, CommentMaxLength);
 
-        if (CheckDecision(checker) is { } refused)
+        if (CheckDecision(checker, checkerRoles) is { } refused)
         {
             return refused;
         }
@@ -151,8 +158,10 @@ public sealed class ApprovalRequest : AggregateRoot<ApprovalRequestId>, ITenantS
         return Result.Success();
     }
 
-    private Error? CheckDecision(UserId checker)
+    private Error? CheckDecision(UserId checker, IReadOnlyCollection<Role> checkerRoles)
     {
+        ArgumentNullException.ThrowIfNull(checkerRoles);
+
         if (checker.Value == Guid.Empty)
         {
             throw new ArgumentException("A decision has a checker; the empty id is not a user.", nameof(checker));
@@ -163,7 +172,12 @@ public sealed class ApprovalRequest : AggregateRoot<ApprovalRequestId>, ITenantS
             return CommonErrors.ApprovalAlreadyDecided();
         }
 
-        return checker == MakerUserId ? CommonErrors.ApprovalCheckerIsMaker() : null;
+        if (checker == MakerUserId)
+        {
+            return CommonErrors.ApprovalCheckerIsMaker();
+        }
+
+        return checkerRoles.Any(CheckerRoles.Contains) ? null : CommonErrors.ApprovalCheckerRole();
     }
 
     private void Decide(ApprovalStatus status, UserId checker, string? comment, DateTimeOffset decidedAtUtc)

@@ -33,6 +33,8 @@ public static class CommonErrors
 
     public const string ApprovalNeedsUserCode = "approval_needs_user";
 
+    public const string ApprovalCheckerRoleCode = "approval_checker_role";
+
     /// <summary>The request has invalid fields; <paramref name="fieldErrors"/> holds the messages per field.</summary>
     public static Error ValidationFailed(IReadOnlyDictionary<string, string[]> fieldErrors)
         => Error.Validation(ValidationFailedCode, "The request is not valid. The errors are listed per field.", fieldErrors);
@@ -82,4 +84,11 @@ public static class CommonErrors
     /// </summary>
     public static Error ApprovalNeedsUser()
         => Error.Forbidden(ApprovalNeedsUserCode, "This action needs a signed-in user: an approval is asked for and given by people (BR-603).");
+
+    /// <summary>
+    /// A decision by a user who holds neither Supervisor nor TenantAdmin (BR-603, ADR 0032). The API's policy refuses
+    /// such a user first; this is the decision's own check, which no endpoint can leave out.
+    /// </summary>
+    public static Error ApprovalCheckerRole()
+        => Error.Forbidden(ApprovalCheckerRoleCode, "Only a Supervisor or a TenantAdmin may approve or reject (BR-603).");
 }

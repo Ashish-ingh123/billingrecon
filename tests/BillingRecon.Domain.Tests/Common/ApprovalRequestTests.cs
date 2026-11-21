@@ -1,13 +1,15 @@
 using BillingRecon.Domain.Common;
+using BillingRecon.Domain.Identity;
 
 namespace BillingRecon.Domain.Tests.Common;
 
 /// <summary>
 /// The approval request (BR-603 to BR-605; docs/domain-model.md, sections 4.9 and 5.4): opened pending by a maker,
-/// decided once by another user, approved or rejected with a comment.
+/// decided once by another user who holds Supervisor or TenantAdmin, approved or rejected with a comment.
 /// </summary>
 public sealed class ApprovalRequestTests
 {
+    private static readonly Role[] AsSupervisor = [Role.Supervisor];
     private static readonly Guid Bill = Guid.Parse("3f2504e0-4f89-11d3-9a0c-0305e82c3301");
     private static readonly UserId Maker = new(Guid.Parse("3f2504e0-4f89-11d3-9a0c-0305e82c3302"));
     private static readonly UserId Checker = new(Guid.Parse("3f2504e0-4f89-11d3-9a0c-0305e82c3303"));
@@ -39,7 +41,7 @@ public sealed class ApprovalRequestTests
     {
         var request = Pending();
 
-        var result = request.Approve(Checker, comment: null, DecidedAt);
+        var result = request.Approve(Checker, AsSupervisor, comment: null, DecidedAt);
 
         result.IsSuccess.ShouldBeTrue();
         request.Status.ShouldBe(ApprovalStatus.Approved);
@@ -54,7 +56,7 @@ public sealed class ApprovalRequestTests
     {
         var request = Pending();
 
-        var result = request.Reject(Checker, " Wrong patient ", DecidedAt);
+        var result = request.Reject(Checker, AsSupervisor, " Wrong patient ", DecidedAt);
 
         result.IsSuccess.ShouldBeTrue();
         request.Status.ShouldBe(ApprovalStatus.Rejected);
@@ -71,8 +73,8 @@ public sealed class ApprovalRequestTests
     {
         var request = Pending();
 
-        var approved = request.Approve(Maker, null, DecidedAt);
-        var rejected = request.Reject(Maker, "Changed my mind", DecidedAt);
+        var approved = request.Approve(Maker, AsSupervisor, null, DecidedAt);
+        var rejected = request.Reject(Maker, AsSupervisor, "Changed my mind", DecidedAt);
 
         foreach (var refused in new[] { approved, rejected })
         {
@@ -87,6 +89,51 @@ public sealed class ApprovalRequestTests
     }
 
     [Theory]
+    [InlineData(Role.BillingClerk)]
+    [InlineData(Role.Cashier)]
+    [InlineData(Role.Viewer)]
+    public void BR603_a_checker_who_is_neither_a_supervisor_nor_a_tenant_admin_can_neither_approve_nor_reject(Role role)
+    {
+        var request = Pending();
+
+        var approved = request.Approve(Checker, [role], null, DecidedAt);
+        var rejected = request.Reject(Checker, [role, Role.Viewer], "Wrong patient", DecidedAt);
+        var withoutRoles = request.Approve(Checker, [], null, DecidedAt);
+
+        foreach (var refused in new[] { approved, rejected, withoutRoles })
+        {
+            refused.Error.Code.ShouldBe(CommonErrors.ApprovalCheckerRoleCode);
+            refused.Error.Kind.ShouldBe(ErrorKind.Forbidden);
+        }
+
+        request.Status.ShouldBe(ApprovalStatus.Pending);
+        request.CheckerUserId.ShouldBeNull();
+        request.DomainEvents.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(Role.Supervisor)]
+    [InlineData(Role.TenantAdmin)]
+    public void BR603_a_supervisor_or_a_tenant_admin_decides_also_when_holding_other_roles(Role role)
+    {
+        var approving = Pending();
+        var rejecting = Pending();
+
+        approving.Approve(Checker, [Role.Cashier, role], null, DecidedAt).IsSuccess.ShouldBeTrue();
+        rejecting.Reject(Checker, [role], "Wrong patient", DecidedAt).IsSuccess.ShouldBeTrue();
+
+        (approving.Status, rejecting.Status).ShouldBe((ApprovalStatus.Approved, ApprovalStatus.Rejected));
+    }
+
+    [Fact]
+    public void BR603_the_maker_is_refused_as_the_maker_whatever_the_roles()
+    {
+        // Both rules fail for a clerk who decides their own request; the answer names the one about the maker.
+        Pending().Approve(Maker, [Role.BillingClerk], null, DecidedAt).Error.Code.ShouldBe(CommonErrors.ApprovalCheckerIsMakerCode);
+        Should.Throw<ArgumentNullException>(() => Pending().Approve(Checker, null!, null, DecidedAt));
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void BR605_a_decision_is_final(bool approvedFirst)
@@ -94,19 +141,19 @@ public sealed class ApprovalRequestTests
         var request = Pending();
         if (approvedFirst)
         {
-            request.Approve(Checker, null, DecidedAt);
+            request.Approve(Checker, AsSupervisor, null, DecidedAt);
         }
         else
         {
-            request.Reject(Checker, "Wrong patient", DecidedAt);
+            request.Reject(Checker, AsSupervisor, "Wrong patient", DecidedAt);
         }
 
         request.ClearDomainEvents();
         var status = request.Status;
         var another = new UserId(Guid.NewGuid());
 
-        var approvedAgain = request.Approve(another, null, DecidedAt.AddHours(1));
-        var rejectedAgain = request.Reject(another, "Too late", DecidedAt.AddHours(1));
+        var approvedAgain = request.Approve(another, AsSupervisor, null, DecidedAt.AddHours(1));
+        var rejectedAgain = request.Reject(another, AsSupervisor, "Too late", DecidedAt.AddHours(1));
 
         foreach (var refused in new[] { approvedAgain, rejectedAgain })
         {
@@ -125,9 +172,9 @@ public sealed class ApprovalRequestTests
     {
         var request = Pending();
 
-        Should.Throw<ArgumentException>(() => request.Reject(Checker, "  ", DecidedAt));
-        Should.Throw<ArgumentException>(() => request.Reject(Checker, new string('c', ApprovalRequest.CommentMaxLength + 1), DecidedAt));
-        Should.Throw<ArgumentException>(() => request.Approve(Checker, new string('c', ApprovalRequest.CommentMaxLength + 1), DecidedAt));
+        Should.Throw<ArgumentException>(() => request.Reject(Checker, AsSupervisor, "  ", DecidedAt));
+        Should.Throw<ArgumentException>(() => request.Reject(Checker, AsSupervisor, new string('c', ApprovalRequest.CommentMaxLength + 1), DecidedAt));
+        Should.Throw<ArgumentException>(() => request.Approve(Checker, AsSupervisor, new string('c', ApprovalRequest.CommentMaxLength + 1), DecidedAt));
 
         request.Status.ShouldBe(ApprovalStatus.Pending);
     }
@@ -139,7 +186,7 @@ public sealed class ApprovalRequestTests
         Should.Throw<ArgumentException>(() => ApprovalRequest.Open(ApprovalDocumentType.Bill, Bill, ApprovalAction.Post, default, null, RequestedAt, Correlation));
         Should.Throw<ArgumentException>(() => ApprovalRequest.Open(ApprovalDocumentType.Bill, Bill, ApprovalAction.Post, Maker, null, RequestedAt, Guid.Empty));
         Should.Throw<ArgumentException>(() => ApprovalRequest.Open((ApprovalDocumentType)99, Bill, ApprovalAction.Post, Maker, null, RequestedAt, Correlation));
-        Should.Throw<ArgumentException>(() => Pending().Approve(default, null, DecidedAt));
+        Should.Throw<ArgumentException>(() => Pending().Approve(default, AsSupervisor, null, DecidedAt));
     }
 
     [Fact]

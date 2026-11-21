@@ -157,6 +157,9 @@ public sealed class CreditApplicationReversalsApiTests(SqlServerFixture sqlServe
         var (maker, checker) = await NewMakerAndCheckerAsync();
         using var clerk = factory.CreateClientFor(maker, "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
+
+        // The maker with a checker's role too is refused as the maker (BR-603); as a clerk, for the role (ADR 0032).
+        using var makerAsChecker = factory.CreateClientFor(maker, "Supervisor");
         var scene = await AppliedAsync(factory, clerk, supervisor);
         var creditNote = scene.CreditNote;
 
@@ -176,8 +179,10 @@ public sealed class CreditApplicationReversalsApiTests(SqlServerFixture sqlServe
 
         // The application waits: the clerk cannot decide, and it cannot be asked for twice.
         var waiting = await RequestedAsync(clerk, creditNote, scene.Later.Id, "Applied to the wrong bill");
-        using var own = await clerk.SendWithIfMatchAsync(HttpMethod.Post, Application(creditNote.Id, scene.Later.Id, "approve-reversal"), body: null, PayersApi.ETag(waiting.Version));
-        using var ownRejection = await clerk.SendWithIfMatchAsync(HttpMethod.Post, Application(creditNote.Id, scene.Later.Id, "reject-reversal"), new RejectCreditApplicationReversalRequest { Comment = "Mine" }, PayersApi.ETag(waiting.Version));
+        using var own = await makerAsChecker.SendWithIfMatchAsync(HttpMethod.Post, Application(creditNote.Id, scene.Later.Id, "approve-reversal"), body: null, PayersApi.ETag(waiting.Version));
+        using var ownRejection = await makerAsChecker.SendWithIfMatchAsync(HttpMethod.Post, Application(creditNote.Id, scene.Later.Id, "reject-reversal"), new RejectCreditApplicationReversalRequest { Comment = "Mine" }, PayersApi.ETag(waiting.Version));
+        using var asClerk = await clerk.SendWithIfMatchAsync(HttpMethod.Post, Application(creditNote.Id, scene.Later.Id, "approve-reversal"), body: null, PayersApi.ETag(waiting.Version));
+        await asClerk.ShouldBeProblemAsync(HttpStatusCode.Forbidden, "forbidden");
         using var secondRequest = await clerk.SendWithIfMatchAsync(HttpMethod.Post, Application(creditNote.Id, scene.Later.Id, "reverse"), new ReverseCreditApplicationRequest { Reason = "Again" }, PayersApi.ETag(waiting.Version));
         using var noComment = await supervisor.SendWithIfMatchAsync(HttpMethod.Post, Application(creditNote.Id, scene.Later.Id, "reject-reversal"), new RejectCreditApplicationReversalRequest(), PayersApi.ETag(waiting.Version));
         await own.ShouldBeProblemAsync(HttpStatusCode.Forbidden, CommonErrors.ApprovalCheckerIsMakerCode);

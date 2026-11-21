@@ -57,7 +57,7 @@ public sealed class PatientsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     public async Task Reading_a_patient_returns_it_with_its_version_as_the_etag()
     {
         using var factory = new DatabaseApiFactory(SqlServer);
-        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "Viewer");
+        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "BillingClerk");
         var registered = await client.RegisterPatientAsync();
 
         using var response = await client.GetAsync(PayersApi.Patient(registered.Id));
@@ -276,7 +276,7 @@ public sealed class PatientsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     public async Task Listing_pages_through_the_patients_by_name_with_the_total_count()
     {
         using var factory = new DatabaseApiFactory(SqlServer);
-        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "Viewer");
+        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "BillingClerk");
         foreach (var name in new[] { "Esha Iyer", "Asha Nair", "Deepa Rao", "Bina Shah", "Chetan Das" })
         {
             await client.RegisterPatientAsync(TestData.NewPatient() with { FullName = name });
@@ -296,7 +296,7 @@ public sealed class PatientsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     public async Task A_list_without_paging_returns_the_first_twenty()
     {
         using var factory = new DatabaseApiFactory(SqlServer);
-        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "Viewer");
+        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "BillingClerk");
         await client.RegisterPatientAsync();
 
         using var response = await client.GetAsync(PayersApi.Patients);
@@ -311,7 +311,7 @@ public sealed class PatientsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     public async Task Searching_finds_a_patient_by_the_whole_mrn_or_by_part_of_the_name_without_regard_to_case()
     {
         using var factory = new DatabaseApiFactory(SqlServer);
-        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "Viewer");
+        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "BillingClerk");
         await client.RegisterPatientAsync(TestData.NewPatient() with { Mrn = "MRN-AB-100", FullName = "Priya Sharma" });
         await client.RegisterPatientAsync(TestData.NewPatient() with { Mrn = "MRN-XY-200", FullName = "Rahul Verma" });
 
@@ -324,7 +324,7 @@ public sealed class PatientsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     public async Task A_search_matches_the_wildcards_of_like_literally()
     {
         using var factory = new DatabaseApiFactory(SqlServer);
-        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "Viewer");
+        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "BillingClerk");
         await client.RegisterPatientAsync(TestData.NewPatient() with { FullName = "Ram 100% Kumar" });
         await client.RegisterPatientAsync(TestData.NewPatient() with { FullName = "Ram 1000 Kumar" });
         await client.RegisterPatientAsync(TestData.NewPatient() with { FullName = "A_B Shah" });

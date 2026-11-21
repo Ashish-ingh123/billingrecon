@@ -1,10 +1,11 @@
 using BillingRecon.Application.Common;
 using BillingRecon.Domain.Common;
+using BillingRecon.Domain.Identity;
 
 namespace BillingRecon.Api.Common.Authentication;
 
 /// <summary>
-/// The tenant and the user of the request (BR-002, BR-602; ADR 0031): those of its principal, which comes from the
+/// The tenant, the user and the roles of the request (BR-002, BR-602; ADR 0031): those of its principal, which comes from the
 /// token, or in Development from the development identity when the request carries none, or, in a sign-in, from the
 /// user whose password has just been verified (<see cref="HttpSignInScope"/>). An anonymous request has neither, so
 /// a tenant-scoped query or write in it fails (ADR 0009). Asked outside a request (a hosted service, a scope a test
@@ -24,6 +25,17 @@ public sealed class RequestPrincipalIdentity(IHttpContextAccessor accessor) : IT
 
     /// <inheritdoc />
     public UserId? UserId => Read()?.UserId;
+
+    /// <inheritdoc />
+    public IReadOnlyCollection<Role> Roles
+    {
+        get
+        {
+            var principal = accessor.HttpContext?.User ?? throw new InvalidOperationException(OutsideRequestMessage);
+
+            return principal.Identity?.IsAuthenticated == true ? TokenClaims.RolesOf(principal) : [];
+        }
+    }
 
     private (TenantId TenantId, UserId UserId)? Read()
     {

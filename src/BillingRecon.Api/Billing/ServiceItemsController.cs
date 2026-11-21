@@ -1,7 +1,9 @@
 using BillingRecon.Api.Common;
+using BillingRecon.Api.Common.Authorization;
 using BillingRecon.Application.Billing;
 using BillingRecon.Application.Common;
 using BillingRecon.Domain.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BillingRecon.Api.Billing;
@@ -18,6 +20,7 @@ public sealed class ServiceItemsController : ApiControllerBase
     private const string GetServiceItemRoute = "GetServiceItem";
 
     /// <summary>Adds an item to the catalogue. 409 <c>service_item_code_duplicate</c> when the tenant already has the code.</summary>
+    [Authorize(Policy = Policies.WriteReferenceData)]
     [HttpPost]
     [ProducesResponseType<ServiceItemDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -35,6 +38,7 @@ public sealed class ServiceItemsController : ApiControllerBase
     }
 
     /// <summary>Reads one service item.</summary>
+    [Authorize(Policy = Policies.ReadReferenceData)]
     [HttpGet("{id:guid}", Name = GetServiceItemRoute)]
     [ProducesResponseType<ServiceItemDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -49,6 +53,7 @@ public sealed class ServiceItemsController : ApiControllerBase
     }
 
     /// <summary>Lists the catalogue one page at a time, by code; <c>search</c> matches part of a code or of a name.</summary>
+    [Authorize(Policy = Policies.ReadReferenceData)]
     [HttpGet]
     [ProducesResponseType<PageOf<ServiceItemDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -66,6 +71,7 @@ public sealed class ServiceItemsController : ApiControllerBase
     /// Replaces the name, category, price and tax rate of an item; a category left out is cleared. Bill lines already
     /// priced from the item keep their own price and tax rate. Needs If-Match.
     /// </summary>
+    [Authorize(Policy = Policies.WriteReferenceData)]
     [HttpPatch("{id:guid}")]
     [ProducesResponseType<ServiceItemDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -89,6 +95,7 @@ public sealed class ServiceItemsController : ApiControllerBase
     }
 
     /// <summary>Deactivates an item: it is no longer offered for new bill lines. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.WriteReferenceData)]
     [HttpPost("{id:guid}/deactivate")]
     [ProducesResponseType<ServiceItemDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -111,6 +118,7 @@ public sealed class ServiceItemsController : ApiControllerBase
     }
 
     /// <summary>Makes an inactive item active again. Needs If-Match.</summary>
+    [Authorize(Policy = Policies.WriteReferenceData)]
     [HttpPost("{id:guid}/reactivate")]
     [ProducesResponseType<ServiceItemDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
