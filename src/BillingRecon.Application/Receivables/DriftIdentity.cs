@@ -40,6 +40,30 @@ public static class DriftIdentity
     /// <summary>An allocation whose bill is owed by another payer than its payment came from (BR-303).</summary>
     public const string AllocationPayerMismatch = "AllocationPayerMismatch";
 
+    /// <summary>Identity 5: the available amount of a posted credit note differs from its available credit in the ledger.</summary>
+    public const string CreditNoteAvailable = "CreditNoteAvailable";
+
+    /// <summary>Identity 2: a posted credit note without its posting.</summary>
+    public const string CreditNoteWithoutPosting = "CreditNoteWithoutPosting";
+
+    /// <summary>Identity 2, the other direction: a credit note posting whose credit note is not posted.</summary>
+    public const string PostingWithoutCreditNote = "PostingWithoutCreditNote";
+
+    /// <summary>Identity 5, the second form: the total of a posted credit note less its active applications differs from its available amount.</summary>
+    public const string CreditNoteApplications = "CreditNoteApplications";
+
+    /// <summary>Identity 2: an application of credit without its posting.</summary>
+    public const string ApplicationWithoutPosting = "ApplicationWithoutPosting";
+
+    /// <summary>Identity 2, the other direction: a posting of applied credit without its application.</summary>
+    public const string PostingWithoutApplication = "PostingWithoutApplication";
+
+    /// <summary>An application whose bill is owed by another payer than its credit note belongs to (BR-213).</summary>
+    public const string ApplicationPayerMismatch = "ApplicationPayerMismatch";
+
+    /// <summary>The posted credit notes of a bill come to more than the bill (BR-210).</summary>
+    public const string CreditNotesExceedBillTotal = "CreditNotesExceedBillTotal";
+
     /// <summary>Identity 6: the receivable of a payer differs from the ledger.</summary>
     public const string PayerReceivable = "PayerReceivable";
 

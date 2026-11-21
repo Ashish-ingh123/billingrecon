@@ -20,10 +20,11 @@ is left; their numbering is mine, not the blueprint's.
 | 3.6 Maker-checker approvals | Written on 2026-11-20 with the owner's decisions (ADR 0023); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0010_Approvals` still to be scaffolded (`docs/runbook.md` section 8). The role of the checker is left to 5.3 |
 | 4.1 Record a payment | Written on 2026-11-20 with the owner's decisions (CLAUDE.md section 9, item 20); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0011_Payments` still to be scaffolded (`docs/runbook.md` section 8) |
 | 4.2 Allocate a payment to bills | Code and tests written on 2026-11-20, pre-checked and documented on 2026-11-21 (ADR 0024, Proposed; CLAUDE.md section 9, item 21); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0012_PaymentAllocations` still to be scaffolded (`docs/runbook.md` section 8) |
-| Everything else in R1 | Not started: credit notes, adjustments, reversals, refunds, users and JWT, reports, frontend, delivery |
+| 4.3 Credit notes | Written on 2026-11-21 with the owner's decisions (ADR 0025; CLAUDE.md section 9, item 22); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0013_CreditNotes` still to be scaffolded (`docs/runbook.md` section 8) |
+| Everything else in R1 | Not started: adjustments, reversals, refunds, users and JWT, reports, frontend, delivery |
 | 6.3 Dashboard figures and 7.6 Dashboard (added 2026-11-21, with theming in 7.1) | Not started. 6.3 runs after 6.2, 7.6 after 7.5; the layout reference `docs/ui/dashboard.png` is still to be added; the drift card's trend (none, or a snapshot table and a new migration) is the owner's open decision, asked in 6.3 |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment) and 4.2 (allocate a payment to bills) are written. Next prompt: 4.3 (credit notes), in a session of its own. What was decided for each built prompt is recorded under it below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills) and 4.3 (credit notes) are written. Next prompt: 4.4 (adjustments), which begins by raising open question 1 of the domain model with the owner. What was decided for each built prompt is recorded under it below.**
 
 ## How to use these prompts
 
@@ -375,6 +376,16 @@ stays as AvailableAmount and can be applied to another posted bill of the same p
 Migration 0013_CreditNotes.
 Done when: US-24 passes with zero drift, including a credit note larger than the balance due.
 ```
+
+**Owner's decisions for 4.3, recorded 2026-11-21 (the plan was approved "as recommended"; ADR 0025):** the caps of
+BR-210 and BR-211 are checked before any lock (422) and again under the payer's ledger lock (409
+`concurrency_conflict`), with no new column on `Bills`; a credit note that comes to nothing is refused at `post`
+(422); the payer need not be active, and the date is checked again at approval; `CreditNoteAllocations` has no
+reversal columns and the status `Active` alone; a line may name a line of the bill and takes its defaults from it;
+applying available credit to another bill needs no second person. Built in the same session as the documents of 4.2,
+at the owner's word, after 4.2 was committed. **Still open, asked in the plan and not answered:** no remaining
+prompt reverses an application of credit (4.5 names payment allocations and payments only); add it to 4.5 or leave it
+out of R1.
 
 #### 4.4 Adjustments
 

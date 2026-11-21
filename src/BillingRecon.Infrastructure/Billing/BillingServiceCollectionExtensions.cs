@@ -21,6 +21,9 @@ public static class BillingServiceCollectionExtensions
         // What Billing answers to the modules that settle bills (docs/domain-model.md, section 6).
         services.AddScoped<IBillSettlement, BillSettlement>();
 
+        services.AddScoped<ICreditNoteRepository, CreditNoteRepository>();
+        services.AddScoped<ICreditNoteReadService, CreditNoteReadService>();
+
         return services;
     }
 }

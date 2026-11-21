@@ -43,7 +43,7 @@ with field errors lists the messages per field under `errors`, keyed by the JSON
 |---|---|---|
 | 400 | A field is missing or invalid, the body cannot be read, a query value is out of range | `validation_failed` |
 | 400 | A financial POST without a usable `Idempotency-Key` (section 7) | `idempotency_key_missing` |
-| 404 | The record does not exist for the tenant (another tenant's included), also when a request only refers to it | `patient_not_found`, `payer_not_found`, `service_item_not_found`, `bill_not_found`, `payment_not_found`; `not_found` for an unknown route |
+| 404 | The record does not exist for the tenant (another tenant's included), also when a request only refers to it | `patient_not_found`, `payer_not_found`, `service_item_not_found`, `bill_not_found`, `payment_not_found`, `credit_note_not_found`; `not_found` for an unknown route |
 | 409 | The record changed since it was read (BR-804) | `concurrency_conflict` |
 | 409 | The first request with this `Idempotency-Key` is still running (section 7) | `idempotency_in_progress` |
 | 409 | A uniqueness rule (BR-101, BR-104, the code of a service item) | `patient_mrn_duplicate`, `patient_already_linked`, `service_item_code_duplicate`; `duplicate_key` where no rule applies |
@@ -242,7 +242,7 @@ There is no `DELETE`: it answers 405. A draft that is not wanted is voided.
 **A bill**: `id`, `patientId`, `payerId`, `billDate`, `dueDate`, `encounterReference`, `notes`, `status` (`Draft`,
 `Voided`, `Posted`, `PartiallyPaid`, `Settled`, `PendingApproval`), `number`, `fiscalYear` and `postedAtUtc` (all three null until the
 bill is posted), `subTotal`, `discountTotal`, `taxTotal`, `total`, `balanceDue`, `voidedAtUtc`, `voidReason`, `lines`,
-`createdAtUtc`, `updatedAtUtc`, `version`. **A line**: `lineNo`, `serviceItemId`, `description`, `quantity`,
+`createdAtUtc`, `updatedAtUtc`, `version`. **A line**: `id` (since Prompt 4.3; what a credit note line names), `lineNo`, `serviceItemId`, `description`, `quantity`,
 `unitPrice`, `lineAmount`, `discountAmount`, `taxRatePercent`, `taxAmount`, `lineTotal`. **A bill in a list** has
 no lines and no void details. Every amount is a JSON number, never a string. The `version` and the ETag change when
 the bill changes and when any of its lines does.
@@ -434,3 +434,60 @@ When two cashiers apply money to the same bill at the same moment and only one a
 other gets 409 `concurrency_conflict` and nothing of its request is written: read the payment and the bill again. A
 request that arrives after the first has finished gets 422 `allocation_exceeds_balance_due`. A payment can be
 allocated after its payer was deactivated. Each allocation writes an audit record on the payment and one on the bill.
+
+### 8.8 Credit notes (US-24; BR-209 to BR-214, BR-604; ADR 0025)
+
+A credit note corrects a posted bill: it lowers what was billed, and with it what the payer owes. It is drafted
+against exactly one posted bill and belongs to that bill's payer. Every credit note needs a second person: the
+maker's `post` hands it over, and the checker's `approve` is the posting, which takes the gapless number, enters
+Dr Revenue / Cr CreditAvailable for the total, and applies the credit to the bill as far as the bill is owed. What
+is left stays as `availableAmount` and can be applied to other posted bills of the same payer.
+
+| Method and path | Success | Failures |
+|---|---|---|
+| `POST /api/v1/credit-notes` (needs `Idempotency-Key`) | 201, the credit note, `Location`, `ETag` | 400; 404 `bill_not_found`; 422 `bill_not_posted`, `credit_note_date_in_future`, `credit_note_date_too_old`, `credit_note_date_before_bill_date`, `credit_note_bill_line_not_found`, `credit_note_line_discount_exceeds_amount`, `credit_note_line_amount_too_large` |
+| `GET /api/v1/credit-notes/{id}` | 200, the credit note, `ETag` | 404 `credit_note_not_found` |
+| `GET /api/v1/credit-notes?billId=&payerId=&status=&page=&pageSize=` | 200, a page of credit notes without lines | 400 |
+| `PATCH /api/v1/credit-notes/{id}` (needs `If-Match`) | 200 | 400; 404; 409 `concurrency_conflict`, `credit_note_pending_approval`, `credit_note_already_posted`; 422 `credit_note_not_draft` and the date codes; 428 |
+| `PUT /api/v1/credit-notes/{id}/lines` (needs `If-Match`) | 200 | as `PATCH`, and the line codes of `POST` |
+| `POST /api/v1/credit-notes/{id}/void` (needs `If-Match`, `Idempotency-Key`) | 200 | as `PATCH` |
+| `POST /api/v1/credit-notes/{id}/post` (needs `If-Match`, `Idempotency-Key`; no body) | **202**, the credit note in `PendingApproval` | 403 `approval_needs_user`; 404; 409 as `PATCH`; 422 `credit_note_not_draft`, `credit_note_has_no_lines`, `credit_note_total_zero`, `credit_note_exceeds_bill_total`, `credit_note_line_exceeds_bill_line` and the date codes; 428 |
+| `POST /api/v1/credit-notes/{id}/approve` (needs `If-Match`, `Idempotency-Key`; body optional) | 200, the posted credit note | 403 `approval_checker_is_maker`, `approval_needs_user`; 404; 409 `concurrency_conflict`, `credit_note_already_posted`; 422 `credit_note_not_pending_approval`, `credit_note_not_draft`, the two cap codes and the date codes; 428 |
+| `POST /api/v1/credit-notes/{id}/reject` (needs `If-Match`, `Idempotency-Key`) | 200, the credit note as a draft again | 400 without a comment; 403, 404, 409, 422 as `approve`; 428 |
+| `POST /api/v1/credit-notes/{id}/applications` (needs `If-Match`, `Idempotency-Key`) | 200, the credit note with its applications | 400; 404 `credit_note_not_found`, `bill_not_found`; 409 `concurrency_conflict`; 422 `credit_note_not_posted`, `credit_exceeds_available`, `allocation_exceeds_balance_due`, `allocation_payer_mismatch`, `bill_not_posted`; 428 |
+
+The body of a draft (unknown members are refused):
+
+| Field | Required | Rule |
+|---|---|---|
+| `billId` | yes | A posted bill of the tenant. Cannot be changed later |
+| `creditNoteDate` | no | `yyyy-MM-dd`; today in India when left out. Not in the future, not older than the back-dating limit (BR-205), not before the bill date (BR-214) |
+| `reason` | yes | At most 500 characters |
+| `lines` | no | At most 200; replaced as a whole by `PUT .../lines` |
+| `lines[].billLineId` | no | The `id` of a line of the bill. With it, `description`, `unitPrice` and `taxRatePercent` may be left out and are taken from that line |
+| `lines[].quantity` | yes | More than 0, at most three decimals |
+| `lines[].description`, `unitPrice`, `taxRatePercent` | without `billLineId` | As on a bill line |
+| `lines[].discountAmount` | no | 0 or more, not more than the line amount; 0 when left out |
+
+`PATCH` takes `creditNoteDate` and `reason`, both required. `void` takes `reason`; `reject` takes `comment`, both
+required; `approve` takes an optional `comment`. `applications` takes `applications`: 1 to 50 lines of `billId` and
+`amount`, each bill once.
+
+A credit note: `id`, `billId`, `payerId`, `patientId`, `creditNoteDate`, `reason`, `status` (`Draft`,
+`PendingApproval`, `Posted`, `Voided`), `number` (`CN/26-27/000001`), `fiscalYear` and `postedAtUtc` (all three null
+until it is posted), `subTotal`, `discountTotal`, `taxTotal`, `total`, `availableAmount`, `voidedAtUtc`,
+`voidReason`, `lines`, `applications`, `createdAtUtc`, `updatedAtUtc`, `version`. **A line** is a bill line with
+`billLineId` in the place of `serviceItemId` and without an `id`. **An application**: `id`, `billId`, `amount`,
+`status` (`Active` so far), `allocatedAtUtc`, `allocatedByUserId`.
+
+**The caps (BR-210, BR-211).** The posted credit notes of a bill never come to more than the bill, and those that
+name one line of it never to more than that line. Both are checked when the maker asks and again when the checker
+approves, against the credit notes posted by then. Two credit notes approved at the same moment that do not both
+fit: one is posted, the other gets 409 `concurrency_conflict`, takes no number, and still waits; approving it
+again answers 422.
+
+**What each state answers:** a draft can be edited, voided and handed over; one that waits answers 409
+`credit_note_pending_approval` to all three; a posted one answers 409 `credit_note_already_posted`; a voided draft
+answers 422 `credit_note_not_draft`. The audit trail is read with
+`GET /api/v1/audit-records?entityType=CreditNote&entityId=...`: `Drafted`, `LinesReplaced`, `HeaderUpdated`,
+`SubmittedForApproval`, `ReturnedToDraft`, `Posted`, `Applied`, `Voided`.

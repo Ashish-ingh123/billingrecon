@@ -204,6 +204,21 @@ above:
 | **Invariants** | Against one posted bill of the same payer; `Σ posted credit note totals ≤ Bill.Total` (BR-210, checked at posting through `IBillReadService`). Referenced line cap (BR-211). Maker-checker (BR-212, BR-604). At posting: `AvailableAmount = Total`, then auto-apply `min(Total, Bill.BalanceDue)` to its bill. `0 ≤ AvailableAmount ≤ Total` (BR-213, BR-405). `CreditNoteDate ≥ Bill.BillDate` (BR-214). Frozen after posting (BR-006). |
 | **Events** | `CreditNotePosted`, `CreditApplied`, `CreditApplicationReversed`, `CreditNoteVoided` |
 
+*Built 2026-11-21 (Prompt 4.3, ADR 0025).* `CreditNote.Create(billId, payerId, patientId, billDate, creditNoteDate,
+reason, lines, window)` makes the draft; the aggregate takes the id and the date of its bill, never the bill.
+`ReplaceLines`, `UpdateHeader` and `Void` change a draft. `SubmitForApproval` (a line, a total above zero, a date
+still allowed) makes it `PendingApproval`; `PostApproved(number, ...)` posts it with `AvailableAmount = Total`;
+`ReturnToDraft(reason)` is the rejection. `CheckWithinBill(billTotal, alreadyCredited, billLineTotals,
+alreadyCreditedByLine)` is the rule of BR-210 and BR-211, which the use case feeds with the posted credit notes of
+the bill, before any lock and again under the ledger's lock. `Apply(billId, amount, ...)` lowers `AvailableAmount`
+and keeps a `CreditNoteAllocation` (status `Active`, the only one so far); the automatic application to its own bill
+is made by the approval use case, `min(Total, Bill.BalanceDue)`, not by the aggregate, because it needs the bill.
+The events as built: `CreditNoteDrafted`, `CreditNoteHeaderUpdated`, `CreditNoteLinesReplaced`, `CreditNoteVoided`,
+`CreditNoteSubmittedForApproval`, `CreditNoteReturnedToDraft`, `CreditNotePosted` and `CreditNoteApplied` (each
+named after its aggregate, as the audit trail needs: ADR 0020); the bill raises `BillCreditApplied`. A
+`CreditNoteLine` has no service item; it may name a `BillLineId`. Not built: `ReverseApplication` and
+`CreditApplicationReversed`, which no prompt of R1 asks for yet (ADR 0025, point 5).
+
 ### 4.6 Payment + PaymentAllocation (Payments module)
 
 | | |

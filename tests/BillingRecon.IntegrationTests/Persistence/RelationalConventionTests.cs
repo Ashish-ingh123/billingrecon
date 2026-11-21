@@ -48,11 +48,11 @@ public sealed class RelationalConventionTests
         foreignKeys.ShouldNotBeEmpty();
 
         // Restrict is ON DELETE NO ACTION. So is ClientCascade in the database: it only lets Entity Framework delete a
-        // child that its aggregate removed. Exactly one foreign key has it, the one from a bill line to its bill
-        // (Prompt 2.4); which rows may be deleted at all is the business of HardDeleteGuardInterceptor.
+        // child that its aggregate removed. Exactly two foreign keys have it: the one from a bill line to its bill
+        // (Prompt 2.4) and the one from a credit note line to its credit note (Prompt 4.3), both lines of drafts; which rows may be deleted at all is the business of HardDeleteGuardInterceptor.
         var clientCascades = foreignKeys.Where(foreignKey => foreignKey.DeleteBehavior != DeleteBehavior.Restrict).ToArray();
         clientCascades.ShouldAllBe(foreignKey => foreignKey.DeleteBehavior == DeleteBehavior.ClientCascade);
-        clientCascades.Select(foreignKey => foreignKey.GetConstraintName()).Distinct().ShouldBe(["FK_BillLines_BillId"]);
+        clientCascades.Select(foreignKey => foreignKey.GetConstraintName()).Distinct().ShouldBe(["FK_BillLines_BillId", "FK_CreditNoteLines_CreditNoteId"], ignoreOrder: true);
         production.Database.GenerateCreateScript().ShouldNotContain("CASCADE", Case.Insensitive);
         test.Database.GenerateCreateScript().ShouldNotContain("CASCADE", Case.Insensitive);
     }

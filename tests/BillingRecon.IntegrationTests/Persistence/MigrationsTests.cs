@@ -371,6 +371,81 @@ public sealed class MigrationsTests : IDisposable
     }
 
     [Fact]
+    public void The_thirteenth_migration_is_0013_CreditNotes()
+    {
+        var migrations = _context.Database.GetMigrations().ToArray();
+
+        migrations.Length.ShouldBeGreaterThanOrEqualTo(13, $"The CreditNotes migration is missing. {HowToAdd.Replace("<name>", "0013_CreditNotes", StringComparison.Ordinal)}");
+        migrations[12].ShouldEndWith("_0013_CreditNotes");
+    }
+
+    [Fact]
+    public void The_migrations_create_the_three_credit_note_tables_as_documented()
+    {
+        var script = _context.GetService<IMigrator>().GenerateScript();
+        var createCreditNotes = CreateTable(script, "CreditNotes");
+        var createLines = CreateTable(script, "CreditNoteLines");
+        var createAllocations = CreateTable(script, "CreditNoteAllocations");
+
+        // The three tables come after the allocations of payments, in a migration of their own (docs/runbook.md, section 8).
+        script.IndexOf("_0012_PaymentAllocations", StringComparison.Ordinal).ShouldBeLessThan(script.IndexOf("CREATE TABLE [CreditNotes]", StringComparison.Ordinal));
+
+        createCreditNotes.ShouldContain("[BillId] uniqueidentifier NOT NULL", Case.Sensitive);
+        createCreditNotes.ShouldContain("[PayerId] uniqueidentifier NOT NULL", Case.Sensitive);
+        createCreditNotes.ShouldContain("[PatientId] uniqueidentifier NOT NULL", Case.Sensitive);
+        createCreditNotes.ShouldContain("[CreditNoteDate] date NOT NULL", Case.Sensitive);
+        createCreditNotes.ShouldContain("[Reason] nvarchar(500) NOT NULL", Case.Sensitive);
+        createCreditNotes.ShouldContain("[Status] varchar(20) NOT NULL", Case.Sensitive);
+        createCreditNotes.ShouldContain("[Total] decimal(18,2) NOT NULL", Case.Sensitive);
+        createCreditNotes.ShouldContain("[AvailableAmount] decimal(18,2) NOT NULL", Case.Sensitive);
+        createCreditNotes.ShouldContain("[Number] varchar(16) NULL", Case.Sensitive);
+        createCreditNotes.ShouldContain("[RowVersion] rowversion NOT NULL", Case.Sensitive);
+        createCreditNotes.ShouldContain("CONSTRAINT [CK_CreditNotes_Status] CHECK ([Status] IN ('Draft', 'PendingApproval', 'Posted', 'Voided'))", Case.Sensitive);
+        createCreditNotes.ShouldContain("CONSTRAINT [CK_CreditNotes_AvailableAmount] CHECK ([AvailableAmount] BETWEEN 0 AND [Total])", Case.Sensitive);
+        createCreditNotes.ShouldContain("CONSTRAINT [CK_CreditNotes_Total] CHECK ([Total] >= 0 AND [Total] = [SubTotal] - [DiscountTotal] + [TaxTotal])", Case.Sensitive);
+        createCreditNotes.ShouldContain("CONSTRAINT [CK_CreditNotes_NumberIffPosted]", Case.Sensitive);
+        createCreditNotes.ShouldContain("CONSTRAINT [FK_CreditNotes_BillId] FOREIGN KEY ([BillId]) REFERENCES [Bills] ([Id])", Case.Sensitive);
+        createCreditNotes.ShouldContain("CONSTRAINT [FK_CreditNotes_PayerId] FOREIGN KEY ([PayerId]) REFERENCES [Payers] ([Id])", Case.Sensitive);
+        createCreditNotes.ShouldContain("CONSTRAINT [FK_CreditNotes_PatientId] FOREIGN KEY ([PatientId]) REFERENCES [Patients] ([Id])", Case.Sensitive);
+        script.ShouldContain("CREATE INDEX [IX_CreditNotes_TenantId_BillId_Status] ON [CreditNotes] ([TenantId], [BillId], [Status]) INCLUDE ([Total])", Case.Sensitive);
+        script.ShouldContain("CREATE INDEX [IX_CreditNotes_TenantId_PayerId_Status] ON [CreditNotes] ([TenantId], [PayerId], [Status]) INCLUDE ([AvailableAmount])", Case.Sensitive);
+        script.ShouldContain("CREATE UNIQUE INDEX [UX_CreditNotes_TenantId_Number] ON [CreditNotes] ([TenantId], [Number]) WHERE [Number] IS NOT NULL", Case.Sensitive);
+        script.ShouldContain("CREATE UNIQUE INDEX [UX_CreditNotes_TenantId_FiscalYear_SequenceNumber] ON [CreditNotes] ([TenantId], [FiscalYear], [SequenceNumber]) WHERE [SequenceNumber] IS NOT NULL", Case.Sensitive);
+
+        createLines.ShouldContain("[CreditNoteId] uniqueidentifier NOT NULL", Case.Sensitive);
+        createLines.ShouldContain("[BillLineId] uniqueidentifier NULL", Case.Sensitive);
+        createLines.ShouldContain("[Quantity] decimal(9,3) NOT NULL", Case.Sensitive);
+        createLines.ShouldContain("[UnitPrice] decimal(19,4) NOT NULL", Case.Sensitive);
+        createLines.ShouldContain("[TaxRatePercent] decimal(5,2) NOT NULL", Case.Sensitive);
+        createLines.ShouldNotContain("RowVersion", Case.Sensitive, "the row version of the credit note covers its lines");
+        createLines.ShouldContain("CONSTRAINT [CK_CreditNoteLines_LineTotal] CHECK ([LineTotal] = [LineAmount] - [DiscountAmount] + [TaxAmount])", Case.Sensitive);
+        createLines.ShouldContain("CONSTRAINT [FK_CreditNoteLines_CreditNoteId] FOREIGN KEY ([CreditNoteId]) REFERENCES [CreditNotes] ([Id])", Case.Sensitive);
+        createLines.ShouldContain("CONSTRAINT [FK_CreditNoteLines_BillLineId] FOREIGN KEY ([BillLineId]) REFERENCES [BillLines] ([Id])", Case.Sensitive);
+        script.ShouldContain("CREATE UNIQUE INDEX [UX_CreditNoteLines_TenantId_CreditNoteId_LineNo] ON [CreditNoteLines] ([TenantId], [CreditNoteId], [LineNo])", Case.Sensitive);
+        script.ShouldContain("CREATE INDEX [IX_CreditNoteLines_TenantId_BillLineId] ON [CreditNoteLines] ([TenantId], [BillLineId]) INCLUDE ([LineTotal])", Case.Sensitive);
+
+        createAllocations.ShouldContain("[Amount] decimal(18,2) NOT NULL", Case.Sensitive);
+        createAllocations.ShouldContain("[PostingId] uniqueidentifier NOT NULL", Case.Sensitive);
+        createAllocations.ShouldNotContain("RowVersion", Case.Sensitive, "the row version of the credit note covers its applications");
+        createAllocations.ShouldContain("CONSTRAINT [CK_CreditNoteAllocations_Amount] CHECK ([Amount] > 0)", Case.Sensitive);
+        createAllocations.ShouldContain("CONSTRAINT [CK_CreditNoteAllocations_Status] CHECK ([Status] IN ('Active'))", Case.Sensitive);
+        createAllocations.ShouldContain("CONSTRAINT [FK_CreditNoteAllocations_CreditNoteId] FOREIGN KEY ([CreditNoteId]) REFERENCES [CreditNotes] ([Id])", Case.Sensitive);
+        createAllocations.ShouldContain("CONSTRAINT [FK_CreditNoteAllocations_BillId] FOREIGN KEY ([BillId]) REFERENCES [Bills] ([Id])", Case.Sensitive);
+        createAllocations.ShouldContain("CONSTRAINT [FK_CreditNoteAllocations_PostingId] FOREIGN KEY ([PostingId]) REFERENCES [LedgerPostings] ([Id])", Case.Sensitive);
+        script.ShouldContain("CREATE INDEX [IX_CreditNoteAllocations_TenantId_CreditNoteId] ON [CreditNoteAllocations] ([TenantId], [CreditNoteId])", Case.Sensitive);
+        script.ShouldContain("CREATE INDEX [IX_CreditNoteAllocations_TenantId_BillId] ON [CreditNoteAllocations] ([TenantId], [BillId]) INCLUDE ([Amount], [Status])", Case.Sensitive);
+    }
+
+    // The text of one CREATE TABLE statement of the script of all migrations.
+    private static string CreateTable(string script, string table)
+    {
+        var start = script.IndexOf($"CREATE TABLE [{table}]", StringComparison.Ordinal);
+        start.ShouldBeGreaterThan(0, $"The migrations do not create the {table} table. {HowToAdd}");
+
+        return script[start..script.IndexOf(");", start, StringComparison.Ordinal)];
+    }
+
+    [Fact]
     public void The_migrations_create_the_bills_and_bill_lines_tables_as_documented()
     {
         var script = _context.GetService<IMigrator>().GenerateScript();

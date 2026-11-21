@@ -348,6 +348,25 @@ implementation of BR-202. The additive identities are CHECKed.
 | ReversalReason | nvarchar(500) | • | |
 | ReversalPostingId | uniqueidentifier | • | FK `LedgerPostings`: the mirror entry |
 
+**Built 2026-11-21 (Prompt 4.3, ADR 0025; migration `0013_CreditNotes`).** The three tables are as above, with
+these precisions.
+
+- `CreditNotes`: `Number` is `varchar(16)` with `FiscalYear`, `SequenceNumber`, `PostedAtUtc` and `PostedByUserId`,
+  null until the credit note is posted, as on `Bills`; `Reason` and `VoidReason` are `nvarchar(500)`. The
+  constraints: `CK_CreditNotes_SubTotal`, `_DiscountTotal`, `_TaxTotal`, `_Total`, `_AvailableAmount`, `_Status`,
+  `_VoidedIffVoided`, `_NumberParts`, and `CK_CreditNotes_NumberIffPosted`, which also says that a posted credit
+  note comes to more than nothing (`Total > 0`). The indexes named above, plus
+  `IX_CreditNotes_TenantId_PatientId`. `FK_CreditNotes_BillId`, `_PayerId` and `_PatientId` come from the typed-id
+  convention (ADR 0021).
+- `CreditNoteLines`: the columns and CHECK constraints of `BillLines` under the names `CK_CreditNoteLines_*`,
+  without `ServiceItemId`; `BillLineId` with `FK_CreditNoteLines_BillLineId` and the index named above;
+  `UX_CreditNoteLines_TenantId_CreditNoteId_LineNo`. `FK_CreditNoteLines_CreditNoteId` is `ClientCascade` in the
+  model, `NO ACTION` in the database: a line taken out of a draft is deleted by Entity Framework.
+- `CreditNoteAllocations`: the columns down to `PostingId` (`NOT NULL`); `AllocatedByUserId` is null when no user
+  acted and has no key until `Users` exists; **no reversal column**, and `CK_CreditNoteAllocations_Status` allows
+  `Active` alone. No prompt of R1 reverses an application yet (ADR 0025, point 5). No row version: the credit
+  note's covers its lines and its applications.
+
 ### 3.4 Payments
 
 **Payments** — posted at creation, so `Number`, `FiscalYear`, `SequenceNumber` are `NOT NULL` (BR-302).
@@ -862,6 +881,13 @@ under its own name: `PaymentAllocations` (a payment's `UnappliedAmount` differs 
 allocations`, the second form of identity 4), `AllocationWithoutPosting` and `PostingWithoutAllocation` (identity 2
 for allocations, both directions), and `AllocationPayerMismatch` (the BR-303 statement above).
 
+*Built 2026-11-21 (Prompt 4.3):* eight more, for credit notes: `CreditNoteAvailable` (identity 5: the available
+amount of a posted credit note differs from its `CreditAvailable` entries), `CreditNoteApplications` (its second
+form: `Total − Σ active applications`), `CreditNoteWithoutPosting` and `PostingWithoutCreditNote`,
+`ApplicationWithoutPosting` and `PostingWithoutApplication` (identity 2, both directions),
+`ApplicationPayerMismatch` (BR-213), and `CreditNotesExceedBillTotal` (BR-210: the posted credit notes of a bill
+come to more than the bill).
+
 A non-empty result is a **Sev-1 defect**: the runbook says stop postings for the tenant, capture the
 rows and the correlation ids from `AuditRecords`, and fix the code path. Caches are never
 "corrected" by hand; if a fix requires rebuilding a cache, it is rebuilt from the ledger by a
@@ -950,7 +976,8 @@ update of an append-only table (CLAUDE.md, section 9).
   | `0010_Approvals` | `ApprovalRequests` (§3.6) and the filtered index of the bills that wait (§3.3) | Written 2026-11-20 (Prompt 3.6, ADR 0023). **To be scaffolded with EF Core 10 on the personal machine, after `0009_BillPosting`** (`docs/runbook.md` §8), with `ApprovalRequestConfiguration.cs` and `BillApprovalConfiguration.cs` moved out of the project until then. Scaffolded that way with EF Core 9 in the throwaway copy: it held the table and the one index, neither `0004` nor `0009` held that index, and the database tests passed on LocalDB 2019. |
   | `0011_Payments` | `Payments` (§3.4), as recording needs it | Written 2026-11-20 (Prompt 4.1). **To be scaffolded with EF Core 10 on the personal machine, after `0010_Approvals`** (`docs/runbook.md` §8), with `PaymentConfiguration.cs` moved out of the project until then. Scaffolded that way with EF Core 9 in the throwaway copy: it held `Payments` alone, and the database tests passed on LocalDB 2019. |
   | `0012_PaymentAllocations` | `PaymentAllocations` (§3.4), as allocating needs it | Written 2026-11-20 (Prompt 4.2, ADR 0024). **To be scaffolded with EF Core 10 on the personal machine, after `0011_Payments`** (`docs/runbook.md` §8), with `PaymentWithAllocationsConfiguration.cs` moved out of the project until then, so that `0011_Payments` creates the table of payments alone. Scaffolded that way with EF Core 9 in the throwaway copy on 2026-11-21: `0011` held `Payments` alone, `0012` held `PaymentAllocations` alone with its four foreign keys and two indexes, and the database tests passed on LocalDB 2019. |
-  | `0013_CreditNotes`, `0014_Adjustments`, `0015_Refunds` | §3.3, §3.5, §3.4 | Prompts 4.3, 4.4, 4.6. Not started. Each moved up by one when `PaymentAllocations` took `0012`. The reversal columns of `Payments` and `PaymentAllocations` (4.5) need a migration, numbered when that prompt is planned. |
+  | `0013_CreditNotes` | `CreditNotes`, `CreditNoteLines`, `CreditNoteAllocations` (§3.3, "Built 2026-11-21") | Written 2026-11-21 (Prompt 4.3, ADR 0025). **To be scaffolded with EF Core 10 on the personal machine, after `0012_PaymentAllocations`** (`docs/runbook.md` §8), with the three credit note configuration files moved out of the project until then. Scaffolded that way with EF Core 9 in the throwaway copy: it held the three tables alone, and the database tests passed on LocalDB 2019. |
+  | `0014_Adjustments`, `0015_Refunds` | §3.5, §3.4 | Prompts 4.4, 4.6. Not started. Each moved up by one when `PaymentAllocations` took `0012`. The reversal columns of `Payments` and `PaymentAllocations` (4.5) need a migration, numbered when that prompt is planned. |
   | `0016_Users` | `Users`, `Roles` (§3.1) | Prompt 5.1. Not started. |
 
 - CHECK constraints, unique and filtered indexes and computed columns are declared in the EF model

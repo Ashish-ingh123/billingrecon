@@ -66,15 +66,15 @@ public sealed class HardDeleteGuardTests
     }
 
     [Fact]
-    public void In_the_production_model_only_a_bill_line_and_an_idempotency_key_are_deletable()
+    public void In_the_production_model_only_the_lines_of_drafts_and_an_idempotency_key_are_deletable()
     {
         using var context = TestContexts.CreateProduction();
 
         var deletable = context.Model.GetEntityTypes().Select(entityType => entityType.ClrType).Where(type => typeof(IHardDeletable).IsAssignableFrom(type));
 
-        // A line of a draft bill (ADR 0019), and the record of an idempotency key, which is a record of requests and
+        // A line of a draft bill (ADR 0019) and, since Prompt 4.3, a line of a draft credit note (ADR 0025), and the record of an idempotency key, which is a record of requests and
         // not of money: a reservation that came to nothing is removed, and old keys are swept (ADR 0006).
-        deletable.ShouldBe([typeof(BillLine), typeof(IdempotencyKey)], ignoreOrder: true);
+        deletable.ShouldBe([typeof(BillLine), typeof(CreditNoteLine), typeof(IdempotencyKey)], ignoreOrder: true);
     }
 
     [Fact]

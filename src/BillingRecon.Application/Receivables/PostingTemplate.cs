@@ -117,4 +117,65 @@ public sealed record PostingTemplate(
                 LedgerLine.Cr(LedgerAccount.Receivable, amount, new LedgerSubject(LedgerSubjectType.Bill, billId.Value)),
             ]);
     }
+
+    /// <summary>
+    /// A credit note of <paramref name="total"/> was posted (BR-212): Dr Revenue, Cr CreditAvailable(credit note). The
+    /// payer has <paramref name="total"/> more credit, which the next posting applies to the bill as far as it goes.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="total"/> is not above zero.</exception>
+    public static PostingTemplate CreditNotePosted(CreditNoteId creditNoteId, PayerId payerId, Money total, DateOnly creditNoteDate, DocumentNumber number)
+    {
+        ArgumentNullException.ThrowIfNull(number);
+
+        if (!total.IsPositive)
+        {
+            throw new ArgumentException("A credit note is posted for a total above zero.", nameof(total));
+        }
+
+        return new PostingTemplate(
+            LedgerPostingKind.CreditNotePosted,
+            LedgerDocumentType.CreditNote,
+            creditNoteId.Value,
+            payerId,
+            creditNoteDate,
+            $"Credit note {number} posted",
+            [
+                LedgerLine.Dr(LedgerAccount.Revenue, total),
+                LedgerLine.Cr(LedgerAccount.CreditAvailable, total, new LedgerSubject(LedgerSubjectType.CreditNote, creditNoteId.Value)),
+            ]);
+    }
+
+    /// <summary>
+    /// <paramref name="amount"/> of a credit note was applied to a bill of the same payer (BR-212, BR-213): the paired
+    /// entry Dr CreditAvailable(credit note), Cr Receivable(bill). No control account moves: the payer has less
+    /// credit and owes less, by the same amount. The business date is the day of the application.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="amount"/> is not above zero.</exception>
+    public static PostingTemplate CreditApplied(
+        CreditNoteAllocationId allocationId,
+        CreditNoteId creditNoteId,
+        BillId billId,
+        PayerId payerId,
+        Money amount,
+        DateOnly applicationDate,
+        string creditNoteNumber,
+        string billNumber)
+    {
+        if (!amount.IsPositive)
+        {
+            throw new ArgumentException("Credit is applied for an amount above zero.", nameof(amount));
+        }
+
+        return new PostingTemplate(
+            LedgerPostingKind.CreditApplied,
+            LedgerDocumentType.CreditNoteAllocation,
+            allocationId.Value,
+            payerId,
+            applicationDate,
+            $"Credit note {creditNoteNumber} applied to bill {billNumber}",
+            [
+                LedgerLine.Dr(LedgerAccount.CreditAvailable, amount, new LedgerSubject(LedgerSubjectType.CreditNote, creditNoteId.Value)),
+                LedgerLine.Cr(LedgerAccount.Receivable, amount, new LedgerSubject(LedgerSubjectType.Bill, billId.Value)),
+            ]);
+    }
 }

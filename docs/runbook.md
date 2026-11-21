@@ -416,7 +416,7 @@ dotnet tool restore
 
 ```powershell
 New-Item -ItemType Directory -Force ..\held | Out-Null
-Move-Item src\BillingRecon.Infrastructure\Billing\BillConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillLineConfiguration.cs, src\BillingRecon.Infrastructure\Common\Numbering\NumberSeriesConfiguration.cs, src\BillingRecon.Infrastructure\Common\Idempotency\IdempotencyKeyConfiguration.cs, src\BillingRecon.Infrastructure\Audit\AuditRecordConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerPostingConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerEntryConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\PayerBalanceConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillPostingConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillApprovalConfiguration.cs, src\BillingRecon.Infrastructure\Common\Approvals\ApprovalRequestConfiguration.cs, src\BillingRecon.Infrastructure\Payments\PaymentConfiguration.cs, src\BillingRecon.Infrastructure\Payments\PaymentWithAllocationsConfiguration.cs ..\held\
+Move-Item src\BillingRecon.Infrastructure\Billing\BillConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillLineConfiguration.cs, src\BillingRecon.Infrastructure\Common\Numbering\NumberSeriesConfiguration.cs, src\BillingRecon.Infrastructure\Common\Idempotency\IdempotencyKeyConfiguration.cs, src\BillingRecon.Infrastructure\Audit\AuditRecordConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerPostingConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\LedgerEntryConfiguration.cs, src\BillingRecon.Infrastructure\Receivables\PayerBalanceConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillPostingConfiguration.cs, src\BillingRecon.Infrastructure\Billing\BillApprovalConfiguration.cs, src\BillingRecon.Infrastructure\Common\Approvals\ApprovalRequestConfiguration.cs, src\BillingRecon.Infrastructure\Payments\PaymentConfiguration.cs, src\BillingRecon.Infrastructure\Payments\PaymentWithAllocationsConfiguration.cs, src\BillingRecon.Infrastructure\Billing\CreditNoteConfiguration.cs, src\BillingRecon.Infrastructure\Billing\CreditNoteLineConfiguration.cs, src\BillingRecon.Infrastructure\Billing\CreditNoteAllocationConfiguration.cs ..\held\
 dotnet ef migrations add 0003_ServiceItems --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
 Move-Item ..\held\BillConfiguration.cs, ..\held\BillLineConfiguration.cs src\BillingRecon.Infrastructure\Billing\
 dotnet ef migrations add 0004_Bills --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
@@ -437,6 +437,8 @@ Move-Item ..\held\PaymentConfiguration.cs src\BillingRecon.Infrastructure\Paymen
 dotnet ef migrations add 0011_Payments --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
 Move-Item ..\held\PaymentWithAllocationsConfiguration.cs src\BillingRecon.Infrastructure\Payments\
 dotnet ef migrations add 0012_PaymentAllocations --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
+Move-Item ..\held\CreditNoteConfiguration.cs, ..\held\CreditNoteLineConfiguration.cs, ..\held\CreditNoteAllocationConfiguration.cs src\BillingRecon.Infrastructure\Billing\
+dotnet ef migrations add 0013_CreditNotes --project src/BillingRecon.Infrastructure --output-dir Common/Migrations
 ```
 
 Mind the second line: `BillPostingConfiguration.cs` and `BillApprovalConfiguration.cs` are moved out with the others
@@ -457,6 +459,7 @@ same way `PaymentWithAllocationsConfiguration.cs` comes back **after** `0011_Pay
 | `0010_Approvals` | 3.6 | `ApprovalRequests`, and on `Bills` the one index `IX_Bills_TenantId_Status` |
 | `0011_Payments` | 4.1 | `Payments`, with three foreign keys (`TenantId`, `PayerId`, `PostingId`), six CHECK constraints and four indexes; no reversal column |
 | `0012_PaymentAllocations` | 4.2 | `PaymentAllocations`, with four foreign keys (`TenantId`, `PaymentId`, `BillId`, `PostingId`), two CHECK constraints and two indexes; no row version and no reversal column. Nothing on `Payments` or `Bills` |
+| `0013_CreditNotes` | 4.3 | `CreditNotes`, `CreditNoteLines`, `CreditNoteAllocations`, with eleven foreign keys in all (four, three and four) and nine indexes (five, two and two). Nothing on `Bills` or `BillLines` |
 
 **`0008_Receivables` is finished by hand** (ADR 0021): a scaffold writes schema, and this migration also has to
 open the balances of every payer that already exists. Open `Common/Migrations/*_0008_Receivables.cs` (not the
@@ -495,13 +498,14 @@ dotnet test --filter "FullyQualifiedName~BillPostingApiTests"
 dotnet test --filter "FullyQualifiedName~BillApprovalApiTests"
 dotnet test --filter "FullyQualifiedName~PaymentsApiTests"
 dotnet test --filter "FullyQualifiedName~PaymentAllocationsApiTests"
+dotnet test --filter "FullyQualifiedName~CreditNotesApiTests"
 ```
 
 **E. Send back**
 
 - the output of A, C and D, and the names of the migration files B created;
-- the migration files themselves (`Common/Migrations/*_0003_*` to `*_0012_*` and the updated
-  `BillingReconDbContextModelSnapshot.cs`), which are then committed as "Migrations 0003 to 0012, scaffolded with
+- the migration files themselves (`Common/Migrations/*_0003_*` to `*_0013_*` and the updated
+  `BillingReconDbContextModelSnapshot.cs`), which are then committed as "Migrations 0003 to 0013, scaffolded with
   EF Core 10".
 
 **What that run has to show, because nothing here could** (the office machine has .NET 9 and LocalDB 2019 only):
@@ -519,5 +523,6 @@ dotnet test --filter "FullyQualifiedName~PaymentAllocationsApiTests"
 | 3.6 | Two aggregates, the bill and its approval request, saved and audited by one commit on EF Core 10. Two checkers deciding at once, and an approval that fails after the number is taken, on SQL Server 2022. The 202 answer and the optional body of `approve` on ASP.NET Core 10. |
 | 4.1 | Twenty payments recorded at once for one payer, and a recording held open while its key is sent again, on SQL Server 2022. The failure injected at the number, the ledger, the audit record and the save, there. The 201 answer of an idempotent POST, replayed with its `Location` and `ETag`, on ASP.NET Core 10. |
 | 4.2 | That `PaymentConfiguration` can take the allocations out of the model and `PaymentWithAllocationsConfiguration` put them back, on EF Core 10 (the split of `0011` and `0012` depends on it). Two cashiers on the last rupee of one bill, with and without the gate, and ten payments allocated at once across overlapping bills of one payer, on SQL Server 2022. The refusal of the ledger under its lock, there. The failure injected at the ledger, the audit record and the save. |
+| 4.3 | Three aggregates (the credit note, its bill and the approval request) saved and audited by one commit on EF Core 10, and a credit note loaded with two collections by a split query there. Two credit notes approved at once against a paid bill that only one fits, on SQL Server 2022: this is the test that proves the caps are read again under the lock. The failure injected after the second ledger posting and after the audit record. |
 
 A red result is reported as it is, with its output; the fix is its own commit on top, never an edit of history.

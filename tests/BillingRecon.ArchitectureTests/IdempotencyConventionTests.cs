@@ -20,6 +20,7 @@ public sealed class IdempotencyConventionTests
     private static readonly Type[] FinancialControllers =
     [
         typeof(BillsController),
+        typeof(CreditNotesController),
         typeof(PaymentsController),
     ];
 

@@ -117,6 +117,9 @@ public sealed class TypedIdForeignKeyTests
                 "FK_PayerBalances_PayerId",
                 "FK_Payments_PayerId", "FK_Payments_PostingId",
                 "FK_PaymentAllocations_PaymentId", "FK_PaymentAllocations_BillId", "FK_PaymentAllocations_PostingId",
+                "FK_CreditNotes_BillId", "FK_CreditNotes_PayerId", "FK_CreditNotes_PatientId",
+                "FK_CreditNoteLines_CreditNoteId", "FK_CreditNoteLines_BillLineId",
+                "FK_CreditNoteAllocations_CreditNoteId", "FK_CreditNoteAllocations_BillId", "FK_CreditNoteAllocations_PostingId",
             ],
             ignoreOrder: true);
     }

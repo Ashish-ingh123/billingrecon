@@ -85,6 +85,7 @@ public static class BillingMapping
         ArgumentNullException.ThrowIfNull(line);
 
         return new BillLineDto(
+            Id: line.Id.Value,
             LineNo: line.LineNo,
             ServiceItemId: line.ServiceItemId?.Value,
             Description: line.Description,

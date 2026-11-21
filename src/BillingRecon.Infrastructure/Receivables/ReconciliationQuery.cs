@@ -14,7 +14,9 @@ namespace BillingRecon.Infrastructure.Receivables;
 /// posting, since Prompt 3.5 (a bill that came to nothing has no posting, ADR 0022); a payment's unapplied amount
 /// against its unapplied cash, and a payment against its posting, since Prompt 4.1; a payment against the sum of its
 /// allocations, an allocation against its posting, and the payers of an allocation's two documents, since Prompt
-/// 4.2; then credit notes.
+/// 4.2; a credit note's available amount against its available credit and against its applications, a credit note
+/// and an application against their postings, the payers of an application's two documents, and the credits of a
+/// bill against its total (BR-210), since Prompt 4.3.
 /// <para>
 /// This is one of the files of the production code that send SQL of their own (ADR 0021, BannedSymbolsTests). It is
 /// the SQL the design document gives: sums over the whole ledger, grouped, which Entity Framework cannot translate
@@ -46,6 +48,12 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
             SELECT [SubjectId], SUM([Credit] - [Debit]) AS [Balance]
             FROM   [dbo].[LedgerEntries]
             WHERE  [TenantId] = @tenant AND [Account] = 'UnappliedCash'
+            GROUP  BY [SubjectId]
+        ),
+        [CreditNoteLedger] AS (
+            SELECT [SubjectId], SUM([Credit] - [Debit]) AS [Balance]
+            FROM   [dbo].[LedgerEntries]
+            WHERE  [TenantId] = @tenant AND [Account] = 'CreditAvailable'
             GROUP  BY [SubjectId]
         )
         SELECT CAST('UnbalancedPosting' AS varchar(30)) AS [Identity], e.[PostingId] AS [SubjectId], CAST(NULL AS varchar(30)) AS [Reference],
@@ -127,6 +135,63 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
         JOIN   [dbo].[Payments] AS p ON p.[Id] = a.[PaymentId]
         JOIN   [dbo].[Bills] AS b ON b.[Id] = a.[BillId]
         WHERE  a.[TenantId] = @tenant AND p.[PayerId] <> b.[PayerId]
+
+        UNION ALL
+        SELECT 'CreditNoteAvailable', c.[Id], c.[Number], c.[AvailableAmount], ISNULL(l.[Balance], 0)
+        FROM   [dbo].[CreditNotes] AS c
+        LEFT JOIN [CreditNoteLedger] AS l ON l.[SubjectId] = c.[Id]
+        WHERE  c.[TenantId] = @tenant AND c.[Number] IS NOT NULL AND c.[AvailableAmount] <> ISNULL(l.[Balance], 0)
+
+        UNION ALL
+        SELECT 'CreditNoteWithoutPosting', c.[Id], c.[Number], c.[Total], 0
+        FROM   [dbo].[CreditNotes] AS c
+        WHERE  c.[TenantId] = @tenant AND c.[Number] IS NOT NULL
+          AND  NOT EXISTS (SELECT 1 FROM [dbo].[LedgerPostings] AS lp
+                           WHERE lp.[TenantId] = @tenant AND lp.[DocumentType] = 'CreditNote' AND lp.[DocumentId] = c.[Id] AND lp.[Kind] = 'CreditNotePosted')
+
+        UNION ALL
+        SELECT 'PostingWithoutCreditNote', lp.[Id], NULL, 0, 0
+        FROM   [dbo].[LedgerPostings] AS lp
+        WHERE  lp.[TenantId] = @tenant AND lp.[Kind] = 'CreditNotePosted'
+          AND  NOT EXISTS (SELECT 1 FROM [dbo].[CreditNotes] AS c WHERE c.[TenantId] = @tenant AND c.[Id] = lp.[DocumentId] AND c.[Number] IS NOT NULL)
+
+        UNION ALL
+        SELECT 'CreditNoteApplications', c.[Id], c.[Number], c.[AvailableAmount], c.[Total] - ISNULL(a.[Applied], 0)
+        FROM   [dbo].[CreditNotes] AS c
+        LEFT JOIN (SELECT [CreditNoteId], SUM([Amount]) AS [Applied]
+                   FROM   [dbo].[CreditNoteAllocations]
+                   WHERE  [TenantId] = @tenant AND [Status] = 'Active'
+                   GROUP  BY [CreditNoteId]) AS a ON a.[CreditNoteId] = c.[Id]
+        WHERE  c.[TenantId] = @tenant AND c.[Number] IS NOT NULL AND c.[AvailableAmount] <> c.[Total] - ISNULL(a.[Applied], 0)
+
+        UNION ALL
+        SELECT 'ApplicationWithoutPosting', a.[Id], NULL, a.[Amount], 0
+        FROM   [dbo].[CreditNoteAllocations] AS a
+        WHERE  a.[TenantId] = @tenant
+          AND  NOT EXISTS (SELECT 1 FROM [dbo].[LedgerPostings] AS lp
+                           WHERE lp.[TenantId] = @tenant AND lp.[DocumentType] = 'CreditNoteAllocation' AND lp.[DocumentId] = a.[Id] AND lp.[Kind] = 'CreditApplied')
+
+        UNION ALL
+        SELECT 'PostingWithoutApplication', lp.[Id], NULL, 0, 0
+        FROM   [dbo].[LedgerPostings] AS lp
+        WHERE  lp.[TenantId] = @tenant AND lp.[Kind] = 'CreditApplied'
+          AND  NOT EXISTS (SELECT 1 FROM [dbo].[CreditNoteAllocations] AS a WHERE a.[TenantId] = @tenant AND a.[Id] = lp.[DocumentId])
+
+        UNION ALL
+        SELECT 'ApplicationPayerMismatch', a.[Id], NULL, a.[Amount], 0
+        FROM   [dbo].[CreditNoteAllocations] AS a
+        JOIN   [dbo].[CreditNotes] AS c ON c.[Id] = a.[CreditNoteId]
+        JOIN   [dbo].[Bills] AS b ON b.[Id] = a.[BillId]
+        WHERE  a.[TenantId] = @tenant AND c.[PayerId] <> b.[PayerId]
+
+        UNION ALL
+        SELECT 'CreditNotesExceedBillTotal', b.[Id], b.[Number], b.[Total], t.[Credited]
+        FROM   [dbo].[Bills] AS b
+        JOIN   (SELECT [BillId], SUM([Total]) AS [Credited]
+                FROM   [dbo].[CreditNotes]
+                WHERE  [TenantId] = @tenant AND [Status] = 'Posted'
+                GROUP  BY [BillId]) AS t ON t.[BillId] = b.[Id]
+        WHERE  b.[TenantId] = @tenant AND t.[Credited] > b.[Total]
 
         UNION ALL
         SELECT 'PayerReceivable', pb.[PayerId], NULL, pb.[Receivable], ISNULL(l.[Receivable], 0)
