@@ -471,6 +471,74 @@ public sealed class BillApprovalApiTests(SqlServerFixture sqlServer) : DatabaseT
     }
 
     // A tenant whose bills need approval from the threshold on, and two of its users: who posts, and who decides.
+    [Fact]
+    public async Task BR804_a_decision_that_read_the_bill_before_another_decision_committed_and_finds_no_pending_request_is_a_conflict()
+    {
+        // The rejection reads the bill while it waits, and is then held just before it looks for the approval request.
+        // The approval runs to its commit in between, so the rejection finds no pending request any more. It read a
+        // stale bill, and that is a conflict, not a fault: this interleaving once answered 500.
+        var gate = new LateDecisionGate();
+        using var factory = new DatabaseApiFactory(SqlServer, configure: services =>
+        {
+            services.AddSingleton(gate);
+            services.AddScoped<Infrastructure.Common.Approvals.ApprovalRequestRepository>();
+            services.AddScoped<IApprovalRequestRepository>(provider => new HeldApprovals(
+                provider.GetRequiredService<Infrastructure.Common.Approvals.ApprovalRequestRepository>(), gate));
+        });
+        var (maker, checker) = await NewTenantWithThresholdAsync(100m);
+        var otherChecker = new FixedIdentity(maker.TenantId, new UserId(Guid.NewGuid()));
+        using var clerk = factory.CreateClientFor(maker, "BillingClerk");
+        using var first = factory.CreateClientFor(checker, "Supervisor");
+        using var second = factory.CreateClientFor(otherChecker, "TenantAdmin");
+        var (patient, payer) = await clerk.NewBillPartiesAsync();
+        var waiting = await SubmittedAsync(clerk, await clerk.CreateBillAsync(NewBill(patient, payer)));
+        gate.Armed = true;
+
+        var rejection = second.SendWithIfMatchAsync(HttpMethod.Post, BillingApi.Bill(waiting.Id, "reject"), new RejectBillRequest { Comment = "No" }, PayersApi.ETag(waiting.Version));
+        await gate.FirstIsAboutToLook.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        using var approved = await first.SendWithIfMatchAsync(HttpMethod.Post, BillingApi.Bill(waiting.Id, "approve"), body: null, PayersApi.ETag(waiting.Version));
+        approved.StatusCode.ShouldBe(HttpStatusCode.OK, await approved.Content.ReadAsStringAsync());
+        gate.Release.SetResult();
+        using var late = await rejection;
+
+        await late.ShouldBeProblemAsync(HttpStatusCode.Conflict, CommonErrors.ConcurrencyConflictCode);
+        using var read = await clerk.GetAsync(BillingApi.Bill(waiting.Id));
+        (await read.ReadAsAsync<BillDto>()).Status.ShouldBe(BillStatus.Posted, "the approval stands");
+        (await CountAsync("SELECT COUNT(*) AS [Value] FROM dbo.ApprovalRequests WHERE [Status] = 'Approved'")).ShouldBe(1);
+        (await CountAsync("SELECT COUNT(*) AS [Value] FROM dbo.ApprovalRequests WHERE [Status] <> 'Approved'")).ShouldBe(0);
+        await ShouldHaveNoDriftAndAGaplessSeriesAsync(maker);
+    }
+
+    // Holds the first request that looks for a pending approval request, until the test lets it go.
+    private sealed class LateDecisionGate
+    {
+        private int _lookups;
+
+        public bool Armed { get; set; }
+
+        public TaskCompletionSource FirstIsAboutToLook { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public bool IsFirst() => Interlocked.Increment(ref _lookups) == 1;
+    }
+
+    private sealed class HeldApprovals(IApprovalRequestRepository inner, LateDecisionGate gate) : IApprovalRequestRepository
+    {
+        public async Task<ApprovalRequest?> GetPendingAsync(ApprovalDocumentType documentType, Guid documentId, CancellationToken ct)
+        {
+            if (gate.Armed && gate.IsFirst())
+            {
+                gate.FirstIsAboutToLook.TrySetResult();
+                await gate.Release.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
+            }
+
+            return await inner.GetPendingAsync(documentType, documentId, ct);
+        }
+
+        public void Add(ApprovalRequest request) => inner.Add(request);
+    }
+
     private async Task<(FixedIdentity Maker, FixedIdentity Checker)> NewTenantWithThresholdAsync(decimal threshold)
     {
         var maker = await NewApiTenantAsync();

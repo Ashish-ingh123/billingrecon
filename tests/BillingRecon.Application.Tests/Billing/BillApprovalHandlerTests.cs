@@ -162,14 +162,19 @@ public sealed class BillApprovalHandlerTests
     }
 
     [Fact]
-    public async Task A_bill_that_waits_without_a_request_is_a_fault()
+    public async Task BR804_a_bill_read_as_waiting_whose_request_is_no_longer_pending_is_a_conflict_and_nothing_is_taken_or_written()
     {
+        // Changed expectation (Prompt 4.5, ADR 0027): this used to be a fault, InvalidOperationException, and so a 500.
+        // It is what an ordinary race looks like: another checker's decision was committed after this request read the
+        // bill and before it looked for the approval request. The bill it read is stale, which is a conflict.
         var bill = NewDraft();
         bill.SubmitForApproval(Window);
         _repository.GetAsync(Id, Arg.Any<CancellationToken>()).Returns(bill.Saved(CurrentVersion));
 
-        await Should.ThrowAsync<InvalidOperationException>(() => Approve().HandleAsync(new ApproveBillPostingCommand(Id, Version(CurrentVersion), null), CancellationToken.None));
+        var result = await Approve().HandleAsync(new ApproveBillPostingCommand(Id, Version(CurrentVersion), null), CancellationToken.None);
 
+        result.Error.Code.ShouldBe(CommonErrors.ConcurrencyConflictCode);
+        result.Error.Kind.ShouldBe(ErrorKind.Conflict);
         await NothingWasTakenOrWrittenAsync();
     }
 

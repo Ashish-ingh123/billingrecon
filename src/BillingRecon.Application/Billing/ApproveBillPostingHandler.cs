@@ -65,9 +65,15 @@ public sealed class ApproveBillPostingHandler(
             return CommonErrors.ApprovalNeedsUser();
         }
 
-        // A bill that waits has exactly one pending request: the same commit made both (BR-605).
-        var request = await approvals.GetPendingAsync(ApprovalDocumentType.Bill, bill.Id.Value, ct)
-            ?? throw new InvalidOperationException($"Bill {bill.Id} waits for approval and has no pending approval request.");
+        // A bill that waits has exactly one pending request: the same commit made both (BR-605). When it is gone,
+        // another decision was committed after the document was read here: a conflict, not a fault (BR-804).
+        var pending = await approvals.FindPendingAsync(ApprovalDocumentType.Bill, bill.Id.Value, ct);
+        if (pending.IsFailure)
+        {
+            return pending.Error;
+        }
+
+        var request = pending.Value;
 
         var decided = request.Approve(checker, command.Comment, now);
         if (decided.IsFailure)

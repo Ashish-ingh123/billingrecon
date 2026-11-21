@@ -49,8 +49,13 @@ public sealed class RejectCreditNoteHandler(
             return returned.Error;
         }
 
-        var request = await approvals.GetPendingAsync(ApprovalDocumentType.CreditNote, creditNote.Id.Value, ct)
-            ?? throw new InvalidOperationException($"Credit note {creditNote.Id} waits for approval and has no pending approval request.");
+        var pending = await approvals.FindPendingAsync(ApprovalDocumentType.CreditNote, creditNote.Id.Value, ct);
+        if (pending.IsFailure)
+        {
+            return pending.Error;
+        }
+
+        var request = pending.Value;
         var decided = request.Reject(checker, command.Comment, clock.UtcNow);
         if (decided.IsFailure)
         {

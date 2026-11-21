@@ -48,8 +48,13 @@ public sealed class RejectAdjustmentHandler(
             return returned.Error;
         }
 
-        var request = await approvals.GetPendingAsync(ApprovalDocumentType.Adjustment, adjustment.Id.Value, ct)
-            ?? throw new InvalidOperationException($"Adjustment {adjustment.Id} waits for approval and has no pending approval request.");
+        var pending = await approvals.FindPendingAsync(ApprovalDocumentType.Adjustment, adjustment.Id.Value, ct);
+        if (pending.IsFailure)
+        {
+            return pending.Error;
+        }
+
+        var request = pending.Value;
         var decided = request.Reject(checker, command.Comment, clock.UtcNow);
         if (decided.IsFailure)
         {

@@ -75,9 +75,15 @@ public sealed class ApproveCreditNoteHandler(
             return CommonErrors.ApprovalNeedsUser();
         }
 
-        // A credit note that waits has exactly one pending request: the same commit made both (BR-605).
-        var request = await approvals.GetPendingAsync(ApprovalDocumentType.CreditNote, creditNote.Id.Value, ct)
-            ?? throw new InvalidOperationException($"Credit note {creditNote.Id} waits for approval and has no pending approval request.");
+        // A credit note that waits has exactly one pending request: the same commit made both (BR-605). When it is gone,
+        // another decision was committed after the document was read here: a conflict, not a fault (BR-804).
+        var pending = await approvals.FindPendingAsync(ApprovalDocumentType.CreditNote, creditNote.Id.Value, ct);
+        if (pending.IsFailure)
+        {
+            return pending.Error;
+        }
+
+        var request = pending.Value;
         var decided = request.Approve(checker, command.Comment, now);
         if (decided.IsFailure)
         {
