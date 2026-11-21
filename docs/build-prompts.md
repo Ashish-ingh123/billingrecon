@@ -21,6 +21,7 @@ is left; their numbering is mine, not the blueprint's.
 | 4.1 Record a payment | Written on 2026-11-20 with the owner's decisions (CLAUDE.md section 9, item 20); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0011_Payments` still to be scaffolded (`docs/runbook.md` section 8) |
 | 4.2 Allocate a payment to bills | Code and tests written on 2026-11-20, pre-checked and documented on 2026-11-21 (ADR 0024, Proposed; CLAUDE.md section 9, item 21); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0012_PaymentAllocations` still to be scaffolded (`docs/runbook.md` section 8) |
 | Everything else in R1 | Not started: credit notes, adjustments, reversals, refunds, users and JWT, reports, frontend, delivery |
+| 6.3 Dashboard figures and 7.6 Dashboard (added 2026-11-21, with theming in 7.1) | Not started. 6.3 runs after 6.2, 7.6 after 7.5; the layout reference `docs/ui/dashboard.png` is still to be added; the drift card's trend (none, or a snapshot table and a new migration) is the owner's open decision, asked in 6.3 |
 
 **Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment) and 4.2 (allocate a payment to bills) are written. Next prompt: 4.3 (credit notes), in a session of its own. What was decided for each built prompt is recorded under it below.**
 
@@ -484,6 +485,37 @@ Complete docs/api.md with every endpoint and the full error-code catalogue.
 Done when: US-41 and US-43 pass and a seeded drift is reported.
 ```
 
+#### 6.3 Dashboard figures
+
+```
+Read BR-901, US-40 to US-43, docs/database.md sections 5.5 and 5.6, and the Reporting query
+services of 6.1 and 6.2.
+The dashboard is new R1 scope: first propose the additions to docs/requirements.md (one user
+story with acceptance criteria, and its row in the permission matrix) and wait for my approval.
+Build read-only query services in the Reporting module (it never writes) and
+GET endpoints under /api/v1/dashboard, for a period given as from/to IST business dates
+(default: the last 30 days), tenant-filtered:
+- summary: total billed (bills posted in the period), amount collected (payments recorded in
+  the period), outstanding dues, unapplied cash, pending approvals, reconciliation drift rows;
+  each with the same figure for the previous period of equal length and the change in percent
+  (null when the previous figure is zero);
+- trend: billed and collected per business date or per week, cumulative within the period, and
+  the daily series each summary card needs for its sparkline;
+- ageing: outstanding BalanceDue of posted bills by days past DueDate as of TodayIst, in the
+  buckets 0-30, 31-60, 61-90 and over 90, with amount and share;
+- top outstanding payers (first 5), recent payments (last 5), pending approvals (first 3) and
+  drift rows (first 3), reusing the 6.1 and 6.2 services, not copying their SQL.
+Raise with me before coding: outstanding dues and unapplied cash "as of" a past date can be
+derived from ledger entries, and pending approvals from the request timestamps, but drift rows
+have no history. Propose either no trend for that card or a snapshot table, with the cost of each.
+All amounts leave the API as exact decimals; no rounding to lakh on the server.
+Tests: after the Phase 4 scenario, every summary figure equals the figure derived from ledger
+entries; the ageing buckets sum to outstanding dues; a bill due today falls in 0-30; period
+boundaries at IST midnight; another tenant's data never appears; empty period returns zeros.
+Add the endpoints to docs/api.md. No migration unless I approve the snapshot table.
+Done when: every dashboard figure ties to the ledger and the ageing total equals outstanding dues.
+```
+
 Merge to `main`. The backend of R1 is complete here.
 
 ### Phase 7. Frontend (branch `phase-7-frontend`)
@@ -497,7 +529,16 @@ Propose the frontend stack for my approval first (React, TypeScript, Vite; routi
 forms and a component approach, each with a reason), then write the ADR. Build frontend/: login,
 token handling, a typed API client generated from /openapi/v1.json, one error component that reads
 ProblemDetails errorCode, role-aware navigation, lint and test set-up, and a CI job.
-Done when: I can sign in and see a role-appropriate empty shell.
+Theming is part of the scaffold. Propose it in the stack ADR: design tokens as CSS variables
+(surface, text, border, accent, success, warning, danger, and a fixed series palette for
+charts), a light and a dark set switched by data-theme on <html>, and no raw colour value in any
+component (add a lint rule or a test that fails on one). The user chooses System, Light or Dark
+from the top bar; System follows prefers-color-scheme and reacts when it changes; the choice is
+kept in localStorage and applied by an inline script in index.html before React mounts, so there
+is no flash. Name the chart library in the same ADR, with the reason, and say how its colours
+follow the theme. Text contrast meets WCAG AA in both themes.
+Done when: I can sign in and see a role-appropriate empty shell, and the empty shell switches
+between the three settings without a reload and without a flash on a hard refresh.
 ```
 
 #### 7.2 Patients, payers and catalogue screens
@@ -530,6 +571,42 @@ unapplied cash, available credit).
 Build the checker's inbox (approve, reject with comment; hidden from the maker), credit note and
 adjustment drafting, and the six R1 reports with date filters and CSV export.
 Done when: the Phase 4 scenario can be performed entirely in the browser by three users.
+```
+
+#### 7.6 Dashboard
+
+The layout reference `docs/ui/dashboard.png` must be in the repository before this prompt is given.
+
+```
+Read the dashboard user story in docs/requirements.md, the dashboard endpoints in docs/api.md
+and the theming section of the frontend ADR. The layout reference is docs/ui/dashboard.png;
+follow its structure, not its sample data.
+Build the dashboard as the landing page for the roles the permission matrix allows:
+- period picker (last 7, 30, 90 days, custom), IST business dates;
+- six summary cards: total billing, amount collected, outstanding dues, unapplied cash, pending
+  approvals, reconciliation issues. One component, one colour token per card: the background is
+  the token mixed into the card surface (color-mix, a stronger share in dark), the icon tile is
+  the solid token, and the sparkline is a 2px line with a fill beneath it fading to transparent,
+  running flush to the card's bottom edge. The change against the previous period is coloured by
+  meaning, not direction: a fall in outstanding dues, unapplied cash, approvals or issues is good;
+- billing against collections line chart (collections dashed, tooltip with both values);
+- ageing donut with the total in the centre and a legend showing amount and share;
+- recent payments, top outstanding payers (with proportional bars), pending approvals and
+  reconciliation exceptions, each with a "view all" link to the screen built in 7.4 or 7.5.
+  The approvals panel follows the checker's-inbox rule of 7.5 (a maker does not see a Review
+  action on their own request).
+Money: cards may show a compact figure (₹12.8L) with the exact amount in a tooltip and for
+screen readers; tables show exact amounts with Indian grouping, right-aligned, tabular digits.
+Every figure is the server's; the client computes nothing but the compact display form.
+Each panel has its own loading skeleton, empty state and error state (the ProblemDetails
+component of 7.1), so one failed request does not blank the page. Charts carry a text
+alternative. The grid reflows from six cards per row down to one.
+Tests: component tests for the card (good and bad direction, null change, zero), the compact
+money formatter (99,999 / 1,00,000 / 12,80,000 / 1,00,00,000), each panel's empty and error
+states, and a test that renders the page in both themes and fails on any colour not taken from
+a token.
+Done when: the dashboard after the Phase 4 scenario shows the same figures as the 6.1 reports,
+in both themes, for a Supervisor, and a role without the permission does not see it.
 ```
 
 Merge to `main`.
