@@ -1,8 +1,8 @@
 # Security
 
 Authentication, authorisation, tenant isolation, maker-checker, secrets, data protection and the audit, as built, with
-the decisions they come from. Written with Prompt 5.3 (2026-11-21); the threat model at the end lists what is known and
-not done yet.
+the decisions they come from. Written with Prompt 5.3 (2026-11-21) and brought up to date with Prompt 5.3b; the threat
+model at the end lists what is known and not done yet.
 
 ---
 
@@ -28,7 +28,8 @@ not done yet.
 The permission matrix of `docs/requirements.md` section 1 is applied as named policies, one per capability; every
 action of the API names exactly one, and an architecture test keeps it so. A role a policy does not admit gets 403
 `forbidden`. A blank cell of the matrix is no access, not even reading, with one exception: a Cashier reads credit
-notes, to refund from one. The trail of a user in the audit is the TenantAdmin's alone, as the users are. The table
+notes, to refund from one. The trail of a user in the audit is the TenantAdmin's alone, as the users are; so are the
+trails of the tenant, of its prefix changes and of its number series (ADR 0033), and the settings themselves. The table
 of what each role may call is in `docs/api.md` section 2, and one table-driven test walks every endpoint with every
 role against the database.
 
@@ -41,10 +42,13 @@ role against the database.
   predicate. Another tenant's record answers 404, as an id nobody has (`docs/api.md` section 2); this is tested for
   every resource (`TenantIsolationApiTests` and the tests of each module).
 
-## 4. Maker-checker (BR-603 to BR-606, ADR 0023, ADR 0032)
+## 4. Maker-checker (BR-603 to BR-606, ADR 0023, ADR 0032, ADR 0033)
 
 - Posting a credit note, an adjustment, a refund, a bill at or above the threshold, and reversing a payment, an
   allocation or an application of credit need a second person. The checker's approval is the posting itself.
+- So does a change of a document-number prefix (BR-802): a TenantAdmin asks, and the approval is the change. The
+  approval threshold, the back-date window and the default due days are changed by a TenantAdmin alone, audited
+  (BR-607).
 - The checker is another user than the maker and holds Supervisor or TenantAdmin. Both are checked by the decision
   itself (`ApprovalRequest.Approve` and `Reject`), whatever the endpoint, and the role also by the policy of every
   approve and reject endpoint.

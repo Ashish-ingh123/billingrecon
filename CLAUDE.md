@@ -209,7 +209,10 @@ src/
                                 with PaymentRefunded (Payments); CreditNote.PayRefund with CreditNoteRefunded
                                 (Billing); RefundId (Common). Since Prompt 5.1 (ADR 0030): the User aggregate with
                                 UserRole, Role, UserStatus, RoleDefinition (a row of the global Roles table) and
-                                six events (Identity).
+                                six events (Identity). Since Prompt 5.3b (ADR 0033): Tenant.ChangeSettings and
+                                ChangePrefix with two events, the PrefixChange aggregate with PrefixChangeStatus
+                                and three events (Identity); NumberSeries an aggregate with ChangePrefix and
+                                NumberSeriesPrefixChanged, PrefixChangeId (Common).
   BillingRecon.Application/     Use cases (command/query handlers as plain classes), FluentValidation validators,
                                 port interfaces (IClock, IUnitOfWork, repositories, INumberSeries,
                                 IIdempotencyStore, ITenantContext, ICurrentUser), DTOs and explicit mappers.
@@ -258,7 +261,11 @@ src/
                                 refund (Billing); PostingTemplate.RefundFromPaymentPosted and
                                 RefundFromCreditNotePosted (Receivables). ADR 0029. The user use cases (create,
                                 update, replace roles, disable, enable, reset password, get, list) with
-                                IUserRepository, IUserReadService and IPasswordHasher (Identity). ADR 0030.
+                                IUserRepository, IUserReadService and IPasswordHasher (Identity). ADR 0030. The
+                                settings use cases (get, update) and the prefix change use cases (request,
+                                approve, reject, get, list) with ITenantRepository, IPrefixChangeRepository,
+                                IPrefixChangeReadService and IPrefixUsage (Identity); INumberSeriesRepository
+                                (Common). ADR 0033.
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -285,6 +292,8 @@ src/
                                 ReconciliationQuery, registered by AddReceivables (Receivables, ADR 0005); the
                                 typed-id foreign key convention of the context (ADR 0021). The Payments table
                                 with its repository and read service, registered by AddPayments (Payments).
+                                The PrefixChanges table with its repository and read service, PrefixUsage and
+                                TenantRepository (Identity); NumberSeriesRepository (Common/Numbering). ADR 0033.
                                 Migrations go to Common/Migrations.
   BillingRecon.Api/             Controllers, middleware and filters (correlation id, idempotency, tenant resolution),
                                 the error contract (Common/Errors: exception handler, Error to ProblemDetails mapper),
@@ -302,7 +311,8 @@ src/
                                 scheme and AddRequestIdentity; the sign-in controller AuthController next to
                                 UsersController (Identity). Common/Authorization (ADR 0032): Policies, the named
                                 policies of the permission matrix with the roles each admits, and AddPermissions,
-                                which also sets the fallback policy (deny by default).
+                                which also sets the fallback policy (deny by default). SettingsController and
+                                PrefixChangesController with their request records (Identity), ADR 0033.
 tests/
   Directory.Build.props         Test defaults: xUnit, Shouldly, test SDK/runner, global usings.
   BillingRecon.Domain.Tests/  BillingRecon.Application.Tests/
@@ -602,9 +612,9 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 | `docs/requirements.md` | Domain and vocabulary, actors and permissions, R1 scope, the **BR-nnn business-rule catalogue**, user stories with acceptance criteria, NFRs, R2–R5 outlines |
 | `docs/domain-model.md` | Module map, value objects, aggregates with invariants (citing BR-ids), Bill state machine, transaction boundaries and the allocation exception, domain events, ports |
 | `docs/database.md` | Conventions, ER diagram, every R1 table with types/keys/indexes/CHECKs, number-series lock, ledger accounts and posting templates, balance identities and reconciliation SQL, idempotency lifecycle, permissions, migrations |
-| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), the adjustment endpoints (Prompt 4.4), the reversal endpoints of payments and allocations (Prompt 4.5), the refunds (Prompt 4.6), the users (Prompt 5.1), authentication with the sign-in (Prompt 5.2), and the permissions of each role (Prompt 5.3) |
+| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), the adjustment endpoints (Prompt 4.4), the reversal endpoints of payments and allocations (Prompt 4.5), the refunds (Prompt 4.6), the users (Prompt 5.1), authentication with the sign-in (Prompt 5.2), the permissions of each role (Prompt 5.3), and the tenant settings with the prefix changes (Prompt 5.3b) |
 | `docs/build-prompts.md` | The build prompts from zero to R1, reconstructed on 2026-11-20: what each finished prompt built, and the wording and order of the prompts still to give. Its phase numbers are the ones this file uses |
-| `docs/security.md` | Authentication, authorisation, tenancy, maker-checker, secrets, data protection, and the known gaps of the threat model. Written with Prompt 5.3 |
+| `docs/security.md` | Authentication, authorisation, tenancy, maker-checker, secrets, data protection, and the known gaps of the threat model. Written with Prompt 5.3, brought up to date with Prompt 5.3b |
 | `docs/testing-strategy.md` | Test pyramid, tooling, database tests, architecture tests, CI gates |
 | `docs/runbook.md` | Written so far: local infrastructure, the "Verify on a Docker machine" checklist, migrations, tests, CI, the container image, idempotency keys, the deferred verification list, and sign-in with the signing key (section 9). Still to come: backups, incident procedures |
 | `docs/adr/` | Architecture Decision Records. ADR 0000 defines the format. |
@@ -654,7 +664,11 @@ the owner confirmed with the Prompt 5.2 plan),
 into the user, deny by default and the Development fallback (Accepted on the owner's approval of the Prompt 5.2 plan,
 2026-11-21; it refines ADR 0009 and ADR 0015 section 6),
 0032 role permissions: one named policy per capability of the matrix on every action, the blank cells, and the
-checker's role checked by the decision itself (Accepted on the owner's approval of the Prompt 5.3 plan, 2026-11-21).
+checker's role checked by the decision itself (Accepted on the owner's approval of the Prompt 5.3 plan, 2026-11-21),
+0033 tenant settings and prefix changes: the three settings by a TenantAdmin, a prefix change as a maker-checker
+document whose approval changes the default and this year's series, a prefix that belongs to one document type for
+good (Accepted on the owner's approval of the Prompt 5.3b plan, 2026-11-21; its built note point 5, the first number
+of a year taken during an approval, awaits the owner's decision).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -914,8 +928,8 @@ Kept here so they survive between sessions. Remove an item when it is done.
       `dotnet format --verify-no-changes` and `dotnet test` with Docker; then run the number series tests several
       times: `dotnet test --filter "FullyQualifiedName~NumberSeriesOnSqlServerTests"`.
     - Follow-ups for later slices: bill posting takes the first number (3.5); the typed wrappers come with their
-      documents; changing a prefix is a maker-checker action (3.6, 5.3); the gapless verification query joins
-      the reconciliation report (6.2).
+      documents; changing a prefix is a maker-checker action (3.6, 5.3; done with Prompt 5.3b, item 30); the gapless
+      verification query joins the reconciliation report (6.2).
 13. **Prompt 3.2 (idempotency for financial POSTs, ADR 0006), written 2026-11-20, not built on .NET 10 yet.** The
     fifth prompt in one uncommitted working tree (2.2, 2.3, 2.4, 3.1, 3.2). The owner was advised twice to run the
     earlier prompts on the personal machine first and chose to go on; the first thing to do now is that run.
@@ -1499,5 +1513,44 @@ Kept here so they survive between sessions. Remove an item when it is done.
       integration tests without a database pass; in a throwaway copy on LocalDB 2019 the integration project passes in
       full (1104 tests), and the 20 `BR804` tests with the matrix and isolation tests ran three more times without a
       failure.
-    - **Still to do:** SQL Server 2022 in Docker; Prompt 5.3b.
+    - **Still to do:** SQL Server 2022 in Docker; Prompt 5.3b (done: item 30).
     - Next: Prompt 5.3b (tenant settings and prefix changes).
+30. **Prompt 5.3b, second half: tenant settings and prefix changes (ADR 0033), written 2026-11-21, built and tested on
+    .NET 10.** On `phase-2-billing`. The plan was approved "as recommended". Migration `0019_PrefixChanges`, scaffolded
+    in the throwaway copy with the repository's `dotnet-ef` and copied back.
+    - Built: `GET` and `PATCH /api/v1/settings` (TenantAdmin, If-Match; the threshold, the back-date window, the
+      default due days; a threshold left out is none) with `Tenant.ChangeSettings`; the `PrefixChange` document
+      (`POST /api/v1/settings/prefix-changes` by a TenantAdmin, `GET` one and the list, `approve` and `reject` by a
+      Supervisor or TenantAdmin who is not the maker), whose approval sets the tenant's default and the prefix of the
+      type's series of the current fiscal year (`NumberSeries.ChangePrefix`, through the model and its row version);
+      `IPrefixUsage`, which keeps a prefix to one document type for good; the approval request's document type renamed
+      `NumberSeries` → `PrefixChange`; the trails of the tenant, its prefix changes and its number series for a
+      TenantAdmin only; two checks on `Tenants` (`CK_Tenants_PrefixesDistinct`, `CK_Tenants_PostingApprovalThreshold`).
+    - Decided by the owner with the plan (ADR 0033 points 3, 5, 6, 9): the checkers read the changes; the document
+      type is renamed; a prefix belongs to one type for good; the three trails are the TenantAdmin's.
+    - **Decided in the build, not in the plan (ADR 0033 built note):** the prefix-change posts take no
+      Idempotency-Key (the controller is declared non-financial in `IdempotencyConventionTests`; the filtered unique
+      index and If-Match refuse repeats); the request answers 201; the change's own methods are `RecordApproval` and
+      `RecordRejection`, so the convention test that counts the decisions of approval requests (now sixteen) sees
+      each once.
+    - **Found, open for the owner (ADR 0033 built note point 5):** the approval's 409 covers a series that exists. When
+      the first number of a type in a fiscal year is taken in the milliseconds between the approval's read of the
+      series and its commit, the allocator creates the series with the old prefix and the approval answers 200; that
+      year's series keeps the old prefix, numbers stay unique and gapless. `docs/database.md` section 4.4 finds it;
+      one or two further changes repair it. Closing it needs a locked read of the series in the approval, which is
+      new raw SQL (the alternative ADR 0033 rejected): not built.
+    - **Tests:** Domain (`TenantTests`, `PrefixChangeTests`), Application (`SettingsHandlerTests`, 19), Database
+      (`SettingsApiTests`: US-03 end to end, the maker-checker path that numbers the next bill with the new prefix,
+      the maker refused, a rejection, one type for good, another tenant's change; seven new rows of
+      `PermissionMatrixApiTests`; the tenants' new checks in `MigrationsOnSqlServerTests`), and the script checks of
+      `0019` in `MigrationsTests`. Changed expectations, each called out: `MigrationsOnSqlServerTests` lists nineteen
+      migrations and ten checks on `Tenants`; `PermissionConventionTests` counts sixteen decisions;
+      `TenantQueryFilterTests` and `TypedIdForeignKeyTests` list the new table and its two user keys; the matrix row
+      "users" covers the settings and the prefix requests too.
+    - **Verified on .NET 10 (SDK 10.0.404):** in the repository, the Release build and `dotnet format
+      --verify-no-changes` are clean, and Domain 625, Application 392, Architecture 121 and the 658 integration tests
+      without a database pass; in a throwaway copy on LocalDB 2019 the integration project passes in full (1114
+      tests), and the settings, matrix, bill approval, migration and number series tests ran five more times without a
+      failure.
+    - **Still to do:** SQL Server 2022 in Docker; the owner's decision on ADR 0033 built note point 5.
+    - Next: Prompt 5.4 (database grants), after that decision.

@@ -800,7 +800,10 @@ letters or digits, trimmed and upper-cased: `inv` is `INV`), and an optional `co
 another type, nor a prefix a series of another type ever had, nor one another type's change came from, went to, or
 waits to go to; so two documents of different kinds never carry the same number. A type's own earlier prefix may come
 back. This is asked when the change is requested and again when it is approved. A number taken in the very instant
-of an approval changes the series too, and the approval answers 409 `concurrency_conflict`: decide again.
+of an approval changes the series too, and the approval answers 409 `concurrency_conflict`: decide again. The one
+exception is the first number of a type in a fiscal year taken in those milliseconds: it creates the series with the
+old prefix, the approval answers 200, and that year's series keeps the old prefix (ADR 0033, built note point 5;
+`docs/database.md` section 4.4 finds it).
 
 The trails of a change (`entityType=PrefixChange`: `Requested`, `Approved`, `Rejected`), of the tenant
 (`PrefixChanged`) and of the series (`entityType=NumberSeries`: `PrefixChanged`) are the TenantAdmin's alone.

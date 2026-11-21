@@ -449,8 +449,9 @@ in order; nothing is removed until the owner has run it and sent the output.
 **B and E done on 2026-11-21, in the repository: migrations `0003` to `0015` are committed ("Migrations 0003 to 0015,
 scaffolded with EF Core 10"), each scaffolded on its own with EF Core 10.0.12 as B describes, and EF Core reports no
 pending model change. Do not run B again.** A, C and D are still owed on a machine with Docker. Since then
-`0016_CreditApplicationReversals` (Prompt 4.5b), `0017_Refunds` (Prompt 4.6) and `0018_Users` (Prompt 5.1) were
-added the ordinary way, described in the paragraph after the table below; they are in the repository too.
+`0016_CreditApplicationReversals` (Prompt 4.5b), `0017_Refunds` (Prompt 4.6), `0018_Users` (Prompt 5.1) and
+`0019_PrefixChanges` (Prompt 5.3b) were added the ordinary way, described in the paragraph after the table below; they
+are in the repository too.
 
 **Partly run on 2026-11-21, on the office machine, which got the .NET 10 SDK (10.0.404) that day; it still has no
 Docker.** In a throwaway copy of the tip of the branch with Prompt 4.4, with no version substitution: A and B ran
@@ -529,6 +530,7 @@ same way `PaymentWithAllocationsConfiguration.cs` comes back **after** `0011_Pay
 | `0016_CreditApplicationReversals` | 4.5b | Added the ordinary way, not by B. No table. On `CreditNoteAllocations`: five columns (`AppliedAtPosting`, `ReversedAtUtc`, `ReversedByUserId`, `ReversalReason`, `ReversalPostingId`), `CK_CreditNoteAllocations_Status` dropped and created again with three states, two new CHECK constraints (`_ReversedIffReversed`, `_AtPostingStaysActive`) and one foreign key (`FK_CreditNoteAllocations_ReversalPostingId`). `0013` must hold none of these columns |
 | `0017_Refunds` | 4.6 | Added the ordinary way, not by B. `Refunds`, with five foreign keys (`TenantId`, `PayerId`, `SourcePaymentId`, `SourceCreditNoteId`, `PostingId`), nine CHECK constraints and five indexes. Nothing on `Payments` or `CreditNotes` |
 | `0018_Users` | 5.1 | Added the ordinary way, not by B. `Roles` with its five rows, `Users` and `UserRoles`; then 34 foreign keys `FK_<Table>_<Column>` from every earlier column that names a user to `Users`. No column of an earlier table changes. Applied to a development database with data, it fails: drop that database first (section 1) |
+| `0019_PrefixChanges` | 5.3b | Added the ordinary way, not by B. `PrefixChanges`, with three foreign keys (`TenantId`, `CreatedByUserId`, `UpdatedByUserId`), six CHECK constraints and two indexes, one of them the filtered unique index of the waiting change. On `Tenants`: two CHECK constraints (`CK_Tenants_PrefixesDistinct`, `CK_Tenants_PostingApprovalThreshold`). On `ApprovalRequests`: `CK_ApprovalRequests_DocumentType` dropped and created again with `PrefixChange` in place of the unused `NumberSeries`. No column of an earlier table changes, and no data step |
 
 **`0008_Receivables` is finished by hand** (ADR 0021): a scaffold writes schema, and this migration also has to
 open the balances of every payer that already exists. Open `Common/Migrations/*_0008_Receivables.cs` (not the

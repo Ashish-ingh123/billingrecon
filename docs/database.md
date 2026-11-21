@@ -205,7 +205,8 @@ migration `0019_PrefixChanges` (Prompt 5.3b).
 **Tenants**: `CK_Tenants_PrefixesDistinct` (the five default prefixes differ from each other) and
 `CK_Tenants_PostingApprovalThreshold` (null, or above zero); and it renames the unused value `NumberSeries` of
 `CK_ApprovalRequests_DocumentType` to `PrefixChange`. An approved change also sets `Prefix` of the type's
-`NumberSeries` row of the current fiscal year, through the model and its row version (section 3.6).
+`NumberSeries` row of the current fiscal year, through the model and its row version (section 3.6), when that row
+exists; section 4.4 checks the one case where it can be missed.
 
 ### 3.2 Payers
 
@@ -587,7 +588,9 @@ Built with migration `0005_NumberSeries` (Prompt 3.1) as listed: `FK_NumberSerie
 tenant's default prefixes, binary collation), `CK_NumberSeries_NextNumber`, and the one index,
 `UX_NumberSeries_TenantId_DocumentType_FiscalYear`. The table has no Stamp or Touch user columns: a series is
 created and advanced by the statement of §4.1, which no user edits, and the two instants are set there from the
-clock. `FiscalYear` is the value object, stored as its label by a convention of the context.
+clock. Since `0019_PrefixChanges` (ADR 0033) an approved prefix change also sets `Prefix` and `UpdatedAtUtc` of the
+series of the current fiscal year, through the model; its audit records name the maker and the checker.
+`FiscalYear` is the value object, stored as its label by a convention of the context.
 
 **IdempotencyKeys** (BR-803, ADR 0006) — clustered on the lookup key; the only table the application login may `DELETE` from (expiry sweep).
 
@@ -805,6 +808,31 @@ HAVING COUNT(*) <> MAX(SequenceNumber);   -- any row = a gap or a duplicate
 ```
 
 The same query runs against `CreditNotes`, `Payments`, `Adjustments` and `Refunds`.
+
+### 4.4 Prefix of the current series (ADR 0033)
+
+The series of today's fiscal year carries the tenant's default prefix of its type: both are set together when a
+prefix change is approved, and a series created later starts from the default. The one exception is the race of
+ADR 0033 (built note point 5): the first number of a type in a year, taken in the milliseconds of an approval, creates
+the series with the old prefix. Any row of this query is that case:
+
+```sql
+DECLARE @fy char(7) = '2026-27';   -- today's fiscal year, by the date in India
+SELECT s.TenantId, s.DocumentType, s.Prefix AS SeriesPrefix
+FROM   dbo.NumberSeries s
+JOIN   dbo.Tenants t ON t.Id = s.TenantId
+WHERE  s.FiscalYear = @fy
+AND    s.Prefix <> CASE s.DocumentType
+                       WHEN 'Bill' THEN t.BillPrefix
+                       WHEN 'CreditNote' THEN t.CreditNotePrefix
+                       WHEN 'Payment' THEN t.PaymentPrefix
+                       WHEN 'Adjustment' THEN t.AdjustmentPrefix
+                       WHEN 'Refund' THEN t.RefundPrefix
+                   END;
+```
+
+No test runs it after every scenario. A row is repaired through the API: one more change of that type, or two to come
+back to the prefix that was asked for.
 
 ---
 
