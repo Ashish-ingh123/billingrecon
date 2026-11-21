@@ -426,6 +426,35 @@ public sealed class CreditNote : AggregateRoot<CreditNoteId>, ITenantScoped, ICr
         => ApplyCore(billId, amount, appliedAtUtc, appliedBy, appliedAtPosting: false);
 
     /// <summary>
+    /// Pays back <paramref name="amount"/> of the available credit, for the posted refund
+    /// <paramref name="refundNumber"/> (BR-213, BR-307): the available amount falls by it. A credit note that is not
+    /// posted, or has less available, is refused and nothing changes. The refund itself is the Payments module's.
+    /// </summary>
+    /// <exception cref="ArgumentException">The amount is not above zero, or the refund has no number: a bug in the caller.</exception>
+    public Result PayRefund(string refundNumber, Money amount)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(refundNumber);
+
+        if (!amount.IsPositive)
+        {
+            throw new ArgumentException("A refund has an amount above zero (BR-307).", nameof(amount));
+        }
+
+        var allowed = CheckCanApply(amount);
+        if (allowed.IsFailure)
+        {
+            return allowed;
+        }
+
+        AvailableAmount -= amount;
+
+        // CheckCanApply refused a credit note without its number.
+        AddDomainEvent(new CreditNoteRefunded(Number ?? string.Empty, refundNumber, amount, AvailableAmount));
+
+        return Result.Success();
+    }
+
+    /// <summary>
     /// Applies <paramref name="amount"/> to the credit note's own bill as part of its posting (BR-212): the first
     /// application of a credit note that has just been posted, marked as made at posting, which is never reversed
     /// (ADR 0028). The use case gives the amount, <c>min(Total, Bill.BalanceDue)</c>.

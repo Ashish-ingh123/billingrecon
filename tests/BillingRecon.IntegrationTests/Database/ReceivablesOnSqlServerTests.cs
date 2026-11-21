@@ -512,12 +512,12 @@ public sealed class ReceivablesOnSqlServerTests(SqlServerFixture sqlServer) : Da
     {
         await using var context = ApiContext(tenant);
 
-        // These tests write payment postings through the port alone, without the payment rows a recording saves with
-        // them (PaymentsApiTests covers the two together), so the identity that pairs a posting with its payment is
-        // left out here. Every other identity is asserted as it comes.
+        // These tests write payment and refund postings through the port alone, without the payment and refund rows the
+        // use cases save with them (PaymentsApiTests and RefundsApiTests cover each pair together), so the identities
+        // that pair a posting with its document are left out here. Every other identity is asserted as it comes.
         var drift = await new ReconciliationQuery(context, tenant).FindDriftAsync(CancellationToken.None);
 
-        return [.. drift.Where(row => row.Identity != DriftIdentity.PostingWithoutPayment)];
+        return [.. drift.Where(row => row.Identity is not DriftIdentity.PostingWithoutPayment and not DriftIdentity.PostingWithoutRefund)];
     }
 
     private async Task<List<string>> NamesAsync(string sql)

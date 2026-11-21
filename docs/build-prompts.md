@@ -24,10 +24,11 @@ is left; their numbering is mine, not the blueprint's.
 | 4.4 Adjustments | Written on 2026-11-21 with the owner's decisions (ADR 0026; CLAUDE.md section 9, item 23). **Built and tested on .NET 10** (SDK 10.0.404, installed on the office machine that day) in a throwaway copy, with the database tests on LocalDB 2019; not run on SQL Server 2022; migration `0014_Adjustments` in the repository since 2026-11-21 |
 | 4.5 Reversals | Written on 2026-11-21 with the owner's decisions (ADR 0027; CLAUDE.md section 9, item 24). Built and tested on .NET 10 in a throwaway copy, with the database tests on LocalDB 2019; not run on SQL Server 2022; migration `0015_PaymentReversals` in the repository since 2026-11-21. It also corrects what a late decision answers in every approve and reject use case since 3.6 (409, not 500) |
 | 4.5b Reverse an application of credit | Written on 2026-11-21 with the owner's decisions (ADR 0028; CLAUDE.md section 9, item 25). Built and tested on .NET 10: build, format gate and the tests without a database in the repository, the database tests in a throwaway copy on LocalDB 2019; not run on SQL Server 2022; migration `0016_CreditApplicationReversals` in the repository, added the ordinary way on top of `0003` to `0015`, which were committed on their own first |
-| Everything else in R1 | Not started: refunds, users and JWT, reports, frontend, delivery |
+| 4.6 Refunds | Written on 2026-11-21 with the owner's decisions (ADR 0029; CLAUDE.md section 9, item 26). Built and tested on .NET 10 like 4.5b: build, format gate and the tests without a database in the repository, the database tests in a throwaway copy on LocalDB 2019; not run on SQL Server 2022; migration `0017_Refunds` in the repository. With it the end-to-end scenario test of the prompt |
+| Everything else in R1 | Not started: users and JWT, reports, frontend, delivery |
 | 6.3 Dashboard figures and 7.6 Dashboard (added 2026-11-21, with theming in 7.1) | Not started. 6.3 runs after 6.2, 7.6 after 7.5; the layout reference `docs/ui/dashboard.png` is still to be added; the drift card's trend (none, or a snapshot table and a new migration) is the owner's open decision, asked in 6.3 |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals) and 4.5b (reverse an application of credit) are written too, and `0016` is in the repository. Next prompt: 4.6 (refunds). What was decided for each built prompt is recorded under it below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. Next prompt: 5.1 (users and roles). What was decided for each built prompt is recorded under it below.**
 
 ## How to use these prompts
 
@@ -460,6 +461,15 @@ Then write one end-to-end scenario test that walks bill -> part payment -> credi
 adjustment -> allocation reversal -> refund and asserts zero drift and gapless series at the end.
 Done when: US-34 and the scenario test pass.
 ```
+
+**Owner's decisions for 4.6, recorded 2026-11-21 (the plan was approved "as recommended"; ADR 0029):** the BR-306
+check is asked when the reversal of a payment is requested, through the refund repository (422 `payment_refunded`),
+with no cached refunded amount on `Payments`; the cap and the source's state are asked when the maker submits and
+again at the approval, and the payer must be active at the draft and at the approval; the refund date is not before
+the date of its payment or credit note, a sentence BR-307 gains (422 `refund_date_before_source_date`); a payment
+that waits for its reversal, or was reversed, refunds nothing (409), while a refund that only waits does not stop a
+reversal from being asked for; the payment and the credit note record `Refunded` in their own audit trails. The table
+is migration **`0017_Refunds`**; users move to `0018_Users`.
 
 Merge `phase-4-payments` to `main`.
 

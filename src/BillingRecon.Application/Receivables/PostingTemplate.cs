@@ -326,4 +326,74 @@ public sealed record PostingTemplate(
             ],
             reversalOf);
     }
+
+    /// <summary>
+    /// A refund of <paramref name="amount"/> was posted from what payment <paramref name="paymentId"/> had unapplied
+    /// (BR-307): Dr UnappliedCash(payment), Cr Cash. The payer holds less unapplied cash, and the money left. The
+    /// business date is the refund date.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="amount"/> is not above zero.</exception>
+    public static PostingTemplate RefundFromPaymentPosted(
+        RefundId refundId,
+        PaymentId paymentId,
+        PayerId payerId,
+        Money amount,
+        DateOnly refundDate,
+        DocumentNumber number,
+        string paymentNumber)
+    {
+        ArgumentNullException.ThrowIfNull(number);
+        RequireRefundAmount(amount);
+
+        return new PostingTemplate(
+            LedgerPostingKind.RefundPosted,
+            LedgerDocumentType.Refund,
+            refundId.Value,
+            payerId,
+            refundDate,
+            $"Refund {number} from payment {paymentNumber}",
+            [
+                LedgerLine.Dr(LedgerAccount.UnappliedCash, amount, new LedgerSubject(LedgerSubjectType.Payment, paymentId.Value)),
+                LedgerLine.Cr(LedgerAccount.Cash, amount),
+            ]);
+    }
+
+    /// <summary>
+    /// A refund of <paramref name="amount"/> was posted from the available credit of credit note
+    /// <paramref name="creditNoteId"/> (BR-213, BR-307): Dr CreditAvailable(credit note), Cr Cash. The payer holds less
+    /// credit, and the money left. The business date is the refund date.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="amount"/> is not above zero.</exception>
+    public static PostingTemplate RefundFromCreditNotePosted(
+        RefundId refundId,
+        CreditNoteId creditNoteId,
+        PayerId payerId,
+        Money amount,
+        DateOnly refundDate,
+        DocumentNumber number,
+        string creditNoteNumber)
+    {
+        ArgumentNullException.ThrowIfNull(number);
+        RequireRefundAmount(amount);
+
+        return new PostingTemplate(
+            LedgerPostingKind.RefundPosted,
+            LedgerDocumentType.Refund,
+            refundId.Value,
+            payerId,
+            refundDate,
+            $"Refund {number} from credit note {creditNoteNumber}",
+            [
+                LedgerLine.Dr(LedgerAccount.CreditAvailable, amount, new LedgerSubject(LedgerSubjectType.CreditNote, creditNoteId.Value)),
+                LedgerLine.Cr(LedgerAccount.Cash, amount),
+            ]);
+    }
+
+    private static void RequireRefundAmount(Money amount)
+    {
+        if (!amount.IsPositive)
+        {
+            throw new ArgumentException("A refund is posted for an amount above zero.", nameof(amount));
+        }
+    }
 }

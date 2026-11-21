@@ -203,7 +203,10 @@ src/
                                 Since Prompt 4.5b (ADR 0028): the reversal of a later application of credit on
                                 the CreditNote aggregate, ApplyToOwnBillAtPosting and the AppliedAtPosting flag,
                                 the states PendingReversal and Reversed of CreditNoteAllocation, and three
-                                events (Billing).
+                                events (Billing). Since Prompt 4.6 (ADR 0029): the Refund aggregate with
+                                RefundSource, RefundSourceKind, RefundStatus and six events, Payment.PayRefund
+                                with PaymentRefunded (Payments); CreditNote.PayRefund with CreditNoteRefunded
+                                (Billing); RefundId (Common).
   BillingRecon.Application/     Use cases (command/query handlers as plain classes), FluentValidation validators,
                                 port interfaces (IClock, IUnitOfWork, repositories, INumberSeries,
                                 IIdempotencyStore, ITenantContext, ICurrentUser), DTOs and explicit mappers.
@@ -245,7 +248,12 @@ src/
                                 its request (Common). ADR 0027. The three use cases that reverse an
                                 application of credit (request, approve, reject; Billing), the approval reaching
                                 the bill through IBillSettlement.RestoreAsync; PostingTemplate.
-                                CreditApplicationReversed (Receivables). ADR 0028.
+                                CreditApplicationReversed (Receivables). ADR 0028. The refund use cases (draft,
+                                replace, void, post, approve, reject, get, list) with IRefundRepository and
+                                IRefundReadService, and the refund check of the payment reversal request
+                                (Payments); ICreditNoteSettlement, what Billing answers when a credit note pays a
+                                refund (Billing); PostingTemplate.RefundFromPaymentPosted and
+                                RefundFromCreditNotePosted (Receivables). ADR 0029.
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -622,7 +630,9 @@ Prompt 4.5 plan, 2026-11-21; its point 9 corrects ADR 0023: a decision that find
 answers 409, not 500, and waits for the owner's confirmation),
 0028 reversing an application of credit: later applications only, the stored flag of the application made at
 posting, and one decision at a time per application (Accepted on the owner's approval of the Prompt 4.5b plan,
-2026-11-21; it closes the open question of ADR 0025 point 5).
+2026-11-21; it closes the open question of ADR 0025 point 5),
+0029 refunds: one source, the cap and the payer asked twice, and the payment with a posted refund that is never
+reversed (Accepted on the owner's approval of the Prompt 4.6 plan, 2026-11-21; it adds a sentence to BR-307).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1334,4 +1344,35 @@ Kept here so they survive between sessions. Remove an item when it is done.
       repository carries the "came from another computer" mark and `dotnet ef` refuses to run there; the owner can
       clear it (file Properties, Unblock).
     - **Still to do:** SQL Server 2022 in Docker.
-    - Next: Prompt 4.6 (refunds).
+    - Next: Prompt 4.6 (refunds), which is item 26.
+26. **Prompt 4.6 (refunds, ADR 0029), written 2026-11-21, built and tested on .NET 10.** On `phase-2-billing` like
+    the rest. The plan was shown first and approved "as recommended".
+    - Built: the `Refund` aggregate (Payments) from one source, a payment's unapplied cash or a posted credit note's
+      available credit, as a maker-checker document numbered `REF/...` at the approval; eight endpoints in
+      `RefundsController` (`POST`, `GET`, list, `PUT`, `void`, `post`, `approve`, `reject`); `Payment.PayRefund`;
+      `CreditNote.PayRefund`, reached through the new Billing contract `ICreditNoteSettlement` (no new module
+      exception); the posting Dr UnappliedCash(payment) or CreditAvailable(credit note) / Cr Cash; three identities
+      of the reconciliation and refunds in two others; migration **`0017_Refunds`**; and their tests (Domain 17,
+      Application 11, Integration 16 new), with the end-to-end scenario test of the prompt
+      (`EndToEndScenarioTests`: bill, part payment, credit note, adjustment, allocation reversal, refund; zero drift
+      after every step and every series gapless at the end).
+    - Decided by the owner with the plan (ADR 0029): BR-306 is asked when a payment's reversal is requested, through
+      the refund repository (422 `payment_refunded`), with no cached refunded amount on `Payments`; the cap and the
+      source's state at the post and at the approval, the payer's activity at the draft and at the approval; the
+      refund date not before the source's date (**BR-307 gains that sentence**); a payment that waits for its reversal
+      or was reversed refunds nothing (409), a waiting refund does not stop a reversal request; the payment and the
+      credit note record `Refunded`. The refund's own trail says `Updated` for a corrected draft, as an adjustment's
+      does, where the plan said `Replaced`.
+    - **Changed expectations in existing tests, each called out, none weakened:** two `MigrationsTests` checks that
+      "nothing after `0014` / `0016` creates a table" now look at their own migration only; `ReceivablesOnSqlServerTests`
+      leaves out `PostingWithoutRefund`, as it has left out `PostingWithoutPayment` since 4.1, because it writes
+      postings through the port without their documents. Lists updated: `MigrationsOnSqlServerTests` (17),
+      `TenantQueryFilterTests`, `TypedIdForeignKeyTests` (four keys), `IdempotencyConventionTests`.
+    - **Migrations renumbered:** users are now `0018_Users`.
+    - **Verified on .NET 10 (SDK 10.0.404):** in the repository, the strict build and
+      `dotnet format --verify-no-changes` are clean and Domain 596, Application 341 and Architecture 113 tests pass;
+      in a throwaway copy on LocalDB 2019 the integration project passes in full (1017 tests), and the 20 `BR804`
+      concurrency tests ran five more times without a failure. `0017` was scaffolded in such a copy (the "came from
+      another computer" mark still blocks `dotnet ef` in the repository) and copied back; no pending model change.
+    - **Still to do:** SQL Server 2022 in Docker. The merge of the branch to `main` is the owner's step.
+    - Next: Prompt 5.1 (users and roles), the first of Phase 5.

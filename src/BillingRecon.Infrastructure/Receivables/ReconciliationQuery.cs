@@ -21,7 +21,9 @@ namespace BillingRecon.Infrastructure.Receivables;
 /// postings, both directions, since Prompt 4.5, which also teaches the identity of a payment's allocations that an
 /// allocation waiting for its reversal still counts and that a reversed payment holds nothing; a reversed application
 /// of credit against its mirror posting, both directions, since Prompt 4.5b, which also teaches the identity of a
-/// credit note's applications that an application waiting for its reversal still counts.
+/// credit note's applications that an application waiting for its reversal still counts; a posted refund against its
+/// posting, both directions, and its payer against the payer of its source, since Prompt 4.6, which also takes the
+/// posted refunds of a payment or a credit note off what the identities of their allocations and applications expect.
 /// <para>
 /// This is one of the files of the production code that send SQL of their own (ADR 0021, BannedSymbolsTests). It is
 /// the SQL the design document gives: sums over the whole ledger, grouped, which Entity Framework cannot translate
@@ -60,6 +62,12 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
             FROM   [dbo].[LedgerEntries]
             WHERE  [TenantId] = @tenant AND [Account] = 'CreditAvailable'
             GROUP  BY [SubjectId]
+        ),
+        [PostedRefunds] AS (
+            SELECT ISNULL([SourcePaymentId], [SourceCreditNoteId]) AS [SourceId], SUM([Amount]) AS [Refunded]
+            FROM   [dbo].[Refunds]
+            WHERE  [TenantId] = @tenant AND [Status] = 'Posted'
+            GROUP  BY ISNULL([SourcePaymentId], [SourceCreditNoteId])
         )
         SELECT CAST('UnbalancedPosting' AS varchar(30)) AS [Identity], e.[PostingId] AS [SubjectId], CAST(NULL AS varchar(30)) AS [Reference],
                SUM(e.[Debit]) AS [Cached], SUM(e.[Credit]) AS [Ledger]
@@ -114,14 +122,15 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
 
         UNION ALL
         SELECT 'PaymentAllocations', p.[Id], p.[Number], p.[UnappliedAmount],
-               CASE WHEN p.[Status] = 'Reversed' THEN 0 ELSE p.[Amount] - ISNULL(a.[Allocated], 0) END
+               CASE WHEN p.[Status] = 'Reversed' THEN 0 ELSE p.[Amount] - ISNULL(a.[Allocated], 0) - ISNULL(r.[Refunded], 0) END
         FROM   [dbo].[Payments] AS p
         LEFT JOIN (SELECT [PaymentId], SUM([Amount]) AS [Allocated]
                    FROM   [dbo].[PaymentAllocations]
                    WHERE  [TenantId] = @tenant AND [Status] <> 'Reversed'
                    GROUP  BY [PaymentId]) AS a ON a.[PaymentId] = p.[Id]
+        LEFT JOIN [PostedRefunds] AS r ON r.[SourceId] = p.[Id]
         WHERE  p.[TenantId] = @tenant
-          AND  p.[UnappliedAmount] <> CASE WHEN p.[Status] = 'Reversed' THEN 0 ELSE p.[Amount] - ISNULL(a.[Allocated], 0) END
+          AND  p.[UnappliedAmount] <> CASE WHEN p.[Status] = 'Reversed' THEN 0 ELSE p.[Amount] - ISNULL(a.[Allocated], 0) - ISNULL(r.[Refunded], 0) END
 
         UNION ALL
         SELECT 'AllocationWithoutPosting', a.[Id], NULL, a.[Amount], 0
@@ -201,13 +210,14 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
           AND  NOT EXISTS (SELECT 1 FROM [dbo].[CreditNotes] AS c WHERE c.[TenantId] = @tenant AND c.[Id] = lp.[DocumentId] AND c.[Number] IS NOT NULL)
 
         UNION ALL
-        SELECT 'CreditNoteApplications', c.[Id], c.[Number], c.[AvailableAmount], c.[Total] - ISNULL(a.[Applied], 0)
+        SELECT 'CreditNoteApplications', c.[Id], c.[Number], c.[AvailableAmount], c.[Total] - ISNULL(a.[Applied], 0) - ISNULL(r.[Refunded], 0)
         FROM   [dbo].[CreditNotes] AS c
         LEFT JOIN (SELECT [CreditNoteId], SUM([Amount]) AS [Applied]
                    FROM   [dbo].[CreditNoteAllocations]
                    WHERE  [TenantId] = @tenant AND [Status] <> 'Reversed'
                    GROUP  BY [CreditNoteId]) AS a ON a.[CreditNoteId] = c.[Id]
-        WHERE  c.[TenantId] = @tenant AND c.[Number] IS NOT NULL AND c.[AvailableAmount] <> c.[Total] - ISNULL(a.[Applied], 0)
+        LEFT JOIN [PostedRefunds] AS r ON r.[SourceId] = c.[Id]
+        WHERE  c.[TenantId] = @tenant AND c.[Number] IS NOT NULL AND c.[AvailableAmount] <> c.[Total] - ISNULL(a.[Applied], 0) - ISNULL(r.[Refunded], 0)
 
         UNION ALL
         SELECT 'ApplicationWithoutPosting', a.[Id], NULL, a.[Amount], 0
@@ -256,6 +266,26 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
         FROM   [dbo].[Adjustments] AS a
         JOIN   [dbo].[Bills] AS b ON b.[Id] = a.[BillId]
         WHERE  a.[TenantId] = @tenant AND a.[PayerId] <> b.[PayerId]
+
+        UNION ALL
+        SELECT 'RefundWithoutPosting', r.[Id], r.[Number], r.[Amount], 0
+        FROM   [dbo].[Refunds] AS r
+        WHERE  r.[TenantId] = @tenant AND r.[Number] IS NOT NULL
+          AND  NOT EXISTS (SELECT 1 FROM [dbo].[LedgerPostings] AS lp
+                           WHERE lp.[TenantId] = @tenant AND lp.[DocumentType] = 'Refund' AND lp.[DocumentId] = r.[Id] AND lp.[Kind] = 'RefundPosted')
+
+        UNION ALL
+        SELECT 'PostingWithoutRefund', lp.[Id], NULL, 0, 0
+        FROM   [dbo].[LedgerPostings] AS lp
+        WHERE  lp.[TenantId] = @tenant AND lp.[Kind] = 'RefundPosted'
+          AND  NOT EXISTS (SELECT 1 FROM [dbo].[Refunds] AS r WHERE r.[TenantId] = @tenant AND r.[Id] = lp.[DocumentId] AND r.[Number] IS NOT NULL)
+
+        UNION ALL
+        SELECT 'RefundPayerMismatch', r.[Id], r.[Number], r.[Amount], 0
+        FROM   [dbo].[Refunds] AS r
+        LEFT JOIN [dbo].[Payments] AS p ON p.[Id] = r.[SourcePaymentId]
+        LEFT JOIN [dbo].[CreditNotes] AS c ON c.[Id] = r.[SourceCreditNoteId]
+        WHERE  r.[TenantId] = @tenant AND r.[PayerId] <> ISNULL(p.[PayerId], c.[PayerId])
 
         UNION ALL
         SELECT 'PayerReceivable', pb.[PayerId], NULL, pb.[Receivable], ISNULL(l.[Receivable], 0)

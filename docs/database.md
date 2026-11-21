@@ -459,6 +459,18 @@ relationship), and `FK_PaymentAllocations_BillId` and `FK_PaymentAllocations_Pos
 
 `CK_Refunds_OneSource`: `(SourceKind = 'Payment' AND SourcePaymentId IS NOT NULL AND SourceCreditNoteId IS NULL) OR (SourceKind = 'CreditNote' AND SourceCreditNoteId IS NOT NULL AND SourcePaymentId IS NULL)`.
 
+**Built 2026-11-21 (Prompt 4.6, ADR 0029; migration `0017_Refunds`).** The table is as above, with these
+precisions. Doc# is `Number varchar(16)`, `FiscalYear char(7)`, `SequenceNumber int`, with Posted (`PostedAtUtc`,
+`PostedByUserId`), all null until the refund is posted; Voided is `VoidedAtUtc`, `VoidedByUserId`, `VoidReason
+nvarchar(500)`; Stamp, Touch and RV as on `Adjustments`. The constraints: `CK_Refunds_Amount`, `_Reference`,
+`_OneSource`, `_SourceKind`, `_Method` and `_Status` (the last three generated from the enums), `_VoidedIffVoided`,
+`_NumberIffPosted` (which also ties `PostingId` to the posted state) and `_NumberParts`. The indexes:
+`IX_Refunds_TenantId_PayerId`, `IX_Refunds_TenantId_SourcePaymentId INCLUDE (Amount, Status)` (what the reversal of a
+payment asks, BR-306), `IX_Refunds_TenantId_SourceCreditNoteId INCLUDE (Amount, Status)`, and the two filtered unique
+indexes of the number. `FK_Refunds_TenantId`, `_PayerId`, `_SourcePaymentId`, `_SourceCreditNoteId` and `_PostingId`
+come from the typed-id convention (ADR 0021). Nothing on `Payments` or `CreditNotes` changes: what a refund took is
+in their `UnappliedAmount` and `AvailableAmount`, and identities 4 and 5 sum the posted refunds.
+
 ### 3.5 Adjustments
 
 **Adjustments**
@@ -931,6 +943,11 @@ reversal as applied and a reversed one as not. One more identity, `ReversedAppli
 application of credit without the mirror posting of kind `CreditApplicationReversed` that names its own posting);
 `ReversalPostingNoDocument` also reports a `CreditApplicationReversed` posting whose application is not reversed.
 
+*Built 2026-11-21 (Prompt 4.6, ADR 0029):* the second forms of identities 4 and 5 (`PaymentAllocations`,
+`CreditNoteApplications`) subtract the posted refunds of the payment or the credit note, as the table above says.
+Three more identities: `RefundWithoutPosting` and `PostingWithoutRefund` (identity 2 for refunds, both directions)
+and `RefundPayerMismatch` (a refund whose payer is not the payer of its source).
+
 A non-empty result is a **Sev-1 defect**: the runbook says stop postings for the tenant, capture the
 rows and the correlation ids from `AuditRecords`, and fix the code path. Caches are never
 "corrected" by hand; if a fix requires rebuilding a cache, it is rebuilt from the ledger by a
@@ -1023,7 +1040,7 @@ update of an append-only table (CLAUDE.md, section 9).
   | `0014_Adjustments` | `Adjustments` (§3.5, "Built 2026-11-21") | In the repository: `20261121081447_0014_Adjustments`, scaffolded with EF Core 10.0.12 on 2026-11-21 on the office machine, each migration on its own as `docs/runbook.md` §8 B describes, and verified in the repository: no pending model change. It holds `Adjustments` alone. Not yet applied to SQL Server 2022. |
   | `0015_PaymentReversals` | The reversal columns of `Payments` and `PaymentAllocations` (§3.4, "Built 2026-11-21 (Prompt 4.5)") | In the repository: `20261121081452_0015_PaymentReversals`, scaffolded with EF Core 10.0.12 on 2026-11-21 on the office machine, each migration on its own as `docs/runbook.md` §8 B describes, and verified in the repository: no pending model change. No table: eight columns, two CHECK constraints and two foreign keys on `Payments` and `PaymentAllocations`. Not yet applied to SQL Server 2022. |
   | `0016_CreditApplicationReversals` | The reversal columns of `CreditNoteAllocations` and `AppliedAtPosting` (§3.3, "Added by migration `0016_CreditApplicationReversals`") | In the repository: `20261121082530_0016_CreditApplicationReversals`, scaffolded with EF Core 10.0.12 on 2026-11-21 on the office machine with the repository's `dotnet-ef` in a throwaway copy (the tool manifest in the repository carries the "came from another computer" mark, CLAUDE.md section 2) and copied back; verified in the repository: no pending model change. No table: five columns, three CHECK constraints (one of them created again) and one foreign key on `CreditNoteAllocations`. Not yet applied to SQL Server 2022. |
-  | `0017_Refunds` | §3.4 | Prompt 4.6. Not started. Moved up again when the reversal of an application of credit took `0016`. |
+  | `0017_Refunds` | `Refunds` (§3.4, "Built 2026-11-21 (Prompt 4.6)") | In the repository: `20261121095549_0017_Refunds`, scaffolded with EF Core 10.0.12 on 2026-11-21 on the office machine with the repository's `dotnet-ef` in a throwaway copy (as `0016`) and copied back; verified in the repository: no pending model change. It holds `Refunds` alone: nine CHECK constraints, five foreign keys and five indexes, and nothing on another table. Not yet applied to SQL Server 2022. |
   | `0018_Users` | `Users`, `Roles` (§3.1) | Prompt 5.1. Not started. |
 
 - CHECK constraints, unique and filtered indexes and computed columns are declared in the EF model

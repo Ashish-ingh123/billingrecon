@@ -28,7 +28,7 @@ public static class DriftIdentity
     /// <summary>Identity 2, the other direction: a payment posting without its payment.</summary>
     public const string PostingWithoutPayment = "PostingWithoutPayment";
 
-    /// <summary>Identity 5: the amount of a payment less its active allocations differs from its unapplied amount.</summary>
+    /// <summary>Identity 4, the second form: the amount of a payment less its active allocations and its posted refunds differs from its unapplied amount.</summary>
     public const string PaymentAllocations = "PaymentAllocations";
 
     /// <summary>Identity 2: an allocation without its posting.</summary>
@@ -61,7 +61,7 @@ public static class DriftIdentity
     /// <summary>Identity 2, the other direction: a credit note posting whose credit note is not posted.</summary>
     public const string PostingWithoutCreditNote = "PostingWithoutCreditNote";
 
-    /// <summary>Identity 5, the second form: the total of a posted credit note less its active applications differs from its available amount.</summary>
+    /// <summary>Identity 5, the second form: the total of a posted credit note less its active applications and its posted refunds differs from its available amount.</summary>
     public const string CreditNoteApplications = "CreditNoteApplications";
 
     /// <summary>Identity 2: an application of credit without its posting.</summary>
@@ -84,6 +84,15 @@ public static class DriftIdentity
 
     /// <summary>An adjustment whose payer is not the payer of its bill (BR-501).</summary>
     public const string AdjustmentPayerMismatch = "AdjustmentPayerMismatch";
+
+    /// <summary>Identity 2: a posted refund without its posting.</summary>
+    public const string RefundWithoutPosting = "RefundWithoutPosting";
+
+    /// <summary>Identity 2, the other direction: a refund posting whose refund is not posted.</summary>
+    public const string PostingWithoutRefund = "PostingWithoutRefund";
+
+    /// <summary>A refund whose payer is not the payer of the payment or credit note it comes from (BR-307).</summary>
+    public const string RefundPayerMismatch = "RefundPayerMismatch";
 
     /// <summary>Identity 6: the receivable of a payer differs from the ledger.</summary>
     public const string PayerReceivable = "PayerReceivable";

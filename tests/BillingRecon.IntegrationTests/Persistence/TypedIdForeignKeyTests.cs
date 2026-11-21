@@ -123,6 +123,7 @@ public sealed class TypedIdForeignKeyTests
                 "FK_Adjustments_BillId", "FK_Adjustments_PayerId", "FK_Adjustments_PostingId",
                 "FK_Payments_ReversalPostingId", "FK_PaymentAllocations_ReversalPostingId",
                 "FK_CreditNoteAllocations_ReversalPostingId",
+                "FK_Refunds_PayerId", "FK_Refunds_SourcePaymentId", "FK_Refunds_SourceCreditNoteId", "FK_Refunds_PostingId",
             ],
             ignoreOrder: true);
     }

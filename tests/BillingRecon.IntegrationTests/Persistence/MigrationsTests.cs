@@ -513,7 +513,7 @@ public sealed class MigrationsTests : IDisposable
         }
 
         reversals.ShouldContain("[UnappliedAmount] = 0) OR ([Status] <> 'Reversed'", Case.Sensitive, "a reversed payment holds nothing (BR-306)");
-        reversals.ShouldNotContain("CREATE TABLE", Case.Sensitive);
+        Between(script, "_0014_Adjustments", "_0015_PaymentReversals").ShouldNotContain("CREATE TABLE", Case.Sensitive);
     }
 
     [Fact]
@@ -548,7 +548,68 @@ public sealed class MigrationsTests : IDisposable
         reversals.ShouldContain("ALTER TABLE [CreditNoteAllocations] ADD CONSTRAINT [CK_CreditNoteAllocations_ReversedIffReversed] CHECK (([Status] = 'Reversed' AND [ReversedAtUtc] IS NOT NULL", Case.Sensitive);
         reversals.ShouldContain("ALTER TABLE [CreditNoteAllocations] ADD CONSTRAINT [CK_CreditNoteAllocations_AtPostingStaysActive] CHECK ([AppliedAtPosting] = 0 OR [Status] = 'Active')", Case.Sensitive);
         reversals.ShouldContain("ALTER TABLE [CreditNoteAllocations] ADD CONSTRAINT [FK_CreditNoteAllocations_ReversalPostingId] FOREIGN KEY ([ReversalPostingId]) REFERENCES [LedgerPostings] ([Id])", Case.Sensitive);
-        reversals[reversals.IndexOf("_0016_CreditApplicationReversals", StringComparison.Ordinal)..].ShouldNotContain("CREATE TABLE", Case.Sensitive);
+        Between(script, "_0015_PaymentReversals", "_0016_CreditApplicationReversals").ShouldNotContain("CREATE TABLE", Case.Sensitive);
+    }
+
+    [Fact]
+    public void The_seventeenth_migration_is_0017_Refunds()
+    {
+        var migrations = _context.Database.GetMigrations().ToArray();
+
+        migrations.Length.ShouldBeGreaterThanOrEqualTo(17, $"The Refunds migration is missing. {HowToAdd.Replace("<name>", "0017_Refunds", StringComparison.Ordinal)}");
+        migrations[16].ShouldEndWith("_0017_Refunds");
+    }
+
+    [Fact]
+    public void The_migrations_create_the_refunds_table_as_documented()
+    {
+        var script = _context.GetService<IMigrator>().GenerateScript();
+        var createRefunds = CreateTable(script, "Refunds");
+
+        // The table comes after the reversals of applications of credit, in a migration of its own that touches no other table.
+        var refunds = Between(script, "_0016_CreditApplicationReversals", "_0017_Refunds");
+        refunds.ShouldContain("CREATE TABLE [Refunds]", Case.Sensitive);
+        refunds.ShouldNotContain("ALTER TABLE", Case.Sensitive);
+        refunds.Split("CREATE TABLE").Length.ShouldBe(2, "the one table");
+
+        createRefunds.ShouldContain("[PayerId] uniqueidentifier NOT NULL", Case.Sensitive);
+        createRefunds.ShouldContain("[SourceKind] varchar(20) NOT NULL", Case.Sensitive);
+        createRefunds.ShouldContain("[SourcePaymentId] uniqueidentifier NULL", Case.Sensitive);
+        createRefunds.ShouldContain("[SourceCreditNoteId] uniqueidentifier NULL", Case.Sensitive);
+        createRefunds.ShouldContain("[RefundDate] date NOT NULL", Case.Sensitive);
+        createRefunds.ShouldContain("[Amount] decimal(18,2) NOT NULL", Case.Sensitive);
+        createRefunds.ShouldContain("[Method] varchar(20) NOT NULL", Case.Sensitive);
+        createRefunds.ShouldContain("[Reference] nvarchar(100) NULL", Case.Sensitive);
+        createRefunds.ShouldContain("[Reason] nvarchar(500) NOT NULL", Case.Sensitive);
+        createRefunds.ShouldContain("[Status] varchar(20) NOT NULL", Case.Sensitive);
+        createRefunds.ShouldContain("[Number] varchar(16) NULL", Case.Sensitive);
+        createRefunds.ShouldContain("[PostingId] uniqueidentifier NULL", Case.Sensitive);
+        createRefunds.ShouldContain("[RowVersion] rowversion NOT NULL", Case.Sensitive);
+        createRefunds.ShouldContain("CONSTRAINT [CK_Refunds_SourceKind] CHECK ([SourceKind] IN ('Payment', 'CreditNote'))", Case.Sensitive);
+        createRefunds.ShouldContain("CONSTRAINT [CK_Refunds_Method] CHECK ([Method] IN ('Cash', 'Card', 'UPI', 'BankTransfer', 'Cheque'))", Case.Sensitive);
+        createRefunds.ShouldContain("CONSTRAINT [CK_Refunds_Status] CHECK ([Status] IN ('Draft', 'PendingApproval', 'Posted', 'Voided'))", Case.Sensitive);
+        createRefunds.ShouldContain("CONSTRAINT [CK_Refunds_Amount] CHECK ([Amount] > 0)", Case.Sensitive);
+        createRefunds.ShouldContain("CONSTRAINT [CK_Refunds_Reference] CHECK ([Method] = 'Cash' OR [Reference] IS NOT NULL)", Case.Sensitive);
+        createRefunds.ShouldContain("CONSTRAINT [CK_Refunds_OneSource] CHECK (([SourceKind] = 'Payment' AND [SourcePaymentId] IS NOT NULL AND [SourceCreditNoteId] IS NULL)", Case.Sensitive);
+        createRefunds.ShouldContain("CONSTRAINT [CK_Refunds_NumberIffPosted]", Case.Sensitive);
+        createRefunds.ShouldContain("CONSTRAINT [FK_Refunds_PayerId] FOREIGN KEY ([PayerId]) REFERENCES [Payers] ([Id])", Case.Sensitive);
+        createRefunds.ShouldContain("CONSTRAINT [FK_Refunds_SourcePaymentId] FOREIGN KEY ([SourcePaymentId]) REFERENCES [Payments] ([Id])", Case.Sensitive);
+        createRefunds.ShouldContain("CONSTRAINT [FK_Refunds_SourceCreditNoteId] FOREIGN KEY ([SourceCreditNoteId]) REFERENCES [CreditNotes] ([Id])", Case.Sensitive);
+        createRefunds.ShouldContain("CONSTRAINT [FK_Refunds_PostingId] FOREIGN KEY ([PostingId]) REFERENCES [LedgerPostings] ([Id])", Case.Sensitive);
+        script.ShouldContain("CREATE INDEX [IX_Refunds_TenantId_SourcePaymentId] ON [Refunds] ([TenantId], [SourcePaymentId]) INCLUDE ([Amount], [Status])", Case.Sensitive);
+        script.ShouldContain("CREATE INDEX [IX_Refunds_TenantId_SourceCreditNoteId] ON [Refunds] ([TenantId], [SourceCreditNoteId]) INCLUDE ([Amount], [Status])", Case.Sensitive);
+        script.ShouldContain("CREATE UNIQUE INDEX [UX_Refunds_TenantId_Number] ON [Refunds] ([TenantId], [Number]) WHERE [Number] IS NOT NULL", Case.Sensitive);
+        script.ShouldContain("CREATE UNIQUE INDEX [UX_Refunds_TenantId_FiscalYear_SequenceNumber] ON [Refunds] ([TenantId], [FiscalYear], [SequenceNumber]) WHERE [SequenceNumber] IS NOT NULL", Case.Sensitive);
+    }
+
+    // The part of the script of all migrations that the migration named second adds: each migration's part ends with the
+    // row it writes to the history, which names it, so the part runs from the name of the one before to its own.
+    private static string Between(string script, string from, string to)
+    {
+        var start = script.IndexOf(from, StringComparison.Ordinal);
+        var end = script.IndexOf(to, start, StringComparison.Ordinal);
+
+        return script[start..end];
     }
 
     // The text of one CREATE TABLE statement of the script of all migrations.

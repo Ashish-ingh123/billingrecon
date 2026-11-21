@@ -384,7 +384,8 @@ decided through the document (`.../approve`, `.../reject`); nothing here can be 
 Money received from a payer. Recording a payment posts it: the gapless number, the ledger entry
 (Dr Cash / Cr UnappliedCash), the payer's unapplied cash and the audit record are written by one transaction or
 not at all (BR-007). A payment is never edited or deleted (BR-006). Allocating it to bills is an action of its own
-(below) and the one request here that takes `If-Match`; reversals and refunds arrive with their own prompts.
+(below) and the one request here that takes `If-Match`; reversals are below, and refunds are documents of their own
+(section 8.10).
 
 | Method and path | Success | Failures |
 |---|---|---|
@@ -445,7 +446,7 @@ version of the **payment** and an `Idempotency-Key`, and answers the payment wit
 | `POST /api/v1/payments/{id}/allocations/{allocationId}/reverse` | **202**, the allocation in `PendingReversal` | 400; 403 `approval_needs_user`; 404 `payment_not_found`, `allocation_not_found`; 409 `concurrency_conflict`, `allocation_pending_reversal`, `allocation_reversed`, `payment_pending_reversal`, `payment_reversed`; 428 |
 | `POST .../allocations/{allocationId}/approve-reversal` (body optional) | 200, the allocation `Reversed` | 403 `approval_checker_is_maker`, `approval_needs_user`; 404; 409 `concurrency_conflict`, `allocation_reversed`; 422 `allocation_not_pending_reversal`; 428 |
 | `POST .../allocations/{allocationId}/reject-reversal` | 200, the allocation `Active` again | 400 without a comment; otherwise as `approve-reversal` |
-| `POST /api/v1/payments/{id}/reverse` | **202**, the payment in `PendingReversal` | 400; 403 `approval_needs_user`; 404 `payment_not_found`; 409 `concurrency_conflict`, `payment_pending_reversal`, `payment_reversed`, `allocation_pending_reversal`; 428 |
+| `POST /api/v1/payments/{id}/reverse` | **202**, the payment in `PendingReversal` | 400; 403 `approval_needs_user`; 404 `payment_not_found`; 409 `concurrency_conflict`, `payment_pending_reversal`, `payment_reversed`, `allocation_pending_reversal`; 422 `payment_refunded` (a refund was posted from it, BR-306); 428 |
 | `POST /api/v1/payments/{id}/approve-reversal` (body optional) | 200, the payment `Reversed` | 403 `approval_checker_is_maker`, `approval_needs_user`; 404; 409 `concurrency_conflict`, `payment_reversed`; 422 `payment_not_pending_reversal`; 428 |
 | `POST /api/v1/payments/{id}/reject-reversal` | 200, the payment `Posted` again | 400 without a comment; otherwise as `approve-reversal` |
 
@@ -595,3 +596,56 @@ moment: one succeeds, the other gets 409 or 422.
 
 The audit trail is read with `GET /api/v1/audit-records?entityType=Adjustment&entityId=...`: `Drafted`, `Updated`,
 `SubmittedForApproval`, `ReturnedToDraft`, `Posted` (with the reason), `Voided`. The bill shows `CreditApplied`.
+
+### 8.10 Refunds (US-34; BR-307 to BR-309, BR-604; ADR 0029)
+
+A refund pays money back to a payer from exactly one source: what a payment has unapplied, or what a posted credit
+note has available. It belongs to the payer of its source. Every refund needs a second person: the maker's `post`
+hands it over, and the checker's `approve` is the posting, which takes the gapless number, lowers the source and
+enters Dr UnappliedCash(payment) or CreditAvailable(credit note) / Cr Cash, dated the refund date. A posted refund
+is never changed or reversed (BR-308): a refund made in error is corrected by recording a new payment.
+
+| Method and path | Success | Failures |
+|---|---|---|
+| `POST /api/v1/refunds` (needs `Idempotency-Key`) | 201, the refund, `Location`, `ETag` | 400; 404 `payment_not_found`, `credit_note_not_found`; 409 `payment_pending_reversal`, `payment_reversed`; 422 `credit_note_not_posted`, `payer_inactive`, `refund_date_in_future`, `refund_date_too_old`, `refund_date_before_source_date` |
+| `GET /api/v1/refunds/{id}` | 200, the refund, `ETag` | 404 `refund_not_found` |
+| `GET /api/v1/refunds?payerId=&status=&paymentId=&creditNoteId=&page=&pageSize=` | 200, a page of refunds | 400 |
+| `PUT /api/v1/refunds/{id}` (needs `If-Match`) | 200 | 400; 404; 409 `concurrency_conflict`, `refund_pending_approval`, `refund_already_posted` and the source codes of `POST`; 422 `refund_not_draft` and the date codes; 428 |
+| `POST /api/v1/refunds/{id}/void` (needs `If-Match`, `Idempotency-Key`) | 200 | 400; 404; 409 and 422 as `PUT`; 428 |
+| `POST /api/v1/refunds/{id}/post` (needs `If-Match`, `Idempotency-Key`; no body) | **202**, the refund in `PendingApproval` | 403 `approval_needs_user`; 404; 409 as `PUT`; 422 `refund_not_draft`, `refund_exceeds_available`, `credit_note_not_posted` and the date codes; 428 |
+| `POST /api/v1/refunds/{id}/approve` (needs `If-Match`, `Idempotency-Key`; body optional) | 200, the posted refund | 403 `approval_checker_is_maker`, `approval_needs_user`; 404; 409 `concurrency_conflict`, `refund_already_posted`, `payment_pending_reversal`, `payment_reversed`; 422 `refund_not_pending_approval`, `refund_not_draft`, `refund_exceeds_available`, `payer_inactive` and the date codes; 428 |
+| `POST /api/v1/refunds/{id}/reject` (needs `If-Match`, `Idempotency-Key`) | 200, the refund as a draft again | 400 without a comment; 403, 404, 409, 422 as `approve`; 428 |
+
+The body of a draft (unknown members are refused); `PUT` takes the same fields except the source, all required
+except `reference`:
+
+| Field | Required | Rule |
+|---|---|---|
+| `paymentId` or `creditNoteId` | exactly one, on `POST` only | A payment of the tenant that is posted (neither waiting for its reversal nor reversed), or a posted credit note of the tenant. Cannot be changed later |
+| `refundDate` | no on `POST`, yes on `PUT` | `yyyy-MM-dd`; today in India when left out. Not in the future, not older than the back-dating limit (BR-205), not before the date of the source (BR-307) |
+| `amount` | yes | Above zero, at most two decimals, at most 9,999,999,999.99 |
+| `method` | yes | `Cash`, `Card`, `UPI`, `BankTransfer` or `Cheque` |
+| `reference` | unless `Cash` | The UPI id, card authorisation, UTR or cheque number of the payout; at most 100 characters (BR-301) |
+| `reason` | yes | At most 500 characters |
+
+`void` takes `reason`; `reject` takes `comment`, both required; `approve` takes an optional `comment`.
+
+A refund: `id`, `payerId`, `sourceKind` (`Payment` or `CreditNote`), `paymentId`, `creditNoteId` (one of them null),
+`refundDate`, `amount`, `method`, `reference`, `reason`, `status` (`Draft`, `PendingApproval`, `Posted`, `Voided`),
+`number` (`REF/26-27/000001`), `fiscalYear` and `postedAtUtc` (all three null until it is posted), `voidedAtUtc`,
+`voidReason`, `createdAtUtc`, `updatedAtUtc`, `version`.
+
+**The cap and the payer (BR-307, BR-309).** The amount is not more than the source has left. It is asked when the
+maker submits and again when the checker approves: a refund that fitted and no longer does, because the payment was
+allocated or the credit applied meanwhile, answers 422 `refund_exceeds_available`, takes no number and still waits.
+The payer must be active when the refund is drafted and when it is approved. Two refunds of one payment approved at
+the same moment that do not both fit, or a refund approved while the same payment is allocated: one succeeds, the
+other gets 409 or 422 and writes nothing.
+
+**What a refund does to its source.** A refund that waits does not lock its source: the payment can still be
+allocated and the credit note applied. A posted refund lowers the payment's `unappliedAmount` or the credit note's
+`availableAmount`, and a payment with a posted refund can no longer be reversed (422 `payment_refunded`, BR-306).
+
+The audit trail is read with `GET /api/v1/audit-records?entityType=Refund&entityId=...`: `Drafted`, `Updated`,
+`SubmittedForApproval`, `ReturnedToDraft`, `Posted` (with the number and the reason), `Voided`. The payment or the
+credit note shows `Refunded`, with its own number.

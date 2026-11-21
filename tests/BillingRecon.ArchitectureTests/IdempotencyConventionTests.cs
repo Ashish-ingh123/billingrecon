@@ -23,6 +23,7 @@ public sealed class IdempotencyConventionTests
         typeof(BillsController),
         typeof(CreditNotesController),
         typeof(CreditApplicationReversalsController),
+        typeof(RefundsController),
         typeof(AdjustmentsController),
         typeof(PaymentsController),
         typeof(PaymentReversalsController),

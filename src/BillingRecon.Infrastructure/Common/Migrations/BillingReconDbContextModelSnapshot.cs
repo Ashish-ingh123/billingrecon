@@ -1544,6 +1544,160 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BillingRecon.Domain.Payments.Refund", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("FiscalYear")
+                        .HasMaxLength(7)
+                        .IsUnicode(false)
+                        .HasColumnType("char(7)")
+                        .IsFixedLength();
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Number")
+                        .HasMaxLength(16)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<Guid>("PayerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("PostedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("PostedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("PostingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateOnly>("RefundDate")
+                        .HasColumnType("date");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int?>("SequenceNumber")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("SourceCreditNoteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<Guid?>("SourcePaymentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("VoidReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset?>("VoidedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Refunds_TenantId_Number")
+                        .HasFilter("[Number] IS NOT NULL");
+
+                    b.HasIndex("TenantId", "PayerId")
+                        .HasDatabaseName("IX_Refunds_TenantId_PayerId");
+
+                    b.HasIndex("TenantId", "SourceCreditNoteId")
+                        .HasDatabaseName("IX_Refunds_TenantId_SourceCreditNoteId");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("TenantId", "SourceCreditNoteId"), new[] { "Amount", "Status" });
+
+                    b.HasIndex("TenantId", "SourcePaymentId")
+                        .HasDatabaseName("IX_Refunds_TenantId_SourcePaymentId");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("TenantId", "SourcePaymentId"), new[] { "Amount", "Status" });
+
+                    b.HasIndex("TenantId", "FiscalYear", "SequenceNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Refunds_TenantId_FiscalYear_SequenceNumber")
+                        .HasFilter("[SequenceNumber] IS NOT NULL");
+
+                    b.ToTable("Refunds", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Refunds_Amount", "[Amount] > 0");
+
+                            t.HasCheckConstraint("CK_Refunds_Method", "[Method] IN ('Cash', 'Card', 'UPI', 'BankTransfer', 'Cheque')");
+
+                            t.HasCheckConstraint("CK_Refunds_NumberIffPosted", "([Status] <> 'Posted' AND [Number] IS NULL AND [PostedAtUtc] IS NULL AND [PostingId] IS NULL) OR ([Status] = 'Posted' AND [Number] IS NOT NULL AND [PostedAtUtc] IS NOT NULL AND [PostingId] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Refunds_NumberParts", "([Number] IS NULL AND [FiscalYear] IS NULL AND [SequenceNumber] IS NULL AND [PostedByUserId] IS NULL) OR ([Number] IS NOT NULL AND [FiscalYear] IS NOT NULL AND [SequenceNumber] >= 1)");
+
+                            t.HasCheckConstraint("CK_Refunds_OneSource", "([SourceKind] = 'Payment' AND [SourcePaymentId] IS NOT NULL AND [SourceCreditNoteId] IS NULL) OR ([SourceKind] = 'CreditNote' AND [SourceCreditNoteId] IS NOT NULL AND [SourcePaymentId] IS NULL)");
+
+                            t.HasCheckConstraint("CK_Refunds_Reference", "[Method] = 'Cash' OR [Reference] IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_Refunds_SourceKind", "[SourceKind] IN ('Payment', 'CreditNote')");
+
+                            t.HasCheckConstraint("CK_Refunds_Status", "[Status] IN ('Draft', 'PendingApproval', 'Posted', 'Voided')");
+
+                            t.HasCheckConstraint("CK_Refunds_VoidedIffVoided", "([Status] = 'Voided' AND [VoidedAtUtc] IS NOT NULL AND [VoidReason] IS NOT NULL) OR ([Status] <> 'Voided' AND [VoidedAtUtc] IS NULL AND [VoidedByUserId] IS NULL AND [VoidReason] IS NULL)");
+                        });
+                });
+
             modelBuilder.Entity("BillingRecon.Domain.Receivables.LedgerEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -2040,6 +2194,41 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_PaymentAllocations_TenantId");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Payments.Refund", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Payers.Payer", null)
+                        .WithMany()
+                        .HasForeignKey("PayerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Refunds_PayerId");
+
+                    b.HasOne("BillingRecon.Domain.Receivables.LedgerPosting", null)
+                        .WithMany()
+                        .HasForeignKey("PostingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Refunds_PostingId");
+
+                    b.HasOne("BillingRecon.Domain.Billing.CreditNote", null)
+                        .WithMany()
+                        .HasForeignKey("SourceCreditNoteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Refunds_SourceCreditNoteId");
+
+                    b.HasOne("BillingRecon.Domain.Payments.Payment", null)
+                        .WithMany()
+                        .HasForeignKey("SourcePaymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Refunds_SourcePaymentId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Refunds_TenantId");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Receivables.LedgerEntry", b =>

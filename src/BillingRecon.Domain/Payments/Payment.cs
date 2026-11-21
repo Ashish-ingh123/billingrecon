@@ -19,8 +19,11 @@ namespace BillingRecon.Domain.Payments;
 /// <para>
 /// An allocation, or the whole payment, is taken back only by a reversal (BR-305, BR-306), which a cashier asks for
 /// and a second person approves: the rows stay, marked reversed, and the ledger gets the mirror postings. While the
-/// payment waits for that decision nothing can be allocated from it; once reversed it never changes again. Refunds
-/// arrive with their slice.
+/// payment waits for that decision nothing can be allocated from it; once reversed it never changes again.
+/// </para>
+/// <para>
+/// What is unapplied can also be paid back by a posted <see cref="Refund"/> (BR-307, <see cref="PayRefund"/>); a
+/// payment from which a refund was posted is never reversed (BR-306).
 /// </para>
 /// </summary>
 public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, ICreationAudited, IModificationAudited, IHasRowVersion
@@ -294,6 +297,45 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, ICreation
         }
 
         allocation.AttachPosting(postingId);
+    }
+
+    /// <summary>
+    /// Whether money can be refunded from the payment (BR-307): it is posted, neither waiting for its reversal nor
+    /// reversed. How much is the refund's own question (<see cref="Refund.CheckFits"/>), asked with
+    /// <see cref="UnappliedAmount"/>.
+    /// </summary>
+    public Result CheckCanRefund() => RefuseUnlessPosted() is { } refused ? refused : Result.Success();
+
+    /// <summary>
+    /// Pays back <paramref name="amount"/> of what the payment has unapplied, for the posted refund
+    /// <paramref name="refundNumber"/> (BR-307): the unapplied amount falls by it. More than is unapplied, or a payment
+    /// that waits for its reversal or was reversed, is refused and nothing changes. A payment with a posted refund is
+    /// never reversed (BR-306); the reversal use case asks.
+    /// </summary>
+    /// <exception cref="ArgumentException">The amount is not above zero, or the refund has no number: a bug in the caller.</exception>
+    public Result PayRefund(string refundNumber, Money amount)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(refundNumber);
+
+        if (!amount.IsPositive)
+        {
+            throw new ArgumentException("A refund has an amount above zero (BR-307).", nameof(amount));
+        }
+
+        if (RefuseUnlessPosted() is { } refused)
+        {
+            return refused;
+        }
+
+        if (amount > UnappliedAmount)
+        {
+            return PaymentsErrors.RefundExceedsAvailable(Number, UnappliedAmount);
+        }
+
+        UnappliedAmount -= amount;
+        AddDomainEvent(new PaymentRefunded(Number, refundNumber, amount, UnappliedAmount));
+
+        return Result.Success();
     }
 
     /// <summary>

@@ -24,6 +24,9 @@ public static class BillingServiceCollectionExtensions
         services.AddScoped<ICreditNoteRepository, CreditNoteRepository>();
         services.AddScoped<ICreditNoteReadService, CreditNoteReadService>();
 
+        // What Billing answers to the module that pays credit back: refunds (ADR 0029).
+        services.AddScoped<ICreditNoteSettlement, CreditNoteSettlement>();
+
         return services;
     }
 }

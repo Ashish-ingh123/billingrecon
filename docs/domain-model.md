@@ -268,7 +268,8 @@ makes the payment `PendingReversal`, which stops allocations; `Reverse(reason, a
 allocation still applied, answers them in the order of their bills, and leaves the payment `Reversed` with nothing
 unapplied; `RejectReversal` makes it `Posted` again. One decision at a time: neither can be asked for while the
 other waits. `AttachAllocationReversalPosting` and `AttachReversalPosting` keep the mirror postings. `Reverse`
-throws if part of the payment went anywhere but to allocations: the refund check of BR-306 arrives with refunds.
+throws if part of the payment went anywhere but to allocations; since Prompt 4.6 the use case asks first whether a
+refund was posted from it (BR-306, ADR 0029), so a refunded payment never gets that far.
 On the other side `Bill.ReverseCredit(amount)` is the mirror of `ApplyCredit` and raises `BillCreditReversed`.
 The events as built, each named after its aggregate: `PaymentAllocationReversalRequested`,
 `PaymentAllocationReversalRejected`, `PaymentAllocationReversed`, `PaymentReversalRequested`,
@@ -283,6 +284,20 @@ The events as built, each named after its aggregate: `PaymentAllocationReversalR
 | **Commands** | `Draft`, `SubmitForApproval`, `Post` (checker), `Void` |
 | **Invariants** | `Amount > 0` and `≤ source available amount at posting` (BR-307). Exactly one source. Maker-checker (BR-604). Not reversible (BR-308). Payer active (BR-309). |
 | **Events** | `RefundPosted`, `RefundVoided` |
+
+*Built 2026-11-21 (Prompt 4.6, ADR 0029).* `Refund.Create(source, payerId, sourceDate, refundDate, amount, method,
+reference, reason, window)` makes the draft; `RefundSource.FromPayment` or `FromCreditNote` names its one source,
+and the aggregate takes the payer and the date of that source, never the source itself. The date lies in the window
+of BR-205 and not before the source's date (BR-307). The method and the reference follow the rules of a payment
+(BR-301). `Update` replaces a draft as a whole (the source stays), `Void` gives it up, `SubmitForApproval` hands it
+over, `CheckFits(sourceNumber, available)` is the cap, asked when the maker submits and again at the approval,
+`PostApproved(number, ...)` posts it under a refund number of the fiscal year of its date, `ReturnToDraft(reason)` is
+the rejection, and `AttachPosting` keeps the ledger posting. Nothing reverses a posted refund. The sources pay:
+`Payment.PayRefund(refundNumber, amount)` lowers `UnappliedAmount` while the payment is posted (`CheckCanRefund`
+refuses one that waits for its reversal or was reversed) and raises `PaymentRefunded`; `CreditNote.PayRefund`
+lowers `AvailableAmount` of a posted credit note and raises `CreditNoteRefunded`; the use case reaches the credit
+note through `ICreditNoteSettlement`. The events of the refund as built: `RefundDrafted`, `RefundUpdated`,
+`RefundVoided`, `RefundSubmittedForApproval`, `RefundReturnedToDraft`, `RefundPosted`.
 
 ### 4.8 Adjustment (Adjustments module)
 
@@ -440,7 +455,8 @@ Draft ──Submit──▶ PendingApproval ──Approve──▶ Posted
 ```
 
 `Posted` is terminal (BR-006). Reversals of these documents are out of scope in R1 (BR-308; a
-posted credit note or adjustment is corrected by a new bill).
+posted credit note or adjustment is corrected by a new bill, a posted refund by a new payment). Only the later
+applications of a posted credit note's credit can be reversed (ADR 0028), which leaves the credit note posted.
 
 ### 5.3 Payment and allocations
 
