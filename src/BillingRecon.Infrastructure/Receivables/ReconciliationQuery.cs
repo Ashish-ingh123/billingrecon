@@ -19,7 +19,9 @@ namespace BillingRecon.Infrastructure.Receivables;
 /// bill against its total (BR-210), since Prompt 4.3; a posted adjustment against its posting, and its payer against
 /// the payer of its bill, since Prompt 4.4; a reversed allocation and a reversed payment against their mirror
 /// postings, both directions, since Prompt 4.5, which also teaches the identity of a payment's allocations that an
-/// allocation waiting for its reversal still counts and that a reversed payment holds nothing.
+/// allocation waiting for its reversal still counts and that a reversed payment holds nothing; a reversed application
+/// of credit against its mirror posting, both directions, since Prompt 4.5b, which also teaches the identity of a
+/// credit note's applications that an application waiting for its reversal still counts.
 /// <para>
 /// This is one of the files of the production code that send SQL of their own (ADR 0021, BannedSymbolsTests). It is
 /// the SQL the design document gives: sums over the whole ledger, grouped, which Entity Framework cannot translate
@@ -166,7 +168,18 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
                                  WHERE a.[TenantId] = @tenant AND a.[Id] = lp.[DocumentId] AND a.[Status] = 'Reversed'))
              OR (lp.[Kind] = 'PaymentReversed'
                  AND NOT EXISTS (SELECT 1 FROM [dbo].[Payments] AS p
-                                 WHERE p.[TenantId] = @tenant AND p.[Id] = lp.[DocumentId] AND p.[Status] = 'Reversed')))
+                                 WHERE p.[TenantId] = @tenant AND p.[Id] = lp.[DocumentId] AND p.[Status] = 'Reversed'))
+             OR (lp.[Kind] = 'CreditApplicationReversed'
+                 AND NOT EXISTS (SELECT 1 FROM [dbo].[CreditNoteAllocations] AS a
+                                 WHERE a.[TenantId] = @tenant AND a.[Id] = lp.[DocumentId] AND a.[Status] = 'Reversed')))
+
+        UNION ALL
+        SELECT 'ReversedApplicationNoPosting', a.[Id], NULL, a.[Amount], 0
+        FROM   [dbo].[CreditNoteAllocations] AS a
+        WHERE  a.[TenantId] = @tenant AND a.[Status] = 'Reversed'
+          AND  NOT EXISTS (SELECT 1 FROM [dbo].[LedgerPostings] AS lp
+                           WHERE lp.[TenantId] = @tenant AND lp.[DocumentType] = 'CreditNoteAllocation' AND lp.[DocumentId] = a.[Id]
+                             AND lp.[Kind] = 'CreditApplicationReversed' AND lp.[ReversalOfPostingId] = a.[PostingId])
 
         UNION ALL
         SELECT 'CreditNoteAvailable', c.[Id], c.[Number], c.[AvailableAmount], ISNULL(l.[Balance], 0)
@@ -192,7 +205,7 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
         FROM   [dbo].[CreditNotes] AS c
         LEFT JOIN (SELECT [CreditNoteId], SUM([Amount]) AS [Applied]
                    FROM   [dbo].[CreditNoteAllocations]
-                   WHERE  [TenantId] = @tenant AND [Status] = 'Active'
+                   WHERE  [TenantId] = @tenant AND [Status] <> 'Reversed'
                    GROUP  BY [CreditNoteId]) AS a ON a.[CreditNoteId] = c.[Id]
         WHERE  c.[TenantId] = @tenant AND c.[Number] IS NOT NULL AND c.[AvailableAmount] <> c.[Total] - ISNULL(a.[Applied], 0)
 

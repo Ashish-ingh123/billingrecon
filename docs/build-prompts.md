@@ -23,10 +23,11 @@ is left; their numbering is mine, not the blueprint's.
 | 4.3 Credit notes | Written on 2026-11-21 with the owner's decisions (ADR 0025; CLAUDE.md section 9, item 22); pre-checked on .NET 9 with LocalDB only; **not built on .NET 10**; migration `0013_CreditNotes` in the repository since 2026-11-21 |
 | 4.4 Adjustments | Written on 2026-11-21 with the owner's decisions (ADR 0026; CLAUDE.md section 9, item 23). **Built and tested on .NET 10** (SDK 10.0.404, installed on the office machine that day) in a throwaway copy, with the database tests on LocalDB 2019; not run on SQL Server 2022; migration `0014_Adjustments` in the repository since 2026-11-21 |
 | 4.5 Reversals | Written on 2026-11-21 with the owner's decisions (ADR 0027; CLAUDE.md section 9, item 24). Built and tested on .NET 10 in a throwaway copy, with the database tests on LocalDB 2019; not run on SQL Server 2022; migration `0015_PaymentReversals` in the repository since 2026-11-21. It also corrects what a late decision answers in every approve and reject use case since 3.6 (409, not 500) |
-| Everything else in R1 | Not started: reversal of a credit application (4.5b), refunds, users and JWT, reports, frontend, delivery |
+| 4.5b Reverse an application of credit | Written on 2026-11-21 with the owner's decisions (ADR 0028; CLAUDE.md section 9, item 25). Built and tested on .NET 10: build, format gate and the tests without a database in the repository, the database tests in a throwaway copy on LocalDB 2019; not run on SQL Server 2022; migration `0016_CreditApplicationReversals` in the repository, added the ordinary way on top of `0003` to `0015`, which were committed on their own first |
+| Everything else in R1 | Not started: refunds, users and JWT, reports, frontend, delivery |
 | 6.3 Dashboard figures and 7.6 Dashboard (added 2026-11-21, with theming in 7.1) | Not started. 6.3 runs after 6.2, 7.6 after 7.5; the layout reference `docs/ui/dashboard.png` is still to be added; the drift card's trend (none, or a snapshot table and a new migration) is the owner's open decision, asked in 6.3 |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals) is written too. Next prompt: 4.5b (reverse an application of credit), then 4.6 (refunds). What was decided for each built prompt is recorded under it below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals) and 4.5b (reverse an application of credit) are written too, and `0016` is in the repository. Next prompt: 4.6 (refunds). What was decided for each built prompt is recorded under it below.**
 
 ## How to use these prompts
 
@@ -439,13 +440,22 @@ posting may be reversed, or only later applications to other bills. Migration 00
 Done when: an application reversed leaves the credit available again and the bill owed again, with zero drift.
 ```
 
+**Owner's decisions for 4.5b, recorded 2026-11-21 (the plan was approved "as recommended"; ADR 0028):** only a
+later application, made through `POST /credit-notes/{id}/applications`, can be reversed; the application a credit
+note makes to its own bill at posting cannot (422 `credit_application_made_at_posting`), and the row says which one
+it is in a stored flag, `AppliedAtPosting`; one decision at a time for each application (409), while new
+applications from the same credit note stay allowed; no document number, and the reason is required on the
+request, kept by the approval request and copied to the row at approval; migrations `0003` to `0015` were committed
+on their own first (commit `740fb31`), so that **`0016_CreditApplicationReversals`** was added the ordinary way.
+Refunds and users move to `0017_Refunds` and `0018_Users`.
+
 #### 4.6 Refunds
 
 ```
 Read BR-307, BR-308, US-34, docs/domain-model.md section 4.7.
 Build Refund from one source (a payment's unapplied amount or a credit note's available amount):
 cap checked at posting, method and reference rules of BR-301, active payer, maker-checker, gapless
-number, Dr UnappliedCash or CreditAvailable / Cr Cash. Not reversible. Migration 0016_Refunds (0017 if 4.5b is built first).
+number, Dr UnappliedCash or CreditAvailable / Cr Cash. Not reversible. Migration 0017_Refunds.
 Then write one end-to-end scenario test that walks bill -> part payment -> credit note ->
 adjustment -> allocation reversal -> refund and asserts zero drift and gapless series at the end.
 Done when: US-34 and the scenario test pass.
@@ -462,7 +472,7 @@ Read BR-601, US-01, docs/domain-model.md section 4.12, docs/database.md section 
 Build User with roles (TenantAdmin, Supervisor, BillingClerk, Cashier, Viewer): e-mail unique per
 tenant, enable/disable, password hashed with a slow salted BCL algorithm, admin password reset.
 Users and Roles tables, the development user row, and the foreign keys from CreatedByUserId and
-UpdatedByUserId that were waiting for it. Audited. Migration 0017_Users (0018 if 4.5b is built first).
+UpdatedByUserId that were waiting for it. Audited. Migration 0018_Users.
 Done when: US-01 passes.
 ```
 

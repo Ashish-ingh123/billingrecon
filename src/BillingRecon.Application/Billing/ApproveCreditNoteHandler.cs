@@ -128,7 +128,7 @@ public sealed class ApproveCreditNoteHandler(
                 return settled.Error;
             }
 
-            var applied = creditNote.Apply(bill.Id, toOwnBill, now, checker);
+            var applied = creditNote.ApplyToOwnBillAtPosting(toOwnBill, now, checker);
             if (applied.IsFailure)
             {
                 return applied.Error;

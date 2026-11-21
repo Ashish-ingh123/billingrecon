@@ -285,4 +285,45 @@ public sealed record PostingTemplate(
             ],
             reversalOf);
     }
+
+    /// <summary>
+    /// An application of credit of <paramref name="amount"/> was reversed (ADR 0028): the mirror pair
+    /// Dr Receivable(bill), Cr CreditAvailable(credit note), naming the posting it reverses. The payer owes the amount
+    /// again and has it again as available credit. The business date is the day of the reversal.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="amount"/> is not above zero, or <paramref name="reversalOf"/> is empty.</exception>
+    public static PostingTemplate CreditApplicationReversed(
+        CreditNoteAllocationId applicationId,
+        CreditNoteId creditNoteId,
+        BillId billId,
+        PayerId payerId,
+        Money amount,
+        DateOnly reversalDate,
+        string creditNoteNumber,
+        string billNumber,
+        LedgerPostingId reversalOf)
+    {
+        if (!amount.IsPositive)
+        {
+            throw new ArgumentException("An application is reversed for its amount, which is above zero.", nameof(amount));
+        }
+
+        if (reversalOf.Value == Guid.Empty)
+        {
+            throw new ArgumentException("A reversal names the posting it reverses.", nameof(reversalOf));
+        }
+
+        return new PostingTemplate(
+            LedgerPostingKind.CreditApplicationReversed,
+            LedgerDocumentType.CreditNoteAllocation,
+            applicationId.Value,
+            payerId,
+            reversalDate,
+            $"Application of credit note {creditNoteNumber} to bill {billNumber} reversed",
+            [
+                LedgerLine.Dr(LedgerAccount.Receivable, amount, new LedgerSubject(LedgerSubjectType.Bill, billId.Value)),
+                LedgerLine.Cr(LedgerAccount.CreditAvailable, amount, new LedgerSubject(LedgerSubjectType.CreditNote, creditNoteId.Value)),
+            ],
+            reversalOf);
+    }
 }

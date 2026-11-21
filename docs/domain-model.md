@@ -216,8 +216,21 @@ is made by the approval use case, `min(Total, Bill.BalanceDue)`, not by the aggr
 The events as built: `CreditNoteDrafted`, `CreditNoteHeaderUpdated`, `CreditNoteLinesReplaced`, `CreditNoteVoided`,
 `CreditNoteSubmittedForApproval`, `CreditNoteReturnedToDraft`, `CreditNotePosted` and `CreditNoteApplied` (each
 named after its aggregate, as the audit trail needs: ADR 0020); the bill raises `BillCreditApplied`. A
-`CreditNoteLine` has no service item; it may name a `BillLineId`. Not built: `ReverseApplication` and
-`CreditApplicationReversed`, which no prompt of R1 asks for yet (ADR 0025, point 5).
+`CreditNoteLine` has no service item; it may name a `BillLineId`.
+
+*Reversing an application, built 2026-11-21 (Prompt 4.5b, ADR 0028).* The approval use case now applies the credit
+to its own bill with `ApplyToOwnBillAtPosting(amount, ...)`, which marks that application `AppliedAtPosting` and is
+allowed once, as the first application of a credit note just posted; `Apply` makes every later one. A later
+application is reversed in three steps: `RequestApplicationReversal(applicationId, reason)` makes it
+`PendingReversal` (refused for the application made at posting, for one that waits and for one that is reversed);
+`ReverseApplication(applicationId, reason, at, checker)` marks it `Reversed` with who, when and why and raises
+`AvailableAmount` by its amount; `RejectApplicationReversal(applicationId, reason)` makes it `Active` again.
+`AttachApplicationReversalPosting` records the mirror posting once. While it waits, an application still counts as
+applied (`IsApplied`), and the credit note can still apply more of its credit. The bill is given the amount back by
+the use case through `IBillSettlement.RestoreAsync` (`Bill.ReverseCredit`, which raises `BillCreditReversed`). The
+events: `CreditNoteApplicationReversalRequested`, `CreditNoteApplicationReversalRejected` and
+`CreditNoteApplicationReversed`, each with the number of the credit note and the reason; the
+`CreditApplicationReversed` of the table above is built under that last name.
 
 ### 4.6 Payment + PaymentAllocation (Payments module)
 
@@ -443,6 +456,11 @@ Allocation:  Active ──RequestReversal──▶ PendingReversal ──Approve
 
 A payment in `PendingReversal` cannot be allocated or refunded; a `Reversed` payment has
 `UnappliedAmount = 0` and all its allocations `Reversed` (BR-306).
+
+An application of a credit note's credit (`CreditNoteAllocation`) has the allocation's three states and moves
+between them the same way (ADR 0028), except that the application a credit note makes to its own bill when it is
+posted stays `Active` for good. The credit note itself stays `Posted`: it is never reversed as a whole, and it can
+apply more of its credit while one of its applications waits.
 
 ### 5.4 ApprovalRequest
 

@@ -41,6 +41,11 @@ public static class BillingErrors
     public const string CreditNoteExceedsBillTotalCode = "credit_note_exceeds_bill_total";
     public const string CreditNoteLineExceedsBillLineCode = "credit_note_line_exceeds_bill_line";
     public const string CreditExceedsAvailableCode = "credit_exceeds_available";
+    public const string CreditApplicationNotFoundCode = "credit_application_not_found";
+    public const string CreditApplicationMadeAtPostingCode = "credit_application_made_at_posting";
+    public const string CreditApplicationPendingReversalCode = "credit_application_pending_reversal";
+    public const string CreditApplicationReversedCode = "credit_application_reversed";
+    public const string CreditApplicationNotPendingReversalCode = "credit_application_not_pending_reversal";
 
     /// <summary>No service item with that id exists for the tenant. Another tenant's item gets the same answer.</summary>
     public static Error ServiceItemNotFound() => Error.NotFound(ServiceItemNotFoundCode, "The service item does not exist.");
@@ -184,4 +189,26 @@ public static class BillingErrors
     /// <summary>More is to be applied than the credit note has available (BR-213).</summary>
     public static Error CreditExceedsAvailable(string number, Money available)
         => Error.BusinessRule(CreditExceedsAvailableCode, $"Credit note {number} has {available} available; more than that cannot be applied (BR-213).");
+
+    /// <summary>The credit note has no application with that id.</summary>
+    public static Error CreditApplicationNotFound() => Error.NotFound(CreditApplicationNotFoundCode, "The credit note has no such application.");
+
+    /// <summary>
+    /// Reversing the application a credit note made to its own bill when it was posted (ADR 0028): that application is
+    /// what the credit note corrects, and it is never reversed.
+    /// </summary>
+    public static Error CreditApplicationMadeAtPosting()
+        => Error.BusinessRule(CreditApplicationMadeAtPostingCode, "This credit was applied to its own bill when the credit note was posted, and that application cannot be reversed (BR-212).");
+
+    /// <summary>Asking to reverse an application that already waits for that decision: one decision at a time.</summary>
+    public static Error CreditApplicationPendingReversal()
+        => Error.Conflict(CreditApplicationPendingReversalCode, "The application is waiting for a decision on its reversal already.");
+
+    /// <summary>Reversing an application that was reversed already.</summary>
+    public static Error CreditApplicationReversed()
+        => Error.Conflict(CreditApplicationReversedCode, "The application was reversed already.");
+
+    /// <summary>Approving or rejecting the reversal of an application nobody asked to reverse.</summary>
+    public static Error CreditApplicationNotPendingReversal()
+        => Error.BusinessRule(CreditApplicationNotPendingReversalCode, "The application is not waiting for a reversal, so there is nothing to approve or reject.");
 }

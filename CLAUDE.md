@@ -200,6 +200,10 @@ src/
                                 (Common). Since Prompt 4.5 (ADR 0027): the reversal of an allocation and of a
                                 payment on the Payment aggregate, with the states PendingReversal and Reversed
                                 and six events (Payments); Bill.ReverseCredit with BillCreditReversed (Billing).
+                                Since Prompt 4.5b (ADR 0028): the reversal of a later application of credit on
+                                the CreditNote aggregate, ApplyToOwnBillAtPosting and the AppliedAtPosting flag,
+                                the states PendingReversal and Reversed of CreditNoteAllocation, and three
+                                events (Billing).
   BillingRecon.Application/     Use cases (command/query handlers as plain classes), FluentValidation validators,
                                 port interfaces (IClock, IUnitOfWork, repositories, INumberSeries,
                                 IIdempotencyStore, ITenantContext, ICurrentUser), DTOs and explicit mappers.
@@ -238,7 +242,10 @@ src/
                                 Payments); IBillSettlement.RestoreAsync (Billing);
                                 PostingTemplate.AllocationReversed and PaymentReversed (Receivables);
                                 PendingApprovals.FindPendingAsync, how every approve and reject use case finds
-                                its request (Common). ADR 0027.
+                                its request (Common). ADR 0027. The three use cases that reverse an
+                                application of credit (request, approve, reject; Billing), the approval reaching
+                                the bill through IBillSettlement.RestoreAsync; PostingTemplate.
+                                CreditApplicationReversed (Receivables). ADR 0028.
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -612,7 +619,10 @@ and applying the credit (Accepted on the owner's approval of the Prompt 4.3 plan
 of the domain model and adds a sentence to BR-501),
 0027 reversals of allocations and payments, and a decision that comes late (Accepted on the owner's approval of the
 Prompt 4.5 plan, 2026-11-21; its point 9 corrects ADR 0023: a decision that finds no pending approval request
-answers 409, not 500, and waits for the owner's confirmation).
+answers 409, not 500, and waits for the owner's confirmation),
+0028 reversing an application of credit: later applications only, the stored flag of the application made at
+posting, and one decision at a time per application (Accepted on the owner's approval of the Prompt 4.5b plan,
+2026-11-21; it closes the open question of ADR 0025 point 5).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1290,4 +1300,38 @@ Kept here so they survive between sessions. Remove an item when it is done.
       repository since 2026-11-21.)
     - **For the owner:** confirm point 9 of ADR 0027, which reverses a decision of Prompt 3.6 (a missing request
       was a fault there).
-    - Next: Prompt 4.5b (reverse an application of credit), then 4.6 (refunds).
+    - Next: Prompt 4.5b (reverse an application of credit), which is item 25, then 4.6 (refunds).
+25. **Prompt 4.5b (reverse an application of credit, ADR 0028), written 2026-11-21, built and tested on .NET 10.**
+    On `phase-2-billing` like the rest. The plan was shown first and approved "as recommended".
+    - First, on its own: the migrations `0003` to `0015`, scaffolded earlier that day in a copy, committed as
+      `740fb31`, so that this prompt's migration is added the ordinary way.
+    - Built: the reversal of a later application of a credit note's credit as a maker-checker action on the
+      `CreditNote` aggregate; three endpoints in `CreditApplicationReversalsController` (`reverse`,
+      `approve-reversal`, `reject-reversal` on `/credit-notes/{id}/applications/{applicationId}`); the approval
+      gives the bill its amount back through `IBillSettlement.RestoreAsync` and enters Dr Receivable(bill) /
+      Cr CreditAvailable(credit note); `PostingTemplate.CreditApplicationReversed`; one new identity of the
+      reconciliation (`ReversedApplicationNoPosting`) and the extension of two others; migration
+      **`0016_CreditApplicationReversals`**; and their tests (Domain 7, Application 8, Integration 12 new).
+    - Decided by the owner with the plan (ADR 0028): only a later application can be reversed, the one made at
+      posting answers 422 `credit_application_made_at_posting`; the row says which one it is (`AppliedAtPosting`,
+      kept `Active` by a CHECK constraint); one decision at a time for each application (409), and the credit note
+      can still apply its credit meanwhile; no document number, and the maker's reason is kept by the approval
+      request and copied to the row at approval.
+    - **Changed in existing code and tests, none weakened:** `ApproveCreditNoteHandler` calls the new
+      `ApplyToOwnBillAtPosting`; the JSON of an application gained `appliedAtPosting`, `reversedAtUtc` and
+      `reversalReason`; `IdempotencyConventionTests` lists the new controller; `TypedIdForeignKeyTests` (one new key),
+      `MigrationsTests` (two new tests) and `MigrationsOnSqlServerTests` (16 migrations) know the migration.
+    - **Accepted without a data step (ADR 0028, point 9):** `AppliedAtPosting` is added with the default 0, so an
+      application made at posting before `0016` would count as a later one. No database outside the tests holds a
+      posted credit note yet. If one ever does before `0016` runs, a hand-written data step is owed, and that needs
+      the owner's approval.
+    - **Migrations renumbered:** refunds and users are now `0017_Refunds` and `0018_Users`.
+    - **Verified on .NET 10 (SDK 10.0.404):** in the repository, the strict build and
+      `dotnet format --verify-no-changes` are clean and Domain 579, Application 330 and Architecture 113 tests pass;
+      in a throwaway copy whose database fixture points at LocalDB 2019, the integration project passes in full
+      (1001 tests), and the 18 `BR804` concurrency tests ran five more times without a failure. `0016` was scaffolded
+      with the repository's `dotnet-ef` in such a copy and copied back, because `.config/dotnet-tools.json` in the
+      repository carries the "came from another computer" mark and `dotnet ef` refuses to run there; the owner can
+      clear it (file Properties, Unblock).
+    - **Still to do:** SQL Server 2022 in Docker.
+    - Next: Prompt 4.6 (refunds).

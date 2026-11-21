@@ -342,6 +342,7 @@ implementation of BR-202. The additive identities are CHECKed.
 | Status | varchar(20) | | CK `Active`, `PendingReversal`, `Reversed` |
 | AllocatedAtUtc | datetimeoffset(3) | | |
 | AllocatedByUserId | uniqueidentifier | | FK `Users` |
+| AppliedAtPosting | bit | | The application to its own bill made by the approval of the credit note (BR-212); never reversed (ADR 0028). `CK_CreditNoteAllocations_AtPostingStaysActive`: `AppliedAtPosting = 0 OR Status = 'Active'` |
 | PostingId | uniqueidentifier | | FK `LedgerPostings`: the paired entry |
 | ReversedAtUtc | datetimeoffset(3) | • | CK `(Status = 'Reversed') = (ReversedAtUtc IS NOT NULL)` |
 | ReversedByUserId | uniqueidentifier | • | the checker |
@@ -362,10 +363,17 @@ these precisions.
   without `ServiceItemId`; `BillLineId` with `FK_CreditNoteLines_BillLineId` and the index named above;
   `UX_CreditNoteLines_TenantId_CreditNoteId_LineNo`. `FK_CreditNoteLines_CreditNoteId` is `ClientCascade` in the
   model, `NO ACTION` in the database: a line taken out of a draft is deleted by Entity Framework.
-- `CreditNoteAllocations`: the columns down to `PostingId` (`NOT NULL`); `AllocatedByUserId` is null when no user
-  acted and has no key until `Users` exists; **no reversal column**, and `CK_CreditNoteAllocations_Status` allows
-  `Active` alone. No prompt of R1 reverses an application yet (ADR 0025, point 5). No row version: the credit
-  note's covers its lines and its applications.
+- `CreditNoteAllocations`: the columns down to `PostingId` (`NOT NULL`), without `AppliedAtPosting`;
+  `AllocatedByUserId` is null when no user acted and has no key until `Users` exists; no reversal column, and
+  `CK_CreditNoteAllocations_Status` allows `Active` alone. No row version: the credit note's covers its lines and
+  its applications.
+- *Added by migration `0016_CreditApplicationReversals` (Prompt 4.5b, ADR 0028):* `AppliedAtPosting bit NOT NULL
+  DEFAULT 0` (existing rows count as later applications: ADR 0028, point 9), `ReversedAtUtc`, `ReversedByUserId`
+  (no key until `Users` exists, like `AllocatedByUserId`), `ReversalReason nvarchar(500)` and `ReversalPostingId`
+  with `FK_CreditNoteAllocations_ReversalPostingId`; `CK_CreditNoteAllocations_Status` dropped and created again
+  with `Active`, `PendingReversal` and `Reversed`; `CK_CreditNoteAllocations_ReversedIffReversed` (the four reversal
+  columns are all set when the status is `Reversed` and all null otherwise) and
+  `CK_CreditNoteAllocations_AtPostingStaysActive`.
 
 ### 3.4 Payments
 
@@ -918,6 +926,11 @@ for its reversal as applied and expects nothing unapplied on a reversed payment.
 `ReversedAllocationNoPosting` and `ReversedPaymentNoPosting` (a reversed row without the mirror posting that names
 its own posting) and `ReversalPostingNoDocument` (a reversal posting whose allocation or payment is not reversed).
 
+*Built 2026-11-21 (Prompt 4.5b, ADR 0028):* `CreditNoteApplications` counts an application that waits for its
+reversal as applied and a reversed one as not. One more identity, `ReversedApplicationNoPosting` (a reversed
+application of credit without the mirror posting of kind `CreditApplicationReversed` that names its own posting);
+`ReversalPostingNoDocument` also reports a `CreditApplicationReversed` posting whose application is not reversed.
+
 A non-empty result is a **Sev-1 defect**: the runbook says stop postings for the tenant, capture the
 rows and the correlation ids from `AuditRecords`, and fix the code path. Caches are never
 "corrected" by hand; if a fix requires rebuilding a cache, it is rebuilt from the ledger by a
@@ -1009,8 +1022,9 @@ update of an append-only table (CLAUDE.md, section 9).
   | `0013_CreditNotes` | `CreditNotes`, `CreditNoteLines`, `CreditNoteAllocations` (§3.3, "Built 2026-11-21") | In the repository: `20261121081441_0013_CreditNotes`, scaffolded with EF Core 10.0.12 on 2026-11-21 on the office machine, each migration on its own as `docs/runbook.md` §8 B describes, and verified in the repository: no pending model change. It holds the three credit note tables alone. Not yet applied to SQL Server 2022. |
   | `0014_Adjustments` | `Adjustments` (§3.5, "Built 2026-11-21") | In the repository: `20261121081447_0014_Adjustments`, scaffolded with EF Core 10.0.12 on 2026-11-21 on the office machine, each migration on its own as `docs/runbook.md` §8 B describes, and verified in the repository: no pending model change. It holds `Adjustments` alone. Not yet applied to SQL Server 2022. |
   | `0015_PaymentReversals` | The reversal columns of `Payments` and `PaymentAllocations` (§3.4, "Built 2026-11-21 (Prompt 4.5)") | In the repository: `20261121081452_0015_PaymentReversals`, scaffolded with EF Core 10.0.12 on 2026-11-21 on the office machine, each migration on its own as `docs/runbook.md` §8 B describes, and verified in the repository: no pending model change. No table: eight columns, two CHECK constraints and two foreign keys on `Payments` and `PaymentAllocations`. Not yet applied to SQL Server 2022. |
-  | `0016_Refunds` | §3.4 | Prompt 4.6. Not started. Moved up again when the reversal columns took `0015`. The reversal columns of `Payments` and `PaymentAllocations` (4.5) need a migration, numbered when that prompt is planned. |
-  | `0017_Users` | `Users`, `Roles` (§3.1) | Prompt 5.1. Not started. One number later if Prompt 4.5b adds a migration first. |
+  | `0016_CreditApplicationReversals` | The reversal columns of `CreditNoteAllocations` and `AppliedAtPosting` (§3.3, "Added by migration `0016_CreditApplicationReversals`") | In the repository: `20261121082530_0016_CreditApplicationReversals`, scaffolded with EF Core 10.0.12 on 2026-11-21 on the office machine with the repository's `dotnet-ef` in a throwaway copy (the tool manifest in the repository carries the "came from another computer" mark, CLAUDE.md section 2) and copied back; verified in the repository: no pending model change. No table: five columns, three CHECK constraints (one of them created again) and one foreign key on `CreditNoteAllocations`. Not yet applied to SQL Server 2022. |
+  | `0017_Refunds` | §3.4 | Prompt 4.6. Not started. Moved up again when the reversal of an application of credit took `0016`. |
+  | `0018_Users` | `Users`, `Roles` (§3.1) | Prompt 5.1. Not started. |
 
 - CHECK constraints, unique and filtered indexes and computed columns are declared in the EF model
   (the entity configuration, or a convention of the context), so a scaffolded migration needs no

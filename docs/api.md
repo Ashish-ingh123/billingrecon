@@ -513,7 +513,9 @@ A credit note: `id`, `billId`, `payerId`, `patientId`, `creditNoteDate`, `reason
 until it is posted), `subTotal`, `discountTotal`, `taxTotal`, `total`, `availableAmount`, `voidedAtUtc`,
 `voidReason`, `lines`, `applications`, `createdAtUtc`, `updatedAtUtc`, `version`. **A line** is a bill line with
 `billLineId` in the place of `serviceItemId` and without an `id`. **An application**: `id`, `billId`, `amount`,
-`status` (`Active` so far), `allocatedAtUtc`, `allocatedByUserId`.
+`status` (`Active`, `PendingReversal` or `Reversed`), `allocatedAtUtc`, `allocatedByUserId`, `appliedAtPosting`
+(true for the application to its own bill made by the approval), `reversedAtUtc` and `reversalReason` (null unless
+reversed).
 
 **The caps (BR-210, BR-211).** The posted credit notes of a bill never come to more than the bill, and those that
 name one line of it never to more than that line. Both are checked when the maker asks and again when the checker
@@ -525,7 +527,31 @@ again answers 422.
 `credit_note_pending_approval` to all three; a posted one answers 409 `credit_note_already_posted`; a voided draft
 answers 422 `credit_note_not_draft`. The audit trail is read with
 `GET /api/v1/audit-records?entityType=CreditNote&entityId=...`: `Drafted`, `LinesReplaced`, `HeaderUpdated`,
-`SubmittedForApproval`, `ReturnedToDraft`, `Posted`, `Applied`, `Voided`.
+`SubmittedForApproval`, `ReturnedToDraft`, `Posted`, `Applied`, `Voided`, and for reversals
+`ApplicationReversalRequested`, `ApplicationReversalRejected` and `ApplicationReversed`.
+
+**Reversing an application of credit (ADR 0028).** Shaped like the reversal of a payment allocation (section 8.7): a
+clerk asks with a reason; a second person approves, which is the reversal, or rejects, which leaves everything as it
+was. Only an application made later through `applications` can be reversed: the one the approval made to the credit
+note's own bill (`appliedAtPosting` true) answers 422 `credit_application_made_at_posting`. Every request needs
+`If-Match` with the version of the **credit note** and an `Idempotency-Key`, and answers the credit note with its
+applications.
+
+| Method and path | Success | Failures |
+|---|---|---|
+| `POST /api/v1/credit-notes/{id}/applications/{applicationId}/reverse` | **202**, the application in `PendingReversal` | 400; 403 `approval_needs_user`; 404 `credit_note_not_found`, `credit_application_not_found`; 409 `concurrency_conflict`, `credit_application_pending_reversal`, `credit_application_reversed`; 422 `credit_application_made_at_posting`; 428 |
+| `POST .../applications/{applicationId}/approve-reversal` (body optional) | 200, the application `Reversed` | 403 `approval_checker_is_maker`, `approval_needs_user`; 404; 409 `concurrency_conflict`, `credit_application_reversed`; 422 `credit_application_not_pending_reversal`; 428 |
+| `POST .../applications/{applicationId}/reject-reversal` | 200, the application `Active` again | 400 without a comment; otherwise as `approve-reversal` |
+
+`reverse` takes `reason` (required, at most 500 characters); `reject-reversal` takes `comment` (required);
+`approve-reversal` takes an optional `comment`. The reason is kept by the approval request and reaches the
+application's `reversalReason` when the checker approves.
+
+Approving gives the amount back to the credit note (`availableAmount` rises) and to the bill (`balanceDue` rises,
+and the status moves back to `PartiallyPaid` or `Posted`), enters Dr Receivable(bill) / Cr CreditAvailable(credit
+note), and takes no document number. The amount can then be applied to another bill. One decision waits at a time
+for each application; while it waits, its amount is still applied and the credit note can still apply the rest of
+its credit, so a decision needs the version that followed. The bill's audit trail shows `CreditReversed`.
 
 ### 8.9 Adjustments (BR-501 to BR-503, BR-604; ADR 0026)
 

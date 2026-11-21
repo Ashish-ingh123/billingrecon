@@ -85,6 +85,9 @@ public static class CreditNoteMapping
             Amount: allocation.Amount.Amount,
             Status: allocation.Status,
             AllocatedAtUtc: allocation.AllocatedAtUtc,
-            AllocatedByUserId: allocation.AllocatedByUserId?.Value);
+            AllocatedByUserId: allocation.AllocatedByUserId?.Value,
+            AppliedAtPosting: allocation.AppliedAtPosting,
+            ReversedAtUtc: allocation.ReversedAtUtc,
+            ReversalReason: allocation.ReversalReason);
     }
 }

@@ -516,6 +516,41 @@ public sealed class MigrationsTests : IDisposable
         reversals.ShouldNotContain("CREATE TABLE", Case.Sensitive);
     }
 
+    [Fact]
+    public void The_sixteenth_migration_is_0016_CreditApplicationReversals()
+    {
+        var migrations = _context.Database.GetMigrations().ToArray();
+
+        migrations.Length.ShouldBeGreaterThanOrEqualTo(16, $"The CreditApplicationReversals migration is missing. {HowToAdd.Replace("<name>", "0016_CreditApplicationReversals", StringComparison.Ordinal)}");
+        migrations[15].ShouldEndWith("_0016_CreditApplicationReversals");
+    }
+
+    [Fact]
+    public void The_migrations_add_the_reversal_of_an_application_of_credit_to_credit_note_allocations_after_the_table()
+    {
+        var script = _context.GetService<IMigrator>().GenerateScript();
+        var reversals = script[script.IndexOf("_0015_PaymentReversals", StringComparison.Ordinal)..];
+
+        // The table was created by the thirteenth migration without any of this, and stays as it was created.
+        CreateTable(script, "CreditNoteAllocations").ShouldNotContain("[AppliedAtPosting]", Case.Sensitive);
+        CreateTable(script, "CreditNoteAllocations").ShouldNotContain("[ReversalPostingId]", Case.Sensitive);
+
+        // The flag of the application made at posting: existing rows, if any, are later applications (ADR 0028).
+        reversals.ShouldContain("ALTER TABLE [CreditNoteAllocations] ADD [AppliedAtPosting] bit NOT NULL DEFAULT CAST(0 AS bit)", Case.Sensitive);
+        reversals.ShouldContain("ALTER TABLE [CreditNoteAllocations] ADD [ReversedAtUtc] datetimeoffset(3) NULL", Case.Sensitive);
+        reversals.ShouldContain("ALTER TABLE [CreditNoteAllocations] ADD [ReversedByUserId] uniqueidentifier NULL", Case.Sensitive);
+        reversals.ShouldContain("ALTER TABLE [CreditNoteAllocations] ADD [ReversalReason] nvarchar(500) NULL", Case.Sensitive);
+        reversals.ShouldContain("ALTER TABLE [CreditNoteAllocations] ADD [ReversalPostingId] uniqueidentifier NULL", Case.Sensitive);
+
+        // The states of a reversal, the columns tied to them, and the application made at posting that stays in force.
+        reversals.ShouldContain("ALTER TABLE [CreditNoteAllocations] DROP CONSTRAINT [CK_CreditNoteAllocations_Status]", Case.Sensitive);
+        reversals.ShouldContain("ALTER TABLE [CreditNoteAllocations] ADD CONSTRAINT [CK_CreditNoteAllocations_Status] CHECK ([Status] IN ('Active', 'PendingReversal', 'Reversed'))", Case.Sensitive);
+        reversals.ShouldContain("ALTER TABLE [CreditNoteAllocations] ADD CONSTRAINT [CK_CreditNoteAllocations_ReversedIffReversed] CHECK (([Status] = 'Reversed' AND [ReversedAtUtc] IS NOT NULL", Case.Sensitive);
+        reversals.ShouldContain("ALTER TABLE [CreditNoteAllocations] ADD CONSTRAINT [CK_CreditNoteAllocations_AtPostingStaysActive] CHECK ([AppliedAtPosting] = 0 OR [Status] = 'Active')", Case.Sensitive);
+        reversals.ShouldContain("ALTER TABLE [CreditNoteAllocations] ADD CONSTRAINT [FK_CreditNoteAllocations_ReversalPostingId] FOREIGN KEY ([ReversalPostingId]) REFERENCES [LedgerPostings] ([Id])", Case.Sensitive);
+        reversals[reversals.IndexOf("_0016_CreditApplicationReversals", StringComparison.Ordinal)..].ShouldNotContain("CREATE TABLE", Case.Sensitive);
+    }
+
     // The text of one CREATE TABLE statement of the script of all migrations.
     private static string CreateTable(string script, string table)
     {

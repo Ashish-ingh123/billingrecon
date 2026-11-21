@@ -626,6 +626,9 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<bool>("AppliedAtPosting")
+                        .HasColumnType("bit");
+
                     b.Property<Guid>("BillId")
                         .HasColumnType("uniqueidentifier");
 
@@ -633,6 +636,20 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("PostingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ReversalPostingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ReversalReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset?>("ReversedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("ReversedByUserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Status")
@@ -659,7 +676,11 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         {
                             t.HasCheckConstraint("CK_CreditNoteAllocations_Amount", "[Amount] > 0");
 
-                            t.HasCheckConstraint("CK_CreditNoteAllocations_Status", "[Status] IN ('Active')");
+                            t.HasCheckConstraint("CK_CreditNoteAllocations_AtPostingStaysActive", "[AppliedAtPosting] = 0 OR [Status] = 'Active'");
+
+                            t.HasCheckConstraint("CK_CreditNoteAllocations_ReversedIffReversed", "([Status] = 'Reversed' AND [ReversedAtUtc] IS NOT NULL AND [ReversedByUserId] IS NOT NULL AND [ReversalReason] IS NOT NULL AND [ReversalPostingId] IS NOT NULL) OR ([Status] <> 'Reversed' AND [ReversedAtUtc] IS NULL AND [ReversedByUserId] IS NULL AND [ReversalReason] IS NULL AND [ReversalPostingId] IS NULL)");
+
+                            t.HasCheckConstraint("CK_CreditNoteAllocations_Status", "[Status] IN ('Active', 'PendingReversal', 'Reversed')");
                         });
                 });
 
@@ -1850,6 +1871,12 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_CreditNoteAllocations_PostingId");
+
+                    b.HasOne("BillingRecon.Domain.Receivables.LedgerPosting", null)
+                        .WithMany()
+                        .HasForeignKey("ReversalPostingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_CreditNoteAllocations_ReversalPostingId");
 
                     b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
                         .WithMany()

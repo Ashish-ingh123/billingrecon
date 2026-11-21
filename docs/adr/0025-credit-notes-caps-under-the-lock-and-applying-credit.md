@@ -46,6 +46,8 @@ line (BR-211). Three things had to be settled beyond what ADRs 0022 to 0024 alre
 5. **`CreditNoteAllocations` has what applying needs**: status `Active` alone and no reversal columns, as
    `PaymentAllocations` (ADR 0024). **Open:** no prompt of R1 reverses an application of credit; Prompt 4.5 names
    allocations of payments and payments only. The owner decides whether 4.5 gains it or R1 goes without.
+   *Closed on 2026-11-21:* Prompt 4.5b reverses later applications, and the application made at posting stays
+   (ADR 0028; migration `0016_CreditApplicationReversals`).
 6. **A line may name the line of the bill it credits**, by the id of that line, and then takes its description,
    unit price and tax rate from it unless the request gives its own; a line without one credits the bill as a whole
    and carries all three. The quantity is always given. Lines of a credit note have no service item of their own.

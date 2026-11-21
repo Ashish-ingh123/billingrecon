@@ -423,6 +423,124 @@ public sealed class CreditNote : AggregateRoot<CreditNoteId>, ITenantScoped, ICr
     /// </summary>
     /// <exception cref="ArgumentException">The bill's id is empty or the amount is not above zero: a bug in the caller.</exception>
     public Result<CreditNoteAllocation> Apply(BillId billId, Money amount, DateTimeOffset appliedAtUtc, UserId? appliedBy)
+        => ApplyCore(billId, amount, appliedAtUtc, appliedBy, appliedAtPosting: false);
+
+    /// <summary>
+    /// Applies <paramref name="amount"/> to the credit note's own bill as part of its posting (BR-212): the first
+    /// application of a credit note that has just been posted, marked as made at posting, which is never reversed
+    /// (ADR 0028). The use case gives the amount, <c>min(Total, Bill.BalanceDue)</c>.
+    /// </summary>
+    /// <exception cref="ArgumentException">The amount is not above zero: a bug in the caller.</exception>
+    /// <exception cref="InvalidOperationException">The credit note is not posted, or has an application already.</exception>
+    public Result<CreditNoteAllocation> ApplyToOwnBillAtPosting(Money amount, DateTimeOffset appliedAtUtc, UserId? appliedBy)
+    {
+        if (Status != CreditNoteStatus.Posted || _allocations.Count != 0)
+        {
+            throw new InvalidOperationException("A credit note is applied to its own bill once, as the first thing after it is posted (BR-212).");
+        }
+
+        return ApplyCore(BillId, amount, appliedAtUtc, appliedBy, appliedAtPosting: true);
+    }
+
+    /// <summary>
+    /// A cashier asks for one application of the credit to be reversed (ADR 0028). The application waits for a
+    /// second person; its amount stays applied to the bill until the approval. Refused when the credit note has no
+    /// such application, when it is the application made at posting, or when it already waits or is already reversed.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="reason"/> is blank or too long.</exception>
+    public Result RequestApplicationReversal(CreditNoteAllocationId applicationId, string reason)
+    {
+        var why = Field.Required(reason, ReasonMaxLength);
+
+        var found = FindApplication(applicationId, CreditNoteAllocationStatus.Active);
+        if (found.IsFailure)
+        {
+            return found.Error;
+        }
+
+        if (found.Value.AppliedAtPosting)
+        {
+            return BillingErrors.CreditApplicationMadeAtPosting();
+        }
+
+        found.Value.MarkPendingReversal();
+
+        // Only a posted credit note has applications, and every posted credit note has its number.
+        AddDomainEvent(new CreditNoteApplicationReversalRequested(Number ?? string.Empty, applicationId, found.Value.BillId, found.Value.Amount, why));
+
+        return Result.Success();
+    }
+
+    /// <summary>The checker rejects the reversal of an application (BR-605): it is in force again, as it was.</summary>
+    /// <exception cref="ArgumentException"><paramref name="reason"/> is blank or too long.</exception>
+    public Result RejectApplicationReversal(CreditNoteAllocationId applicationId, string reason)
+    {
+        var why = Field.Required(reason, ReasonMaxLength);
+
+        var found = FindApplication(applicationId, CreditNoteAllocationStatus.PendingReversal);
+        if (found.IsFailure)
+        {
+            return found.Error;
+        }
+
+        found.Value.MarkActive();
+        AddDomainEvent(new CreditNoteApplicationReversalRejected(Number ?? string.Empty, applicationId, why));
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Whether the reversal of application <paramref name="applicationId"/> can be decided: the credit note has it,
+    /// and it waits. For a use case that wants to know before it looks for the approval request.
+    /// </summary>
+    public Result CheckApplicationAwaitsReversal(CreditNoteAllocationId applicationId)
+        => FindApplication(applicationId, CreditNoteAllocationStatus.PendingReversal) is { IsFailure: true } missing ? missing.Error : Result.Success();
+
+    /// <summary>
+    /// The checker approves the reversal of an application (ADR 0028): the application is marked reversed, with who,
+    /// when and why, and its amount is available credit again. The bill and the mirror ledger posting are the use
+    /// case's, in the same transaction. The row stays; nothing is deleted.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="reason"/> is blank or too long, or the checker's id is empty.</exception>
+    public Result<CreditNoteAllocation> ReverseApplication(CreditNoteAllocationId applicationId, string reason, DateTimeOffset reversedAtUtc, UserId reversedBy)
+    {
+        var why = Field.Required(reason, ReasonMaxLength);
+
+        if (reversedBy.Value == Guid.Empty)
+        {
+            throw new ArgumentException("A reversal is approved by a user; the empty id is not one (BR-603).", nameof(reversedBy));
+        }
+
+        var found = FindApplication(applicationId, CreditNoteAllocationStatus.PendingReversal);
+        if (found.IsFailure)
+        {
+            return found.Error;
+        }
+
+        var application = found.Value;
+        application.MarkReversed(why, reversedAtUtc, reversedBy);
+        AvailableAmount += application.Amount;
+        AddDomainEvent(new CreditNoteApplicationReversed(Number ?? string.Empty, applicationId, application.BillId, application.Amount, AvailableAmount, why));
+
+        return application;
+    }
+
+    /// <summary>Records the mirror ledger posting of a reversed application, once, between the ledger and the save.</summary>
+    /// <exception cref="ArgumentException">The application is not one of this credit note, or the posting id is empty.</exception>
+    /// <exception cref="InvalidOperationException">The application is not reversed, or has its reversal posting already.</exception>
+    public void AttachApplicationReversalPosting(CreditNoteAllocation application, LedgerPostingId postingId)
+    {
+        ArgumentNullException.ThrowIfNull(application);
+
+        if (!_allocations.Contains(application))
+        {
+            throw new ArgumentException("The application does not belong to this credit note.", nameof(application));
+        }
+
+        application.AttachReversalPosting(postingId);
+    }
+
+    private Result<CreditNoteAllocation> ApplyCore(BillId billId, Money amount, DateTimeOffset appliedAtUtc, UserId? appliedBy, bool appliedAtPosting)
     {
         if (billId.Value == Guid.Empty)
         {
@@ -440,7 +558,7 @@ public sealed class CreditNote : AggregateRoot<CreditNoteId>, ITenantScoped, ICr
             return allowed.Error;
         }
 
-        var allocation = CreditNoteAllocation.Create(billId, amount, appliedAtUtc, appliedBy);
+        var allocation = CreditNoteAllocation.Create(billId, amount, appliedAtUtc, appliedBy, appliedAtPosting);
         _allocations.Add(allocation);
         AvailableAmount -= amount;
 
@@ -448,6 +566,28 @@ public sealed class CreditNote : AggregateRoot<CreditNoteId>, ITenantScoped, ICr
         AddDomainEvent(new CreditNoteApplied(Number ?? string.Empty, billId, amount, AvailableAmount));
 
         return allocation;
+    }
+
+    // The application with that id when it is in the state the caller needs; otherwise why not.
+    private Result<CreditNoteAllocation> FindApplication(CreditNoteAllocationId applicationId, CreditNoteAllocationStatus needed)
+    {
+        var application = _allocations.SingleOrDefault(candidate => candidate.Id == applicationId);
+        if (application is null)
+        {
+            return BillingErrors.CreditApplicationNotFound();
+        }
+
+        if (application.Status == needed)
+        {
+            return application;
+        }
+
+        return application.Status switch
+        {
+            CreditNoteAllocationStatus.Reversed => BillingErrors.CreditApplicationReversed(),
+            CreditNoteAllocationStatus.PendingReversal => BillingErrors.CreditApplicationPendingReversal(),
+            _ => BillingErrors.CreditApplicationNotPendingReversal(),
+        };
     }
 
     /// <summary>Records which ledger posting belongs to <paramref name="allocation"/>, once, between the ledger and the save.</summary>
