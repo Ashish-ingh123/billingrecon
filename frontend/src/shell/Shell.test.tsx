@@ -16,7 +16,6 @@ describe('the shell of a signed-in user', () => {
     const navigation = screen.getByRole('navigation', { name: 'Main' });
     expect(within(navigation).getAllByRole('link')).toHaveLength(12);
     expect(within(navigation).getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByText('These screens arrive with Prompt 7.6.')).toBeInTheDocument();
   });
 
   it('shows a cashier only what a cashier may open, and refuses a page of another role by its address', async () => {
@@ -36,6 +35,13 @@ describe('the shell of a signed-in user', () => {
       'Credit notes',
       'Reports',
     ]);
+  });
+
+  it('shows a section no prompt builds as a placeholder that says so', async () => {
+    renderApp('/administration', { session: sessionFor(['TenantAdmin']), fetch: routedApi({}).fetch });
+
+    expect(await screen.findByRole('heading', { name: 'Users and settings' })).toBeInTheDocument();
+    expect(screen.getByText('No prompt builds these screens yet; the API serves them already.')).toBeInTheDocument();
   });
 
   it('moves between sections without signing in again', async () => {

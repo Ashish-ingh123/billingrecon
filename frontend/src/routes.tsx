@@ -76,6 +76,7 @@ const built = new Set([
   '/adjustments',
   '/approvals',
   '/reports',
+  '/dashboard',
 ]);
 
 const referenceData = { read: 'ReadReferenceData', write: 'WriteReferenceData' } as const;
@@ -157,6 +158,20 @@ export const routes: RouteObject[] = [
                 <ApprovalsPage />
               </RequirePolicy>
             ),
+          },
+          {
+            // The dashboard and its chart library are read only when the dashboard is opened (ADR 0044 point 5).
+            path: '/dashboard',
+            lazy: async () => {
+              const { DashboardPage } = await import('./dashboard/DashboardPage');
+              return {
+                element: (
+                  <RequirePolicy policy="Dashboard">
+                    <DashboardPage />
+                  </RequirePolicy>
+                ),
+              };
+            },
           },
           ...(
             [

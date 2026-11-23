@@ -82,10 +82,11 @@ React + TypeScript + Vite in `frontend/` (ADR 0038, Prompt 7.1). Node 22.22 or l
 | Inbox, credit notes, adjustments (ADR 0042) | Decide in the inbox; draft from the bill | `/approvals` (policy `Decide`) lists what waits from the pending approvals report, which answers `parentDocumentId` (an allocation's payment, an application's credit note) and `makerComment`; **Review** reads the document as it is now and sends Approve (comment optional) or Reject (comment required) with that document's version and a key (none for a prefix change). The maker's own request shows no review. Credit notes and adjustments are drafted from the posted bill (`?billId=`); a credit note credits the bill's lines by quantity at their price and tax, plus free-text lines, capped per line and in total before sending. A credit note's credit is applied with the shared `ApplyToBills` form of the allocation. A document that waits links a checker to the inbox (`ReviewLink`). |
 | Reports (ADR 0043) | Eight screens for the six of BR-901; CSV in the browser | `/reports` and one screen per report, filters in the address, the server's totals in the footer. **Export CSV** reads every page of the filter (100 rows a request, at most 10,000), holds the rows to the server's totals (once more if they differ, then refused), and writes UTF-8 with a BOM, plain decimals, quoted fields and the formula guard (`src/reports/csv.ts`). One definition of the columns serves the screen and the CSV (`src/reports/columns.tsx`). |
 | Session | **`sessionStorage`** | The token, its expiry and the roles read from it; gone with the tab, at expiry and on a 401 (row S5). The roles choose the navigation only; the API is the authority. |
-| Charts (7.6) | **Recharts** | SVG, so a series drawn with `var(--series-n)` follows the theme without a re-render. |
+| Charts (7.6) | **Recharts 3.10.1** | SVG, so a series drawn with `var(--series-n)` follows the theme without a re-render. Loaded with the dashboard's route only (ADR 0044). |
+| Dashboard (ADR 0044) | One card, one colour token | Six cards from one component, each one `--series-n` token mixed into the surface (stronger in dark), the change coloured by meaning, money compact (₹12.8L) with the exact amount in the tooltip and for screen readers (`src/dashboard/compact.ts`); billing against collections with a table of its figures; the ageing donut; four panels with "View all", each with its own skeleton, empty state and error. Layout reference `docs/ui/dashboard.png`. |
 | Tests | **Vitest**, jsdom, React Testing Library | The API faked by a `fetch` given to the client (`src/test/app.tsx`); no mocking package. |
 | Lint and format | **ESLint 9** (type-aware TypeScript, hooks, `jsx-a11y`, no `dangerouslySetInnerHTML`), **Prettier** | ESLint stays on 9 until `jsx-a11y` supports 10. Warnings are errors. One `eslint-disable`, in a test, with its reason. |
-| Packages | 27, pinned exactly, `package-lock.json` committed | `npm ci` in CI; `npm audit` fails on any advisory; Dependabot a week after a release. A new package needs approval (section 6). |
+| Packages | 28, pinned exactly (Recharts added by 7.6), `package-lock.json` committed | `npm ci` in CI; `npm audit` fails on any advisory; Dependabot a week after a release. A new package needs approval (section 6). |
 
 ### Delivery
 
@@ -420,7 +421,8 @@ frontend/                      React + TypeScript + Vite (ADR 0038): index.html 
                                src/adjustments (api.ts, the list, the page, the form; ADR 0042), src/bills also
                                ApplyToBills (the allocation and application form) and the payer's open bills, src/reports
                                (api.ts, csv.ts, exportReport.ts, columns.tsx, view.ts, ReportParts, the index and the eight
-                               screens; ADR 0043), src/auth/permissions.ts (the
+                               screens; ADR 0043), src/dashboard (api.ts, compact.ts, SummaryCard,
+                               Charts, Panels, DashboardPage; ADR 0044), src/auth/permissions.ts (the
                                API's policies), format.ts and decimals.ts, routes.tsx, Providers.tsx; src/test (the app
                                renderer, routedApi, the records, the colour scan, the contrast and theme-script tests).
                                The OpenAPI document is kept equal to the API's by OpenApiSnapshotTests (IntegrationTests).
@@ -806,7 +808,10 @@ the payer statement as a page of its own (Accepted on the owner's approval of th
 approvals report answering `parentDocumentId` and `makerComment`, decisions made in the inbox and never by the maker, a
 credit note's lines from its bill (Accepted on the owner's approval of the Prompt 7.5 plan, 2026-11-23),
 0043 the report screens: eight screens for the six reports, the CSV written in the browser from every page and held to
-the server's totals (Accepted on the owner's approval of the Prompt 7.5b plan, 2026-11-23).
+the server's totals (Accepted on the owner's approval of the Prompt 7.5b plan, 2026-11-23),
+0044 the dashboard screen: the layout reference from the prototype, one card per colour token, compact money with the
+exact amount kept, panels that fail alone, Recharts 3.10.1 loaded with its route (Accepted on the owner's approval of the
+Prompt 7.6 plan, 2026-11-23).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -2070,4 +2075,22 @@ Kept here so they survive between sessions. Remove an item when it is done.
       and the reconciliation (no drift) showed the API's figures, and the bill register's CSV, read in the page, had its
       row, the payer `=Kumar, Ravi` guarded and quoted, and its totals. Not done: a CSV opened in a spreadsheet.
     - **Still to do:** the CI job's first run; a CSV opened in a spreadsheet (runbook section 8, row 7.5b).
-    - Next: Prompt 7.6 (dashboard), which needs `docs/ui/dashboard.png` in the repository first.
+    - Next: Prompt 7.6 (dashboard), which needs `docs/ui/dashboard.png` in the repository first. Done: item 43.
+43. **Prompt 7.6, the dashboard (ADR 0044), written 2026-11-23, built and tested on the office machine.** On `phase-2-billing`.
+    The plan was approved "as recommended": the layout reference copied from the owner's prototype (`docs/ui/dashboard.png`,
+    with `dashboard-dark.png` and `dashboard-phone.png`), Recharts 3.10.1. No migration, no change of the API.
+    - Built: the period picker (7, 30, 90 days or custom, in the address), the six cards, billing against collections with
+      a table of its figures, the ageing donut, recent payments, top payers with proportional bars, pending approvals (no
+      Review on one's own request) and reconciliation exceptions, each panel loading and failing alone; the dashboard
+      loaded with its route.
+    - **Changed in an existing test, called out:** the shell test that read the dashboard's placeholder reads the
+      placeholder of "Users and settings" instead, the one section no prompt builds.
+    - **Tests:** 357 frontend tests (12 new). With a change coloured by direction, crores shown as lakhs, a Review on
+      one's own request and a raw colour on a card, one at a time, each is caught.
+    - **Verified:** in `frontend/`, `npm audit` (none, Recharts' 38 packages included), the format check, lint, types,
+      357 tests and the build (main bundle 619 kB, the dashboard's chunk 417 kB). **In the browser**, for a Supervisor
+      against the API on a throwaway LocalDB database: billing ₹12,50,590.00, outstanding ₹12,50,190.00 and the top payer's
+      ₹12,50,040.00 as in the 6.1 reports, collected gross, one approval with its Review, no drift, in light and dark.
+    - **Still to do:** the CI job's first run; the dashboard at a phone width (runbook section 8, row 7.6). The frontend of
+      R1 is written to its end; the merge of `phase-2-billing` to `main` is the owner's step.
+    - Next: Prompt 8.1 (delivery).
