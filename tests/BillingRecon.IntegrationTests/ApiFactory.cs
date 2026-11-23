@@ -16,7 +16,9 @@ namespace BillingRecon.IntegrationTests;
 /// On top of the API's own services it adds the test-only <see cref="ProbeController"/>, a sink that captures the log
 /// events (<see cref="Logs"/>) and the raw request target a real server would provide (<see cref="RawTargetStartupFilter"/>).
 /// Requests are authenticated as they are in production, by tokens: <see cref="TestClientExtensions"/> makes clients
-/// that send one, minted by the host's own issuer (ADR 0031, point 10).
+/// that send one, minted by the host's own issuer (ADR 0031, point 10). They reach the API as a client of a deployment
+/// does: over HTTPS, for a host the API answers for (ADR 0035), unless a test says otherwise; and a test can give a
+/// request the client address it comes from (<see cref="RemoteAddressStartupFilter"/>).
 /// </summary>
 public class ApiFactory : WebApplicationFactory<Program>
 {
@@ -29,11 +31,26 @@ public class ApiFactory : WebApplicationFactory<Program>
     /// <summary>The setting of the signing key.</summary>
     public const string SigningKeySetting = "Jwt:SigningKey";
 
+    /// <summary>The setting of the host names the API answers for (ADR 0035).</summary>
+    public const string AllowedHostsSetting = "AllowedHosts";
+
+    /// <summary>The host every client calls, which outside Development is the one <see cref="AllowedHostsSetting"/> names.</summary>
+    public const string Host = "localhost";
+
+    /// <summary>Where every client of these hosts sends its requests: HTTPS, as outside Development nothing else is answered.</summary>
+    public static readonly Uri BaseAddress = new($"https://{Host}");
+
     private readonly TaskCompletionSource _listening = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     // Outside Development the host needs a key of its own, as a deployment does; every factory makes a new one. It is
     // long enough for HS512 as well, so a test can sign with the right key and the wrong algorithm.
     private readonly string _signingKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(2 * JwtOptions.MinimumKeyBytes));
+
+    /// <summary>Makes <see cref="WebApplicationFactory{TEntryPoint}.CreateClient()"/> call <see cref="BaseAddress"/>.</summary>
+    public ApiFactory()
+    {
+        ClientOptions.BaseAddress = BaseAddress;
+    }
 
     /// <summary>
     /// The key the host signs and checks tokens with: outside Development a random one of this factory, laid under
@@ -68,9 +85,14 @@ public class ApiFactory : WebApplicationFactory<Program>
         builder.UseEnvironment(EnvironmentName);
         builder.ConfigureAppConfiguration((_, configuration) =>
         {
+            // Outside Development the host needs, as a deployment does, a key of its own and the hosts it answers for.
             if (EnvironmentName != Environments.Development)
             {
-                configuration.AddInMemoryCollection([new KeyValuePair<string, string?>(SigningKeySetting, _signingKey)]);
+                configuration.AddInMemoryCollection(
+                [
+                    new KeyValuePair<string, string?>(SigningKeySetting, _signingKey),
+                    new KeyValuePair<string, string?>(AllowedHostsSetting, Host),
+                ]);
             }
 
             configuration.AddInMemoryCollection(Settings);
@@ -112,6 +134,15 @@ public class ApiFactory : WebApplicationFactory<Program>
         services.AddSingleton<ILogEventSink>(Logs);
         services.AddSingleton(IdempotencyProbe);
         services.AddTransient<IStartupFilter, RawTargetStartupFilter>();
+        services.AddTransient<IStartupFilter, RemoteAddressStartupFilter>();
+    }
+
+    /// <summary>A client made by <see cref="WebApplicationFactory{TEntryPoint}.CreateDefaultClient(DelegatingHandler[])"/> calls <see cref="BaseAddress"/> too.</summary>
+    protected override void ConfigureClient(HttpClient client)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+
+        client.BaseAddress = BaseAddress;
     }
 
     /// <summary>

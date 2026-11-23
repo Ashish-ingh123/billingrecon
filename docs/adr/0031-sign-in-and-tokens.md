@@ -74,7 +74,9 @@ do is Prompt 5.3.
     the body (ADR 0030 point 7, which the owner confirmed with this plan). `IdempotencyConventionTests` names its second
     category the non-financial controllers: reference data, users and sign-in.
 12. **Brute force is not handled yet.** There is no rate limit and no lockout on sign-in in this prompt; the built-in
-    rate limiter of ASP.NET Core can add one without a package. A follow-up.
+    rate limiter of ASP.NET Core can add one without a package. A follow-up. **Answered by ADR 0035 (Prompt 5.4b,
+    2026-11-23):** 30 sign-ins a minute per client address, and an account held 15 minutes after 10 refusals, both
+    answering 429 `too_many_sign_ins` with `Retry-After`.
 
 ## Alternatives
 

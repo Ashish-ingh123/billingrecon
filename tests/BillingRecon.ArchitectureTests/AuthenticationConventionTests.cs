@@ -1,8 +1,10 @@
 using System.Reflection;
 using BillingRecon.Api.Common.Authentication;
+using BillingRecon.Api.Identity;
 using BillingRecon.Application.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace BillingRecon.ArchitectureTests;
 
@@ -26,6 +28,27 @@ public sealed class AuthenticationConventionTests
             .Select(member => member is Type type ? type.Name : $"{member.DeclaringType!.Name}.{member.Name}");
 
         anonymous.ShouldBe(["AuthController.LoginAsync"]);
+    }
+
+    [Fact]
+    public void The_sign_in_and_nothing_else_carries_both_of_its_rate_limits()
+    {
+        // ADR 0035: the limit per client address is the policy of the rate limiter, the limit per account a filter; a
+        // limit on another action, or one taken off the sign-in, fails until someone decides.
+        string[] Carrying<TAttribute>()
+            where TAttribute : Attribute
+            => [.. Assemblies.Api.GetTypes()
+                .Where(type => typeof(ControllerBase).IsAssignableFrom(type))
+                .SelectMany(type => type.GetMethods(Actions).Cast<MemberInfo>().Prepend(type))
+                .Where(member => member.GetCustomAttributes<TAttribute>(inherit: true).Any())
+                .Select(member => member is Type type ? type.Name : $"{member.DeclaringType!.Name}.{member.Name}")];
+
+        Carrying<EnableRateLimitingAttribute>().ShouldBe(["AuthController.LoginAsync"]);
+        Carrying<SignInThrottleAttribute>().ShouldBe(["AuthController.LoginAsync"]);
+        Carrying<DisableRateLimitingAttribute>().ShouldBeEmpty();
+
+        typeof(AuthController).GetMethod(nameof(AuthController.LoginAsync))!
+            .GetCustomAttribute<EnableRateLimitingAttribute>()!.PolicyName.ShouldBe(SignInLimits.PolicyName);
     }
 
     [Fact]

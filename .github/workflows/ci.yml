@@ -147,11 +147,13 @@ jobs:
       - name: Start the image and check liveness
         # A connection string nothing listens on: the API starts (liveness 200) and readiness reports 503. The
         # container runs as the image's non-root user and has to find the Asia/Kolkata time zone at startup. Outside
-        # Development the API needs a signing key of its own (ADR 0031): a throwaway one, made for this run.
+        # Development the API needs a signing key of its own (ADR 0031): a throwaway one, made for this run; and the host
+        # names it answers for (ADR 0035): the one this job calls it by.
         run: |
           docker run --detach --name api --publish 8080:8080 \
             --env "Database__ConnectionString=Server=127.0.0.1,1;Database=BillingRecon;User Id=sa;Password=not-used;Encrypt=False;Connect Timeout=1" \
             --env "Jwt__SigningKey=$(openssl rand -base64 32)" \
+            --env "AllowedHosts=localhost" \
             billingrecon-api:${{ github.sha }}
           for attempt in $(seq 1 30); do
             if curl -fsS http://localhost:8080/health/live; then
@@ -163,6 +165,24 @@ jobs:
           done
           echo "::error::The API did not answer /health/live within 30 seconds."
           exit 1
+
+      - name: Check what the image tells a client over plain HTTP
+        # ADR 0035: TLS ends at a proxy in front of the API. The health endpoints answer probes over plain HTTP (the step
+        # above relies on it), no answer names the server, and an API request that did not come over HTTPS is refused
+        # with 400 https_required.
+        run: |
+          headers=$(curl -sS -D - -o /dev/null http://localhost:8080/health/live)
+          echo "$headers"
+          if echo "$headers" | grep -qi '^server:'; then
+            echo "::error::The API names its server in a Server header."
+            exit 1
+          fi
+          answer=$(curl -sS -w '\n%{http_code}' http://localhost:8080/api/v1/system/info)
+          echo "$answer"
+          if [ "$(echo "$answer" | tail -n 1)" != "400" ] || ! echo "$answer" | grep -q '"errorCode":"https_required"'; then
+            echo "::error::An API request over plain HTTP was not refused with 400 https_required."
+            exit 1
+          fi
 
       - name: Container logs
         if: always()

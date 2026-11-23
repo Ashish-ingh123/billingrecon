@@ -114,3 +114,12 @@ handle LF files without complaint.
   vulnerable-package report runs (and its gate fires there, on the 9.x graph's advisory, as it
   should), and the migration script command produces the idempotent script with the EF Core 9 tool.
   The Dockerfile is proven by the first CI run, or by `docker build` on the owner's machine.
+
+## Amended 2026-11-23 (Prompt 5.4b, ADR 0035)
+
+The image now needs `AllowedHosts` outside Development and answers an API request only over HTTPS, since TLS ends at a
+proxy in front of it. The smoke run passes `AllowedHosts=localhost` and gains a step that checks the image over plain
+HTTP: `/health/live` answers (the HEALTHCHECK relies on it), no answer has a `Server` header, and
+`/api/v1/system/info` gets 400 `https_required`. The Dockerfile is unchanged. Not run in CI yet (the repository is not on
+GitHub); the same checks passed on the office machine against the published API on Kestrel with the smoke run's
+settings.

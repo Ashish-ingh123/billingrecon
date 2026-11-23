@@ -2,7 +2,8 @@
 
 - **Status:** sections 1 and 2 written 2026-10-03 with the infrastructure step, section 3 with the
   DbContext step, section 4 with the test infrastructure and sections 5 and 6 with the CI step
-  (2026-10-17). Still to be written: rolling back a migration, deploying migrations outside
+  (2026-10-17); later sections with the prompts that needed them, the last being section 11, the proxy in front of the
+  API (Prompt 5.4b, 2026-11-23). Still to be written: rolling back a migration, deploying migrations outside
   Development, backup and restore, and incident procedures (balance drift versus the ledger,
   number-series recovery, stuck maker-checker approvals, idempotency store cleanup).
 
@@ -33,6 +34,9 @@ malformed value stops it with a message that names the setting.
 | `Database:ApplyMigrationsOnStartup` | `appsettings.Development.json` (`true`); off elsewhere | Applies pending migrations when the API starts. Allowed in Development only: in any other environment the API refuses to start with it on. |
 | `Jwt:SigningKey` | `appsettings.Development.json` (a key for Development only); user-secrets, or the `Jwt__SigningKey` environment variable, elsewhere | Required. The key that signs and checks the tokens (ADR 0031): base64 of at least 32 random bytes. A secret outside Development: never in a file in git. The API refuses to start without one, with a short one, or, outside Development, with the key of `appsettings.Development.json`. Section 9 says how to make one and what changing it does. |
 | `DevelopmentIdentity:TenantId`, `DevelopmentIdentity:UserId` | `appsettings.Development.json` | The development tenant and user: in Development a request without a token acts as this user (a TenantAdmin), and the API adds their rows when it migrates (ADR 0031). Not secrets. Outside Development they are not read: a request without a valid token gets 401. |
+| `AllowedHosts` | the `AllowedHosts` environment variable, per environment | Required outside Development: the host names the API answers for, separated by semicolons (`api.hospital.example`, `*.hospital.example`, an IP address); `*` is refused there. Unset in Development, where any host is answered. Section 11 (ADR 0035). |
+| `ReverseProxy:KnownProxies` | environment variables `ReverseProxy__KnownProxies__0`, `__1`, ... | The addresses or CIDR ranges of the proxy that ends TLS in front of the API, when it is not on the API's own machine; the loopback addresses are always trusted. Section 11. Never set `ASPNETCORE_FORWARDEDHEADERS_ENABLED`: the API refuses to start with it. |
+| `Cors:Origins` | `appsettings.Development.json` (`http://localhost:5173`); environment variables `Cors__Origins__0`, ... elsewhere | The origins a browser may call the API from. None outside Development unless set; `https` only there. Not needed when the proxy serves the frontend and the API from one origin. Section 11. |
 | `Serilog` section | `appsettings.json` | Log levels. The whole section is read, so configuration can also add sinks or enrichers; it cannot remove the console sink, the Seq sink or the PII mask, which are set in code, and anything it adds still receives masked events (ADR 0012). |
 
 ### Health endpoints
@@ -342,14 +346,19 @@ Run it against the compose SQL Server. From a container, the host is `host.docke
 Desktop; the password is the one in `.env`:
 
 ```bash
-docker run --rm -p 8080:8080 -e "Database__ConnectionString=Server=host.docker.internal,1433;Database=BillingRecon;User Id=sa;Password=<your-sa-password>;TrustServerCertificate=True" -e "Jwt__SigningKey=<a key of your own, section 9>" billingrecon-api
+docker run --rm -p 8080:8080 -e "Database__ConnectionString=Server=host.docker.internal,1433;Database=BillingRecon;User Id=sa;Password=<your-sa-password>;TrustServerCertificate=True" -e "Jwt__SigningKey=<a key of your own, section 9>" -e "AllowedHosts=localhost" billingrecon-api
 ```
 
 Then `http://localhost:8080/health/live` answers 200, and `/health/ready` answers 200 once the
 database has every migration. The container runs as Production and never migrates: apply the script
-of section 3, or let a Development run of the API do it first. Without `Database__ConnectionString`
-or `Jwt__SigningKey` the container stops at startup with the message that names the setting. The
+of section 3, or let a Development run of the API do it first. Without `Database__ConnectionString`,
+`Jwt__SigningKey` or `AllowedHosts` the container stops at startup with the message that names the setting. The
 health check is visible with `docker inspect --format "{{json .State.Health}}" <container>`.
+
+**The API itself answers HTTPS only** (ADR 0035): over plain HTTP, `http://localhost:8080/api/v1/...` gets 400
+`https_required`, and only the health endpoints answer. That is by design: TLS ends at a proxy in front of the
+container (section 11). The CI smoke run checks exactly this, and that no answer has a `Server` header. To call the
+API locally without a proxy, run it with `dotnet run` (Development, section 1).
 
 The image tags follow the major version (`sdk:10.0`, `aspnet:10.0`), and `global.json` must accept the
 SDK the build image carries. If a build fails on the SDK version, pass the exact tag:
@@ -434,8 +443,15 @@ its tenant (the development tenant's is `development`), its address and that pas
 **A refused sign-in** answers 401 `invalid_credentials` whatever went wrong. The reason is in the log: a warning
 "A sign-in to tenant {TenantCode} was refused: {Refusal}", with the user's id when the address was found. The
 reasons are `UnknownTenant`, `TenantSuspended`, `UnknownUser`, `WrongPassword` and `UserDisabled`. The address and
-the password are never logged. Repeated failures are not limited yet (ADR 0031, point 12): watch for many warnings
-for one tenant or one user.
+the password are never logged.
+
+**Too many sign-ins** answer 429 `too_many_sign_ins` with `Retry-After` (ADR 0035): from one client address, more than
+30 a minute; for one account (the hospital's code and the address), after 10 refusals in 15 minutes, until the 15
+minutes have passed, the right password included. Each writes a warning: "Sign-ins from {ClientAddress} are limited"
+or "Sign-ins to tenant {TenantCode} for one address are held". **A user who is held** waits, at most 15 minutes; there
+is nothing to unlock, and nothing an administrator can do sooner short of restarting the API, which forgets every
+limit. Many warnings for one tenant, or from one address, are worth a look: someone may be guessing. The limits are
+kept by each instance of the API in memory, so a restart forgets them and two instances would each allow as much.
 
 ---
 
@@ -610,6 +626,7 @@ dotnet test --filter "FullyQualifiedName~DatabasePermissionsOnSqlServerTests"
 | 4.3 | Three aggregates (the credit note, its bill and the approval request) saved and audited by one commit on EF Core 10, and a credit note loaded with two collections by a split query there. Two credit notes approved at once against a paid bill that only one fits, on SQL Server 2022: this is the test that proves the caps are read again under the lock. The failure injected after the second ledger posting and after the audit record. |
 
 | 5.4 | The two test logins and the role on SQL Server 2022 on Linux: the fixture creates the logins with `CHECK_POLICY = OFF`, migrates as the migrator's four roles and runs every API test as the application's login; `DatabasePermissionsOnSqlServerTests` there, including `READ_COMMITTED_SNAPSHOT` on the database the fixture creates. |
+| 5.4b | The API image built from the Dockerfile and its smoke run in CI (`AllowedHosts=localhost`, no `Server` header, 400 `https_required` for an API request over plain HTTP); the per-account sign-in limit in `AuthApiTests` on SQL Server 2022. The smoke run's checks passed on the office machine against the published API on Kestrel, not in a container. |
 
 A red result is reported as it is, with its output; the fix is its own commit on top, never an edit of history.
 
@@ -692,3 +709,73 @@ own and start the API with that connection string.
 **Changing a password:** `ALTER LOGIN [billingrecon_app] WITH PASSWORD = N'<new>';`, update the secret, restart the
 API. **Removing the migrator's user** between releases is allowed: the role and its grants belong to `dbo` (ADR 0034,
 point 5), so `DROP USER [billingrecon_migrator]` takes nothing with it; make it again before the next release.
+
+---
+
+## 11. Behind the proxy: TLS, hosts and origins (ADR 0035)
+
+The API never holds a certificate. **A reverse proxy ends TLS** in front of it (an ingress, a load balancer, nginx) and
+sends each request on over plain HTTP to the container's port 8080, saying in two headers what the client used:
+`X-Forwarded-Proto` (`https`) and `X-Forwarded-For` (the client's address). Outside Development the API answers an
+API request only when it arrived over HTTPS, so the proxy has to say so, and the API has to believe it.
+
+**1. Tell the API where the proxy is.** The loopback addresses are always believed (a proxy on the same machine, or a
+sidecar in the same pod). A proxy anywhere else is listed by address or range:
+
+```bash
+ReverseProxy__KnownProxies__0=10.0.0.5
+ReverseProxy__KnownProxies__1=10.1.0.0/16
+```
+
+From any other address the two headers are ignored. A proxy that is not listed shows at once: every API request gets
+400 `https_required`. Never set `ASPNETCORE_FORWARDEDHEADERS_ENABLED`: it believes the headers from anyone, and the API
+refuses to start with it. One proxy deep: if a second proxy (a CDN) sits in front of the first, the address the limits
+see is the first proxy's; that needs an amendment of ADR 0035, not a setting.
+
+**2. Name the hosts the API answers for**, the names clients use, separated by semicolons:
+
+```bash
+AllowedHosts=api.cityhospital.example
+```
+
+A wildcard covers subdomains (`*.cityhospital.example`, not `cityhospital.example` itself). A request for any other
+host gets 400 `host_not_allowed`. Outside Development the API does not start without it, nor with `*`. The health
+endpoints are answered for any host, so a probe needs no name.
+
+**3. Configure the proxy** to pass the original `Host` on, to set the two headers, and not to listen on plain HTTP for
+the API (it may redirect browsers to the frontend's `https` address; the API never redirects). For nginx:
+
+```nginx
+location /api/ {
+    proxy_pass http://billingrecon-api:8080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $remote_addr;
+}
+```
+
+The API reads one entry of `X-Forwarded-For`, the last, which is the one the proxy adds; `$remote_addr` sends just that
+one. Probes call `/health/live` and `/health/ready` on the container directly.
+
+**4. Origins of the frontend.** When the proxy serves the frontend and the API from one origin (the plan of Prompt
+8.1), set nothing. When the frontend lives on another origin, list it, as the browser sends it:
+
+```bash
+Cors__Origins__0=https://billing.cityhospital.example
+```
+
+No `*`, no path, no trailing slash, and `https` outside Development; the API refuses to start otherwise.
+
+**5. Check**, from a machine outside the proxy:
+
+```bash
+curl -sS -D - -o /dev/null https://api.cityhospital.example/api/v1/system/info
+```
+
+The answer is 401 (no token), with `Strict-Transport-Security: max-age=31536000`, `Cache-Control: no-store`,
+`X-Content-Type-Options: nosniff` and no `Server` header. A 400 `https_required` means the proxy is not believed
+(step 1) or does not send `X-Forwarded-Proto`; a 400 `host_not_allowed` means step 2 lacks the name.
+
+**Sign-in limits** count per client address, the one the proxy puts in `X-Forwarded-For` (section 9). A proxy that
+sends the same address for everyone (a misconfigured header) makes all clients share one limit of 30 sign-ins a
+minute.

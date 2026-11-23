@@ -19,13 +19,16 @@ namespace BillingRecon.IntegrationTests.Database;
 /// Signing in end to end, on the pipeline that ships and a real SQL Server (US-02; BR-601, BR-602; ADR 0031): a user
 /// signs in with the code of the hospital, the address and the password, in any case; the token carries the tenant,
 /// the user and the roles and is the request's only identity until it expires; the sign-in is recorded on the user and
-/// in the audit trail; every refusal answers the same 401 and is logged with its reason and nothing secret.
+/// in the audit trail; every refusal answers the same 401 and is logged with its reason and nothing secret. And the limit
+/// per account (ADR 0035): ten refusals hold an account, real or not, for fifteen minutes, the right password included;
+/// the limit per client address is tested without a database (<c>SignInRateLimitTests</c>).
 /// </summary>
 [Collection(DatabaseCollectionDefinition.Name)]
 public sealed class AuthApiTests(SqlServerFixture sqlServer) : DatabaseTest(sqlServer)
 {
     private const string Password = "correct horse battery staple";
     private const string Email = "Asha.Rao@Example.IN";
+    private const string ColleagueEmail = "ravi.iyer@example.in";
 
     private static readonly Uri Login = new("/api/v1/auth/login", UriKind.Relative);
     private static readonly Uri Identity = new("/api/v1/probe/identity", UriKind.Relative);
@@ -190,6 +193,98 @@ public sealed class AuthApiTests(SqlServerFixture sqlServer) : DatabaseTest(sqlS
         factory.Logs.Events.ShouldNotContain(logEvent => logEvent.MessageTemplate.Text.StartsWith("A sign-in to tenant", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task ADR0035_ten_refused_sign_ins_hold_the_account_for_fifteen_minutes_even_with_the_right_password()
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var (admin, code, user) = await TenantWithUserAsync(factory);
+        using var administrator = factory.CreateClientFor(admin, "TenantAdmin");
+        using var colleague = await administrator.PostJsonAsync(new Uri("/api/v1/users", UriKind.Relative), new CreateUserRequest { Email = ColleagueEmail, DisplayName = "Ravi Iyer", Password = Password, Roles = [Role.Cashier] });
+        colleague.StatusCode.ShouldBe(HttpStatusCode.Created, await colleague.Content.ReadAsStringAsync());
+        using var anonymous = factory.CreateClient();
+
+        for (var refusal = 0; refusal < SignInLimits.RefusalsPerAccount; refusal++)
+        {
+            using var refused = await anonymous.PostAsJsonAsync(Login, new LoginRequest { Tenant = code, Email = Email, Password = "a guess that is wrong" });
+            await refused.ShouldBeProblemAsync(HttpStatusCode.Unauthorized, IdentityErrors.InvalidCredentialsCode);
+        }
+
+        // The right password, the code and the address in another case and with spaces: the same account, held.
+        using var held = await anonymous.PostAsJsonAsync(Login, new LoginRequest { Tenant = $" {code.ToUpperInvariant()} ", Email = " ASHA.RAO@example.in ", Password = Password });
+
+        var problem = await held.ShouldBeProblemAsync(HttpStatusCode.TooManyRequests, "too_many_sign_ins");
+        problem.GetProperty("detail").GetString().ShouldBe(SignInLimits.Detail);
+        held.Headers.RetryAfter.ShouldNotBeNull().Delta.ShouldBe(SignInLimits.AccountWindow);
+        held.Headers.CacheControl.ShouldNotBeNull().NoStore.ShouldBeTrue();
+
+        // The password was never checked, so nothing was recorded; the log names the hospital, never the address.
+        await using (var context = ApiContext(admin))
+        {
+            (await context.Set<User>().AsNoTracking().SingleAsync(candidate => candidate.Id == new UserId(user.Id))).LastSignInAtUtc.ShouldBeNull();
+        }
+
+        var warning = factory.Logs.ForCorrelationId(held.GetCorrelationId())
+            .Where(logEvent => logEvent.MessageTemplate.Text.StartsWith("Sign-ins to tenant", StringComparison.Ordinal))
+            .ShouldHaveSingleItem();
+        warning.Scalar("TenantCode").ShouldBe(code);
+        foreach (var json in factory.Logs.Events.Select(logEvent => logEvent.ToJson()))
+        {
+            json.ShouldNotContain("asha.rao", Case.Insensitive);
+            json.ShouldNotContain(Password);
+        }
+
+        // Another account of the same hospital is not held.
+        (await IdentityAsync(anonymous, (await SignInAsync(anonymous, code, ColleagueEmail)).AccessToken)).TenantId.ShouldBe(admin.TenantId!.Value.Value);
+    }
+
+    [Theory]
+    [InlineData("nobody@example.in", null)]
+    [InlineData(null, "no-such-hospital")]
+    public async Task ADR0035_an_account_nobody_has_is_held_exactly_like_a_real_one_so_the_limit_tells_nothing(string? email, string? tenant)
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var (_, code, _) = await TenantWithUserAsync(factory);
+        using var anonymous = factory.CreateClient();
+        var request = new LoginRequest { Tenant = tenant ?? code, Email = email ?? Email, Password = Password };
+
+        for (var refusal = 0; refusal < SignInLimits.RefusalsPerAccount; refusal++)
+        {
+            using var refused = await anonymous.PostAsJsonAsync(Login, request);
+            await refused.ShouldBeProblemAsync(HttpStatusCode.Unauthorized, IdentityErrors.InvalidCredentialsCode);
+        }
+
+        using var held = await anonymous.PostAsJsonAsync(Login, request);
+
+        await held.ShouldBeProblemAsync(HttpStatusCode.TooManyRequests, "too_many_sign_ins");
+        held.Headers.RetryAfter.ShouldNotBeNull().Delta.ShouldBe(SignInLimits.AccountWindow);
+    }
+
+    [Fact]
+    public async Task ADR0035_a_sign_in_that_succeeds_counts_nothing_and_only_the_tenth_refusal_holds_the_account()
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var (_, code, _) = await TenantWithUserAsync(factory);
+        using var anonymous = factory.CreateClient();
+        var wrong = new LoginRequest { Tenant = code, Email = Email, Password = "a guess that is wrong" };
+
+        for (var refusal = 1; refusal < SignInLimits.RefusalsPerAccount; refusal++)
+        {
+            using var refused = await anonymous.PostAsJsonAsync(Login, wrong);
+            refused.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        }
+
+        for (var success = 0; success < 3; success++)
+        {
+            await SignInAsync(anonymous, code);
+        }
+
+        using var tenth = await anonymous.PostAsJsonAsync(Login, wrong);
+        using var held = await anonymous.PostAsJsonAsync(Login, new LoginRequest { Tenant = code, Email = Email, Password = Password });
+
+        await tenth.ShouldBeProblemAsync(HttpStatusCode.Unauthorized, IdentityErrors.InvalidCredentialsCode);
+        await held.ShouldBeProblemAsync(HttpStatusCode.TooManyRequests, "too_many_sign_ins");
+    }
+
     // A tenant with its administrator and a user with a password, as the administrator creates it; and the tenant's code.
     private async Task<(FixedIdentity Admin, string Code, UserDto User)> TenantWithUserAsync(DatabaseApiFactory factory)
     {
@@ -205,9 +300,9 @@ public sealed class AuthApiTests(SqlServerFixture sqlServer) : DatabaseTest(sqlS
         return (admin, code, await created.ReadAsAsync<UserDto>());
     }
 
-    private static async Task<SignedInDto> SignInAsync(HttpClient client, string code)
+    private static async Task<SignedInDto> SignInAsync(HttpClient client, string code, string email = Email)
     {
-        using var response = await client.PostAsJsonAsync(Login, new LoginRequest { Tenant = code, Email = Email, Password = Password });
+        using var response = await client.PostAsJsonAsync(Login, new LoginRequest { Tenant = code, Email = email, Password = Password });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
 

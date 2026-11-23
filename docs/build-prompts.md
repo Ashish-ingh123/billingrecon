@@ -31,10 +31,11 @@ is left; their numbering is mine, not the blueprint's.
 | 5.3b Tenant settings and prefix changes | Written on 2026-11-21 with the owner's decisions (ADR 0033; CLAUDE.md section 9, item 30). Built and tested on .NET 10 like 5.1; migration `0019_PrefixChanges` in the repository. Committed (`31243e3`, `7755271`) |
 | 5.3b fix: the prefix approval holds the series | Written on 2026-11-23 with the owner's decision on ADR 0033 built note point 5 (option B; ADR 0033 "Amended 2026-11-23"; CLAUDE.md section 9, item 31). Built and tested on .NET 10 like 5.1; no migration. Committed (`ce64e6c`) |
 | 5.4 Database logins and grants | Written on 2026-11-23 with the owner's decisions (ADR 0034; CLAUDE.md section 9, item 32), the first half of the prompt. Built and tested on .NET 10 like 5.1, every database test now as the application's login; migration `0020_DatabaseRoles` in the repository, written by hand. Found: the application relies on `READ_COMMITTED_SNAPSHOT ON` |
-| Everything else in R1 | Not started: database logins and hardening (5.4), reports, frontend, delivery |
+| 5.4b HTTP hardening and the security document | Written on 2026-11-23 with the owner's decisions (ADR 0035; CLAUDE.md section 9, item 33), the second half of 5.4. Built and tested on .NET 10 like 5.1; no migration, no package. TLS at a proxy, HTTPS only with HSTS, allowed hosts, two sign-in limits, CORS, the headers of an answer; `docs/security.md` written in full with its threat model. The CI smoke run changed and has not run |
+| Everything else in R1 | Not started: reports, frontend, delivery |
 | 6.3 Dashboard figures and 7.6 Dashboard (added 2026-11-21, with theming in 7.1) | Not started. 6.3 runs after 6.2, 7.6 after 7.5; the layout reference `docs/ui/dashboard.png` is still to be added; the drift card's trend (none, or a snapshot table and a new migration) is the owner's open decision, asked in 6.3 |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. 5.3b (tenant settings and prefix changes) is written too, and `0019` is in the repository. ADR 0033 built note point 5 was decided on 2026-11-23 (the approval holds the series) and is built as its own commit. 5.4 was split with its plan: its first half, the database logins and grants, is written too, and `0020` is in the repository. Next prompt: 5.4b (HTTP hardening and `docs/security.md` in full), with its own plan. What was decided for each built prompt is recorded under it below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. 5.3b (tenant settings and prefix changes) is written too, and `0019` is in the repository. ADR 0033 built note point 5 was decided on 2026-11-23 (the approval holds the series) and is built as its own commit. 5.4 was split with its plan: its first half, the database logins and grants, is written too, and `0020` is in the repository. 5.4b (HTTP hardening and `docs/security.md` in full) is written too, with no migration; Phase 5 is written to its end, and its merge to `main` is the owner's step. Next prompt: 6.1 (registers and balances). What was decided for each built prompt is recorded under it below.**
 
 ## How to use these prompts
 
@@ -618,6 +619,19 @@ Done when: a test proves each header and refusal, and docs/security.md has no "p
 without a prompt or an accepted risk.
 ```
 
+**Owner's decisions for 5.4b, recorded 2026-11-23 (the plan was approved "as recommended"; ADR 0035):** TLS ends at a
+reverse proxy in front of the API; forwarded headers are believed from the loopback addresses and
+`ReverseProxy:KnownProxies` only, one proxy deep; no HTTPS redirection: outside Development a request that did not
+arrive over HTTPS is answered 400 `https_required`, the two health endpoints excepted; HSTS for one year, this host
+only, not preloaded. `AllowedHosts` checked by the API's own middleware (400 `host_not_allowed`), required and without
+`*` outside Development. Two sign-in limits, both 429 `too_many_sign_ins` with `Retry-After`: 30 a minute per client
+address, and an account held 15 minutes after 10 refusals (the right password included; a success counts nothing),
+fixed in code, in memory per instance. CORS from `Cors:Origins` (none by default, `http://localhost:5173` in
+Development, https elsewhere), no credentials. No `Server` header; `nosniff` on every response and `no-store` with a
+content security policy on the answers of `/api`. The threat model's accepted risks are the rows marked so in
+`docs/security.md` section 10; where the browser keeps the token goes to 7.1, the frontend's own headers and TLS at the
+local demo's nginx to 8.1, each prompt below gaining a sentence. Built as decided (ADR 0035 built note).
+
 Merge `phase-5-identity` to `main`.
 
 ### Phase 6. Reporting (branch `phase-6-reporting`)
@@ -695,6 +709,8 @@ from the top bar; System follows prefers-color-scheme and reacts when it changes
 kept in localStorage and applied by an inline script in index.html before React mounts, so there
 is no flash. Name the chart library in the same ADR, with the reason, and say how its colours
 follow the theme. Text contrast meets WCAG AA in both themes.
+Say in the stack ADR where the browser keeps the token and why (docs/security.md section 10,
+row S5): memory, sessionStorage or localStorage, weighed against a script injected into the page.
 Done when: I can sign in and see a role-appropriate empty shell, and the empty shell switches
 between the three settings without a reload and without a flash on a hard refresh.
 ```
@@ -777,6 +793,10 @@ Merge to `main`.
 Add api and frontend services to docker-compose.yml (frontend served by nginx, API behind it),
 a migration step that runs as the migrator login, and an opt-in demo seeder: one tenant, five
 users (one per role), patients, payers, a catalogue and a week of bills and payments.
+nginx ends TLS with a local certificate and is the API's known proxy (docs/runbook.md section 11):
+outside Development the API refuses plain HTTP. Give the frontend's pages their own headers: a
+content security policy, frame-ancestors 'none' and nosniff (docs/security.md section 10, rows S5
+and E6).
 Done when: docker compose up on a clean machine gives a working, signed-in demo.
 ```
 

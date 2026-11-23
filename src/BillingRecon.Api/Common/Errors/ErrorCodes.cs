@@ -27,6 +27,15 @@ public static class ErrorCodes
     public const string InternalError = "internal_error";
     public const string ServiceUnavailable = "service_unavailable";
 
+    /// <summary>400: the request names a host this API does not answer for (<c>AllowedHosts</c>, ADR 0035).</summary>
+    public const string HostNotAllowed = "host_not_allowed";
+
+    /// <summary>400: outside Development, a request that did not reach the API over HTTPS (ADR 0035).</summary>
+    public const string HttpsRequired = "https_required";
+
+    /// <summary>429: too many sign-ins from one address, or too many refused ones for one account (ADR 0035).</summary>
+    public const string TooManySignIns = "too_many_sign_ins";
+
     /// <summary>The code for a response that has only an HTTP status to go by.</summary>
     /// <param name="statusCode">The HTTP status of the response.</param>
     /// <param name="hasFieldErrors">True when the response lists errors per field.</param>

@@ -42,14 +42,14 @@ the domain model, the schema and the tests.
 | Concern | Choice | Notes |
 |---|---|---|
 | Runtime | **.NET 10 (LTS)** | `Directory.Build.props` holds the single `TargetFramework` (`net10.0`); `global.json` pins the SDK to the **10.0.400** feature band with `latestPatch` (the personal machine's band, read from its build outputs on 2026-10-17). Supported to November 2028. Framework-bound packages (ASP.NET Core, EF Core, `Serilog.AspNetCore`) stay on the same major version. **The office machine has no .NET 10 SDK and cannot build the repository** (dev machine notes below). See ADR 0014, which supersedes ADR 0001. |
-| Web API | **ASP.NET Core Web API with controllers** | No minimal APIs. Controllers derive from `ApiControllerBase`, are `sealed`, end in `Controller` (architecture test). Every route is under `/api/v1` (ADR 0013). Every error is an RFC 9457 ProblemDetails (ADR 0011). Health checks at `/health/live` (process is up) and `/health/ready` (the application database is reachable and has no pending migration), both anonymous. |
-| Authentication | **JWT bearer** (`Microsoft.AspNetCore.Authentication.JwtBearer` 10.0.12) | The API issues its own tokens at `POST /api/v1/auth/login` and checks them on every request: HS256 with `Jwt:SigningKey`, issuer `BillingRecon`, audience `BillingRecon.Api`, 60 minutes by the application's clock, claims `sub`, `tenant_id`, `role`. The tenant and user of a request come from its token only (`RequestPrincipalIdentity`). Deny by default: a fallback policy needs a user on every endpoint but the sign-in, the health checks and, in Development, OpenAPI and Scalar (an architecture test lists them). In Development a request without a token acts as the development user. ADR 0031. **Roles:** every action names exactly one policy of `Policies`, one per capability of the permission matrix (`docs/requirements.md` section 1); a role the policy does not admit gets 403 `forbidden`; a table-driven test walks every endpoint with every role. The checker's role (BR-603) is also checked by `ApprovalRequest` itself. ADR 0032. |
+| Web API | **ASP.NET Core Web API with controllers** | No minimal APIs. Controllers derive from `ApiControllerBase`, are `sealed`, end in `Controller` (architecture test). Every route is under `/api/v1` (ADR 0013). Every error is an RFC 9457 ProblemDetails (ADR 0011). Health checks at `/health/live` (process is up) and `/health/ready` (the application database is reachable and has no pending migration), both anonymous. **Transport (ADR 0035):** TLS ends at a reverse proxy; forwarded headers are believed from the loopback addresses and `ReverseProxy:KnownProxies` only; outside Development a request that did not arrive over HTTPS gets 400 `https_required` (no redirect) and an answer over HTTPS carries HSTS for one year; a host `AllowedHosts` does not list gets 400 `host_not_allowed`; the health endpoints answer probes over plain HTTP for any host; CORS from `Cors:Origins` only, without credentials; no `Server` header; `nosniff` on every response, `no-store` and a content security policy on the answers of `/api`. |
+| Authentication | **JWT bearer** (`Microsoft.AspNetCore.Authentication.JwtBearer` 10.0.12) | The API issues its own tokens at `POST /api/v1/auth/login` and checks them on every request: HS256 with `Jwt:SigningKey`, issuer `BillingRecon`, audience `BillingRecon.Api`, 60 minutes by the application's clock, claims `sub`, `tenant_id`, `role`. The tenant and user of a request come from its token only (`RequestPrincipalIdentity`). Deny by default: a fallback policy needs a user on every endpoint but the sign-in, the health checks and, in Development, OpenAPI and Scalar (an architecture test lists them). In Development a request without a token acts as the development user. ADR 0031. **Roles:** every action names exactly one policy of `Policies`, one per capability of the permission matrix (`docs/requirements.md` section 1); a role the policy does not admit gets 403 `forbidden`; a table-driven test walks every endpoint with every role. The checker's role (BR-603) is also checked by `ApprovalRequest` itself. ADR 0032. **Sign-in limits (ADR 0035):** 30 sign-ins a minute per client address (the rate limiter's policy `sign-in`) and an account held 15 minutes after 10 refusals (`SignInThrottleFilter`), both 429 `too_many_sign_ins` with `Retry-After`; fixed in code, in memory per instance. |
 | OpenAPI | **Built-in OpenAPI + Scalar UI**, Development only | `AddOpenApi`/`MapOpenApi` (document at `/openapi/v1.json`) and `MapScalarApiReference` (`/scalar`), mapped only when the environment is Development. |
 | Data | **EF Core 10 + SQL Server** | One context, `BillingReconDbContext`, whose conventions do the repetitive work (ADR 0015, section 5 below). Migrations live in `Infrastructure/Common/Migrations`, are applied at startup in Development only, and are a deployment step elsewhere. `dotnet-ef` is a local tool (`.config/dotnet-tools.json`, `dotnet tool restore`) at the same version as the EF Core packages; it uses the Infrastructure project and its design-time factory, never the API. SQL Server 2022 in Docker for dev and tests. **Logins (ADR 0034):** outside Development the API connects as `billingrecon_app`, a member of the database role `billingrecon_application` alone, which migration `0020_DatabaseRoles` creates with its grants (`docs/database.md` section 7); the migrations run as `billingrecon_migrator` (`db_ddladmin`, `db_datareader`, `db_datawriter`, `db_securityadmin`); the logins are made per environment (`docs/runbook.md` section 10). The database has `READ_COMMITTED_SNAPSHOT ON`, as EF Core creates one: the application relies on readers not waiting for writers. |
 | Banned APIs | **Microsoft.CodeAnalysis.BannedApiAnalyzers** | `src/BannedSymbols.txt` lists what production code must not call (system time and the machine's time zone, `IgnoreQueryFilters`, `EntityEntry.Reload`/`GetDatabaseValues`, `ExecuteUpdate`/`ExecuteDelete`, and since Prompt 3.1 every raw-SQL entry point of EF Core: `ExecuteSql*`, `SqlQuery*`, `FromSql*`, `GetDbConnection`); a call is build error RS0030. Five files may suppress it, each for one named reason: `SystemClock` (the system time); three that send constant, parameterised, tenant-bound SQL statements: `NumberSeriesAllocator` (two: the locked read-and-increment of a series, and since 2026-11-23 the same locked read alone, with which an approved prefix change holds its series, ADR 0033 "Amended 2026-11-23"), `ReceivablesLedger` (one: the locked change of a payer's balances) and `ReconciliationQuery` (one, read-only); and `LoginUserLookup`, the one `IgnoreQueryFilters`, around one query with the tenant in its predicate, because a sign-in has no tenant yet (ADR 0031). A sixth needs an ADR. Tests guard the list and where the rule may be suppressed (ADR 0015, ADR 0021). |
 | Validation | **FluentValidation** (12.2.0) | One public validator per command or query that has a shape to check, in the Application layer, run by its handler as the handler's first step; it checks the shape (presence, lengths, formats, ranges), the domain and the handler the business rules. A failure is 400 `validation_failed` with messages per field (ADR 0018). The API registers the validators with its scan of the Application assembly. |
 | Logging | **Serilog** | Compact JSON on the console, plus Seq when `Seq:ServerUrl` is set. Every event of a request carries CorrelationId (from `X-Correlation-Id` or generated, BR-703), and TenantId and UserId when the request is authenticated. Phone numbers and e-mail addresses are masked before any sink (ADR 0012). |
-| Configuration | **appsettings + environment variables + user-secrets** | One strongly typed options class per section, validated at startup: the API refuses to start when misconfigured. Secrets (`Database:ConnectionString`, `Seq:ApiKey`, `Jwt:SigningKey`) come from user-secrets or environment variables, never from a file in git; the one key in git, Development's signing key, is refused outside Development. |
+| Configuration | **appsettings + environment variables + user-secrets** | One strongly typed options class per section, validated at startup: the API refuses to start when misconfigured. Secrets (`Database:ConnectionString`, `Seq:ApiKey`, `Jwt:SigningKey`) come from user-secrets or environment variables, never from a file in git; the one key in git, Development's signing key, is refused outside Development. Outside Development `AllowedHosts` is required (no `*`); `ReverseProxy:KnownProxies` and `Cors:Origins` are checked at startup (ADR 0035, `docs/runbook.md` section 11). |
 
 ### Testing
 
@@ -120,7 +120,10 @@ Office machine:
   whole `Database` collection runs here as a pre-check; the run with Docker on the personal machine stays the
   proof. LocalDB 2022 is not installed: its installer needs a licence acceptance, which is the owner's to give.
   LocalDB here runs in mixed mode (SQL logins work), so the fixture's migrator and application logins (ADR 0034) run
-  on it too; it keeps its logins between runs, and the fixture gives them a new password each run.
+  on it too; it keeps its logins between runs, and the fixture gives them a new password each run. It also keeps the
+  databases `BillingRecon_Pending` and `BillingRecon_Development`, which `ReadinessOnSqlServerTests` and
+  `DevelopmentOnSqlServerTests` need to start out missing, as they do in a new container: drop both before a run
+  (`sqlcmd -S "(localdb)\MSSQLLocalDB" -E -C`), or those two classes fail on the second run (found 2026-11-23).
 - **Since 2026-11-21 this machine has the .NET 10 SDK (10.0.404), installed by the owner.** `dotnet build`,
   `dotnet format` and `dotnet test` work here, and so does the repository's `dotnet-ef` 10.0.12. What still cannot
   run here is the `Database` collection as written: it needs Docker. **Since 2026-11-21 the migrations `0001` to
@@ -316,6 +319,13 @@ src/
                                 policies of the permission matrix with the roles each admits, and AddPermissions,
                                 which also sets the fallback policy (deny by default). SettingsController and
                                 PrefixChangesController with their request records (Identity), ADR 0033.
+                                Common/Transport (ADR 0035): AddTransport (forwarded headers from known proxies,
+                                allowed hosts, CORS, HSTS, no Server header) with ReverseProxyOptions,
+                                AllowedHostsOptions and CorsOriginsOptions, TransportGuardMiddleware (hosts, then
+                                HTTPS outside Development) and SecurityHeadersMiddleware; HealthEndpoints (Common);
+                                ApiProblems, the ProblemDetails of a refusal made outside an action (Common/Errors);
+                                SignInLimits, AccountSignInLimiter and the SignInThrottle filter of the sign-in
+                                (Identity).
 tests/
   Directory.Build.props         Test defaults: xUnit, Shouldly, test SDK/runner, global usings.
   BillingRecon.Domain.Tests/  BillingRecon.Application.Tests/
@@ -333,11 +343,16 @@ tests/
                                    0034). Support/: FakeClock, FixedIdentity,
                                    ThrowingIdentity, the CreateClientFor helper (every request carries a bearer token
                                    minted for it by the API's own issuer, ADR 0031), TestRoles, the Bogus-based TestData.
+                                   Every host is called at https://localhost with AllowedHosts=localhost, as a client
+                                   of a deployment is; RemoteAddressStartupFilter gives a request a client address
+                                   (header X-Test-Remote-Address); TransportApiFactory has a proxy, named hosts and a
+                                   frontend origin; KestrelTransportTests host the API on real Kestrel (ADR 0035).
   BillingRecon.ArchitectureTests/  NetArchTest and file scans: layer rule, module rule with its listed exceptions,
                                    every type in a known module, banned packages in every project file, controller
                                    conventions, no minimal APIs; the guard of the banned-API list
                                    (BannedSymbolsTests); the one anonymous action and the one user of the sign-in
-                                   scope (AuthenticationConventionTests); one policy of the catalogue on every action,
+                                   scope, and the sign-in's two rate limits on it alone (AuthenticationConventionTests);
+                                   one policy of the catalogue on every action,
                                    and the checker's roles in every decision (PermissionConventionTests).
 frontend/                      React + TypeScript + Vite (planned)
 docs/                          Design documents and ADRs (see section 7)
@@ -548,7 +563,8 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 - **Logging.** Pass values as message-template arguments, never by string interpolation, and never
   put patient data into an exception message: the PII mask covers event properties only (ADR 0012).
 - **Options.** One `sealed` options class per configuration section, bound with `BindConfiguration`
-  and validated with `ValidateOnStart`. A validation message never repeats a secret value.
+  and validated with `ValidateOnStart`. A validation message never repeats a secret value. The one exception is
+  `AllowedHostsOptions`, which reads the standard root key `AllowedHosts` (ADR 0035).
 - **Persistence** (ADR 0015). A new table is an `IEntityTypeConfiguration` in its module's
   Infrastructure folder that states lengths, precision, indexes and table-specific CHECK
   constraints, and nothing the context already does by convention: ids, the tenant filter and
@@ -628,11 +644,11 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 | `docs/requirements.md` | Domain and vocabulary, actors and permissions, R1 scope, the **BR-nnn business-rule catalogue**, user stories with acceptance criteria, NFRs, R2–R5 outlines |
 | `docs/domain-model.md` | Module map, value objects, aggregates with invariants (citing BR-ids), Bill state machine, transaction boundaries and the allocation exception, domain events, ports |
 | `docs/database.md` | Conventions, ER diagram, every R1 table with types/keys/indexes/CHECKs, number-series lock, ledger accounts and posting templates, balance identities and reconciliation SQL, idempotency lifecycle, permissions, migrations |
-| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), the adjustment endpoints (Prompt 4.4), the reversal endpoints of payments and allocations (Prompt 4.5), the refunds (Prompt 4.6), the users (Prompt 5.1), authentication with the sign-in (Prompt 5.2), the permissions of each role (Prompt 5.3), and the tenant settings with the prefix changes (Prompt 5.3b) |
+| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), the adjustment endpoints (Prompt 4.4), the reversal endpoints of payments and allocations (Prompt 4.5), the refunds (Prompt 4.6), the users (Prompt 5.1), authentication with the sign-in (Prompt 5.2), the permissions of each role (Prompt 5.3), the tenant settings with the prefix changes (Prompt 5.3b), and HTTPS only, hosts, CORS, the headers of an answer and the sign-in limits (Prompt 5.4b) |
 | `docs/build-prompts.md` | The build prompts from zero to R1, reconstructed on 2026-11-20: what each finished prompt built, and the wording and order of the prompts still to give. Its phase numbers are the ones this file uses |
-| `docs/security.md` | Authentication, authorisation, tenancy, maker-checker, secrets, data protection, the database logins, and the known gaps of the threat model. Written with Prompt 5.3, brought up to date with Prompts 5.3b and 5.4; written in full by 5.4b |
+| `docs/security.md` | Authentication and the sign-in limits, authorisation, tenancy, maker-checker, transport (TLS, hosts, CORS, headers), secrets, data protection, the database logins, and the threat model of R1 (section 10: every threat done, accepted with its reason, or named with its prompt). Written in full with Prompt 5.4b |
 | `docs/testing-strategy.md` | Test pyramid, tooling, database tests, architecture tests, CI gates |
-| `docs/runbook.md` | Written so far: local infrastructure, the "Verify on a Docker machine" checklist, migrations, tests, CI, the container image, idempotency keys, the deferred verification list, sign-in with the signing key (section 9), and the database logins with the migrations outside Development (section 10). Still to come: backups, incident procedures |
+| `docs/runbook.md` | Written so far: local infrastructure, the "Verify on a Docker machine" checklist, migrations, tests, CI, the container image, idempotency keys, the deferred verification list, sign-in with the signing key (section 9), the database logins with the migrations outside Development (section 10), and the proxy in front of the API with its hosts and origins (section 11). Still to come: backups, incident procedures |
 | `docs/adr/` | Architecture Decision Records. ADR 0000 defines the format. |
 
 ADRs so far: 0000 record decisions, 0001 target framework (.NET 8; superseded by 0014),
@@ -688,7 +704,11 @@ of a year taken during an approval, was closed on the owner's decision of 2026-1
 "Amended 2026-11-23", which also amends ADR 0021 point 3 for the allocator's file),
 0034 database roles, grants and the logins of the application: a migration of grants written by hand, schema-wide with
 the exceptions of the markers, the migrator's four roles, every database test as the application's login, the role
-owned by `dbo`, and `READ_COMMITTED_SNAPSHOT` (Accepted on the owner's approval of the Prompt 5.4 plan, 2026-11-23).
+owned by `dbo`, and `READ_COMMITTED_SNAPSHOT` (Accepted on the owner's approval of the Prompt 5.4 plan, 2026-11-23),
+0035 HTTP hardening: TLS at the proxy with forwarded headers from known proxies only, HTTPS only without a redirect and
+HSTS, allowed hosts checked by the API, two sign-in limits (per address and per account), CORS from configuration, no
+Server header and the headers of an answer, and the accepted risks of the threat model (Accepted on the owner's approval
+of the Prompt 5.4b plan, 2026-11-23; it answers ADR 0031 point 12 and amends ADR 0017's smoke run).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -810,9 +830,11 @@ Kept here so they survive between sessions. Remove an item when it is done.
      `ModuleDependencyTests`; Audit is generic over `IDomainEvent`, approval handlers live with their documents,
      aggregates take ids rather than each other.
    - 2.3 closed 2026-11-21 by Prompt 5.2: deny by default, a fallback policy that needs a user (ADR 0031);
-     2.4 TLS, allowed hosts, server header (Prompt 5.4b);
+     2.4 closed 2026-11-23 by Prompt 5.4b: TLS at the proxy with HTTPS only and HSTS, allowed hosts, no server header
+     (ADR 0035);
      2.5 package lock files, `nuget.config`, transitive pinning (the CI cache keys on `Directory.Packages.props`
-     and the project files instead of lock files).
+     and the project files instead of lock files): accepted for R1 in the threat model (`docs/security.md` section 10,
+     row T9).
    - 3.1, 3.2 and 3.3 closed 2026-10-17 (`ConventionTests`, `ModuleDependencyTests`, `LayerDependencyTests`:
      controllers never use EF Core or Infrastructure, no minimal APIs, every type in a known module, banned
      packages scanned in every project file, the Domain project file declares no reference); 3.6 soft edges in
@@ -1506,8 +1528,9 @@ Kept here so they survive between sessions. Remove an item when it is done.
       full (1087 tests), and the 20 `BR804` tests with the sign-in and isolation tests ran three more times without a
       failure.
     - **Still to do:** SQL Server 2022 in Docker; the container's smoke test in CI with its throwaway key (the workflow
-      changed, it has not run); a rate limit or lockout of sign-ins (ADR 0031 point 12); the user commands and requests
-      of 5.1 that hold a password print it in their generated `ToString` (nothing logs them; a small follow-up).
+      changed, it has not run); the user commands and requests of 5.1 that hold a password print it in their generated
+      `ToString` (nothing logs them; a small follow-up). The rate limit of sign-ins (ADR 0031 point 12) is done with
+      Prompt 5.4b (item 33).
     - Next: Prompt 5.3 (role permissions and tenant settings).
 29. **Prompt 5.3, first half: role permissions (ADR 0032), written 2026-11-21, built and tested on .NET 10.** On
     `phase-2-billing` like the rest. The plan was approved "as recommended", which split the prompt: this is 5.3, the
@@ -1637,4 +1660,41 @@ Kept here so they survive between sessions. Remove an item when it is done.
       a failure.
     - **Still to do:** SQL Server 2022 in Docker (runbook section 8, row 5.4); the logins of runbook section 10 in each
       environment.
-    - Next: Prompt 5.4b (HTTP hardening and `docs/security.md` in full), with its own plan.
+    - Next: Prompt 5.4b (HTTP hardening and `docs/security.md` in full), with its own plan. Done: item 33.
+33. **Prompt 5.4b, second half: HTTP hardening and the security document (ADR 0035), written 2026-11-23, built and
+    tested on .NET 10.** On `phase-2-billing`, after 5.4. The plan was approved "as recommended". No migration, no
+    package (the rate limiter, CORS, forwarded headers and HSTS are in the shared framework).
+    - Built: TLS ends at a reverse proxy; `UseForwardedHeaders` first, believing the loopback addresses and
+      `ReverseProxy:KnownProxies` only; `TransportGuardMiddleware`, which refuses a host `AllowedHosts` does not list
+      (400 `host_not_allowed`) and, outside Development, a request that did not arrive over HTTPS (400 `https_required`,
+      no redirect), the two health endpoints excepted; HSTS for one year outside Development; CORS from
+      `Cors:Origins`; no `Server` header; `SecurityHeadersMiddleware` (`nosniff`; `no-store` and a content security
+      policy on `/api`); two sign-in limits answering 429 `too_many_sign_ins` with `Retry-After` (30 a minute per
+      client address, the rate limiter's policy `sign-in`; an account held 15 minutes after 10 refusals,
+      `SignInThrottleFilter`); the startup checks of every setting; `docs/security.md` written in full with its threat
+      model; `docs/runbook.md` section 11.
+    - Decided by the owner with the plan (ADR 0035 points 1 to 7), including the accepted risks of the threat model
+      and a sentence each in prompts 7.1 (where the browser keeps the token) and 8.1 (TLS at the demo's nginx, the
+      frontend's own headers) of `docs/build-prompts.md`.
+    - **Found in the build (ADR 0035 built note):** the framework's host filter, which reads the same key, is set to
+      let every host through; the test server has no client address, so a test-only startup filter gives one;
+      `WebApplicationFactory.UseKestrel` (new in ASP.NET Core 10) hosts the API on real Kestrel for the `Server` header;
+      HSTS is not on an answer of 500 (the exception handler clears the response).
+    - **Changed in existing tests, none weakened:** every integration test host is called at `https://localhost` and
+      names `localhost` in `AllowedHosts` (`ApiFactory`), as a client of a deployment is; the architecture test of the
+      anonymous action gained a sibling for the rate limits. No existing expectation changed.
+    - **Tests:** `TransportSecurityTests`, `CorsTests`, `SecurityHeadersTests`, `SignInRateLimitTests`,
+      `TransportStartupValidationTests`, `KestrelTransportTests` (without a database, 78 new), four per-account tests in
+      `AuthApiTests` (database), one architecture test. With the `Server` header switched back on, HSTS removed, the
+      guard removed and the per-account filter removed in a throwaway copy, 20 of the tests run against it fail, each
+      change caught by at least one.
+    - **Verified on .NET 10 (SDK 10.0.404):** in the repository, the Release build and `dotnet format
+      --verify-no-changes` are clean, and Domain 625, Application 394, Architecture 122 and the 738 integration tests
+      without a database pass; in a throwaway copy on LocalDB 2019 the integration project passes in full (1209 tests;
+      the readiness test of a pending migration first failed on a database an earlier run had left, see section 2),
+      and the new tests with the sign-in tests ran three more times without a failure. The smoke run's checks passed
+      against the published API on Kestrel with the smoke run's settings (alive, no `Server` header, 400
+      `https_required`).
+    - **Still to do:** SQL Server 2022 in Docker and the CI smoke run of the image (runbook section 8, row 5.4b); in each
+      environment, `AllowedHosts`, the proxy's address and TLS at the proxy (runbook section 11).
+    - Next: Prompt 6.1 (registers and balances). Phase 5 is written to its end; its merge to `main` is the owner's step.

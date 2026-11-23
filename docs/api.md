@@ -17,6 +17,20 @@ the financial endpoints, the users and sign-in (Prompts 5.1 and 5.2) were added 
 - **Operational endpoints** sit outside the prefix: `/health/live`, `/health/ready`, and in Development only the
   OpenAPI document (`/openapi/v1.json`) and the Scalar UI (`/scalar`).
 - Every response carries `X-Correlation-Id` (taken from the request or generated, BR-703).
+- **HTTPS only** (ADR 0035). TLS ends at the proxy in front of the API. Outside Development a request that did not
+  arrive over HTTPS gets 400 `https_required`, before anything of it is read and with no redirect: a client is
+  configured with the `https` address. An answer over HTTPS carries `Strict-Transport-Security: max-age=31536000`. The
+  two health endpoints also answer over plain HTTP, for probes.
+- **Hosts.** A request for a host name the deployment does not list (`AllowedHosts`) gets 400 `host_not_allowed`; the
+  health endpoints answer for any host.
+- **Browsers on another origin** (CORS) may call the API only from the origins the deployment lists (`Cors:Origins`;
+  none by default, `http://localhost:5173` in Development): the methods `GET`, `POST`, `PUT` and `PATCH`; the request
+  headers `Authorization`, `Content-Type`, `If-Match`, `Idempotency-Key` and `X-Correlation-Id`; and they may read the
+  answer headers `ETag`, `Location`, `Retry-After`, `X-Correlation-Id` and `Idempotent-Replayed`. No credentials: the
+  token travels in `Authorization`, never in a cookie. A preflight needs no token.
+- **What every answer of `/api` carries:** `Cache-Control: no-store` (nothing is kept by a browser or a cache) unless
+  the endpoint sets its own, `X-Content-Type-Options: nosniff` and `Content-Security-Policy: default-src 'none';
+  frame-ancestors 'none'`. No answer has a `Server` header.
 
 ## 2. Authentication and tenancy
 
@@ -75,6 +89,8 @@ with field errors lists the messages per field under `errors`, keyed by the JSON
 |---|---|---|
 | 400 | A field is missing or invalid, the body cannot be read, a query value is out of range | `validation_failed` |
 | 400 | A financial POST without a usable `Idempotency-Key` (section 7) | `idempotency_key_missing` |
+| 400 | Outside Development, a request that did not arrive over HTTPS (section 1) | `https_required` |
+| 400 | A host name the API does not answer for (section 1) | `host_not_allowed` |
 | 401 | No token, or one that is not valid: expired, not signed by this API, without a tenant or a user (section 2) | `unauthorized` |
 | 401 | A sign-in that is refused, whatever the reason (section 8.12) | `invalid_credentials` |
 | 403 | The user's roles do not allow the endpoint (section 2), or a trail that is the TenantAdmin's (section 8.5) for anyone else | `forbidden` |
@@ -86,6 +102,7 @@ with field errors lists the messages per field under `errors`, keyed by the JSON
 | 422 | A business rule refuses the request | see the endpoints |
 | 422 | The `Idempotency-Key` was used for a different request (section 7) | `idempotency_key_reuse` |
 | 428 | A change of an existing record without `If-Match` | `precondition_required` |
+| 429 | Too many sign-ins from one address, or too many refused for one account (section 8.12); `Retry-After` gives the seconds to wait | `too_many_sign_ins` |
 | 500 | A fault; no internal detail is returned outside Development | `internal_error` |
 
 ## 4. Versions: ETag and If-Match (BR-804, ADR 0007)
@@ -743,7 +760,7 @@ password, and the key store keeps a fingerprint of the body), and no answer of i
 
 | Method and path | Success | Failures |
 |---|---|---|
-| `POST /api/v1/auth/login` | 200, the token | 400; 401 `invalid_credentials` |
+| `POST /api/v1/auth/login` | 200, the token | 400; 401 `invalid_credentials`; 429 `too_many_sign_ins` |
 
 The body (unknown members are refused): `tenant`, the code of the hospital; `email`; `password`. The code and the
 address are compared without regard to case or the spaces around them. The answer: `accessToken`, `tokenType`
@@ -754,8 +771,16 @@ unknown address, a wrong password, a disabled user (BR-601). So the answer never
 exist, and an unknown address costs as much time as a wrong password. Why a sign-in was refused is written to the log
 (a warning with the hospital's code and, when the address was found, the user's id); the address and the password
 never are. A missing or over-long value is a 400 `validation_failed` like any other. A sign-in is recorded on the user
-(`lastSignInAtUtc`) and in the audit trail (`SignedIn`, by the user). Repeated attempts are not limited yet (ADR 0031,
-point 12).
+(`lastSignInAtUtc`) and in the audit trail (`SignedIn`, by the user).
+
+**Repeated attempts are limited** (ADR 0035), in two ways that answer the same 429 `too_many_sign_ins`, with
+`Retry-After` in seconds and `Cache-Control: no-store`:
+
+- **per client address:** 30 sign-ins a minute, however they end (`Retry-After: 60`);
+- **per account**, the hospital's code and the address as typed: after 10 refused sign-ins in 15 minutes, every
+  sign-in for that account is refused until the 15 minutes have passed, the right password included
+  (`Retry-After: 900`). A sign-in that succeeds counts nothing. An address nobody has is held in the same way, so the
+  answer still tells nothing about which accounts exist.
 
 ### 8.13 Settings (US-03; BR-205, BR-207, BR-607; ADR 0033)
 
