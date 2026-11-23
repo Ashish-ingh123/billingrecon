@@ -1,0 +1,65 @@
+/*
+ * The design tokens (ADR 0038, point 7): the only file of the frontend that holds colour values. Every component takes
+ * its colours from these variables; a test fails on a colour anywhere else, and another holds the text of both themes
+ * to WCAG AA against the surfaces. The theme is chosen by data-theme on <html>, which the inline script of index.html
+ * sets before React mounts.
+ *
+ * surface          the page
+ * surface-raised   what stands on it: the top bar, panels, cards, inputs
+ * surface-sunken   what sits below it: the navigation, a table's header
+ * text, text-muted the text, and the quieter text of labels and hints
+ * border           the edge of a control or a panel
+ * accent           links, the primary action, the selected item; on-accent is text on it
+ * success, warning, danger   meaning, as text or as a mark
+ * focus            the focus ring
+ * series-1 to -6   the chart palette, in a fixed order: a series keeps its colour in both themes
+ */
+
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --surface: #f5f6f8;
+  --surface-raised: #ffffff;
+  --surface-sunken: #e9ecf0;
+  --text: #1a1d23;
+  --text-muted: #4f5663;
+  --border: #767e8a;
+  --accent: #1d5bb8;
+  --on-accent: #ffffff;
+  --success: #1b7136;
+  --warning: #8a5300;
+  --danger: #b0261d;
+  --focus: #1d5bb8;
+
+  --series-1: #1d5bb8;
+  --series-2: #b85c00;
+  --series-3: #1a7f74;
+  --series-4: #7d3c98;
+  --series-5: #b0261d;
+  --series-6: #5c6470;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --surface: #111418;
+  --surface-raised: #1a1e24;
+  --surface-sunken: #0b0d10;
+  --text: #e8eaed;
+  --text-muted: #aab1bc;
+  --border: #7a8390;
+  --accent: #78aeff;
+  --on-accent: #0b1a33;
+  --success: #5cc98a;
+  --warning: #f0b44c;
+  --danger: #ff8a80;
+  --focus: #78aeff;
+
+  --series-1: #78aeff;
+  --series-2: #f0a35e;
+  --series-3: #4fd1c5;
+  --series-4: #c39bd3;
+  --series-5: #ff8a80;
+  --series-6: #adb5bd;
+}

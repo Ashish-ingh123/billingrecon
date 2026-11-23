@@ -95,6 +95,12 @@ role against the database.
   `/api`, `Cache-Control: no-store` (unless the action set its own) and
   `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`. Errors outside Development carry no internal
   detail (ADR 0011).
+- **The frontend** (ADR 0038) keeps the token in `sessionStorage`: a refresh keeps the user signed in, closing the tab
+  signs them out, and it is forgotten at its expiry and on any 401. It renders no raw HTML (a lint rule refuses
+  `dangerouslySetInnerHTML`). Its one inline script, which sets the theme before the first paint, has the SHA-256
+  `EiUJJFQJQCBNqB/aazghpxtqLJ7StNqlkar3PJPRG+g=`, pinned by a test; the content security policy of the frontend
+  (Prompt 8.1) lists it as `script-src 'self' 'sha256-EiUJJFQJQCBNqB/aazghpxtqLJ7StNqlkar3PJPRG+g='`. A change of the
+  script changes the hash, and the test fails until both are updated.
 
 ## 7. Secrets
 
@@ -151,7 +157,7 @@ it.
 | S2 | Password spraying: one common password tried on many accounts | The limit per client address (30 a minute); passwords of 12 characters or more | Done (ADR 0035). From many addresses at once only the per-account limit applies: Accepted |
 | S3 | Forging a token | HS256 with a key of 256 bits or more from the secret store; only HS256; issuer, audience and lifetime checked against the application's clock | Done (ADR 0031) |
 | S4 | A stolen token used by someone else | Valid 60 minutes at most | Accepted for R1: no revocation (ADR 0031 point 8) |
-| S5 | A token stolen from the browser by a script (XSS) | The frontend's choice of where it keeps the token, and its content security policy | Prompt 7.1 (where the token is kept) and 8.1 (the frontend's headers) |
+| S5 | A token stolen from the browser by a script (XSS) | The token in `sessionStorage`, gone with the tab and after 60 minutes; React's escaping and a lint rule against raw HTML; the frontend's content security policy, which lists the inline theme script by its SHA-256 (section 6) | Where the token is kept: Done (ADR 0038 point 9). A script that runs in the page can still use the token while the page is open, wherever it is kept: Accepted, the defence is keeping scripts out. The policy: Prompt 8.1 |
 | S6 | The development key or the development identity used in a deployment | The API refuses the key of the repository outside Development; the development identity exists only in Development | Done (ADR 0031). Keeping Development off reachable machines is operational: Accepted |
 | S7 | A forged client address or scheme in forwarded headers | Believed from the loopback and `ReverseProxy:KnownProxies` only, one proxy deep; the framework's switch that believes anyone stops the API at startup | Done (ADR 0035) |
 | S8 | Learning which hospitals or addresses exist | One 401 for every refusal, at the same cost; the per-account limit holds an address nobody has exactly like a real one | Done (ADR 0031, ADR 0035) |

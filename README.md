@@ -47,7 +47,7 @@ src/
 tests/
   BillingRecon.Domain.Tests/  BillingRecon.Application.Tests/
   BillingRecon.IntegrationTests/  BillingRecon.ArchitectureTests/
-frontend/                     planned: React + TypeScript + Vite
+frontend/                     React + TypeScript + Vite: sign-in and the shell (Prompt 7.1, ADR 0038)
 docs/                         requirements, domain model, database, API, security, testing, runbook, ADRs
 ```
 
@@ -57,7 +57,7 @@ Adjustments, Reporting, Identity, Audit.
 ## Getting started
 
 Prerequisites: a .NET 10 SDK (`global.json` accepts any 10.0.x), Docker Desktop for the local SQL
-Server and Seq (and for the database tests to come), Node 20+ for the planned front end.
+Server and Seq (and for the database tests to come), Node 22.22 or later for the frontend (docs/runbook.md section 12).
 
 Restore the local tools once per clone (`dotnet-ef`, at the version of the EF Core packages):
 

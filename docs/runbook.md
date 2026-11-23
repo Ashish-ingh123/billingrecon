@@ -3,9 +3,9 @@
 - **Status:** sections 1 and 2 written 2026-10-03 with the infrastructure step, section 3 with the
   DbContext step, section 4 with the test infrastructure and sections 5 and 6 with the CI step
   (2026-10-17); later sections with the prompts that needed them, the last being section 11, the proxy in front of the
-  API (Prompt 5.4b, 2026-11-23). Still to be written: rolling back a migration, deploying migrations outside
-  Development, backup and restore, and incident procedures (balance drift versus the ledger,
-  number-series recovery, stuck maker-checker approvals, idempotency store cleanup).
+  API (Prompt 5.4b, 2026-11-23), and section 12, the frontend (Prompt 7.1, 2026-11-23). Still to be written: rolling
+  back a migration, deploying migrations outside Development, backup and restore, and incident procedures (balance
+  drift versus the ledger, number-series recovery, stuck maker-checker approvals, idempotency store cleanup).
 
 ---
 
@@ -303,8 +303,10 @@ Testcontainers exception with the detail.
 
 ## 5. Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `main` and every pull request (ADR 0017), as two jobs
-on GitHub's Ubuntu runners, which have Docker. Every gate has a local equivalent:
+`.github/workflows/ci.yml` runs on every push to `main` and every pull request (ADR 0017), as three jobs
+on GitHub's Ubuntu runners, which have Docker: the API's gates below, its container image (section 6), and since
+Prompt 7.1 the frontend's (install the locked packages, `npm audit`, format, lint, the generated API types against the
+committed document, types and build, tests; section 12, ADR 0038). Every gate has a local equivalent:
 
 | Gate | What it checks | The same thing locally |
 |---|---|---|
@@ -327,7 +329,8 @@ until the package above it moves on. Say so in the commit. The audit stays on.
 
 **Dependabot** opens weekly pull requests for NuGet, with minor and patch updates grouped, and for
 the actions the workflow uses. Major versions of the framework-bound packages are left to a
-deliberate decision (ADR 0014).
+deliberate decision (ADR 0014). Since Prompt 7.1 it does the same for the frontend's npm packages, a week after a
+release is published, and leaves the major versions of ESLint and TypeScript to a decision (ADR 0038).
 
 **Acceptance of the CI step** (CLAUDE.md section 9): the first green run once the repository is on
 GitHub, and a pull request with one deliberately broken assertion that goes red and is closed unmerged.
@@ -630,6 +633,7 @@ dotnet test --filter "FullyQualifiedName~DatabasePermissionsOnSqlServerTests"
 | 6.1 | `ReportsApiTests` on SQL Server 2022: the joins across modules, the comparisons of `Money` with zero and the order by a `Money` column, as Entity Framework 10 translates them there. |
 | 6.2 | The whole `Database` collection on SQL Server 2022 with the reconciliation after every test (`NumberSeriesGap` included): a test that passes on LocalDB but leaves drift there fails. `ReconciliationApiTests` and `BillAuditTrailApiTests`. |
 | 6.3 | `DashboardApiTests` on SQL Server 2022: the two statements of `LedgerMovementsQuery` (a `date` parameter, sums grouped by business date read back as `DateOnly`), the payment register ordered newest first, and the IST midnight boundary of a payment recorded at 23:59 and 00:01 in India. |
+| 7.1 | The frontend job of CI (it has not run: the repository is not on GitHub); `npm ci` and `npm test` in `frontend/` on the personal machine, whose Node version is not recorded (22.22 or later is needed); `OpenApiSnapshotTests` there, which also proves the document is the same on that machine's SDK. |
 
 A red result is reported as it is, with its output; the fix is its own commit on top, never an edit of history.
 
@@ -782,3 +786,57 @@ The answer is 401 (no token), with `Strict-Transport-Security: max-age=31536000`
 **Sign-in limits** count per client address, the one the proxy puts in `X-Forwarded-For` (section 9). A proxy that
 sends the same address for everyone (a misconfigured header) makes all clients share one limit of 30 sign-ins a
 minute.
+
+---
+
+## 12. The frontend (ADR 0038)
+
+`frontend/` is the React app: TypeScript, Vite, React Router, TanStack Query and a client typed from the API's OpenAPI
+document. It needs **Node 22.22 or later** (`engines` in `package.json`; CI uses Node 24). Every command runs in
+`frontend/`.
+
+| Command | What it does |
+|---|---|
+| `npm ci` | Installs exactly the locked packages (`package-lock.json`). Once per clone, and after a change of the lock file |
+| `npm run dev` | The dev server at http://localhost:5173, which forwards `/api` to the API at http://localhost:5080 (another address: `BILLINGRECON_API_URL`) |
+| `npm test` | The tests (Vitest, jsdom, React Testing Library) |
+| `npm run lint` | ESLint, warnings as errors: TypeScript with types, hooks, accessibility, no raw HTML |
+| `npm run format:check` | Prettier's check, the format gate; `npm run format` writes the fixes |
+| `npm run typecheck` | TypeScript alone |
+| `npm run build` | TypeScript, then the static files in `frontend/dist/` |
+| `npm run api:types` | Generates `src/api/schema.d.ts` from `src/api/openapi.json` |
+| `npm audit` | The advisories of the installed packages; CI fails on any |
+
+**Sign in locally.** Run the API in Development (README, "Getting started") and `npm run dev`. The development user
+has a password nothing matches (ADR 0030), so make a user first: in Development a request without a token acts as the
+development user, a TenantAdmin.
+
+```powershell
+$body = '{"email":"admin@example.org","displayName":"Admin","password":"choose-twelve-or-more","roles":["TenantAdmin"]}'
+Invoke-RestMethod -Method Post -Uri http://localhost:5080/api/v1/users -ContentType 'application/json' -Body $body
+```
+
+Then sign in at http://localhost:5173 with the hospital code `development`, that address and that password. A user with
+other roles sees the sections of the permission matrix those roles may open.
+
+**When an endpoint changes,** `OpenApiSnapshotTests` fails: `frontend/src/api/openapi.json` is no longer the API's
+document. Rewrite it from the API and regenerate the types, then commit both with the change:
+
+```powershell
+$env:BILLINGRECON_WRITE_OPENAPI_SNAPSHOT = '1'; dotnet test tests/BillingRecon.IntegrationTests --filter "FullyQualifiedName~OpenApiSnapshotTests"; Remove-Item Env:BILLINGRECON_WRITE_OPENAPI_SNAPSHOT
+```
+
+```powershell
+npm --prefix frontend run api:types
+```
+
+The frontend's CI job fails while `schema.d.ts` differs from what `npm run api:types` writes.
+
+**When `npm audit` fails** in CI or locally: update the package that brings the advisory in to a version that fixes it
+(`npm install --save-dev <package>@<version>` for a tool, without `--save-dev` for the app), and say so in the commit,
+as for NuGet (section 5). The audit stays on.
+
+**Where the browser keeps what** (ADR 0038 point 9): the session (the token, its expiry, the user's roles) in
+`sessionStorage` under `billingrecon.session`, gone when the tab closes or the user signs out; the theme
+(`billingrecon.theme`) and the last hospital code (`billingrecon.hospital`) in `localStorage`. A user who reports being
+signed out after an hour has met the token's 60 minutes (ADR 0031): there is no refresh.

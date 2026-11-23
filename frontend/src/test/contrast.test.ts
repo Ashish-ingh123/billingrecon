@@ -1,0 +1,77 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+/**
+ * The tokens meet WCAG 2.2 AA in both themes (ADR 0038, point 7): text at least 4.5:1 against every surface it may stand
+ * on (1.4.3), and borders, the focus ring and the chart series at least 3:1 (1.4.11). Computed from tokens.css itself.
+ */
+const tokensCss = readFileSync(join(process.cwd(), 'src', 'theme', 'tokens.css'), 'utf8');
+
+function tokensOf(selector: string): Record<string, string> {
+  const start = tokensCss.indexOf(selector);
+  const block = tokensCss.slice(tokensCss.indexOf('{', start) + 1, tokensCss.indexOf('}', start));
+  const tokens: Record<string, string> = {};
+  for (const [, name, value] of block.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-f]{6});/gi)) {
+    if (name !== undefined && value !== undefined) {
+      tokens[name] = value;
+    }
+  }
+
+  return tokens;
+}
+
+function luminance(hex: string): number {
+  const channel = (offset: number) => {
+    const value = Number.parseInt(hex.slice(offset, offset + 2), 16) / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+
+  return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+}
+
+export function contrast(first: string, second: string): number {
+  const [lighter, darker] = [luminance(first), luminance(second)].sort((a, b) => b - a) as [number, number];
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+const themes = { light: tokensOf(":root[data-theme='light']"), dark: tokensOf(":root[data-theme='dark']") };
+const surfaces = ['surface', 'surface-raised', 'surface-sunken'];
+const texts = ['text', 'text-muted', 'accent', 'success', 'warning', 'danger'];
+const marks = ['border', 'focus'];
+const series = ['series-1', 'series-2', 'series-3', 'series-4', 'series-5', 'series-6'];
+
+describe.each(Object.entries(themes))('the %s theme', (_, tokens) => {
+  const pairs = (foregrounds: string[], backgrounds: string[]) =>
+    foregrounds.flatMap((foreground) => backgrounds.map((background) => [foreground, background] as const));
+
+  it('defines every token', () => {
+    for (const name of [...surfaces, ...texts, ...marks, ...series, 'on-accent']) {
+      expect(tokens[name], `--${name}`).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+  });
+
+  it.each(pairs(texts, surfaces))('%s text on %s is at least 4.5:1', (foreground, background) => {
+    expect(contrast(tokens[foreground] ?? '', tokens[background] ?? '')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('on-accent text on the accent is at least 4.5:1', () => {
+    expect(contrast(tokens['on-accent'] ?? '', tokens.accent ?? '')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(pairs(marks, surfaces))('%s against %s is at least 3:1', (foreground, background) => {
+    expect(contrast(tokens[foreground] ?? '', tokens[background] ?? '')).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(pairs(series, ['surface', 'surface-raised']))('%s against %s is at least 3:1', (foreground, background) => {
+    expect(contrast(tokens[foreground] ?? '', tokens[background] ?? '')).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('the contrast formula', () => {
+  it('gives the known ratios', () => {
+    expect(contrast('#000000', '#ffffff')).toBeCloseTo(21, 5);
+    expect(contrast('#777777', '#ffffff')).toBeCloseTo(4.48, 2);
+    expect(contrast('#ffffff', '#ffffff')).toBe(1);
+  });
+});

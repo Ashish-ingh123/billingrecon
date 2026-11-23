@@ -1,0 +1,6 @@
+# Written by tools, not by hand: the OpenAPI document by OpenApiSnapshotTests, the types by openapi-typescript (ADR 0038).
+src/api/openapi.json
+src/api/schema.d.ts
+package-lock.json
+dist
+coverage

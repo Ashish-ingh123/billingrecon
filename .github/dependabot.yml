@@ -32,12 +32,28 @@ updates:
       time: "06:00"
       timezone: Asia/Kolkata
 
-  # The front end arrives with Prompt 8.1. Dependabot reports an error for a directory that does not exist, so
-  # this entry waits here until frontend/ has a package.json.
-  # - package-ecosystem: npm
-  #   directory: /frontend
-  #   schedule:
-  #     interval: weekly
-  #     day: monday
-  #     time: "06:00"
-  #     timezone: Asia/Kolkata
+  # The frontend (Prompt 7.1, ADR 0038). A release is proposed a week after it is published, not the day it appears:
+  # time for a bad release to be found and pulled. ESLint stays on 9 until eslint-plugin-jsx-a11y supports 10, and
+  # TypeScript on 5 until typescript-eslint and openapi-typescript accept a later one (ADR 0038, point 1 and 10).
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@eslint/js"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]

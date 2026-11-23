@@ -17,6 +17,10 @@ indent_size = 2
 [*.{json,yml,yaml}]
 indent_size = 2
 
+# The frontend (ADR 0038): two spaces, as Prettier writes them.
+[*.{ts,tsx,js,mjs,cjs,css,html}]
+indent_size = 2
+
 [*.sln]
 indent_style = tab
 end_of_line = crlf

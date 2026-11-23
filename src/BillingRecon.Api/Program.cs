@@ -71,6 +71,11 @@ builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(namingPolicy: null, allowIntegerValues: false));
 });
 
+// The same for the options the built-in OpenAPI document reads its schemas from, which are not the controllers' own: without
+// this the document says enums are numbers, and the frontend's types generated from it would be wrong (ADR 0038).
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(namingPolicy: null, allowIntegerValues: false)));
+
 // Error contract: every error is an RFC 9457 ProblemDetails with errorCode, traceId and correlationId.
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = ProblemDetailsEnricher.Enrich);
 builder.Services.AddSingleton<IProblemDetailsWriter, FallbackProblemDetailsWriter>();

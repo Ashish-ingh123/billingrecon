@@ -187,3 +187,47 @@ jobs:
       - name: Container logs
         if: always()
         run: docker logs api || true
+
+  frontend:
+    name: Frontend format, lint, types, tests, build, audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Install Node
+        # The current LTS; package.json asks for 22.22 or later (ADR 0038).
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install the locked packages
+        run: npm ci
+
+      - name: Audit
+        # Any advisory in the installed packages fails the build, as the NuGet audit does (ADR 0017, ADR 0038).
+        run: npm audit --audit-level=low
+
+      - name: Format
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: The API's types match the committed OpenAPI document
+        # OpenApiSnapshotTests holds src/api/openapi.json to the API's own document; this holds the generated types to it.
+        run: |
+          npm run api:types
+          git diff --exit-code -- src/api/schema.d.ts
+
+      - name: Types and build
+        run: npm run build
+
+      - name: Test
+        run: npm test

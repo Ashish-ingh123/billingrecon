@@ -65,7 +65,22 @@ the domain model, the schema and the tests.
 
 ### Frontend
 
-React + TypeScript + Vite in `frontend/`.
+React + TypeScript + Vite in `frontend/` (ADR 0038, Prompt 7.1). Node 22.22 or later (`engines`; CI uses Node 24).
+
+| Concern | Choice | Notes |
+|---|---|---|
+| Stack | **React 19, TypeScript 5.9, Vite 8** | TypeScript stays on 5 until typescript-eslint and openapi-typescript accept a later one. Static files, served by the proxy of Prompt 8.1. |
+| Routing | **React Router 8**, data mode | `createBrowserRouter`, `RouterProvider` from `react-router/dom`; no framework mode, no server rendering. |
+| Data | **TanStack Query** | A 4xx is never retried; the cache is cleared when a session ends. |
+| API client | **openapi-fetch** over types from **openapi-typescript** | Generated from `src/api/openapi.json`, the API's own document, which `OpenApiSnapshotTests` (.NET) keeps equal to the API's; `npm run api:types` regenerates `src/api/schema.d.ts`, and CI fails when it differs. Every request carries the token and an `X-Correlation-Id` of its own; a 401 to a request that carried a token ends the session. |
+| Forms | **React Hook Form**, no schema library | The API validates; its messages per field go on the fields. |
+| Components | Our own, **CSS Modules** on the **design tokens** of `src/theme/tokens.css`; no UI kit | No raw colour outside `tokens.css` (a test scans every file); WCAG AA in both themes (a test computes the contrast). The theme (System, Light, Dark) is `data-theme` on `<html>`, set by the inline script of `index.html` before React mounts; its SHA-256 is pinned by a test for the CSP of 8.1. |
+| Errors | **`ProblemAlert`** | The one way a screen shows a refusal: the API's message, field messages not placed on fields, the wait of a 429, the reference (correlation id). |
+| Session | **`sessionStorage`** | The token, its expiry and the roles read from it; gone with the tab, at expiry and on a 401 (row S5). The roles choose the navigation only; the API is the authority. |
+| Charts (7.6) | **Recharts** | SVG, so a series drawn with `var(--series-n)` follows the theme without a re-render. |
+| Tests | **Vitest**, jsdom, React Testing Library | The API faked by a `fetch` given to the client (`src/test/app.tsx`); no mocking package. |
+| Lint and format | **ESLint 9** (type-aware TypeScript, hooks, `jsx-a11y`, no `dangerouslySetInnerHTML`), **Prettier** | ESLint stays on 9 until `jsx-a11y` supports 10. Warnings are errors. One `eslint-disable`, in a test, with its reason. |
+| Packages | 27, pinned exactly, `package-lock.json` committed | `npm ci` in CI; `npm audit` fails on any advisory; Dependabot a week after a release. A new package needs approval (section 6). |
 
 ### Delivery
 
@@ -75,8 +90,9 @@ which git ignores. The API has a multi-stage image, `src/BillingRecon.Api/Docker
 time zone data, non-root user, health check; ADR 0017). GitHub Actions, `.github/workflows/ci.yml`, runs on every
 push to `main` and every pull request: restore with the NuGet audit, `dotnet format --verify-no-changes`, build
 with warnings as errors, every test including the database tests (the runners have Docker), coverage and a
-vulnerability report as artifacts, the idempotent migration script, and the image built and smoke-run.
-Dependabot keeps NuGet and the actions current (`.github/dependabot.yml`). Line endings are LF everywhere
+vulnerability report as artifacts, the idempotent migration script, and the image built and smoke-run; and since
+Prompt 7.1 a third job, the frontend: `npm ci`, `npm audit`, format, lint, the generated API types against the committed
+document, types and build, tests. Dependabot keeps NuGet, npm and the actions current (`.github/dependabot.yml`). Line endings are LF everywhere
 (`.gitattributes`, `.editorconfig`), CRLF only for `.sln`, `.ps1`, `.cmd` and `.bat`. Commands and the gates are
 in `docs/runbook.md` sections 5 and 6.
 
@@ -106,7 +122,8 @@ Personal machine, recorded 2026-10-17 from the build outputs it produced and the
 Office machine:
 
 - `dotnet --list-sdks`: 5.0.207, 8.0.405, 9.0.102.
-- `node --version`: **v6.10.1**. Far too old for Vite, which needs Node 20.19+ or 22.12+. Install a current Node LTS before any frontend work.
+- `node --version`: **v24.22.2**, npm 11.19.1 (recorded 2026-11-23; it was v6.10.1 on 2026-09-26). The frontend builds
+  and tests here, and the npm registry is reachable.
 - Git 2.54.0.windows.1. Default branch `main`.
 - **No Docker on this machine (the owner's office machine), and none will be installed** (recorded 2026-10-03).
   Anything that needs containers is run and verified on the owner's personal machine, which has Docker Desktop:
@@ -342,7 +359,9 @@ src/
                                 SignInLimits, AccountSignInLimiter and the SignInThrottle filter of the sign-in
                                 (Identity). ReportsController, eight GET reports under /api/v1/reports, with their
                                 request records (Reporting), ADR 0036. DashboardController, seven GET panels under
-                                /api/v1/dashboard, and the policy Dashboard (Reporting), ADR 0037.
+                                /api/v1/dashboard, and the policy Dashboard (Reporting), ADR 0037. Program.cs gives
+                                the JSON options the OpenAPI document reads the controllers' enum converter, so the
+                                document says what the wire carries (ADR 0038, built note).
 tests/
   Directory.Build.props         Test defaults: xUnit, Shouldly, test SDK/runner, global usings.
   BillingRecon.Domain.Tests/  BillingRecon.Application.Tests/
@@ -376,7 +395,13 @@ tests/
                                    and the checker's roles in every decision (PermissionConventionTests); Reporting
                                    writes nothing (ReportingConventionTests); docs/api.md names every endpoint and
                                    every error code (ApiDocumentationTests).
-frontend/                      React + TypeScript + Vite (planned)
+frontend/                      React + TypeScript + Vite (ADR 0038): index.html with the inline theme script;
+                               src/theme (tokens.css, the provider and the chooser), src/auth (the session, the
+                               sign-in, the route guard), src/api (openapi.json, the generated schema.d.ts, the client,
+                               ProblemDetails as ApiProblem), src/components (ProblemAlert), src/shell (the navigation
+                               from the permission matrix, the shell, the placeholder pages), routes.tsx, Providers.tsx;
+                               src/test (the app renderer, the colour scan, the contrast and theme-script tests).
+                               The OpenAPI document is kept equal to the API's by OpenApiSnapshotTests (IntegrationTests).
 docs/                          Design documents and ADRs (see section 7)
 ```
 
@@ -672,8 +697,8 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 | `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), the adjustment endpoints (Prompt 4.4), the reversal endpoints of payments and allocations (Prompt 4.5), the refunds (Prompt 4.6), the users (Prompt 5.1), authentication with the sign-in (Prompt 5.2), the permissions of each role (Prompt 5.3), the tenant settings with the prefix changes (Prompt 5.3b), HTTPS only, hosts, CORS, the headers of an answer and the sign-in limits (Prompt 5.4b), the reports (Prompts 6.1 and 6.2), and the dashboard (Prompt 6.3). Complete since Prompt 6.2: every endpoint, the actions of the audit trail, and the error-code catalogue (section 9), which `ApiDocumentationTests` keeps complete |
 | `docs/build-prompts.md` | The build prompts from zero to R1, reconstructed on 2026-11-20: what each finished prompt built, and the wording and order of the prompts still to give. Its phase numbers are the ones this file uses |
 | `docs/security.md` | Authentication and the sign-in limits, authorisation, tenancy, maker-checker, transport (TLS, hosts, CORS, headers), secrets, data protection, the database logins, and the threat model of R1 (section 10: every threat done, accepted with its reason, or named with its prompt). Written in full with Prompt 5.4b |
-| `docs/testing-strategy.md` | Test pyramid, tooling, database tests, architecture tests, CI gates |
-| `docs/runbook.md` | Written so far: local infrastructure, the "Verify on a Docker machine" checklist, migrations, tests, CI, the container image, idempotency keys, the deferred verification list, sign-in with the signing key (section 9), the database logins with the migrations outside Development (section 10), and the proxy in front of the API with its hosts and origins (section 11). Still to come: backups, incident procedures |
+| `docs/testing-strategy.md` | Test pyramid, tooling, database tests, architecture tests, the frontend's tests (section 5a), CI gates |
+| `docs/runbook.md` | Written so far: local infrastructure, the "Verify on a Docker machine" checklist, migrations, tests, CI, the container image, idempotency keys, the deferred verification list, sign-in with the signing key (section 9), the database logins with the migrations outside Development (section 10), the proxy in front of the API with its hosts and origins (section 11), and the frontend with its commands, a local sign-in and the OpenAPI snapshot (section 12). Still to come: backups, incident procedures |
 | `docs/adr/` | Architecture Decision Records. ADR 0000 defines the format. |
 
 ADRs so far: 0000 record decisions, 0001 target framework (.NET 8; superseded by 0014),
@@ -742,7 +767,11 @@ numbering as identity 11, and the reconciliation after every database test, on t
 0037 the dashboard: figures from the ledger by business date, no history of drift, and a sixth raw-SQL file
 (`LedgerMovementsQuery`), seven panels under `/api/v1/dashboard` for TenantAdmin, Supervisor and Viewer, the payment
 register ordered newest first (Accepted on the owner's approval of the Prompt 6.3 proposal, 2026-11-23; it adds US-44 and
-BR-902 and amends ADR 0021 and ADR 0036).
+BR-902 and amends ADR 0021 and ADR 0036),
+0038 the frontend: React, TypeScript 5.9 and Vite; React Router 8, TanStack Query, a client typed from the API's OpenAPI
+document kept equal to it by a test; design tokens with no raw colour, WCAG AA in both themes and an inline theme script
+pinned by its hash; Recharts for 7.6; the token in `sessionStorage` (Accepted on the owner's approval of the Prompt 7.1
+proposal, 2026-11-23; it answers row S5 of the threat model).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -785,7 +814,23 @@ them needs the API's configuration, and only "apply" needs a database.
 
 Useful URLs while running: `/health/live`, `/health/ready`, `/api/v1/system/info`, the Seq UI at
 `http://localhost:5341`, and in Development `/openapi/v1.json` and `/scalar`.
-Planned: `api` and `frontend` services in Docker Compose, and `npm --prefix frontend run dev`.
+Planned: `api` and `frontend` services in Docker Compose (Prompt 8.1).
+
+The frontend, from `frontend/` (Node 22.22 or later; every command and how to sign in locally: `docs/runbook.md`
+section 12):
+
+```bash
+npm ci                     # once per clone: exactly the locked packages
+npm run dev                # http://localhost:5173, /api forwarded to the API at http://localhost:5080
+npm test                   # Vitest
+npm run lint               # ESLint, warnings are errors
+npm run format:check       # the format gate; npm run format writes the fixes
+npm run build              # types, then dist/
+npm run api:types          # src/api/schema.d.ts from src/api/openapi.json
+```
+
+When an endpoint changes, `OpenApiSnapshotTests` fails until the committed document is rewritten
+(`BILLINGRECON_WRITE_OPENAPI_SNAPSHOT=1` with that test) and the types are generated again (runbook section 12).
 
 ---
 
@@ -1820,4 +1865,37 @@ Kept here so they survive between sessions. Remove an item when it is done.
       without a failure. No query plan of the two new statements has been looked at.
     - **Still to do:** SQL Server 2022 in Docker (runbook section 8, row 6.3). The backend of R1 is written to its end;
       the merge of `phase-2-billing` to `main` is the owner's step.
-    - Next: Prompt 7.1 (scaffold and sign-in), which needs a current Node LTS (the office machine has Node 6.10.1).
+    - Next: Prompt 7.1 (scaffold and sign-in). Done: item 37.
+37. **Prompt 7.1, the frontend's scaffold and sign-in (ADR 0038), written 2026-11-23, built and tested on the office
+    machine.** On `phase-2-billing` (the owner's answer with the proposal). The proposal was approved "as recommended"
+    with its four answers: the token in `sessionStorage`, ESLint 9 with the accessibility rules, this branch, the OpenAPI
+    snapshot refreshed by a .NET test. 27 npm packages approved and pinned; no NuGet package, no migration.
+    - Built: `frontend/` (section 2 and 3): the sign-in (US-02) with the hospital code remembered; the session from the
+      token, ended at its expiry, on sign-out and on a 401; the shell with the hospital, the user, the theme chooser and
+      the navigation of the permission matrix, one placeholder page per section naming the prompt that builds it, a
+      no-access page and a not-found page; `ProblemAlert`; the typed client; the design tokens, the theme provider and
+      the inline theme script; the CI job and Dependabot's npm entry; `OpenApiSnapshotTests` (.NET, 2 tests).
+    - **Changed in the API, called out:** `Program.cs` gives `ConfigureHttpJsonOptions` the controllers' enum converter,
+      because the built-in OpenAPI generator reads those options: without it the document gave all 27 enums as numbers.
+      The wire did not change; the whole `Database` collection and every other test pass with it.
+    - **Found, for the owner (ADR 0038 built note):** the document gives amounts and counts as `number | string`, which is
+      true: the API's JSON defaults read a number written as a string (it always writes numbers). Making the API strict
+      is a change of the API, left as it is. No prompt builds the users and settings screens; the TenantAdmin's section
+      "Users and settings" says so.
+    - **Tests:** the frontend's 161 (`docs/testing-strategy.md` section 5a): the sign-in and its refusals, the shell per
+      role and its expiry, the navigation against a copy of the matrix for each role, the session and the return
+      address, the client and ProblemDetails, the theme chooser, the inline script run as the browser does with its
+      SHA-256 pinned, no raw colour in any file, WCAG AA contrast of both themes. With a raw colour, approvals shown to a
+      clerk, a changed theme script and a faint muted text put in one at a time, each is caught; with the enum converter
+      taken out in a throwaway copy, both snapshot tests fail.
+    - **Verified:** in `frontend/` with Node 24.22.2, `npm audit` (no advisory), the format check, lint, types, 161 tests
+      and the build; in the repository, the Release build and `dotnet format --verify-no-changes` are clean, and Domain
+      625, Application 423, Architecture 129 and the 743 integration tests without a database pass; in a throwaway copy on
+      LocalDB 2019 the `Database` collection passes in full (490). **In the browser**, against the API in Development on a
+      throwaway LocalDB database: a Supervisor and a Cashier signed in and saw their own sections, the Cashier was refused
+      the dashboard by its address, a wrong password showed the API's message with its reference, the three theme
+      settings applied without a reload and a hard reload kept Dark. Not seen in the browser: the live switch under System
+      (the pane's emulation fires no `change` event; the component test covers it).
+    - **Still to do:** the CI job's first run; `npm ci` and `npm test` on the personal machine, whose Node version is not
+      recorded (runbook section 8, row 7.1). The CSP of 8.1 lists the inline script's hash (`docs/security.md` section 6).
+    - Next: Prompt 7.2 (patients, payers and catalogue screens).

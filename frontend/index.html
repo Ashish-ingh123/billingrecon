@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BillingRecon</title>
+    <!-- The theme, before anything is painted (ADR 0038): its SHA-256 is pinned by a test and listed by the CSP of 8.1. -->
+    <script>
+      (function () {
+        var setting = 'system';
+        try {
+          var stored = window.localStorage.getItem('billingrecon.theme');
+          if (stored === 'light' || stored === 'dark') setting = stored;
+        } catch (e) {}
+        var dark =
+          setting === 'dark' || (setting === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme-setting', setting);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

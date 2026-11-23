@@ -99,6 +99,30 @@ kept as is (BR-001). A green run on it would say nothing about any of this.
 The office machine (CLAUDE.md section 2) cannot run the database tests at all; they run on the
 owner's machine and in CI.
 
+## 5a. The frontend's tests (Prompt 7.1, ADR 0038)
+
+`npm test` in `frontend/`: Vitest with jsdom and React Testing Library, the files beside the code they test
+(`*.test.ts`, `*.test.tsx`) and the shared helpers in `src/test/`. The API is faked by giving the client a fake `fetch`
+(`fakeApi` answers each request in turn and keeps the requests it saw); there is no mocking package. A test renders the
+whole app at an address with `renderApp`, a kept session and a fake network, so it exercises the router, the session,
+the client and the page together, as a user meets them.
+
+What the frontend's tests hold, beyond the behaviour of each screen:
+
+- **The navigation against the permission matrix:** a table in `navigation.test.ts`, written out from
+  `docs/requirements.md` section 1, against the navigation's own copy, for each of the five roles.
+- **No raw colour:** `colours.test.ts` scans `index.html` and every style and script file of `src/` but `tokens.css`
+  and the tests, and fails with the file and line of a colour value; it first proves it finds one.
+- **WCAG AA in both themes:** `contrast.test.ts` computes the contrast of the tokens of `tokens.css` (text 4.5:1,
+  borders, focus and chart series 3:1).
+- **The inline theme script:** `themeScript.test.ts` runs the text of `index.html`'s script as the browser does, for every
+  stored setting and system scheme, checks it runs before the app, and pins its SHA-256 for the content security policy.
+- **The API's types:** the generated `schema.d.ts` must be what `npm run api:types` writes from the committed document
+  (CI), and `OpenApiSnapshotTests` (.NET) holds that document to the API's own.
+
+The jsdom environment has no `matchMedia`; `src/test/setup.ts` gives every test a system that prefers light, which a
+test changes with `stubColourScheme`, and clears both storages before each test.
+
 ## 6. CI quality gates (Prompt 1.5, to come)
 
 Build with warnings as errors; `dotnet format --verify-no-changes`; every test including the
