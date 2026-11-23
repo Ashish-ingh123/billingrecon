@@ -1,8 +1,8 @@
 # API
 
-The REST conventions of the BillingRecon API and its endpoints. Written with the first resources, patients and
-payers (Prompt 2.2, ADR 0018), and extended with the service catalogue (Prompt 2.3); the `Idempotency-Key` contract,
-the financial endpoints, the users and sign-in (Prompts 5.1 and 5.2) were added here with the slices that built them.
+The REST conventions of the BillingRecon API, every endpoint, and the catalogue of its error codes (section 9). Written
+with the first resources, patients and payers (Prompt 2.2, ADR 0018), and extended slice by slice; completed with
+Prompt 6.2, since when `ApiDocumentationTests` fails for an endpoint or an error code that is not here.
 
 ---
 
@@ -84,7 +84,7 @@ permission inside their own tenant.
 Every error is an RFC 9457 ProblemDetails (`application/problem+json`) with three extensions: `errorCode`, a stable
 snake-case code clients branch on; `traceId`; and `correlationId`, equal to the response header (ADR 0011). A 400
 with field errors lists the messages per field under `errors`, keyed by the JSON name of the field (`fullName`,
-`pageSize`) or, for a header, by its name (`If-Match`).
+`pageSize`) or, for a header, by its name (`If-Match`). The table below gives the rules; section 9 lists every code.
 
 | Status | When | `errorCode` |
 |---|---|---|
@@ -392,8 +392,10 @@ the hospital can decide; the rule that the checker is a Supervisor or a TenantAd
 
 ### 8.5 Audit trail (US-43; BR-701 to BR-703, ADR 0020)
 
-Read-only. Every change of a patient, payer, service item or bill wrote one record, in the transaction of the
-change. Nothing here can be created, changed or deleted: any other verb answers 405.
+Read-only: the trail of any record, a document included. Every state change of a patient, payer, service item, bill,
+credit note, payment, adjustment, refund, approval request, user, the tenant, a prefix change or a number series wrote
+one record, in the transaction of the change. Nothing here can be created, changed or deleted: any other verb answers
+405.
 
 | Method and path | Success | Failures |
 |---|---|---|
@@ -415,10 +417,28 @@ A record:
 | `userId` | Who made the change; null for system work |
 | `correlationId` | The `X-Correlation-Id` of the request that made the change (BR-703) |
 | `entityType`, `entityId` | The record that changed |
-| `action` | `Registered`, `Created`, `Drafted`, `Updated`, `HeaderUpdated`, `LinesReplaced`, `Deactivated`, `Reactivated`, `Voided`, `Posted`, `SubmittedForApproval`, `ReturnedToDraft`; for an approval request `Opened`, `Approved`, `Rejected` |
+| `action` | What happened: the name of the domain event without the name of its record (the list below) |
 | `before`, `after` | The stored record before and after, as JSON objects; `before` is null for a creation. A bill carries its `Lines` |
 | `reason` | The reason given, for a void; otherwise null |
-| `documentNumber` | Null until documents have numbers |
+| `documentNumber` | The document's number once it has one (a bill, credit note, payment, adjustment, refund); null before, and for records without numbers |
+
+The actions, by `entityType`, each one state change (every state change raises one, ADR 0020):
+
+| `entityType` | Actions |
+|---|---|
+| `Patient` | `Registered`, `Updated`, `Deactivated`, `Reactivated` |
+| `Payer` | `Created`, `Updated`, `Deactivated`, `Reactivated` |
+| `ServiceItem` | `Created`, `Updated`, `Deactivated`, `Reactivated` |
+| `Bill` | `Drafted`, `HeaderUpdated`, `LinesReplaced`, `Voided`, `SubmittedForApproval`, `ReturnedToDraft`, `Posted`, `CreditApplied` (a payment, credit or adjustment lowered what is owed), `CreditReversed` (one of those was taken back) |
+| `CreditNote` | `Drafted`, `HeaderUpdated`, `LinesReplaced`, `Voided`, `SubmittedForApproval`, `ReturnedToDraft`, `Posted`, `Applied`, `ApplicationReversalRequested`, `ApplicationReversalRejected`, `ApplicationReversed`, `Refunded` |
+| `Payment` | `Recorded`, `Allocated`, `AllocationReversalRequested`, `AllocationReversalRejected`, `AllocationReversed`, `ReversalRequested`, `ReversalRejected`, `Reversed`, `Refunded` |
+| `Adjustment` | `Drafted`, `Updated`, `Voided`, `SubmittedForApproval`, `ReturnedToDraft`, `Posted` |
+| `Refund` | `Drafted`, `Updated`, `Voided`, `SubmittedForApproval`, `ReturnedToDraft`, `Posted` |
+| `ApprovalRequest` | `Opened`, `Approved`, `Rejected` |
+| `User` | `Created`, `Updated`, `RolesReplaced`, `Disabled`, `Enabled`, `PasswordReset`, `SignedIn` |
+| `Tenant` | `SettingsChanged`, `PrefixChanged` |
+| `PrefixChange` | `Requested`, `Approved`, `Rejected` |
+| `NumberSeries` | `PrefixChanged` |
 
 The members of `before` and `after` are the stored columns, named in PascalCase as the database names them, with
 ids as GUIDs, money as numbers and enums by name; they are not the API's DTOs. A correction that sends exactly what
@@ -503,8 +523,8 @@ version of the **payment** and an `Idempotency-Key`, and answers the payment wit
 | Method and path | Success | Failures |
 |---|---|---|
 | `POST /api/v1/payments/{id}/allocations/{allocationId}/reverse` | **202**, the allocation in `PendingReversal` | 400; 403 `approval_needs_user`; 404 `payment_not_found`, `allocation_not_found`; 409 `concurrency_conflict`, `allocation_pending_reversal`, `allocation_reversed`, `payment_pending_reversal`, `payment_reversed`; 428 |
-| `POST .../allocations/{allocationId}/approve-reversal` (body optional) | 200, the allocation `Reversed` | 403 `approval_checker_is_maker`, `approval_needs_user`; 404; 409 `concurrency_conflict`, `allocation_reversed`; 422 `allocation_not_pending_reversal`; 428 |
-| `POST .../allocations/{allocationId}/reject-reversal` | 200, the allocation `Active` again | 400 without a comment; otherwise as `approve-reversal` |
+| `POST /api/v1/payments/{id}/allocations/{allocationId}/approve-reversal` (body optional) | 200, the allocation `Reversed` | 403 `approval_checker_is_maker`, `approval_needs_user`; 404; 409 `concurrency_conflict`, `allocation_reversed`; 422 `allocation_not_pending_reversal`; 428 |
+| `POST /api/v1/payments/{id}/allocations/{allocationId}/reject-reversal` | 200, the allocation `Active` again | 400 without a comment; otherwise as `approve-reversal` |
 | `POST /api/v1/payments/{id}/reverse` | **202**, the payment in `PendingReversal` | 400; 403 `approval_needs_user`; 404 `payment_not_found`; 409 `concurrency_conflict`, `payment_pending_reversal`, `payment_reversed`, `allocation_pending_reversal`; 422 `payment_refunded` (a refund was posted from it, BR-306); 428 |
 | `POST /api/v1/payments/{id}/approve-reversal` (body optional) | 200, the payment `Reversed` | 403 `approval_checker_is_maker`, `approval_needs_user`; 404; 409 `concurrency_conflict`, `payment_reversed`; 422 `payment_not_pending_reversal`; 428 |
 | `POST /api/v1/payments/{id}/reject-reversal` | 200, the payment `Posted` again | 400 without a comment; otherwise as `approve-reversal` |
@@ -600,8 +620,8 @@ applications.
 | Method and path | Success | Failures |
 |---|---|---|
 | `POST /api/v1/credit-notes/{id}/applications/{applicationId}/reverse` | **202**, the application in `PendingReversal` | 400; 403 `approval_needs_user`; 404 `credit_note_not_found`, `credit_application_not_found`; 409 `concurrency_conflict`, `credit_application_pending_reversal`, `credit_application_reversed`; 422 `credit_application_made_at_posting`; 428 |
-| `POST .../applications/{applicationId}/approve-reversal` (body optional) | 200, the application `Reversed` | 403 `approval_checker_is_maker`, `approval_needs_user`; 404; 409 `concurrency_conflict`, `credit_application_reversed`; 422 `credit_application_not_pending_reversal`; 428 |
-| `POST .../applications/{applicationId}/reject-reversal` | 200, the application `Active` again | 400 without a comment; otherwise as `approve-reversal` |
+| `POST /api/v1/credit-notes/{id}/applications/{applicationId}/approve-reversal` (body optional) | 200, the application `Reversed` | 403 `approval_checker_is_maker`, `approval_needs_user`; 404; 409 `concurrency_conflict`, `credit_application_reversed`; 422 `credit_application_not_pending_reversal`; 428 |
+| `POST /api/v1/credit-notes/{id}/applications/{applicationId}/reject-reversal` | 200, the application `Active` again | 400 without a comment; otherwise as `approve-reversal` |
 
 `reverse` takes `reason` (required, at most 500 characters); `reject-reversal` takes `comment` (required);
 `approve-reversal` takes an optional `comment`. The reason is kept by the approval request and reaches the
@@ -850,6 +870,7 @@ date. A report reads committed rows and takes no lock.
 | `GET /api/v1/reports/unapplied-cash` | page of payments that hold unapplied cash, the oldest first | `payerId` |
 | `GET /api/v1/reports/available-credit` | page of posted credit notes that hold available credit, the oldest first | `payerId` |
 | `GET /api/v1/reports/pending-approvals` | page of the requests that wait for a checker, the oldest first | `documentType` |
+| `GET /api/v1/reports/reconciliation` | page of drift rows (US-41), by identity and reference | |
 
 **Periods.** A register covers `from` to `to` (`yyyy-MM-dd`, business dates in India), both included: both given or
 neither, the end not before the start, at most 366 days. Neither means the current month in India. A period it cannot
@@ -883,3 +904,191 @@ and then by number. Money is a decimal with two places, as everywhere.
   `requestedAtUtc`, `waitingDays` (in India, from the day of the request to today), and the document's `payerId`,
   `payerName` and `amount` where it has them (a prefix change has none). Totals: `requests`, `oldestRequestedAtUtc`.
   This report is everyone's; the checker's inbox (section 8.6) stays the checkers'.
+- **Reconciliation** (US-41, BR-404; Prompt 6.2): every place where a cached balance differs from the ledger, or the
+  ledger or a number series breaks one of its identities (`docs/database.md` sections 5.5 and 5.6). Items: `identity`
+  (for example `BillBalance`, `PayerReceivable`, `UnbalancedPosting`, `NumberSeriesGap`), `subjectId` (the bill,
+  payment, credit note, payer, posting or series), `reference` (its number, or `Payment 2026-27` for a series), `cached`
+  and `ledger` (the two figures that disagree; for a series, the documents numbered and the numbers given). Totals:
+  `checkedAtUtc`, `rows`, and `byIdentity` (`identity`, `rows`). An empty report means none: the caches equal the
+  ledger and every series is gapless. A drift row is a defect of the highest severity: the report also writes it to the
+  log as an error, and never corrects anything (`docs/database.md` section 5.6 says what to do).
+
+## 9. Error-code catalogue
+
+Every `errorCode` the API can answer, with its status and what the client is told (the `detail`). Section 3 gives the
+rules; this is the whole list. A code is stable: a client branches on it, never on the message. An architecture test
+(`ApiDocumentationTests`) fails when a code is missing here.
+
+### 9.1 Codes the API makes itself
+
+For a failure no use case reported: routing, model binding, content negotiation, transport, rate limits and faults
+(`ErrorCodes`). A status this table does not name answers `http_<status>`.
+
+| Code | Status | When |
+|---|---|---|
+| `validation_failed` | 400 | The body or the query is invalid; `errors` lists the messages per field |
+| `bad_request` | 400 | The request cannot be read, and no field is to blame |
+| `host_not_allowed` | 400 | The request names a host the API does not answer for (section 1) |
+| `https_required` | 400 | Outside Development, the request did not arrive over HTTPS (section 1) |
+| `unauthorized` | 401 | No token, or one that is not valid (section 2) |
+| `forbidden` | 403 | The user's roles do not allow the endpoint (section 2) |
+| `not_found` | 404 | No route has this path |
+| `method_not_allowed` | 405 | The path exists, not with this method |
+| `not_acceptable` | 406 | The `Accept` header rules out JSON |
+| `request_timeout` | 408 | The server stopped waiting for the request's body |
+| `conflict` | 409 | A conflict no use case named |
+| `payload_too_large` | 413 | The body is larger than the server reads |
+| `unsupported_media_type` | 415 | The body is not JSON |
+| `unprocessable_entity` | 422 | A business rule refused the request, and no use case named it |
+| `precondition_required` | 428 | A change of an existing record without `If-Match` (section 4) |
+| `too_many_requests` | 429 | A rate limit other than the sign-in's (none exists yet) |
+| `too_many_sign_ins` | 429 | Too many sign-ins from one address, or refused for one account; see `Retry-After` (section 8.12) |
+| `internal_error` | 500 | A fault; nothing internal is told outside Development |
+| `service_unavailable` | 503 | The service cannot answer now |
+
+### 9.2 Common: concurrency, idempotency, approvals
+
+| Code | Status | Message |
+|---|---|---|
+| `validation_failed` | 400 | The request is not valid. The errors are listed per field. |
+| `concurrency_conflict` | 409 | The record was changed by someone else after you read it. Read it again, then retry (BR-804). |
+| `duplicate_key` | 409 | The record conflicts with one that already exists. |
+| `idempotency_key_missing` | 400 | This request needs an Idempotency-Key header: one UUID that you generate for the operation and send again unchanged when you retry it (BR-803). |
+| `idempotency_in_progress` | 409 | A request with this Idempotency-Key is still being processed. Wait, then send the same request with the same key again (BR-803). |
+| `idempotency_key_reuse` | 422 | This Idempotency-Key was already used for a different request. A key belongs to one operation: generate a new key for a new one, also when you try again after a refusal (BR-803). |
+| `approval_checker_is_maker` | 403 | You asked for this yourself, so you cannot decide it: a second person has to approve or reject it (BR-603). |
+| `approval_already_decided` | 409 | This request has already been decided. Read the document again. |
+| `approval_needs_user` | 403 | This action needs a signed-in user: an approval is asked for and given by people (BR-603). |
+| `approval_checker_role` | 403 | Only a Supervisor or a TenantAdmin may approve or reject (BR-603). |
+
+### 9.3 Identity: tenants, users, sign-in, settings, prefixes
+
+| Code | Status | Message |
+|---|---|---|
+| `invalid_credentials` | 401 | The hospital code, the e-mail address or the password is not right, or the user may not sign in. |
+| `tenant_invalid` | 400 | The tenant is not valid. |
+| `user_not_found` | 404 | The user does not exist. |
+| `user_email_taken` | 409 | Another user of this hospital already has this e-mail address (BR-601). |
+| `user_already_disabled` | 422 | The user is already disabled. |
+| `user_already_active` | 422 | The user is already active. |
+| `user_last_tenant_admin` | 422 | This is the last active tenant administrator; make another user a TenantAdmin first. |
+| `user_cannot_disable_self` | 422 | You cannot disable your own user; another administrator can. |
+| `prefix_change_not_found` | 404 | The prefix change does not exist. |
+| `prefix_change_not_pending` | 422 | The prefix change has been decided already; a decision is final. |
+| `prefix_change_pending` | 409 | A change of the prefix of this document type already waits for a decision. |
+| `prefix_unchanged` | 422 | The document type has this prefix already. |
+| `prefix_in_use` | 409 | This prefix belongs to another kind of document, now or in the past; choose another one (BR-802). |
+
+### 9.4 Payers: patients and payers
+
+| Code | Status | Message |
+|---|---|---|
+| `patient_not_found` | 404 | The patient does not exist. |
+| `patient_mrn_duplicate` | 409 | A patient with this MRN is already registered (BR-101). |
+| `patient_inactive` | 422 | The patient is inactive. Reactivate the patient first (BR-102, BR-104). |
+| `patient_already_linked` | 409 | The patient already has a self-pay payer (BR-104). |
+| `patient_already_inactive` | 422 | The patient is already inactive. |
+| `patient_already_active` | 422 | The patient is already active. |
+| `payer_not_found` | 404 | The payer does not exist. |
+| `payer_inactive` | 422 | The payer is inactive. Reactivate the payer first (BR-105). |
+| `payer_kind_not_supported` | 422 | Only self-pay payers exist in this release. Insurers and corporate accounts arrive in R4 (BR-103). |
+| `payer_already_inactive` | 422 | The payer is already inactive. |
+| `payer_already_active` | 422 | The payer is already active. |
+
+### 9.5 Billing: service items, bills, credit notes
+
+| Code | Status | Message |
+|---|---|---|
+| `service_item_not_found` | 404 | The service item does not exist. |
+| `service_item_code_duplicate` | 409 | A service item with this code is already in the catalogue. |
+| `service_item_already_inactive` | 422 | The service item is already inactive. |
+| `service_item_already_active` | 422 | The service item is already active. |
+| `service_item_inactive` | 422 | The service item is inactive, so it cannot be put on a bill line. Reactivate it, or enter the line as free text. |
+| `bill_not_found` | 404 | The bill does not exist. |
+| `bill_not_draft` | 422 | Only a draft bill can be edited, voided or posted (BR-204). |
+| `bill_date_in_future` | 422 | The bill date cannot be in the future (BR-205). |
+| `bill_date_too_old` | 422 | The bill date cannot be earlier than …, the earliest date this hospital allows (BR-205). |
+| `bill_due_date_before_bill_date` | 422 | The due date cannot be before the bill date (BR-205). |
+| `bill_line_discount_exceeds_amount` | 422 | The discount of line … is more than the amount of the line (BR-201). |
+| `bill_line_amount_too_large` | 422 | The amount of line … is larger than a bill line can hold. |
+| `bill_has_no_lines` | 422 | A bill needs at least one line to be posted. |
+| `bill_already_posted` | 409 | The bill is posted already and can no longer be changed (BR-006). Correct it with a credit note or an adjustment. |
+| `bill_pending_approval` | 409 | The bill is waiting for approval and cannot be changed until it is approved or rejected (BR-207). |
+| `bill_not_pending_approval` | 422 | The bill is not waiting for approval, so there is nothing to approve or reject. |
+| `bill_not_posted` | 422 | The bill is not posted, so nothing is owed on it and nothing can be applied to it (BR-303). |
+| `allocation_exceeds_balance_due` | 422 | Bill … has a balance due of …; more than that cannot be applied to it (BR-303). |
+| `allocation_payer_mismatch` | 422 | The bill is owed by a different payer than the payment came from (BR-303). |
+| `credit_note_not_found` | 404 | The credit note does not exist. |
+| `credit_note_not_draft` | 422 | Only a draft credit note can be edited, voided or submitted. |
+| `credit_note_pending_approval` | 409 | The credit note is waiting for approval and cannot be changed until it is approved or rejected (BR-212). |
+| `credit_note_not_pending_approval` | 422 | The credit note is not waiting for approval, so there is nothing to approve or reject. |
+| `credit_note_already_posted` | 409 | The credit note is posted already and can no longer be changed (BR-006). |
+| `credit_note_not_posted` | 422 | The credit note is not posted, so it has no credit to apply (BR-213). |
+| `credit_note_has_no_lines` | 422 | A credit note needs at least one line to be submitted. |
+| `credit_note_total_zero` | 422 | A credit note needs a total above zero to be submitted. |
+| `credit_note_date_in_future` | 422 | The credit note date cannot be in the future (BR-205). |
+| `credit_note_date_too_old` | 422 | The credit note date cannot be earlier than …, the earliest date this hospital allows (BR-205). |
+| `credit_note_date_before_bill_date` | 422 | The credit note date cannot be before the bill date, … (BR-214). |
+| `credit_note_line_discount_exceeds_amount` | 422 | The discount of line … is more than the amount of the line (BR-211). |
+| `credit_note_line_amount_too_large` | 422 | The amount of line … is larger than a credit note line can hold. |
+| `credit_note_bill_line_not_found` | 422 | Line … names a line the bill does not have (BR-211). |
+| `credit_note_exceeds_bill_total` | 422 | The bill comes to … and … of it is credited already; this credit note would take the credits above the bill (BR-210). |
+| `credit_note_line_exceeds_bill_line` | 422 | Line … credits a bill line of …, of which … is credited already; that is more than the line (BR-211). |
+| `credit_exceeds_available` | 422 | Credit note … has … available; more than that cannot be applied (BR-213). |
+| `credit_application_not_found` | 404 | The credit note has no such application. |
+| `credit_application_made_at_posting` | 422 | This credit was applied to its own bill when the credit note was posted, and that application cannot be reversed (BR-212). |
+| `credit_application_pending_reversal` | 409 | The application is waiting for a decision on its reversal already. |
+| `credit_application_reversed` | 409 | The application was reversed already. |
+| `credit_application_not_pending_reversal` | 422 | The application is not waiting for a reversal, so there is nothing to approve or reject. |
+
+### 9.6 Payments: payments, allocations, reversals, refunds
+
+| Code | Status | Message |
+|---|---|---|
+| `payment_not_found` | 404 | The payment does not exist. |
+| `payment_date_in_future` | 422 | The payment date cannot be in the future (BR-205). |
+| `payment_date_too_old` | 422 | The payment date cannot be earlier than …, the earliest date this hospital allows (BR-205). |
+| `allocation_exceeds_unapplied` | 422 | Payment … has … unapplied; more than that cannot be allocated (BR-303). |
+| `payment_pending_reversal` | 409 | The payment is waiting for a decision on its reversal and cannot be used until then (BR-306). |
+| `payment_reversed` | 409 | The payment was reversed and can no longer be used (BR-306). |
+| `payment_not_pending_reversal` | 422 | The payment is not waiting for a reversal, so there is nothing to approve or reject. |
+| `allocation_not_found` | 404 | The payment has no such allocation. |
+| `allocation_pending_reversal` | 409 | An allocation of the payment is waiting for a decision on its reversal; decide that first (BR-305). |
+| `allocation_reversed` | 409 | The allocation was reversed already (BR-305). |
+| `allocation_not_pending_reversal` | 422 | The allocation is not waiting for a reversal, so there is nothing to approve or reject. |
+| `payment_refunded` | 422 | A refund was posted from the payment, so it cannot be reversed (BR-306). Correct it with a new payment. |
+| `refund_not_found` | 404 | The refund does not exist. |
+| `refund_not_draft` | 422 | Only a draft refund can be corrected, voided or submitted. |
+| `refund_pending_approval` | 409 | The refund is waiting for approval and cannot be changed until it is approved or rejected (BR-604). |
+| `refund_not_pending_approval` | 422 | The refund is not waiting for approval, so there is nothing to approve or reject. |
+| `refund_already_posted` | 409 | The refund is posted already and can no longer be changed (BR-006, BR-308). |
+| `refund_date_in_future` | 422 | The refund date cannot be in the future (BR-205). |
+| `refund_date_too_old` | 422 | The refund date cannot be earlier than …, the earliest date this hospital allows (BR-205). |
+| `refund_date_before_source_date` | 422 | The refund date cannot be before the date of the document it comes from, … (BR-307). |
+| `refund_exceeds_available` | 422 | … has … left to refund; a refund cannot be for more (BR-307). |
+
+### 9.7 Adjustments
+
+| Code | Status | Message |
+|---|---|---|
+| `adjustment_not_found` | 404 | The adjustment does not exist. |
+| `adjustment_not_draft` | 422 | Only a draft adjustment can be corrected, voided or submitted. |
+| `adjustment_pending_approval` | 409 | The adjustment is waiting for approval and cannot be changed until it is approved or rejected (BR-502). |
+| `adjustment_not_pending_approval` | 422 | The adjustment is not waiting for approval, so there is nothing to approve or reject. |
+| `adjustment_already_posted` | 409 | The adjustment is posted already and can no longer be changed (BR-006). |
+| `adjustment_date_in_future` | 422 | The adjustment date cannot be in the future (BR-205). |
+| `adjustment_date_too_old` | 422 | The adjustment date cannot be earlier than …, the earliest date this hospital allows (BR-205). |
+| `adjustment_date_before_bill_date` | 422 | The adjustment date cannot be before the bill date, … (BR-501). |
+| `adjustment_rounding_too_large` | 422 | A rounding adjustment is less than 1.00; use a discount or a write-off for more (BR-501). |
+| `adjustment_exceeds_balance_due` | 422 | Bill … has a balance due of …; an adjustment cannot be for more (BR-501). |
+
+### 9.8 Receivables: the ledger
+
+| Code | Status | Message |
+|---|---|---|
+| `ledger_balance_negative` | 422 | The posting would take a balance below zero (BR-405). Read the document again and retry. |
+
+`ledger_balance_negative` is the ledger's own refusal under its lock (BR-405). No endpoint answers it as it is: every use
+case whose posting can lower a balance answers it as 409 `concurrency_conflict`, since a request that committed first
+changed what this one read; the others only raise balances and cannot meet it. `tenant_invalid` refuses a tenant row
+that onboarding would make wrongly; no endpoint of R1 creates a tenant, so it is listed for completeness.

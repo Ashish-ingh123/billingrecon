@@ -412,6 +412,8 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     [Fact]
     public async Task BR404_a_payment_whose_unapplied_amount_differs_from_the_ledger_and_one_without_its_posting_are_reported()
     {
+        ExpectDrift(DriftIdentity.PaymentWithoutPosting, DriftIdentity.PostingWithoutPayment);
+
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
         using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");

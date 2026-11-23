@@ -1,3 +1,4 @@
+using BillingRecon.Application.Receivables;
 using BillingRecon.Domain.Common;
 using BillingRecon.Infrastructure.Common.Numbering;
 using BillingRecon.Infrastructure.Common.Persistence;
@@ -19,6 +20,9 @@ namespace BillingRecon.IntegrationTests.Database;
 [Collection(DatabaseCollectionDefinition.Name)]
 public sealed class NumberSeriesOnSqlServerTests(SqlServerFixture sqlServer) : DatabaseTest(sqlServer)
 {
+    // The allocator is tested on its own: it takes numbers that no document carries.
+    protected override IReadOnlyCollection<string> DriftLeftOnPurpose => [DriftIdentity.NumberSeriesGap];
+
     private const int Takers = 50;
 
     private static readonly FiscalYear Fy2026 = FiscalYear.Of(2026);

@@ -19,6 +19,9 @@ namespace BillingRecon.IntegrationTests.Database;
 [Collection(DatabaseCollectionDefinition.Name)]
 public sealed class ReceivablesOnSqlServerTests(SqlServerFixture sqlServer) : DatabaseTest(sqlServer)
 {
+    // The ledger is tested through its port alone: payment and refund postings without their documents (as DriftAsync below).
+    protected override IReadOnlyCollection<string> DriftLeftOnPurpose => [DriftIdentity.PostingWithoutPayment, DriftIdentity.PostingWithoutRefund];
+
     private static readonly Guid Correlation = Guid.Parse("3f2504e0-4f89-11d3-9a0c-0305e82c3305");
     private static readonly DateOnly Today = new(2026, 10, 17);
 
@@ -285,6 +288,8 @@ public sealed class ReceivablesOnSqlServerTests(SqlServerFixture sqlServer) : Da
     [Fact]
     public async Task BR404_a_cached_balance_that_differs_from_the_ledger_is_reported_with_both_amounts()
     {
+        ExpectDrift(DriftIdentity.PayerReceivable, DriftIdentity.PayerUnappliedCash);
+
         var clerk = await NewApiTenantAsync();
         var payer = await NewPayerAsync(clerk);
         await PostAsync(clerk, PaymentRecorded(payer, Guid.NewGuid(), 1000m));
@@ -305,6 +310,8 @@ public sealed class ReceivablesOnSqlServerTests(SqlServerFixture sqlServer) : Da
     [Fact]
     public async Task BR401_a_posting_that_no_longer_balances_and_a_balance_below_zero_are_reported()
     {
+        ExpectDrift(DriftIdentity.UnbalancedPosting, DriftIdentity.PayerUnappliedCash, DriftIdentity.NegativeSubjectBalance);
+
         var clerk = await NewApiTenantAsync();
         var payer = await NewPayerAsync(clerk);
         var payment = Guid.NewGuid();
@@ -329,6 +336,8 @@ public sealed class ReceivablesOnSqlServerTests(SqlServerFixture sqlServer) : Da
     [Fact]
     public async Task BR405_a_posting_that_would_take_a_cached_balance_of_the_payer_below_zero_is_refused_under_the_lock_and_writes_nothing()
     {
+        ExpectDrift(DriftIdentity.PayerUnappliedCash);
+
         var clerk = await NewApiTenantAsync();
         var payer = await NewPayerAsync(clerk);
         var payment = Guid.NewGuid();
@@ -351,6 +360,8 @@ public sealed class ReceivablesOnSqlServerTests(SqlServerFixture sqlServer) : Da
     [Fact]
     public async Task A_payer_with_ledger_entries_and_no_balances_is_reported()
     {
+        ExpectDrift(DriftIdentity.PayerWithoutBalances);
+
         var clerk = await NewApiTenantAsync();
         var payer = await NewPayerAsync(clerk);
         await PostAsync(clerk, PaymentRecorded(payer, Guid.NewGuid(), 590m));
@@ -391,6 +402,8 @@ public sealed class ReceivablesOnSqlServerTests(SqlServerFixture sqlServer) : Da
     [Fact]
     public async Task BR401_a_bill_posting_whose_bill_is_not_posted_is_reported()
     {
+        ExpectDrift(DriftIdentity.PostingWithoutBill);
+
         var clerk = await NewApiTenantAsync();
         var payer = await NewPayerAsync(clerk);
         var number = DocumentNumber.Create(DocumentType.Bill, FiscalYear.FromDate(Today), "BIL", 1);
@@ -431,6 +444,8 @@ public sealed class ReceivablesOnSqlServerTests(SqlServerFixture sqlServer) : Da
     [Fact]
     public async Task BR002_the_ledger_and_the_reconciliation_of_one_tenant_never_show_another_tenants_rows()
     {
+        ExpectDrift(DriftIdentity.PayerUnappliedCash);
+
         var clerk = await NewApiTenantAsync();
         var other = await NewApiTenantAsync();
         var payer = await NewPayerAsync(clerk);

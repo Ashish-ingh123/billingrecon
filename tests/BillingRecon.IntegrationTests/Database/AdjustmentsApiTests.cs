@@ -422,6 +422,8 @@ public sealed class AdjustmentsApiTests(SqlServerFixture sqlServer) : DatabaseTe
     [Fact]
     public async Task BR404_an_adjustment_that_lost_its_posting_or_names_the_wrong_payer_is_reported()
     {
+        ExpectDrift(DriftIdentity.AdjustmentWithoutPosting, DriftIdentity.PostingWithoutAdjustment);
+
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
         using var clerk = factory.CreateClientFor(maker, "BillingClerk");

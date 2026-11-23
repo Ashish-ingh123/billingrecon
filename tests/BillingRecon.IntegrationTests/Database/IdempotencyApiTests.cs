@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using BillingRecon.Api.Billing;
 using BillingRecon.Application.Billing;
+using BillingRecon.Application.Receivables;
 using BillingRecon.Domain.Billing;
 using BillingRecon.Domain.Common;
 using BillingRecon.Domain.Payers;
@@ -21,6 +22,9 @@ namespace BillingRecon.IntegrationTests.Database;
 [Collection(DatabaseCollectionDefinition.Name)]
 public sealed class IdempotencyApiTests(SqlServerFixture sqlServer) : DatabaseTest(sqlServer)
 {
+    // The probe endpoint takes a document number and saves a probe record, not a document: its series has no documents.
+    protected override IReadOnlyCollection<string> DriftLeftOnPurpose => [DriftIdentity.NumberSeriesGap];
+
     private const string Replayed = "Idempotent-Replayed";
 
     private static readonly Uri Records = new("/api/v1/probe/idempotent/records", UriKind.Relative);

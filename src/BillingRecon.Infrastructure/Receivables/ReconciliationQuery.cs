@@ -23,7 +23,9 @@ namespace BillingRecon.Infrastructure.Receivables;
 /// of credit against its mirror posting, both directions, since Prompt 4.5b, which also teaches the identity of a
 /// credit note's applications that an application waiting for its reversal still counts; a posted refund against its
 /// posting, both directions, and its payer against the payer of its source, since Prompt 4.6, which also takes the
-/// posted refunds of a payment or a credit note off what the identities of their allocations and applications expect.
+/// posted refunds of a payment or a credit note off what the identities of their allocations and applications expect;
+/// and every number series against the documents numbered from it (identity 11, gapless: as many documents as the
+/// highest number, which is the number before the series' next one), since Prompt 6.2.
 /// <para>
 /// This is one of the files of the production code that send SQL of their own (ADR 0021, BannedSymbolsTests). It is
 /// the SQL the design document gives: sums over the whole ledger, grouped, which Entity Framework cannot translate
@@ -68,6 +70,22 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
             FROM   [dbo].[Refunds]
             WHERE  [TenantId] = @tenant AND [Status] = 'Posted'
             GROUP  BY ISNULL([SourcePaymentId], [SourceCreditNoteId])
+        ),
+        [NumberedDocuments] AS (
+            SELECT 'Bill' AS [DocumentType], [FiscalYear], COUNT(*) AS [Documents], MAX([SequenceNumber]) AS [Highest]
+            FROM   [dbo].[Bills] WHERE [TenantId] = @tenant AND [SequenceNumber] IS NOT NULL GROUP BY [FiscalYear]
+            UNION ALL
+            SELECT 'CreditNote', [FiscalYear], COUNT(*), MAX([SequenceNumber])
+            FROM   [dbo].[CreditNotes] WHERE [TenantId] = @tenant AND [SequenceNumber] IS NOT NULL GROUP BY [FiscalYear]
+            UNION ALL
+            SELECT 'Payment', [FiscalYear], COUNT(*), MAX([SequenceNumber])
+            FROM   [dbo].[Payments] WHERE [TenantId] = @tenant GROUP BY [FiscalYear]
+            UNION ALL
+            SELECT 'Adjustment', [FiscalYear], COUNT(*), MAX([SequenceNumber])
+            FROM   [dbo].[Adjustments] WHERE [TenantId] = @tenant AND [SequenceNumber] IS NOT NULL GROUP BY [FiscalYear]
+            UNION ALL
+            SELECT 'Refund', [FiscalYear], COUNT(*), MAX([SequenceNumber])
+            FROM   [dbo].[Refunds] WHERE [TenantId] = @tenant AND [SequenceNumber] IS NOT NULL GROUP BY [FiscalYear]
         )
         SELECT CAST('UnbalancedPosting' AS varchar(30)) AS [Identity], e.[PostingId] AS [SubjectId], CAST(NULL AS varchar(30)) AS [Reference],
                SUM(e.[Debit]) AS [Cached], SUM(e.[Credit]) AS [Ledger]
@@ -317,6 +335,14 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
         WHERE  e.[TenantId] = @tenant AND e.[SubjectId] IS NOT NULL
         GROUP  BY e.[Account], e.[SubjectId]
         HAVING SUM(CASE WHEN e.[Account] = 'Receivable' THEN e.[Debit] - e.[Credit] ELSE e.[Credit] - e.[Debit] END) < 0
+
+        UNION ALL
+        SELECT 'NumberSeriesGap', ns.[Id], CAST(CONCAT(ns.[DocumentType], ' ', ns.[FiscalYear]) AS varchar(30)),
+               ISNULL(d.[Documents], 0), ns.[NextNumber] - 1
+        FROM   [dbo].[NumberSeries] AS ns
+        LEFT JOIN [NumberedDocuments] AS d ON d.[DocumentType] = ns.[DocumentType] AND d.[FiscalYear] = ns.[FiscalYear]
+        WHERE  ns.[TenantId] = @tenant
+          AND (ISNULL(d.[Documents], 0) <> ISNULL(d.[Highest], 0) OR ISNULL(d.[Highest], 0) <> ns.[NextNumber] - 1)
         """;
 
     /// <inheritdoc />

@@ -488,6 +488,8 @@ public sealed class PaymentAllocationsApiTests(SqlServerFixture sqlServer) : Dat
     [Fact]
     public async Task BR404_an_allocation_that_no_longer_matches_its_payment_its_posting_or_its_payer_is_reported()
     {
+        ExpectDrift(DriftIdentity.AllocationWithoutPosting, DriftIdentity.PostingWithoutAllocation);
+
         using var factory = new DatabaseApiFactory(SqlServer);
         var cashier = await NewApiTenantAsync();
         using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");

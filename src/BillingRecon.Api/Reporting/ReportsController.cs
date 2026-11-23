@@ -11,11 +11,45 @@ namespace BillingRecon.Api.Reporting;
 /// <summary>
 /// The reports of R1 (BR-901; US-40, US-42; ADR 0036): the bill and payment registers, the collection of a day by method,
 /// what payers owe and what is held for them, and the requests that wait for a checker. They only read, every role may
-/// read them, and every figure ties to the ledger. A paged report answers its totals over every page with it.
+/// read them, and every figure ties to the ledger. A paged report answers its totals over every page with it. The
+/// reconciliation (US-41) is here too; drift it finds is also written to the log as an error, since it is a defect of
+/// the highest severity (CLAUDE.md section 4, rule 4).
 /// </summary>
 [Route(ApiRoutes.V1 + "/reports")]
-public sealed class ReportsController : ApiControllerBase
+public sealed class ReportsController(ILogger<ReportsController> logger) : ApiControllerBase
 {
+    /// <summary>
+    /// The drift between the cached balances and the ledger, and every number series that is not gapless (US-41): an
+    /// empty report when none. It never corrects anything.
+    /// </summary>
+    [Authorize(Policy = Policies.Reports)]
+    [HttpGet("reconciliation")]
+    [ProducesResponseType<ReportPage<DriftRowDto, ReconciliationTotalsDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ReconciliationAsync(
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize,
+        [FromServices] IQueryHandler<ReconciliationReportQuery, ReportPage<DriftRowDto, ReconciliationTotalsDto>> handler,
+        CancellationToken ct)
+    {
+        var query = new ReconciliationReportQuery { Page = page ?? Paging.FirstPage, PageSize = pageSize ?? Paging.DefaultPageSize };
+        var result = await handler.HandleAsync(query, ct);
+        if (result.IsFailure)
+        {
+            return Problem(result.Error);
+        }
+
+        if (result.Value.Totals.Rows > 0)
+        {
+            logger.LogError(
+                "The reconciliation found {DriftRows} drift rows, broken identities {DriftIdentities}",
+                result.Value.Totals.Rows,
+                result.Value.Totals.ByIdentity.Select(identity => identity.Identity).ToArray());
+        }
+
+        return Ok(result.Value);
+    }
+
     /// <summary>The posted bills of a period by bill date, the current month in India when none is given.</summary>
     [Authorize(Policy = Policies.Reports)]
     [HttpGet("bill-register")]

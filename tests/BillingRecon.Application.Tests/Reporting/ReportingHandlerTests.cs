@@ -1,5 +1,6 @@
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Payers;
+using BillingRecon.Application.Receivables;
 using BillingRecon.Application.Reporting;
 using BillingRecon.Application.Tests.Support;
 using BillingRecon.Domain.Common;
@@ -160,6 +161,30 @@ public sealed class ReportingHandlerTests
         unappliedPayer.Error.FieldErrors.Keys.ShouldBe(["payerId"]);
         creditPayer.Error.FieldErrors.Keys.ShouldBe(["payerId"]);
         reports.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task US41_the_reconciliation_report_orders_pages_and_counts_the_drift_it_is_given_and_says_when_it_ran()
+    {
+        var reconciliation = Substitute.For<IReconciliationQuery>();
+        reconciliation.FindDriftAsync(Arg.Any<CancellationToken>()).Returns(
+        [
+            new DriftRow(DriftIdentity.PayerReceivable, Guid.NewGuid(), null, 5m, 4m),
+            new DriftRow(DriftIdentity.BillBalance, Guid.NewGuid(), "BIL/26-27/000002", 3m, 2m),
+            new DriftRow(DriftIdentity.BillBalance, Guid.NewGuid(), "BIL/26-27/000001", 1m, 0m),
+        ]);
+        var handler = new ReconciliationReportHandler(new ReconciliationReportQueryValidator(), reconciliation, Clock);
+
+        var first = await handler.HandleAsync(new ReconciliationReportQuery { PageSize = 2 }, CancellationToken.None);
+        var second = await handler.HandleAsync(new ReconciliationReportQuery { Page = 2, PageSize = 2 }, CancellationToken.None);
+        var invalid = await handler.HandleAsync(new ReconciliationReportQuery { Page = 0 }, CancellationToken.None);
+
+        first.Value.Items.Select(row => row.Reference).ShouldBe(["BIL/26-27/000001", "BIL/26-27/000002"]);
+        second.Value.Items.ShouldHaveSingleItem().Identity.ShouldBe(DriftIdentity.PayerReceivable);
+        (first.Value.Totals.Rows, first.Value.Totals.CheckedAtUtc).ShouldBe((3, Clock.UtcNow));
+        first.Value.Totals.ByIdentity.ShouldBe([new DriftCountDto(DriftIdentity.BillBalance, 2), new DriftCountDto(DriftIdentity.PayerReceivable, 1)]);
+        (first.Value.TotalCount, first.Value.Period).ShouldBe((3, null));
+        invalid.Error.FieldErrors.Keys.ShouldBe(["page"]);
     }
 
     private static DateOnly? Date(string? text) => text is null ? null : DateOnly.Parse(text, System.Globalization.CultureInfo.InvariantCulture);

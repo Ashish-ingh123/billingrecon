@@ -816,6 +816,11 @@ HAVING COUNT(*) <> MAX(SequenceNumber);   -- any row = a gap or a duplicate
 
 The same query runs against `CreditNotes`, `Payments`, `Adjustments` and `Refunds`.
 
+*Built 2026-11-23 (Prompt 6.2, ADR 0036 amendment):* the check is part of the reconciliation (section 5.6), as identity
+11, `NumberSeriesGap`: for each series of the tenant, the documents numbered from it must be as many as their highest
+number, and that number the one before the series' `NextNumber`. So it is in the reconciliation report and in the check
+that runs after every database test.
+
 ### 4.4 Prefix of the current series (ADR 0033)
 
 The series of today's fiscal year carries the tenant's default prefix of its type: both are set together when a
@@ -1026,6 +1031,10 @@ application of credit without the mirror posting of kind `CreditApplicationRever
 `CreditNoteApplications`) subtract the posted refunds of the payment or the credit note, as the table above says.
 Three more identities: `RefundWithoutPosting` and `PostingWithoutRefund` (identity 2 for refunds, both directions)
 and `RefundPayerMismatch` (a refund whose payer is not the payer of its source).
+
+*Built 2026-11-23 (Prompt 6.2, ADR 0036 amendment):* identity 11, `NumberSeriesGap` (section 4.3). The reconciliation
+is the report `GET /api/v1/reports/reconciliation` (US-41, `docs/api.md` section 8.15), which writes an error to the log
+when it finds drift, and it runs after every test of the `Database` collection.
 
 A non-empty result is a **Sev-1 defect**: the runbook says stop postings for the tenant, capture the
 rows and the correlation ids from `AuditRecords`, and fix the code path. Caches are never

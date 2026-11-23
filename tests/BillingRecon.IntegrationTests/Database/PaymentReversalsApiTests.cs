@@ -453,6 +453,8 @@ public sealed class PaymentReversalsApiTests(SqlServerFixture sqlServer) : Datab
     [Fact]
     public async Task BR404_a_reversal_that_lost_its_posting_or_a_row_that_no_longer_says_reversed_is_reported()
     {
+        ExpectDrift(DriftIdentity.ReversedAllocationNoPosting, DriftIdentity.ReversedPaymentNoPosting);
+
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
         using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");

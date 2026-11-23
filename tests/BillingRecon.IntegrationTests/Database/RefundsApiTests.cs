@@ -495,6 +495,8 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
     [Fact]
     public async Task BR404_a_refund_without_its_posting_a_posting_without_its_refund_and_a_refund_to_another_payer_are_reported()
     {
+        ExpectDrift(DriftIdentity.RefundPayerMismatch);
+
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
         using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");

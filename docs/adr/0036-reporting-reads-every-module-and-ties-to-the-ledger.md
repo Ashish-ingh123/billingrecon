@@ -91,3 +91,35 @@ Built as decided. What the build found, none of it a change of a decision:
 - **A pending request's document** is read from its own table, one query per kind of document on the page; an allocation
   and an application of credit take the payer of their payment and credit note. A prefix change has neither payer nor
   amount.
+
+## Amended 2026-11-23 (Prompt 6.2): the reconciliation report, gapless numbering, and drift checked after every test
+
+The owner approved the plan of Prompt 6.2 "as recommended". What it decided and built:
+
+1. **The reconciliation report (US-41): `GET /api/v1/reports/reconciliation`**, under the policy `Reports`. The
+   Reporting module calls the Receivables module's `IReconciliationQuery` through its Application contract (no new
+   exception to the module rule) and answers a paged report: the drift rows by identity, reference and subject, with
+   `totals` of `checkedAtUtc`, `rows` and the count of each identity. When it finds drift, the API writes an error to the
+   log with the count and the identities (rule 4 of CLAUDE.md: "fails loudly"). It corrects nothing.
+2. **Identity 11, gapless numbering, joins the reconciliation** (CLAUDE.md section 9, item 12, left it for this prompt):
+   `NumberSeriesGap`, one row per number series whose documents are not as many as its highest number, or whose highest
+   number is not the one before its next. Its cached figure is the documents numbered, its ledger figure the numbers the
+   series has given. One more branch of the constant statement of `ReconciliationQuery`, a file already sanctioned for
+   raw SQL: no new one.
+3. **Every database test ends with the reconciliation of every tenant it left** (`DatabaseTest.DisposeAsync`), so a
+   financial test that leaves a cache out of line with the ledger, or a series with a gap, fails whether or not it
+   checked itself, now and for every test written later. A test that leaves a defect on purpose names the identities it
+   leaves with `ExpectDrift`, and a class that tests one part on its own names them once (`DriftLeftOnPurpose`): the
+   ledger through its port without documents (`ReceivablesOnSqlServerTests`), the number series without documents
+   (`NumberSeriesOnSqlServerTests`, and `IdempotencyApiTests`, whose probe takes a number for a probe record). No other
+   drift is ignored. The first run with the check found exactly the 41 tests that seed defects or take numbers without
+   documents, and none that leaves drift by mistake.
+4. **docs/api.md is complete** and stays so: `ApiDocumentationTests` fails for an endpoint whose method and path are not
+   there, and for an error code (of a Domain `Errors` class or the API's `ErrorCodes`) not in its catalogue, section 9.
+5. **US-43 for a bill:** a Viewer reads one bill's trail through its whole life, and each record's "before" equals the
+   previous record's "after" (compared by value), so no state change of the bill goes unrecorded.
+
+**Found (not changed):** the "after" image of a record that creates a row holds its decimals as the application wrote
+them (`1`, `200`), while every later image, read from the stored row, holds them at the column's scale (`1.000`,
+`200.0000`). The values are equal; a reader comparing the JSON as text sees a difference. `EntitySnapshot` could read
+the creation's image back after the insert, at the cost of a read per created row; left as it is for the owner to decide.

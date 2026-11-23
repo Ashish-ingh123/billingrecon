@@ -552,6 +552,8 @@ public sealed class CreditNotesApiTests(SqlServerFixture sqlServer) : DatabaseTe
     [Fact]
     public async Task BR404_a_credit_note_that_no_longer_matches_its_ledger_its_applications_or_its_bill_is_reported()
     {
+        ExpectDrift(DriftIdentity.CreditNotesExceedBillTotal);
+
         using var factory = new DatabaseApiFactory(SqlServer);
         var (maker, checker) = await NewMakerAndCheckerAsync();
         using var clerk = factory.CreateClientFor(maker, "BillingClerk");

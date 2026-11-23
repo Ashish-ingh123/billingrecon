@@ -628,6 +628,7 @@ dotnet test --filter "FullyQualifiedName~DatabasePermissionsOnSqlServerTests"
 | 5.4 | The two test logins and the role on SQL Server 2022 on Linux: the fixture creates the logins with `CHECK_POLICY = OFF`, migrates as the migrator's four roles and runs every API test as the application's login; `DatabasePermissionsOnSqlServerTests` there, including `READ_COMMITTED_SNAPSHOT` on the database the fixture creates. |
 | 5.4b | The API image built from the Dockerfile and its smoke run in CI (`AllowedHosts=localhost`, no `Server` header, 400 `https_required` for an API request over plain HTTP); the per-account sign-in limit in `AuthApiTests` on SQL Server 2022. The smoke run's checks passed on the office machine against the published API on Kestrel, not in a container. |
 | 6.1 | `ReportsApiTests` on SQL Server 2022: the joins across modules, the comparisons of `Money` with zero and the order by a `Money` column, as Entity Framework 10 translates them there. |
+| 6.2 | The whole `Database` collection on SQL Server 2022 with the reconciliation after every test (`NumberSeriesGap` included): a test that passes on LocalDB but leaves drift there fails. `ReconciliationApiTests` and `BillAuditTrailApiTests`. |
 
 A red result is reported as it is, with its output; the fix is its own commit on top, never an edit of history.
 

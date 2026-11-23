@@ -108,4 +108,12 @@ public static class DriftIdentity
 
     /// <summary>Identity 10: a subject whose balance in the ledger is below zero (BR-405).</summary>
     public const string NegativeSubjectBalance = "NegativeSubjectBalance";
+
+    /// <summary>
+    /// Identity 11: a number series whose documents are not gapless (BR-801, docs/database.md section 4.3): fewer or more
+    /// documents than the highest number, or a highest number that is not the one before the series' next. Its row
+    /// names the series, its reference the document type and fiscal year, its cached figure the documents numbered, its
+    /// ledger figure the numbers the series has given (its next number less one); in a broken row the two differ.
+    /// </summary>
+    public const string NumberSeriesGap = "NumberSeriesGap";
 }

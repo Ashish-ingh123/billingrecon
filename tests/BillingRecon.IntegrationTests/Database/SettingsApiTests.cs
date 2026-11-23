@@ -6,6 +6,7 @@ using BillingRecon.Application.Audit;
 using BillingRecon.Application.Billing;
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Identity;
+using BillingRecon.Application.Receivables;
 using BillingRecon.Domain.Billing;
 using BillingRecon.Domain.Common;
 using BillingRecon.Domain.Identity;
@@ -208,6 +209,8 @@ public sealed class SettingsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     [Fact]
     public async Task ADR0033_an_approval_in_the_instant_of_the_first_number_of_the_year_waits_for_it_and_then_changes_the_series_it_created()
     {
+        ExpectDrift(DriftIdentity.NumberSeriesGap);
+
         using var factory = new DatabaseApiFactory(SqlServer);
         var admin = await NewApiTenantAsync();
         using var client = factory.CreateClientFor(admin, "TenantAdmin");

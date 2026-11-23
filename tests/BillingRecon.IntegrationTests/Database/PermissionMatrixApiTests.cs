@@ -162,6 +162,7 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
         ("GET", "api/v1/reports/unapplied-cash", "reports"),
         ("GET", "api/v1/reports/available-credit", "reports"),
         ("GET", "api/v1/reports/pending-approvals", "reports"),
+        ("GET", "api/v1/reports/reconciliation", "reports"),
     ];
 
     [Fact]

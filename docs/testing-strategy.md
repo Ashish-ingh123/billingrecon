@@ -16,8 +16,8 @@
 | Persistence without a database | The EF Core model and its conventions, the interceptors on the change tracker, the SQL text of queries (`ToQueryString`). The SQL Server provider against a server nothing listens on; the in-memory provider is banned. | xUnit, Shouldly, EF Core | `tests/BillingRecon.IntegrationTests/Persistence` |
 | Database | What only the engine can show: migrations applied to SQL Server 2022, CHECK constraints, unique and filtered indexes, foreign keys, the row version, the tenant predicate of UPDATE and DELETE, the audit columns as stored, readiness against pending and applied migrations, and what the unit of work makes of a lost race. Every tenant-scoped row needs its tenant's row first (the foreign key on `TenantId`): `NewApiTenantAsync`, `AddProbeTenantRowsAsync`. | Testcontainers.MsSql, Respawn, Bogus | `tests/BillingRecon.IntegrationTests/Database` (the `Database` collection) |
 | API | The pipeline that ships: routing and versioning, the error contract, correlation id, logging and PII masking, health, OpenAPI. In-process host, Production environment unless a test says otherwise. The endpoints of a resource end to end (status and error codes, ETag and If-Match, paging and search, simultaneous requests, and tenant isolation with two tenants) run in the `Database` collection on `DatabaseApiFactory`. | WebApplicationFactory | `tests/BillingRecon.IntegrationTests` (root), `DatabaseApiFactory` for endpoints that need the database and an acting tenant |
-| Architecture | The layer rule, the module rule with its listed exceptions, every type in a known module, banned packages in every project file, the banned-API list, controller conventions, no minimal APIs. | NetArchTest, file scans | `tests/BillingRecon.ArchitectureTests` |
-| Financial integrity (Phase 4) | After scripted and random sequences of operations (seeded, several seeds), every identity of `docs/database.md` section 5.5 holds: cache equals ledger, gapless numbers, balanced postings. | xUnit, Bogus | with the receivables ledger |
+| Architecture | The layer rule, the module rule with its listed exceptions, every type in a known module, banned packages in every project file, the banned-API list, controller conventions, no minimal APIs, Reporting writes nothing, and docs/api.md names every endpoint and every error code (`ApiDocumentationTests`). | NetArchTest, file scans | `tests/BillingRecon.ArchitectureTests` |
+| Financial integrity | Every identity of `docs/database.md` section 5.5 holds after every database test (cache equals ledger, balanced postings, gapless numbers): the reconciliation runs when each test ends (section 2). The scenario tests (`EndToEndScenarioTests`, `ReportsApiTests`) also check it step by step. Random sequences of operations, several seeds, are still to come. | xUnit, Bogus | `DatabaseTest`, the `Database` collection |
 | Frontend (Phase 8) | Components and the critical flows (payment and allocation form). | Vitest, Testing Library | `frontend/` |
 
 A test belongs to the lowest layer that can prove the point. The model and the SQL text answer most
@@ -44,6 +44,14 @@ behaviour is the question.
   gives each client the role of what it does, and a client that both sets up and acts names both
   (`"Cashier", "BillingClerk"`). `PermissionMatrixApiTests` walks every endpoint with each role
   against its own copy of the matrix; a new endpoint needs a row there before the suite is green.
+- **No drift after any test** (Prompt 6.2, ADR 0036 amendment). After every test, `DatabaseTest` runs the
+  reconciliation (`docs/database.md` section 5.6) for every tenant the test left in `BillingRecon_Api` and fails on
+  any drift row, a gap in a number series included. A test that leaves a defect on purpose says which identities with
+  `ExpectDrift(DriftIdentity....)`; a class that tests one part on its own names them once by overriding
+  `DriftLeftOnPurpose`. Nothing else is ignored, so a new financial test is checked without asking. A test may also
+  call `ShouldHaveNoDriftAsync()` midway.
+- **Over HTTPS, for a named host** (ADR 0035). Every host is called at `https://localhost` and names `localhost` in
+  `AllowedHosts`, as a client of a deployment is; `RemoteAddressStartupFilter` gives a request a client address.
 - **Time.** `FakeClock` everywhere; the API's clock is the factory's `Clock`, which a test moves.
 - **Data.** `TestData` draws from one seeded Bogus generator: the same tenants and names every run.
 - **Without Docker** the fixture fails with one message; the collection fails, every other test

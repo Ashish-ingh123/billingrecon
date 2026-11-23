@@ -274,7 +274,9 @@ src/
                                 DTOs, ReportPage (the list answer with its totals and period), ReportPeriods, the
                                 ports IRegisterReports, ICollectionReports, IBalanceReports and IApprovalReports, and
                                 Reporting's own words ReportBillStatus, ReportPaymentStatus, ReportPaymentMethod
-                                (Reporting). ADR 0036.
+                                (Reporting). ADR 0036. The reconciliation report (ReconciliationReportQuery and its
+                                handler over IReconciliationQuery, DriftRowDto, ReconciliationTotalsDto) (Reporting)
+                                and the identity NumberSeriesGap (Receivables), ADR 0036 amended by Prompt 6.2.
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -354,6 +356,9 @@ tests/
                                    of a deployment is; RemoteAddressStartupFilter gives a request a client address
                                    (header X-Test-Remote-Address); TransportApiFactory has a proxy, named hosts and a
                                    frontend origin; KestrelTransportTests host the API on real Kestrel (ADR 0035).
+                                   After every test of the Database collection, DatabaseTest runs the reconciliation of
+                                   every tenant and fails on drift, except the identities a test names with ExpectDrift
+                                   or its class with DriftLeftOnPurpose (ADR 0036, Prompt 6.2).
   BillingRecon.ArchitectureTests/  NetArchTest and file scans: layer rule, module rule with its listed exceptions,
                                    every type in a known module, banned packages in every project file, controller
                                    conventions, no minimal APIs; the guard of the banned-API list
@@ -361,7 +366,8 @@ tests/
                                    scope, and the sign-in's two rate limits on it alone (AuthenticationConventionTests);
                                    one policy of the catalogue on every action,
                                    and the checker's roles in every decision (PermissionConventionTests); Reporting
-                                   writes nothing (ReportingConventionTests).
+                                   writes nothing (ReportingConventionTests); docs/api.md names every endpoint and
+                                   every error code (ApiDocumentationTests).
 frontend/                      React + TypeScript + Vite (planned)
 docs/                          Design documents and ADRs (see section 7)
 ```
@@ -655,7 +661,7 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 | `docs/requirements.md` | Domain and vocabulary, actors and permissions, R1 scope, the **BR-nnn business-rule catalogue**, user stories with acceptance criteria, NFRs, R2–R5 outlines |
 | `docs/domain-model.md` | Module map, value objects, aggregates with invariants (citing BR-ids), Bill state machine, transaction boundaries and the allocation exception, domain events, ports |
 | `docs/database.md` | Conventions, ER diagram, every R1 table with types/keys/indexes/CHECKs, number-series lock, ledger accounts and posting templates, balance identities and reconciliation SQL, idempotency lifecycle, permissions, migrations |
-| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), the adjustment endpoints (Prompt 4.4), the reversal endpoints of payments and allocations (Prompt 4.5), the refunds (Prompt 4.6), the users (Prompt 5.1), authentication with the sign-in (Prompt 5.2), the permissions of each role (Prompt 5.3), the tenant settings with the prefix changes (Prompt 5.3b), HTTPS only, hosts, CORS, the headers of an answer and the sign-in limits (Prompt 5.4b), and the reports (Prompt 6.1) |
+| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), the adjustment endpoints (Prompt 4.4), the reversal endpoints of payments and allocations (Prompt 4.5), the refunds (Prompt 4.6), the users (Prompt 5.1), authentication with the sign-in (Prompt 5.2), the permissions of each role (Prompt 5.3), the tenant settings with the prefix changes (Prompt 5.3b), HTTPS only, hosts, CORS, the headers of an answer and the sign-in limits (Prompt 5.4b), and the reports (Prompts 6.1 and 6.2). Complete since Prompt 6.2: every endpoint, the actions of the audit trail, and the error-code catalogue (section 9), which `ApiDocumentationTests` keeps complete |
 | `docs/build-prompts.md` | The build prompts from zero to R1, reconstructed on 2026-11-20: what each finished prompt built, and the wording and order of the prompts still to give. Its phase numbers are the ones this file uses |
 | `docs/security.md` | Authentication and the sign-in limits, authorisation, tenancy, maker-checker, transport (TLS, hosts, CORS, headers), secrets, data protection, the database logins, and the threat model of R1 (section 10: every threat done, accepted with its reason, or named with its prompt). Written in full with Prompt 5.4b |
 | `docs/testing-strategy.md` | Test pyramid, tooling, database tests, architecture tests, CI gates |
@@ -723,7 +729,8 @@ of the Prompt 5.4b plan, 2026-11-23; it answers ADR 0031 point 12 and amends ADR
 0036 Reporting reads every module and writes none: five exceptions to the module rule for its Infrastructure, figures
 held against the ledger, the daily collection from the Cash entries of the business date, totals over every page, and
 Reporting's own words for the Billing and Payments enums (Accepted on the owner's approval of the Prompt 6.1 plan,
-2026-11-23; it amends ADR 0003 and ADR 0018).
+2026-11-23; it amends ADR 0003 and ADR 0018; "Amended 2026-11-23 (Prompt 6.2)": the reconciliation report, gapless
+numbering as identity 11, and the reconciliation after every database test, on the owner's approval of the 6.2 plan).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -988,7 +995,7 @@ Kept here so they survive between sessions. Remove an item when it is done.
       times: `dotnet test --filter "FullyQualifiedName~NumberSeriesOnSqlServerTests"`.
     - Follow-ups for later slices: bill posting takes the first number (3.5); the typed wrappers come with their
       documents; changing a prefix is a maker-checker action (3.6, 5.3; done with Prompt 5.3b, item 30); the gapless
-      verification query joins the reconciliation report (6.2).
+      verification query joins the reconciliation report (6.2; done, item 35).
 13. **Prompt 3.2 (idempotency for financial POSTs, ADR 0006), written 2026-11-20, not built on .NET 10 yet.** The
     fifth prompt in one uncommitted working tree (2.2, 2.3, 2.4, 3.1, 3.2). The owner was advised twice to run the
     earlier prompts on the personal machine first and chose to go on; the first thing to do now is that run.
@@ -1160,7 +1167,7 @@ Kept here so they survive between sessions. Remove an item when it is done.
     - Not proven anywhere yet: the split of the two configurations on EF Core 10; every concurrency test on SQL
       Server 2022; the failure injection through the real pipeline on ASP.NET Core 10.
     - Follow-ups for later slices: maker-checker and `PendingApproval` (3.6); `PartiallyPaid` is reached by
-      allocations (4.2); the reconciliation endpoint and the gapless check in the report (6.2); role checks
+      allocations (4.2); the reconciliation endpoint and the gapless check in the report (6.2; done, item 35); role checks
       (Phase 5: bills are posted by TenantAdmin, Supervisor and BillingClerk).
     - Next: Prompt 3.6 (item 19).
 19. **Prompt 3.6 (maker-checker approvals, ADR 0023), written 2026-11-20, not built on .NET 10 yet.** The last
@@ -1741,4 +1748,29 @@ Kept here so they survive between sessions. Remove an item when it is done.
       without a database pass; in a throwaway copy on LocalDB 2019 the integration project passes in full (1220 tests),
       and the report and permission tests ran twice more without a failure.
     - **Still to do:** SQL Server 2022 in Docker (runbook section 8, row 6.1).
-    - Next: Prompt 6.2 (reconciliation and audit trail).
+    - Next: Prompt 6.2 (reconciliation and audit trail). Done: item 35.
+35. **Prompt 6.2, reconciliation and audit trail (ADR 0036, "Amended 2026-11-23 (Prompt 6.2)"), written 2026-11-23,
+    built and tested on .NET 10.** On `phase-2-billing`. The plan was approved "as recommended". No migration, no package.
+    - Built: `GET /api/v1/reports/reconciliation` (US-41), paged, with the count of each broken identity and the time of
+      the check, an error in the log when it finds drift; identity 11, `NumberSeriesGap`, in the reconciliation's
+      statement (no new raw-SQL file); the reconciliation of every tenant after every test of the `Database` collection
+      (`DatabaseTest`), with `ExpectDrift` and `DriftLeftOnPurpose` for the tests that leave a defect on purpose;
+      `docs/api.md` completed (every endpoint, the actions of the audit trail, the error-code catalogue of section 9)
+      and kept complete by `ApiDocumentationTests`.
+    - **The automatic check, first run:** it failed exactly the 41 tests that seed defects to see them found or take
+      numbers without documents (the idempotency probe, the number series on its own, one race of ADR 0033); each now
+      names the identities it leaves, and none leaves drift by mistake. No other expectation changed; the opt-outs are
+      the only edits of existing tests, besides one row of `PermissionMatrixApiTests`.
+    - **Found, for the owner (ADR 0036 amendment):** the audit image of a creation holds its decimals as written (`1`,
+      `200`), later images at the column's scale (`1.000`, `200.0000`): equal values, different text. Left as it is;
+      `EntitySnapshot` could read the created row back, at a read per creation.
+    - **Tests:** `ReconciliationApiTests` (3: no drift after real postings; a changed balance and a skipped number
+      reported with both figures and logged as an error; another tenant's drift never shown), `BillAuditTrailApiTests`
+      (US-43: a Viewer reads ten state changes of one bill, each with its user and correlation id, "before" equal by
+      value to the previous "after"), the report's handler in `ReportingHandlerTests`, `ApiDocumentationTests` (2).
+    - **Verified on .NET 10 (SDK 10.0.404):** in the repository, the Release build and `dotnet format
+      --verify-no-changes` are clean, and Domain 625, Application 409, Architecture 127 and the 741 integration tests
+      without a database pass; in a throwaway copy on LocalDB 2019 the `Database` collection passes in full (483 tests),
+      every one now ending with the reconciliation, and the new and opted-out classes ran twice more without a failure.
+    - **Still to do:** SQL Server 2022 in Docker (runbook section 8, row 6.2).
+    - Next: Prompt 6.3 (dashboard figures), which begins with a proposal of its user story for the owner.
