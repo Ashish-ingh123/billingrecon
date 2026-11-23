@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react';
 import { Link, Navigate } from 'react-router';
 import { useSession } from '../auth/AuthContext';
+import { useCan, type Policy } from '../auth/permissions';
 import { canOpen, landingPath, type Section } from './navigation';
 import styles from './pages.module.css';
 
@@ -46,6 +48,11 @@ export function SectionPage({ section }: { section: Section }) {
   const session = useSession();
 
   return canOpen(section, session.roles) ? <PlaceholderPage section={section} /> : <NoAccessPage />;
+}
+
+/** A page for the roles of a policy, and the no-access page for the others, reached by its address (ADR 0039 point 3). */
+export function RequirePolicy({ policy, children }: { policy: Policy; children: ReactNode }) {
+  return useCan(policy) ? children : <NoAccessPage />;
 }
 
 /** The start page of the user's roles. */

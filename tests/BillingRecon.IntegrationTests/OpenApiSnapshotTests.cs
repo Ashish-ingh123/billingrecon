@@ -61,10 +61,13 @@ public sealed class OpenApiSnapshotTests(OpenApiSnapshotTests.ShippedApiFactory 
         paymentMethod["enum"]!.AsArray().Select(value => value!.GetValue<string>()).ShouldContain("Cash");
     }
 
-    // The document without what depends on the host that served it (the server's address), written as the frontend keeps it.
+    // The document without what depends on the machine that served it, written as the frontend keeps it: no server address,
+    // and the line breaks inside its descriptions as LF. The descriptions come from the XML comments of the source files,
+    // with the line endings those files have in the checkout: a checkout with CRLF (as from a zip on Windows) and one with
+    // LF (CI) must give the same document.
     private static string Normalised(string json)
     {
-        var document = JsonNode.Parse(json)!.AsObject();
+        var document = JsonNode.Parse(json.Replace("\\r\\n", "\\n", StringComparison.Ordinal))!.AsObject();
         document.Remove("servers");
 
         return document.ToJsonString(Written) + "\n";

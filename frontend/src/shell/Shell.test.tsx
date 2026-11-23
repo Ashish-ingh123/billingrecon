@@ -14,7 +14,7 @@ describe('the shell of a signed-in user', () => {
     expect(screen.getByText('Administrator')).toBeInTheDocument();
 
     const navigation = screen.getByRole('navigation', { name: 'Main' });
-    expect(within(navigation).getAllByRole('link')).toHaveLength(11);
+    expect(within(navigation).getAllByRole('link')).toHaveLength(12);
     expect(within(navigation).getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByText('These screens arrive with Prompt 7.6.')).toBeInTheDocument();
   });
@@ -27,7 +27,8 @@ describe('the shell of a signed-in user', () => {
       .getAllByRole('link')
       .map((link) => link.textContent);
     expect(links).toEqual([
-      'Patients and payers',
+      'Patients',
+      'Payers',
       'Service items',
       'Bills',
       'Payments',

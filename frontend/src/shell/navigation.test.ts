@@ -9,6 +9,7 @@ const matrix: Record<Role, string[]> = {
   TenantAdmin: [
     '/dashboard',
     '/patients',
+    '/payers',
     '/service-items',
     '/bills',
     '/payments',
@@ -22,6 +23,7 @@ const matrix: Record<Role, string[]> = {
   Supervisor: [
     '/dashboard',
     '/patients',
+    '/payers',
     '/service-items',
     '/bills',
     '/payments',
@@ -31,11 +33,21 @@ const matrix: Record<Role, string[]> = {
     '/approvals',
     '/reports',
   ],
-  BillingClerk: ['/patients', '/service-items', '/bills', '/payments', '/credit-notes', '/adjustments', '/reports'],
-  Cashier: ['/patients', '/service-items', '/bills', '/payments', '/refunds', '/credit-notes', '/reports'],
+  BillingClerk: [
+    '/patients',
+    '/payers',
+    '/service-items',
+    '/bills',
+    '/payments',
+    '/credit-notes',
+    '/adjustments',
+    '/reports',
+  ],
+  Cashier: ['/patients', '/payers', '/service-items', '/bills', '/payments', '/refunds', '/credit-notes', '/reports'],
   Viewer: [
     '/dashboard',
     '/patients',
+    '/payers',
     '/service-items',
     '/bills',
     '/payments',
@@ -54,6 +66,7 @@ describe('the navigation follows the permission matrix', () => {
   it('gives a user with several roles what any of them may open', () => {
     expect(sectionsFor(['BillingClerk', 'Cashier']).map((section) => section.path)).toEqual([
       '/patients',
+      '/payers',
       '/service-items',
       '/bills',
       '/payments',

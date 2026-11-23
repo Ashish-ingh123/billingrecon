@@ -1,0 +1,19 @@
+.details {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 1rem 2rem;
+  margin: 0;
+  padding: 1rem 1.25rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.item dt {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.item dd {
+  margin: 0.125rem 0 0;
+}

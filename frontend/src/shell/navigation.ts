@@ -27,9 +27,16 @@ export const sections: readonly Section[] = [
   },
   {
     path: '/patients',
-    label: 'Patients and payers',
+    label: 'Patients',
     roles: everyone,
-    purpose: 'Register patients and the payers who owe their bills.',
+    purpose: 'Register patients and correct their details.',
+    builtBy: '7.2',
+  },
+  {
+    path: '/payers',
+    label: 'Payers',
+    roles: everyone,
+    purpose: "Who owes the bills: a patient's own payer, or a guarantor.",
     builtBy: '7.2',
   },
   {

@@ -76,6 +76,7 @@ React + TypeScript + Vite in `frontend/` (ADR 0038, Prompt 7.1). Node 22.22 or l
 | Forms | **React Hook Form**, no schema library | The API validates; its messages per field go on the fields. |
 | Components | Our own, **CSS Modules** on the **design tokens** of `src/theme/tokens.css`; no UI kit | No raw colour outside `tokens.css` (a test scans every file); WCAG AA in both themes (a test computes the contrast). The theme (System, Light, Dark) is `data-theme` on `<html>`, set by the inline script of `index.html` before React mounts; its SHA-256 is pinned by a test for the CSP of 8.1. |
 | Errors | **`ProblemAlert`** | The one way a screen shows a refusal: the API's message, field messages not placed on fields, the wait of a 429, the reference (correlation id). |
+| Screens (ADR 0039) | Lists, records, forms | A list keeps its search, status and page in the address. Every change sends `If-Match` from the record's `version`. Who may change is `src/auth/permissions.ts`, a copy of the API's policies that a test holds to `Policies.cs`. Deactivate asks once more, in place. A 409 `concurrency_conflict` says nothing was saved, lists what changed, and offers "Load the latest version" or "Keep my changes". Decimals are typed as text, sent as JSON numbers, refused beyond 15 significant digits; amounts shown with Indian grouping. The API's field messages go at their fields. |
 | Session | **`sessionStorage`** | The token, its expiry and the roles read from it; gone with the tab, at expiry and on a 401 (row S5). The roles choose the navigation only; the API is the authority. |
 | Charts (7.6) | **Recharts** | SVG, so a series drawn with `var(--series-n)` follows the theme without a re-render. |
 | Tests | **Vitest**, jsdom, React Testing Library | The API faked by a `fetch` given to the client (`src/test/app.tsx`); no mocking package. |
@@ -398,9 +399,14 @@ tests/
 frontend/                      React + TypeScript + Vite (ADR 0038): index.html with the inline theme script;
                                src/theme (tokens.css, the provider and the chooser), src/auth (the session, the
                                sign-in, the route guard), src/api (openapi.json, the generated schema.d.ts, the client,
-                               ProblemDetails as ApiProblem), src/components (ProblemAlert), src/shell (the navigation
-                               from the permission matrix, the shell, the placeholder pages), routes.tsx, Providers.tsx;
-                               src/test (the app renderer, the colour scan, the contrast and theme-script tests).
+                               ProblemDetails as ApiProblem, call.ts: answer, ApiError, ifMatch), src/components
+                               (ProblemAlert, the fields, the list controls with listParams, the page header, the status
+                               badge, the conflict notice, the inline confirmation, useRecordForm, useStatusActions),
+                               src/shell (the navigation from the permission matrix, the shell, the placeholder pages,
+                               RequirePolicy), src/patients, src/payers and src/serviceItems (each: api.ts with its queries
+                               and changes, the list, the record and the forms; ADR 0039), src/auth/permissions.ts (the
+                               API's policies), format.ts and decimals.ts, routes.tsx, Providers.tsx; src/test (the app
+                               renderer, routedApi, the records, the colour scan, the contrast and theme-script tests).
                                The OpenAPI document is kept equal to the API's by OpenApiSnapshotTests (IntegrationTests).
 docs/                          Design documents and ADRs (see section 7)
 ```
@@ -771,7 +777,10 @@ BR-902 and amends ADR 0021 and ADR 0036),
 0038 the frontend: React, TypeScript 5.9 and Vite; React Router 8, TanStack Query, a client typed from the API's OpenAPI
 document kept equal to it by a test; design tokens with no raw colour, WCAG AA in both themes and an inline theme script
 pinned by its hash; Recharts for 7.6; the token in `sessionStorage` (Accepted on the owner's approval of the Prompt 7.1
-proposal, 2026-11-23; it answers row S5 of the threat model).
+proposal, 2026-11-23; it answers row S5 of the threat model),
+0039 screens: lists in the address, `If-Match` from the record's version, a conflict shown and decided by the user, who may
+change as a copy of the API's policies held to `Policies.cs`, decimals typed as text and sent as numbers, payers in a
+section of their own (Accepted on the owner's approval of the Prompt 7.2 plan, 2026-11-23).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1898,4 +1907,33 @@ Kept here so they survive between sessions. Remove an item when it is done.
       (the pane's emulation fires no `change` event; the component test covers it).
     - **Still to do:** the CI job's first run; `npm ci` and `npm test` on the personal machine, whose Node version is not
       recorded (runbook section 8, row 7.1). The CSP of 8.1 lists the inline script's hash (`docs/security.md` section 6).
-    - Next: Prompt 7.2 (patients, payers and catalogue screens).
+    - Next: Prompt 7.2 (patients, payers and catalogue screens). Done: item 38.
+38. **Prompt 7.2, patients, payers and catalogue screens (ADR 0039), written 2026-11-23, built and tested on the office
+    machine.** On `phase-2-billing`. The plan was approved "as recommended" with its two answers: payers in a section of
+    their own, and a conflict that lists what changed and offers both choices. No package, no migration, no change of the
+    API.
+    - Built: for patients, payers and service items, a list (search, status filter, pages of 20, all in the address), a
+      record page (details, status, Edit, Deactivate with a confirmation, Reactivate; a patient's payer, or the way to
+      create it; a payer's patient), and the create and correct forms. Read by every role, changed by TenantAdmin,
+      Supervisor and BillingClerk; the write routes answer "No access" to the others. The shared pieces of every later
+      screen: fields, list controls, page header, status badge, conflict notice, inline confirmation, `useRecordForm`,
+      `useStatusActions`, `answer` and `ifMatch`, the policies' copy, Indian formats, decimal checks.
+    - **Fixed, from 7.1, called out:** `OpenApiSnapshotTests` writes and compares the API's document with every `\r\n`
+      inside its descriptions as `\n`. The generator joins the lines of an XML comment with the machine's line break, so
+      the snapshot written on Windows would have failed on the Linux runners. 242 descriptions changed in the committed
+      copy; the generated types did not.
+    - **Changed expectations, called out:** the navigation's matrix table and the shell tests gain `/payers` for all five
+      roles, and "Patients and payers" became "Patients" (ADR 0039 point 6).
+    - **Tests:** 220 frontend tests (59 new; `docs/testing-strategy.md` section 5a), against `routedApi`. With five defects
+      put in one at a time (`If-Match` unquoted, a conflict listing nothing, every role allowed to change, the status
+      filter not sent, the digit limit dropped), each is caught.
+    - **Verified:** in `frontend/`, `npm audit` (none), the format check, lint, types, 220 tests and the build, and the
+      generated types equal to the committed document; in the repository, the Release build and `dotnet format
+      --verify-no-changes` are clean, and Domain 625, Application 423, Architecture 129 and the 743 integration tests
+      without a database pass (the `Database` collection was not run again: no production code of the API changed). **In
+      the browser**, against the API in Development on a throwaway LocalDB database: paging through 23 patients, the API's
+      refusals at the field and in the error component, a patient registered and their payer created, a real conflict
+      (the record changed through the API behind the open form) kept and saved over, a service item priced 1250000.1234
+      stored exactly and deactivated after the confirmation, and a Viewer with no action and no access to the forms.
+    - **Still to do:** the CI job's first run (runbook section 8, row 7.2).
+    - Next: Prompt 7.3 (bill screens).

@@ -1,0 +1,44 @@
+/* The tables of the lists: one record per row, the first column a link to it, numbers right-aligned. */
+
+.wrap {
+  overflow-x: auto;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.table thead th {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  background: var(--surface-sunken);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th.number {
+  text-align: right;
+}
+
+.empty {
+  padding: 1.5rem;
+  color: var(--text-muted);
+}

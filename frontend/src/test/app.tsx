@@ -68,6 +68,47 @@ export function fakeApi(...answers: (Response | Error)[]) {
   return { fetch, requests };
 }
 
+/** What a route of {@link routedApi} answers: a new answer for each request, as a server makes one. */
+export type Handler = (request: Request) => Response | Promise<Response>;
+
+/** A handler that answers each request with the next of its answers, and the last one after that. */
+export function inTurn(...answers: (() => Response)[]): Handler {
+  let next = 0;
+  return () => {
+    const answer = answers[Math.min(next, answers.length - 1)];
+    next += 1;
+    if (answer === undefined) {
+      throw new Error('inTurn needs at least one answer.');
+    }
+
+    return answer();
+  };
+}
+
+/**
+ * A fake of the network for screens that make several requests: each is answered by the handler of its method and path
+ * (`'GET /api/v1/patients/42'`), whatever its query; a request no route names fails the test with its address.
+ */
+export function routedApi(routes: Record<string, Handler>) {
+  const requests: Request[] = [];
+  const fetch = async (request: Request): Promise<Response> => {
+    requests.push(request.clone());
+    const url = new URL(request.url);
+    const handler = routes[`${request.method} ${url.pathname}`];
+    if (handler === undefined) {
+      throw new Error(`No route answers ${request.method} ${url.pathname}${url.search}.`);
+    }
+
+    return handler(request);
+  };
+
+  /** The requests with this method and path, in the order they were sent. */
+  const sent = (method: string, path: string) =>
+    requests.filter((request) => request.method === method && new URL(request.url).pathname === path);
+
+  return { fetch, requests, sent };
+}
+
 /** Renders the whole app at `path`, with a kept session if one is given, and the network faked by `fetch`. */
 export function renderApp(
   path: string,

@@ -120,6 +120,17 @@ What the frontend's tests hold, beyond the behaviour of each screen:
 - **The API's types:** the generated `schema.d.ts` must be what `npm run api:types` writes from the committed document
   (CI), and `OpenApiSnapshotTests` (.NET) holds that document to the API's own.
 
+Since Prompt 7.2 (ADR 0039):
+
+- **Screens are tested against `routedApi`**, a fake that answers each request by its method and path (`'GET
+  /api/v1/patients/42'`) and keeps what was sent (`sent(method, path)`), since a record's page asks for several things at
+  once; `inTurn` gives a route a different answer each time (a record, then the record someone else changed). Records as
+  the API answers them come from `src/test/records.ts`.
+- **The permissions against the API's:** `permissions.test.ts` reads
+  `src/BillingRecon.Api/Common/Authorization/Policies.cs` and fails when the frontend's copy differs in a policy or a role.
+- **What is sent is asserted as sent:** the `If-Match` header of every change, the body of every create and correction
+  (blanks as null, decimals as JSON numbers), and the query of every list.
+
 The jsdom environment has no `matchMedia`; `src/test/setup.ts` gives every test a system that prefers light, which a
 test changes with `stubColourScheme`, and clears both storages before each test.
 

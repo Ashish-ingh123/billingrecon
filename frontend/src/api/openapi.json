@@ -341,7 +341,7 @@
         "tags": [
           "Reports"
         ],
-        "summary": "The drift between the cached balances and the ledger, and every number series that is not gapless (US-41): an\r\nempty report when none. It never corrects anything.",
+        "summary": "The drift between the cached balances and the ledger, and every number series that is not gapless (US-41): an\nempty report when none. It never corrects anything.",
         "parameters": [
           {
             "name": "page",
@@ -1126,7 +1126,7 @@
         "tags": [
           "PaymentReversals"
         ],
-        "summary": "A cashier asks for the payment to be reversed, for example a dishonoured cheque (US-33, BR-306). 202: the\r\npayment waits in `PendingReversal` and nothing can be allocated from it meanwhile. 409 when it already\r\nwaits, is reversed, or one of its allocations waits for a decision of its own.",
+        "summary": "A cashier asks for the payment to be reversed, for example a dishonoured cheque (US-33, BR-306). 202: the\npayment waits in `PendingReversal` and nothing can be allocated from it meanwhile. 409 when it already\nwaits, is reversed, or one of its allocations waits for a decision of its own.",
         "parameters": [
           {
             "name": "id",
@@ -1287,7 +1287,7 @@
         "tags": [
           "PaymentReversals"
         ],
-        "summary": "A second person approves the reversal of the payment, and that reverses it (BR-306, BR-603, BR-606): every\r\nallocation still applied is reversed first, then the payment, each with its mirror ledger posting, in one\r\ntransaction. The cashier who asked cannot approve: 403. The body, an optional comment, may be left out.",
+        "summary": "A second person approves the reversal of the payment, and that reverses it (BR-306, BR-603, BR-606): every\nallocation still applied is reversed first, then the payment, each with its mirror ledger posting, in one\ntransaction. The cashier who asked cannot approve: 403. The body, an optional comment, may be left out.",
         "parameters": [
           {
             "name": "id",
@@ -1669,7 +1669,7 @@
         "tags": [
           "PaymentReversals"
         ],
-        "summary": "A cashier asks for one allocation of the payment to be reversed (US-32, BR-305). 202: the allocation waits in\r\n`PendingReversal`, still applied to its bill. 404 when the payment has no such allocation; 409 when it\r\nalready waits or is reversed, or the payment itself waits for a reversal or is reversed.",
+        "summary": "A cashier asks for one allocation of the payment to be reversed (US-32, BR-305). 202: the allocation waits in\n`PendingReversal`, still applied to its bill. 404 when the payment has no such allocation; 409 when it\nalready waits or is reversed, or the payment itself waits for a reversal or is reversed.",
         "parameters": [
           {
             "name": "id",
@@ -1839,7 +1839,7 @@
         "tags": [
           "PaymentReversals"
         ],
-        "summary": "A second person approves the reversal of the allocation, and that reverses it (BR-305, BR-603, BR-606): the\r\namount is unapplied again, the bill is owed it again and its status moves back, and the ledger gets the mirror\r\npair, in one transaction. The cashier who asked cannot approve: 403. The body may be left out.",
+        "summary": "A second person approves the reversal of the allocation, and that reverses it (BR-305, BR-603, BR-606): the\namount is unapplied again, the bill is owed it again and its status moves back, and the ledger gets the mirror\npair, in one transaction. The cashier who asked cannot approve: 403. The body may be left out.",
         "parameters": [
           {
             "name": "id",
@@ -2239,7 +2239,7 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Allocates the payment to one or more posted bills of its payer, all of them or none (BR-303, BR-304). Each\r\nbill's balance due and status follow (BR-208). 422 when an amount is more than the payment has unapplied or\r\nthe bill is owed, the bill is not posted, or it is owed by another payer. Needs If-Match, with the version\r\nof the payment, and an Idempotency-Key.",
+        "summary": "Allocates the payment to one or more posted bills of its payer, all of them or none (BR-303, BR-304). Each\nbill's balance due and status follow (BR-208). 422 when an amount is more than the payment has unapplied or\nthe bill is owed, the bill is not posted, or it is owed by another payer. Needs If-Match, with the version\nof the payment, and an Idempotency-Key.",
         "parameters": [
           {
             "name": "id",
@@ -2459,7 +2459,7 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Records money received from an active payer. 422 when the payer is inactive or the date is not allowed today\r\n(BR-205, BR-309). Needs an Idempotency-Key.",
+        "summary": "Records money received from an active payer. 422 when the payer is inactive or the date is not allowed today\n(BR-205, BR-309). Needs an Idempotency-Key.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2750,7 +2750,7 @@
         "tags": [
           "Refunds"
         ],
-        "summary": "Creates a draft refund from a payment or a credit note; the refund takes its payer. 404 when the source does not\r\nexist; 409 when the payment waits for its reversal or was reversed; 422 when the credit note is not posted, the\r\npayer is inactive (BR-309), or the date is not allowed or before the source's date (BR-205, BR-307).",
+        "summary": "Creates a draft refund from a payment or a credit note; the refund takes its payer. 404 when the source does not\nexist; 409 when the payment waits for its reversal or was reversed; 422 when the credit note is not posted, the\npayer is inactive (BR-309), or the date is not allowed or before the source's date (BR-205, BR-307).",
         "requestBody": {
           "content": {
             "application/json": {
@@ -3353,7 +3353,7 @@
         "tags": [
           "Refunds"
         ],
-        "summary": "The maker asks for the draft to be posted (BR-604). Every refund needs a second person, so this never posts: it\r\nanswers 202 with the refund in `PendingApproval`, without a number and without any ledger effect. 422 when\r\nits date is no longer allowed or its amount is more than the source has left (BR-307); 409 when the payment\r\nwaits for its reversal or was reversed. Needs If-Match and an Idempotency-Key; no body.",
+        "summary": "The maker asks for the draft to be posted (BR-604). Every refund needs a second person, so this never posts: it\nanswers 202 with the refund in `PendingApproval`, without a number and without any ledger effect. 422 when\nits date is no longer allowed or its amount is more than the source has left (BR-307); 409 when the payment\nwaits for its reversal or was reversed. Needs If-Match and an Idempotency-Key; no body.",
         "parameters": [
           {
             "name": "id",
@@ -3514,7 +3514,7 @@
         "tags": [
           "Refunds"
         ],
-        "summary": "A second person approves a refund that waits, and that posts it (BR-307, BR-603, BR-606): the number, the\r\nsource lowered by the amount, the ledger entry and the audit records, in one transaction. The maker cannot\r\napprove their own refund: 403. The cap and the payer are asked again (BR-307, BR-309). Needs If-Match and an\r\nIdempotency-Key; the body, an optional comment, may be left out.",
+        "summary": "A second person approves a refund that waits, and that posts it (BR-307, BR-603, BR-606): the number, the\nsource lowered by the amount, the ledger entry and the audit records, in one transaction. The maker cannot\napprove their own refund: 403. The cap and the payer are asked again (BR-307, BR-309). Needs If-Match and an\nIdempotency-Key; the body, an optional comment, may be left out.",
         "parameters": [
           {
             "name": "id",
@@ -3715,7 +3715,7 @@
         "tags": [
           "Refunds"
         ],
-        "summary": "A second person rejects a refund that waits, saying why (BR-605): it is a draft again and can be corrected\r\nand submitted once more. Needs If-Match and an Idempotency-Key.",
+        "summary": "A second person rejects a refund that waits, saying why (BR-605): it is a draft again and can be corrected\nand submitted once more. Needs If-Match and an Idempotency-Key.",
         "parameters": [
           {
             "name": "id",
@@ -4521,7 +4521,7 @@
         "tags": [
           "Payers"
         ],
-        "summary": "Creates a self-pay payer, for a patient or as a guarantor. 422 `payer_kind_not_supported` for Insurer and\r\nCorporate (BR-103); 409 `patient_already_linked` when the patient has a payer (BR-104).",
+        "summary": "Creates a self-pay payer, for a patient or as a guarantor. 422 `payer_kind_not_supported` for Insurer and\nCorporate (BR-103); 409 `patient_already_linked` when the patient has a payer (BR-104).",
         "requestBody": {
           "content": {
             "application/json": {
@@ -5305,7 +5305,7 @@
         "tags": [
           "PrefixChanges"
         ],
-        "summary": "Asks for a new prefix of one document type; the change waits for a second person. 409 when a change of the type\r\nalready waits or the prefix belongs to another type; 422 when the type has the prefix already.",
+        "summary": "Asks for a new prefix of one document type; the change waits for a second person. 409 when a change of the type\nalready waits or the prefix belongs to another type; 422 when the type has the prefix already.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -5569,7 +5569,7 @@
         "tags": [
           "PrefixChanges"
         ],
-        "summary": "A second person approves a change that waits, and the prefix changes (BR-603, BR-606). 403 for the maker or a\r\nuser who is neither Supervisor nor TenantAdmin; 409 when the prefix was taken by another type meanwhile, or the\r\nseries changed in the same instant. Needs If-Match.",
+        "summary": "A second person approves a change that waits, and the prefix changes (BR-603, BR-606). 403 for the maker or a\nuser who is neither Supervisor nor TenantAdmin; 409 when the prefix was taken by another type meanwhile, or the\nseries changed in the same instant. Needs If-Match.",
         "parameters": [
           {
             "name": "id",
@@ -6480,7 +6480,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "Replaces the roles of a user with at least one. 422 when it would take the role away from the tenant's last\r\nactive administrator. Needs If-Match.",
+        "summary": "Replaces the roles of a user with at least one. 422 when it would take the role away from the tenant's last\nactive administrator. Needs If-Match.",
         "parameters": [
           {
             "name": "id",
@@ -6641,7 +6641,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "Disables a user (BR-601). 422 for the caller themselves, for the tenant's last active administrator, and for a\r\nuser who is disabled already. Needs If-Match; no body.",
+        "summary": "Disables a user (BR-601). 422 for the caller themselves, for the tenant's last active administrator, and for a\nuser who is disabled already. Needs If-Match; no body.",
         "parameters": [
           {
             "name": "id",
@@ -7148,7 +7148,7 @@
         "tags": [
           "Bills"
         ],
-        "summary": "Creates a draft bill for a patient, owed by a payer, with any lines sent. 404 when the patient, the payer or a\r\nservice item does not exist; 422 when one of them is inactive, a date is not allowed (BR-205) or a line breaks\r\nBR-201.",
+        "summary": "Creates a draft bill for a patient, owed by a payer, with any lines sent. 404 when the patient, the payer or a\nservice item does not exist; 422 when one of them is inactive, a date is not allowed (BR-205) or a line breaks\nBR-201.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -7599,7 +7599,7 @@
         "tags": [
           "Bills"
         ],
-        "summary": "Replaces every line of a draft with the lines sent and recomputes the totals (BR-202, BR-203). Needs If-Match,\r\nwith the version of the bill.",
+        "summary": "Replaces every line of a draft with the lines sent and recomputes the totals (BR-202, BR-203). Needs If-Match,\nwith the version of the bill.",
         "parameters": [
           {
             "name": "id",
@@ -7921,7 +7921,7 @@
         "tags": [
           "Bills"
         ],
-        "summary": "Posts a draft (US-21, BR-206): the bill gets the next number of the fiscal year of its bill date, the payer owes\r\nits total, and it can no longer be edited or voided. All of it, with the ledger entry and the audit record, is\r\none transaction (BR-007). A bill at or above the approval threshold of the hospital is not posted: it answers\r\n202 and waits for a second person (BR-207). Needs If-Match and an Idempotency-Key; no body.",
+        "summary": "Posts a draft (US-21, BR-206): the bill gets the next number of the fiscal year of its bill date, the payer owes\nits total, and it can no longer be edited or voided. All of it, with the ledger entry and the audit record, is\none transaction (BR-007). A bill at or above the approval threshold of the hospital is not posted: it answers\n202 and waits for a second person (BR-207). Needs If-Match and an Idempotency-Key; no body.",
         "parameters": [
           {
             "name": "id",
@@ -8082,7 +8082,7 @@
         "tags": [
           "Bills"
         ],
-        "summary": "A second person approves a bill that waits for approval, and that posts it (US-22; BR-603, BR-606): the number,\r\nthe ledger entry and the audit records, in one transaction. The maker cannot approve their own bill: 403.\r\nNeeds If-Match and an Idempotency-Key; the body, an optional comment, may be left out.",
+        "summary": "A second person approves a bill that waits for approval, and that posts it (US-22; BR-603, BR-606): the number,\nthe ledger entry and the audit records, in one transaction. The maker cannot approve their own bill: 403.\nNeeds If-Match and an Idempotency-Key; the body, an optional comment, may be left out.",
         "parameters": [
           {
             "name": "id",
@@ -8283,7 +8283,7 @@
         "tags": [
           "Bills"
         ],
-        "summary": "A second person rejects a bill that waits for approval, saying why (BR-605): the bill is a draft again and can\r\nbe corrected and posted once more. Needs If-Match and an Idempotency-Key.",
+        "summary": "A second person rejects a bill that waits for approval, saying why (BR-605): the bill is a draft again and can\nbe corrected and posted once more. Needs If-Match and an Idempotency-Key.",
         "parameters": [
           {
             "name": "id",
@@ -8464,7 +8464,7 @@
         "tags": [
           "CreditApplicationReversals"
         ],
-        "summary": "A cashier asks for one application of the credit note to be reversed. 202: the application waits in\r\n`PendingReversal`, still applied to its bill. 404 when the credit note has no such application; 409 when\r\nit already waits or is reversed; 422 when it is the application made at posting.",
+        "summary": "A cashier asks for one application of the credit note to be reversed. 202: the application waits in\n`PendingReversal`, still applied to its bill. 404 when the credit note has no such application; 409 when\nit already waits or is reversed; 422 when it is the application made at posting.",
         "parameters": [
           {
             "name": "id",
@@ -8654,7 +8654,7 @@
         "tags": [
           "CreditApplicationReversals"
         ],
-        "summary": "A second person approves the reversal of the application, and that reverses it (ADR 0028; BR-603, BR-606): the\r\namount is available credit again, the bill is owed it again and its status moves back, and the ledger gets the\r\nmirror pair, in one transaction. The cashier who asked cannot approve: 403. The body may be left out.",
+        "summary": "A second person approves the reversal of the application, and that reverses it (ADR 0028; BR-603, BR-606): the\namount is available credit again, the bill is owed it again and its status moves back, and the ledger gets the\nmirror pair, in one transaction. The cashier who asked cannot approve: 403. The body may be left out.",
         "parameters": [
           {
             "name": "id",
@@ -9054,7 +9054,7 @@
         "tags": [
           "CreditNotes"
         ],
-        "summary": "Creates a draft credit note against a posted bill, with any lines sent. 404 when the bill does not exist; 422\r\nwhen it is not posted, the date is not allowed (BR-205, BR-214) or a line breaks BR-211.",
+        "summary": "Creates a draft credit note against a posted bill, with any lines sent. 404 when the bill does not exist; 422\nwhen it is not posted, the date is not allowed (BR-205, BR-214) or a line breaks BR-211.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -9809,7 +9809,7 @@
         "tags": [
           "CreditNotes"
         ],
-        "summary": "The maker asks for the draft to be posted (US-24; BR-212, BR-604). Every credit note needs a second person, so\r\nthis never posts: it answers 202 with the credit note in `PendingApproval`, without a number and without\r\nany ledger effect. 422 when the credit note has no line or comes to nothing, its date is no longer allowed, or\r\nthe credits of the bill or of one of its lines would exceed it (BR-210, BR-211). Needs If-Match and an\r\nIdempotency-Key; no body.",
+        "summary": "The maker asks for the draft to be posted (US-24; BR-212, BR-604). Every credit note needs a second person, so\nthis never posts: it answers 202 with the credit note in `PendingApproval`, without a number and without\nany ledger effect. 422 when the credit note has no line or comes to nothing, its date is no longer allowed, or\nthe credits of the bill or of one of its lines would exceed it (BR-210, BR-211). Needs If-Match and an\nIdempotency-Key; no body.",
         "parameters": [
           {
             "name": "id",
@@ -9970,7 +9970,7 @@
         "tags": [
           "CreditNotes"
         ],
-        "summary": "A second person approves a credit note that waits, and that posts it (US-24; BR-212, BR-603, BR-606): the\r\nnumber, the ledger entries, the credit applied to its bill as far as the bill is owed, and the audit records,\r\nin one transaction. The maker cannot approve their own credit note: 403. Needs If-Match and an\r\nIdempotency-Key; the body, an optional comment, may be left out.",
+        "summary": "A second person approves a credit note that waits, and that posts it (US-24; BR-212, BR-603, BR-606): the\nnumber, the ledger entries, the credit applied to its bill as far as the bill is owed, and the audit records,\nin one transaction. The maker cannot approve their own credit note: 403. Needs If-Match and an\nIdempotency-Key; the body, an optional comment, may be left out.",
         "parameters": [
           {
             "name": "id",
@@ -10171,7 +10171,7 @@
         "tags": [
           "CreditNotes"
         ],
-        "summary": "A second person rejects a credit note that waits, saying why (BR-605): it is a draft again and can be corrected\r\nand submitted once more. Needs If-Match and an Idempotency-Key.",
+        "summary": "A second person rejects a credit note that waits, saying why (BR-605): it is a draft again and can be corrected\nand submitted once more. Needs If-Match and an Idempotency-Key.",
         "parameters": [
           {
             "name": "id",
@@ -10352,7 +10352,7 @@
         "tags": [
           "CreditNotes"
         ],
-        "summary": "Applies available credit of a posted credit note to one or more posted bills of its payer, all of them or none\r\n(BR-213). Each bill's balance due and status follow (BR-208). 422 when an amount is more than the credit note\r\nhas available or the bill is owed, the bill is not posted, or it is owed by another payer. Needs If-Match,\r\nwith the version of the credit note, and an Idempotency-Key.",
+        "summary": "Applies available credit of a posted credit note to one or more posted bills of its payer, all of them or none\n(BR-213). Each bill's balance due and status follow (BR-208). 422 when an amount is more than the credit note\nhas available or the bill is owed, the bill is not posted, or it is owed by another payer. Needs If-Match,\nwith the version of the credit note, and an Idempotency-Key.",
         "parameters": [
           {
             "name": "id",
@@ -10755,7 +10755,7 @@
         "tags": [
           "ServiceItems"
         ],
-        "summary": "Replaces the name, category, price and tax rate of an item; a category left out is cleared. Bill lines already\r\npriced from the item keep their own price and tax rate. Needs If-Match.",
+        "summary": "Replaces the name, category, price and tax rate of an item; a category left out is cleared. Bill lines already\npriced from the item keep their own price and tax rate. Needs If-Match.",
         "parameters": [
           {
             "name": "id",
@@ -11138,7 +11138,7 @@
         "tags": [
           "AuditRecords"
         ],
-        "summary": "Lists the trail of one record, oldest first: `entityType` and `entityId` are required. 403 for the\r\ntrail of a user, unless the caller is a TenantAdmin.",
+        "summary": "Lists the trail of one record, oldest first: `entityType` and `entityId` are required. 403 for the\ntrail of a user, unless the caller is a TenantAdmin.",
         "parameters": [
           {
             "name": "EntityType",
@@ -11253,7 +11253,7 @@
         "tags": [
           "Adjustments"
         ],
-        "summary": "Creates a draft adjustment against a posted bill. 404 when the bill does not exist; 422 when it is not posted,\r\nthe date is not allowed, or a rounding is one rupee or more (BR-501).",
+        "summary": "Creates a draft adjustment against a posted bill. 404 when the bill does not exist; 422 when it is not posted,\nthe date is not allowed, or a rounding is one rupee or more (BR-501).",
         "requestBody": {
           "content": {
             "application/json": {
@@ -11855,7 +11855,7 @@
         "tags": [
           "Adjustments"
         ],
-        "summary": "The maker asks for the draft to be posted (BR-502, BR-604). Every adjustment needs a second person, a rounding\r\nof a few paise included, so this never posts: it answers 202 with the adjustment in `PendingApproval`,\r\nwithout a number and without any ledger effect. 422 when its date is no longer allowed or its amount is more\r\nthan the bill is owed (BR-501). Needs If-Match and an Idempotency-Key; no body.",
+        "summary": "The maker asks for the draft to be posted (BR-502, BR-604). Every adjustment needs a second person, a rounding\nof a few paise included, so this never posts: it answers 202 with the adjustment in `PendingApproval`,\nwithout a number and without any ledger effect. 422 when its date is no longer allowed or its amount is more\nthan the bill is owed (BR-501). Needs If-Match and an Idempotency-Key; no body.",
         "parameters": [
           {
             "name": "id",
@@ -12016,7 +12016,7 @@
         "tags": [
           "Adjustments"
         ],
-        "summary": "A second person approves an adjustment that waits, and that posts it (BR-502, BR-603, BR-606): the number, the\r\nbill lowered by the amount, the ledger entry and the audit records, in one transaction. The maker cannot\r\napprove their own adjustment: 403. Needs If-Match and an Idempotency-Key; the body, an optional comment, may be\r\nleft out.",
+        "summary": "A second person approves an adjustment that waits, and that posts it (BR-502, BR-603, BR-606): the number, the\nbill lowered by the amount, the ledger entry and the audit records, in one transaction. The maker cannot\napprove their own adjustment: 403. Needs If-Match and an Idempotency-Key; the body, an optional comment, may be\nleft out.",
         "parameters": [
           {
             "name": "id",
@@ -12217,7 +12217,7 @@
         "tags": [
           "Adjustments"
         ],
-        "summary": "A second person rejects an adjustment that waits, saying why (BR-605): it is a draft again and can be corrected\r\nand submitted once more. Needs If-Match and an Idempotency-Key.",
+        "summary": "A second person rejects an adjustment that waits, saying why (BR-605): it is a draft again and can be corrected\nand submitted once more. Needs If-Match and an Idempotency-Key.",
         "parameters": [
           {
             "name": "id",
@@ -12494,7 +12494,7 @@
             "type": "string"
           }
         },
-        "description": "An adjustment as the API returns it. string AdjustmentDto.Version is the row version in base64, the value of the ETag; a\r\nchange sends it back in If-Match (BR-804)."
+        "description": "An adjustment as the API returns it. string AdjustmentDto.Version is the row version in base64, the value of the ETag; a\nchange sends it back in If-Match (BR-804)."
       },
       "AdjustmentKind": {
         "enum": [
@@ -12502,7 +12502,7 @@
           "WriteOff",
           "Rounding"
         ],
-        "description": "Why a bill is lowered without money or a credit note (BR-501). The member names are stored as text\r\n(docs/database.md, section 3.5), so renaming one is a data migration."
+        "description": "Why a bill is lowered without money or a credit note (BR-501). The member names are stored as text\n(docs/database.md, section 3.5), so renaming one is a data migration."
       },
       "AdjustmentStatus": {
         "enum": [
@@ -12511,7 +12511,7 @@
           "Posted",
           "Voided"
         ],
-        "description": "Where an adjustment is in its life (docs/domain-model.md, section 4.8). The member names are stored as text, so\r\nrenaming one is a data migration."
+        "description": "Where an adjustment is in its life (docs/domain-model.md, section 4.8). The member names are stored as text, so\nrenaming one is a data migration."
       },
       "AgeingBucketDto": {
         "required": [
@@ -12550,7 +12550,7 @@
             "format": "double"
           }
         },
-        "description": "One bucket of the ageing: its name (`0-30`, `31-60`, `61-90`, `90+`), the bills in it, what they\r\nowe, and that in percent of everything owed (two places; the shares may add up to 99.99 or 100.01)."
+        "description": "One bucket of the ageing: its name (`0-30`, `31-60`, `61-90`, `90+`), the bills in it, what they\nowe, and that in percent of everything owed (two places; the shares may add up to 99.99 or 100.01)."
       },
       "AgeingDto": {
         "required": [
@@ -12588,7 +12588,7 @@
             "format": "double"
           }
         },
-        "description": "The ageing as of a day: the four buckets, always all four, and their total, which is the outstanding dues of that day\r\n(the Receivable account, BR-404)."
+        "description": "The ageing as of a day: the four buckets, always all four, and their total, which is the outstanding dues of that day\n(the Receivable account, BR-404)."
       },
       "AllocatePaymentRequest": {
         "type": "object",
@@ -12605,7 +12605,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "The body of `POST /api/v1/payments/{id}/allocations` (BR-303): the bills and the amount for each. Unknown\r\nmembers are refused."
+        "description": "The body of `POST /api/v1/payments/{id}/allocations` (BR-303): the bills and the amount for each. Unknown\nmembers are refused."
       },
       "AllocationRequest": {
         "type": "object",
@@ -12625,7 +12625,7 @@
               "number",
               "string"
             ],
-            "description": "The amount to apply, above zero, with at most two decimals; not more than the payment has unapplied or the\r\nbill is owed. Required.",
+            "description": "The amount to apply, above zero, with at most two decimals; not more than the payment has unapplied or the\nbill is owed. Required.",
             "format": "double"
           }
         },
@@ -12932,7 +12932,7 @@
             "description": "The reason a person gave, when the change needed one."
           }
         },
-        "description": "One entry of an audit trail, as the API returns it. JsonElement? AuditRecordDto.Before and JsonElement AuditRecordDto.After are the record\r\nthat changed, as JSON objects whose members are the stored columns; a bill carries its lines."
+        "description": "One entry of an audit trail, as the API returns it. JsonElement? AuditRecordDto.Before and JsonElement AuditRecordDto.After are the record\nthat changed, as JSON objects whose members are the stored columns; a bill carries its lines."
       },
       "AvailableCreditNoteDto": {
         "required": [
@@ -13170,7 +13170,7 @@
             "type": "string"
           }
         },
-        "description": "A bill as the API returns it, with its lines in the order of their numbers. The totals are the sums of the lines\r\n(BR-203). string BillDto.Version is the row version in base64, the same value the response carries in its ETag\r\nheader; a change sends it back in If-Match (BR-804, ADR 0007). It changes whenever the bill or any of its lines does."
+        "description": "A bill as the API returns it, with its lines in the order of their numbers. The totals are the sums of the lines\n(BR-203). string BillDto.Version is the row version in base64, the same value the response carries in its ETag\nheader; a change sends it back in If-Match (BR-804, ADR 0007). It changes whenever the bill or any of its lines does."
       },
       "BillLineDto": {
         "required": [
@@ -13267,7 +13267,7 @@
             "format": "double"
           }
         },
-        "description": "One line of a bill as the API returns it (BR-201, BR-202). The id is what a credit note line names when it credits\r\nthis line (BR-211). The quantity has up to three decimals, the unit price up\r\nto four, the tax rate up to two; the three amounts are exact to the paisa."
+        "description": "One line of a bill as the API returns it (BR-201, BR-202). The id is what a credit note line names when it credits\nthis line (BR-211). The quantity has up to three decimals, the unit price up\nto four, the tax rate up to two; the three amounts are exact to the paisa."
       },
       "BillLineRequest": {
         "type": "object",
@@ -13329,7 +13329,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "One line of a bill in a request body (BR-201). With a `serviceItemId`, the description, the unit price and the\r\ntax rate may be left out and are then taken from the catalogue; without one, all three are required. A member the\r\nAPI does not know is refused with 400."
+        "description": "One line of a bill in a request body (BR-201). With a `serviceItemId`, the description, the unit price and the\ntax rate may be left out and are then taken from the catalogue; without one, all three are required. A member the\nAPI does not know is refused with 400."
       },
       "BillRegisterRowDto": {
         "required": [
@@ -13436,7 +13436,7 @@
             "format": "double"
           }
         },
-        "description": "The bill register's totals over the whole period and filter: how many bills, what they came to, and what is still\r\nowed on them. decimal BillRegisterTotalsDto.Total equals the debits to Receivable of their postings (BR-901)."
+        "description": "The bill register's totals over the whole period and filter: how many bills, what they came to, and what is still\nowed on them. decimal BillRegisterTotalsDto.Total equals the debits to Receivable of their postings (BR-901)."
       },
       "BillStatus": {
         "enum": [
@@ -13447,7 +13447,7 @@
           "Settled",
           "PendingApproval"
         ],
-        "description": "Where a bill is in its life (docs/domain-model.md, section 5.1). Members are added at the end, so their order is the\r\norder in which the slices arrived, not the order of the life of a bill. The member names are stored as text (docs/database.md, section 3.3), so renaming one is a\r\ndata migration."
+        "description": "Where a bill is in its life (docs/domain-model.md, section 5.1). Members are added at the end, so their order is the\norder in which the slices arrived, not the order of the life of a bill. The member names are stored as text (docs/database.md, section 3.3), so renaming one is a\ndata migration."
       },
       "BillSummaryDto": {
         "required": [
@@ -13587,7 +13587,7 @@
             "format": "double"
           }
         },
-        "description": "One payment method on one business date: the payments received that day and what they came to, the payments of this\r\nmethod reversed that day, the refunds paid this way that day, and what is left. decimal CollectionByMethodDto.Net is\r\ndecimal CollectionByMethodDto.Received less decimal CollectionByMethodDto.Reversed and decimal CollectionByMethodDto.Refunded."
+        "description": "One payment method on one business date: the payments received that day and what they came to, the payments of this\nmethod reversed that day, the refunds paid this way that day, and what is left. decimal CollectionByMethodDto.Net is\ndecimal CollectionByMethodDto.Received less decimal CollectionByMethodDto.Reversed and decimal CollectionByMethodDto.Refunded."
       },
       "CollectionTotalsDto": {
         "required": [
@@ -13640,7 +13640,7 @@
             "format": "double"
           }
         },
-        "description": "Every method of one business date together. decimal CollectionTotalsDto.Net equals the movement of the Cash account in the ledger on\r\nthat date: its debits less its credits (BR-901)."
+        "description": "Every method of one business date together. decimal CollectionTotalsDto.Net equals the movement of the Cash account in the ledger on\nthat date: its debits less its credits (BR-901)."
       },
       "CreateAdjustmentRequest": {
         "type": "object",
@@ -13754,7 +13754,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "The body of `POST /api/v1/bills`: a draft bill. A member the API does not know is refused with 400, so a\r\nmisspelt field cannot pass unnoticed."
+        "description": "The body of `POST /api/v1/bills`: a draft bill. A member the API does not know is refused with 400, so a\nmisspelt field cannot pass unnoticed."
       },
       "CreateCreditNoteRequest": {
         "type": "object",
@@ -13841,7 +13841,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "The body of `POST /api/v1/payers`. A member the API does not know is refused with 400, so a misspelt field\r\ncannot pass unnoticed."
+        "description": "The body of `POST /api/v1/payers`. A member the API does not know is refused with 400, so a misspelt field\ncannot pass unnoticed."
       },
       "CreateRefundRequest": {
         "type": "object",
@@ -13955,7 +13955,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "The body of `POST /api/v1/service-items`. A member the API does not know is refused with 400, so a misspelt\r\nfield cannot pass unnoticed."
+        "description": "The body of `POST /api/v1/service-items`. A member the API does not know is refused with 400, so a misspelt\nfield cannot pass unnoticed."
       },
       "CreateUserRequest": {
         "type": "object",
@@ -14026,7 +14026,7 @@
           "PendingReversal",
           "Reversed"
         ],
-        "description": "Where the application of a credit note to a bill is in its life (docs/domain-model.md, section 4.5). Members are\r\nadded at the end; their names are stored as text, so renaming one is a data migration."
+        "description": "Where the application of a credit note to a bill is in its life (docs/domain-model.md, section 4.5). Members are\nadded at the end; their names are stored as text, so renaming one is a data migration."
       },
       "CreditNoteApplicationDto": {
         "required": [
@@ -14089,7 +14089,7 @@
             ]
           }
         },
-        "description": "One application of a credit note's credit to a bill, as the API returns it (BR-212, BR-213). `AppliedAtPosting` is\r\ntrue for the application the credit note made to its own bill when it was posted, which cannot be reversed;\r\n`ReversedAtUtc` and `ReversalReason` are null unless the application was reversed (ADR 0028)."
+        "description": "One application of a credit note's credit to a bill, as the API returns it (BR-212, BR-213). `AppliedAtPosting` is\ntrue for the application the credit note made to its own bill when it was posted, which cannot be reversed;\n`ReversedAtUtc` and `ReversalReason` are null unless the application was reversed (ADR 0028)."
       },
       "CreditNoteDto": {
         "required": [
@@ -14240,7 +14240,7 @@
             "type": "string"
           }
         },
-        "description": "A credit note as the API returns it, with its lines in the order of their numbers and the applications of its\r\ncredit, the oldest first. decimal CreditNoteDto.AvailableAmount is the credit not applied yet (BR-213).\r\nstring CreditNoteDto.Version is the row version in base64, the value of the ETag; a change sends it back in If-Match\r\n(BR-804)."
+        "description": "A credit note as the API returns it, with its lines in the order of their numbers and the applications of its\ncredit, the oldest first. decimal CreditNoteDto.AvailableAmount is the credit not applied yet (BR-213).\nstring CreditNoteDto.Version is the row version in base64, the value of the ETag; a change sends it back in If-Match\n(BR-804)."
       },
       "CreditNoteLineDto": {
         "required": [
@@ -14332,7 +14332,7 @@
             "format": "double"
           }
         },
-        "description": "One line of a credit note as the API returns it (BR-202, BR-211). `BillLineId` is the line of the bill it\r\ncredits, null when it credits the bill as a whole."
+        "description": "One line of a credit note as the API returns it (BR-202, BR-211). `BillLineId` is the line of the bill it\ncredits, null when it credits the bill as a whole."
       },
       "CreditNoteLineRequest": {
         "type": "object",
@@ -14394,7 +14394,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "One line of a credit note in a request body (BR-211). With a `billLineId`, the description, the unit price and\r\nthe tax rate may be left out and are then taken from that line of the bill; without one, all three are required.\r\nA member the API does not know is refused with 400."
+        "description": "One line of a credit note in a request body (BR-211). With a `billLineId`, the description, the unit price and\nthe tax rate may be left out and are then taken from that line of the bill; without one, all three are required.\nA member the API does not know is refused with 400."
       },
       "CreditNoteStatus": {
         "enum": [
@@ -14403,7 +14403,7 @@
           "Posted",
           "Voided"
         ],
-        "description": "Where a credit note is in its life (docs/domain-model.md, section 4.5). The member names are stored as text\r\n(docs/database.md, section 3.3), so renaming one is a data migration."
+        "description": "Where a credit note is in its life (docs/domain-model.md, section 4.5). The member names are stored as text\n(docs/database.md, section 3.3), so renaming one is a data migration."
       },
       "CreditNoteSummaryDto": {
         "required": [
@@ -14560,7 +14560,7 @@
             "format": "int32"
           }
         },
-        "description": "One business date of the dashboard, the points of the cards' sparklines (BR-902): what was billed and collected that\r\nday, and at the end of the day what was owed on bills, what money was held unapplied, and how many requests waited."
+        "description": "One business date of the dashboard, the points of the cards' sparklines (BR-902): what was billed and collected that\nday, and at the end of the day what was owed on bills, what money was held unapplied, and how many requests waited."
       },
       "DashboardSummaryDto": {
         "required": [
@@ -14600,7 +14600,7 @@
             "$ref": "#/components/schemas/SummaryFigureDto"
           }
         },
-        "description": "The summary of the dashboard (US-44, BR-902): the period and the previous one, and six cards. Billed and collected are\r\nthe sums of each period; outstanding dues, unapplied cash and pending approvals are those at the end of each period's\r\nlast day; reconciliation drift is the count of now, with no previous figure."
+        "description": "The summary of the dashboard (US-44, BR-902): the period and the previous one, and six cards. Billed and collected are\nthe sums of each period; outstanding dues, unapplied cash and pending approvals are those at the end of each period's\nlast day; reconciliation drift is the count of now, with no previous figure."
       },
       "DashboardTrendDto": {
         "required": [
@@ -14630,7 +14630,7 @@
             }
           }
         },
-        "description": "The trend of the dashboard: the period, the interval of its points, billed against collected per point, and the figures\r\nof every day of the period for the cards' sparklines."
+        "description": "The trend of the dashboard: the period, the interval of its points, billed against collected per point, and the figures\nof every day of the period for the cards' sparklines."
       },
       "DocumentPrefixesDto": {
         "required": [
@@ -14668,7 +14668,7 @@
           "Adjustment",
           "Refund"
         ],
-        "description": "The kinds of document that are numbered (BR-801): each has its own gapless series per tenant and fiscal year, and\r\nits own default prefix among the tenant's settings (BR-802). The member names are stored as text\r\n(docs/database.md, section 3.6), so renaming one is a data migration."
+        "description": "The kinds of document that are numbered (BR-801): each has its own gapless series per tenant and fiscal year, and\nits own default prefix among the tenant's settings (BR-802). The member names are stored as text\n(docs/database.md, section 3.6), so renaming one is a data migration."
       },
       "DriftCountDto": {
         "required": [
@@ -14731,7 +14731,7 @@
             "format": "double"
           }
         },
-        "description": "One drift row of the reconciliation: which identity is broken (the names of docs/database.md section 5.6), the bill,\r\npayment, credit note, payer, posting or number series it is about, its document number or other reference where it\r\nhas one, and the two figures that disagree: what is cached (or counted) and what the ledger (or the series) says."
+        "description": "One drift row of the reconciliation: which identity is broken (the names of docs/database.md section 5.6), the bill,\npayment, credit note, payer, posting or number series it is about, its document number or other reference where it\nhas one, and the two figures that disagree: what is cached (or counted) and what the ledger (or the series) says."
       },
       "JsonElement": {},
       "LoginRequest": {
@@ -14855,7 +14855,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\r\nwas asked for, and how many items all pages hold together."
+        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
       },
       "PageOfOfApprovalRequestDto": {
         "required": [
@@ -14897,7 +14897,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\r\nwas asked for, and how many items all pages hold together."
+        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
       },
       "PageOfOfAuditRecordDto": {
         "required": [
@@ -14939,7 +14939,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\r\nwas asked for, and how many items all pages hold together."
+        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
       },
       "PageOfOfBillSummaryDto": {
         "required": [
@@ -14981,7 +14981,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\r\nwas asked for, and how many items all pages hold together."
+        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
       },
       "PageOfOfCreditNoteSummaryDto": {
         "required": [
@@ -15023,7 +15023,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\r\nwas asked for, and how many items all pages hold together."
+        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
       },
       "PageOfOfPatientDto": {
         "required": [
@@ -15065,7 +15065,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\r\nwas asked for, and how many items all pages hold together."
+        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
       },
       "PageOfOfPayerDto": {
         "required": [
@@ -15107,7 +15107,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\r\nwas asked for, and how many items all pages hold together."
+        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
       },
       "PageOfOfPaymentDto": {
         "required": [
@@ -15149,7 +15149,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\r\nwas asked for, and how many items all pages hold together."
+        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
       },
       "PageOfOfPrefixChangeDto": {
         "required": [
@@ -15191,7 +15191,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\r\nwas asked for, and how many items all pages hold together."
+        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
       },
       "PageOfOfRefundDto": {
         "required": [
@@ -15233,7 +15233,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\r\nwas asked for, and how many items all pages hold together."
+        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
       },
       "PageOfOfServiceItemDto": {
         "required": [
@@ -15275,7 +15275,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\r\nwas asked for, and how many items all pages hold together."
+        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
       },
       "PageOfOfUserDto": {
         "required": [
@@ -15317,7 +15317,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\r\nwas asked for, and how many items all pages hold together."
+        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
       },
       "PatientDto": {
         "required": [
@@ -15424,14 +15424,14 @@
             "type": "string"
           }
         },
-        "description": "A patient as the API returns it. string PatientDto.Version is the row version in base64, the same value the response\r\ncarries in its ETag header; a change sends it back in If-Match (BR-804, ADR 0007)."
+        "description": "A patient as the API returns it. string PatientDto.Version is the row version in base64, the same value the response\ncarries in its ETag header; a change sends it back in If-Match (BR-804, ADR 0007)."
       },
       "PatientStatus": {
         "enum": [
           "Active",
           "Inactive"
         ],
-        "description": "Whether a patient can be billed (BR-102). The member names are stored as text (docs/database.md, section 3.2), so\r\nrenaming one is a data migration."
+        "description": "Whether a patient can be billed (BR-102). The member names are stored as text (docs/database.md, section 3.2), so\nrenaming one is a data migration."
       },
       "PayerDto": {
         "required": [
@@ -15492,7 +15492,7 @@
             "type": "string"
           }
         },
-        "description": "A payer as the API returns it. Guid? PayerDto.PatientId is the patient the payer is, or null for a guarantor.\r\nstring PayerDto.Version is the row version in base64, the same value the response carries in its ETag header; a change\r\nsends it back in If-Match (BR-804, ADR 0007)."
+        "description": "A payer as the API returns it. Guid? PayerDto.PatientId is the patient the payer is, or null for a guarantor.\nstring PayerDto.Version is the row version in base64, the same value the response carries in its ETag header; a change\nsends it back in If-Match (BR-804, ADR 0007)."
       },
       "PayerKind": {
         "enum": [
@@ -15500,7 +15500,7 @@
           "Insurer",
           "Corporate"
         ],
-        "description": "Who a payer is (BR-103). Only PayerKind.SelfPay exists in R1; the other two members are reserved for R4 so that\r\nthe API can name them, and creating such a payer is refused. The member names are stored as text, so renaming one is\r\na data migration."
+        "description": "Who a payer is (BR-103). Only PayerKind.SelfPay exists in R1; the other two members are reserved for R4 so that\nthe API can name them, and creating such a payer is refused. The member names are stored as text, so renaming one is\na data migration."
       },
       "PayerOutstandingDto": {
         "required": [
@@ -15553,14 +15553,14 @@
             "format": "double"
           }
         },
-        "description": "What a payer owes and what is held for them (US-40, BR-404): the balances due of their posted bills, the money they paid\r\nthat is not applied to a bill, the credit of their credit notes not yet used, and what they owe net of the two.\r\nEach equals the sum of the payer's entries in its ledger account (docs/database.md section 5.5, identities 6 to 8)."
+        "description": "What a payer owes and what is held for them (US-40, BR-404): the balances due of their posted bills, the money they paid\nthat is not applied to a bill, the credit of their credit notes not yet used, and what they owe net of the two.\nEach equals the sum of the payer's entries in its ledger account (docs/database.md section 5.5, identities 6 to 8)."
       },
       "PayerStatus": {
         "enum": [
           "Active",
           "Inactive"
         ],
-        "description": "Whether a payer can take on new business (BR-105). The member names are stored as text (docs/database.md, section\r\n3.2), so renaming one is a data migration."
+        "description": "Whether a payer can take on new business (BR-105). The member names are stored as text (docs/database.md, section\n3.2), so renaming one is a data migration."
       },
       "PaymentAllocationDto": {
         "required": [
@@ -15619,7 +15619,7 @@
             ]
           }
         },
-        "description": "One allocation of a payment to a bill, as the API returns it. `ReversedAtUtc` and `ReversalReason` are\r\n            null unless the allocation was reversed (BR-305)."
+        "description": "One allocation of a payment to a bill, as the API returns it. `ReversedAtUtc` and `ReversalReason` are\n            null unless the allocation was reversed (BR-305)."
       },
       "PaymentAllocationsDto": {
         "required": [
@@ -15638,7 +15638,7 @@
             }
           }
         },
-        "description": "A payment with every allocation made from it, the oldest first: what an allocation request answers and what\r\n`GET /payments/{id}/allocations` returns. The version of the payment is the ETag."
+        "description": "A payment with every allocation made from it, the oldest first: what an allocation request answers and what\n`GET /payments/{id}/allocations` returns. The version of the payment is the ETag."
       },
       "PaymentAllocationStatus": {
         "enum": [
@@ -15646,7 +15646,7 @@
           "PendingReversal",
           "Reversed"
         ],
-        "description": "Where an allocation is in its life (docs/domain-model.md, section 5.3). Members are added at the end; their names\r\nare stored as text, so renaming one is a data migration."
+        "description": "Where an allocation is in its life (docs/domain-model.md, section 5.3). Members are added at the end; their names\nare stored as text, so renaming one is a data migration."
       },
       "PaymentDto": {
         "required": [
@@ -15746,7 +15746,7 @@
             "type": "string"
           }
         },
-        "description": "A payment as the API returns it. `ReversedAtUtc` and `ReversalReason` are null unless the payment was\r\n            reversed (BR-306). `Version` is the row version, sent back as the ETag (BR-804)."
+        "description": "A payment as the API returns it. `ReversedAtUtc` and `ReversalReason` are null unless the payment was\n            reversed (BR-306). `Version` is the row version, sent back as the ETag (BR-804)."
       },
       "PaymentMethod": {
         "enum": [
@@ -15863,7 +15863,7 @@
             "format": "double"
           }
         },
-        "description": "The payment register's totals over the whole period and filter: how many payments, what they brought in, and what of\r\nit is not applied to a bill. decimal PaymentRegisterTotalsDto.Amount equals the debits to Cash of their postings (BR-901)."
+        "description": "The payment register's totals over the whole period and filter: how many payments, what they brought in, and what of\nit is not applied to a bill. decimal PaymentRegisterTotalsDto.Amount equals the debits to Cash of their postings (BR-901)."
       },
       "PaymentStatus": {
         "enum": [
@@ -15871,7 +15871,7 @@
           "PendingReversal",
           "Reversed"
         ],
-        "description": "Where a payment is in its life (docs/domain-model.md, section 5.3). A payment is posted the moment it is recorded\r\n(BR-302), so there is no draft. Members are added at the end; their names are stored as text, so renaming one is a\r\ndata migration."
+        "description": "Where a payment is in its life (docs/domain-model.md, section 5.3). A payment is posted the moment it is recorded\n(BR-302), so there is no draft. Members are added at the end; their names are stored as text, so renaming one is a\ndata migration."
       },
       "PendingApprovalDto": {
         "required": [
@@ -15941,7 +15941,7 @@
             "format": "double"
           }
         },
-        "description": "A maker-checker request that waits for a decision (BR-604, BR-901): what it asks, of which document, by whom and since\r\nwhen, how many days that is in India, and the document's payer and amount where it has them. A prefix change has\r\nneither."
+        "description": "A maker-checker request that waits for a decision (BR-604, BR-901): what it asks, of which document, by whom and since\nwhen, how many days that is in India, and the document's payer and amount where it has them. A prefix change has\nneither."
       },
       "PendingApprovalsTotalsDto": {
         "required": [
@@ -16095,7 +16095,7 @@
             }
           }
         },
-        "description": "The whole reconciliation: when it was run, how many drift rows it found (zero when the caches equal the ledger and\r\nevery series is gapless), and how many for each broken identity."
+        "description": "The whole reconciliation: when it was run, how many drift rows it found (zero when the caches equal the ledger and\nevery series is gapless), and how many for each broken identity."
       },
       "RecordPaymentRequest": {
         "type": "object",
@@ -16380,7 +16380,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "The body of `POST /api/v1/patients`. Every member may be missing from the JSON; the validator of the use case\r\nsays which are required. A member the API does not know is refused with 400, so a misspelt field cannot pass\r\nunnoticed."
+        "description": "The body of `POST /api/v1/patients`. Every member may be missing from the JSON; the validator of the use case\nsays which are required. A member the API does not know is refused with 400, so a misspelt field cannot pass\nunnoticed."
       },
       "RejectAdjustmentRequest": {
         "type": "object",
@@ -16495,7 +16495,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "The body of `PUT /api/v1/bills/{id}/lines`: every line the draft is to have, in order. The lines it had are\r\nreplaced; an empty list removes them all. A member the API does not know is refused with 400."
+        "description": "The body of `PUT /api/v1/bills/{id}/lines`: every line the draft is to have, in order. The lines it had are\nreplaced; an empty list removes them all. A member the API does not know is refused with 400."
       },
       "ReplaceCreditNoteLinesRequest": {
         "type": "object",
@@ -16537,7 +16537,7 @@
           "PartiallyPaid",
           "Settled"
         ],
-        "description": "The state of a bill in the bill register: one of the states of a posted bill (BR-208). Reporting's own word for it,\r\nsince it may not name the Billing module's enum (ADR 0036); the names are the same, and a test keeps them so."
+        "description": "The state of a bill in the bill register: one of the states of a posted bill (BR-208). Reporting's own word for it,\nsince it may not name the Billing module's enum (ADR 0036); the names are the same, and a test keeps them so."
       },
       "ReportOrder": {
         "enum": [
@@ -16608,7 +16608,7 @@
             ]
           }
         },
-        "description": "One page of a report (docs/api.md section 8.15): the items of the page in a stable order, the paging of a list, and\r\nthe totals of every page together, so that a report can be held against the ledger (BR-901, ADR 0036). A register\r\nalso says which period it covers; the other reports have none."
+        "description": "One page of a report (docs/api.md section 8.15): the items of the page in a stable order, the paging of a list, and\nthe totals of every page together, so that a report can be held against the ledger (BR-901, ADR 0036). A register\nalso says which period it covers; the other reports have none."
       },
       "ReportPageOfBillRegisterRowDtoAndBillRegisterTotalsDto": {
         "required": [
@@ -16672,7 +16672,7 @@
             ]
           }
         },
-        "description": "One page of a report (docs/api.md section 8.15): the items of the page in a stable order, the paging of a list, and\r\nthe totals of every page together, so that a report can be held against the ledger (BR-901, ADR 0036). A register\r\nalso says which period it covers; the other reports have none."
+        "description": "One page of a report (docs/api.md section 8.15): the items of the page in a stable order, the paging of a list, and\nthe totals of every page together, so that a report can be held against the ledger (BR-901, ADR 0036). A register\nalso says which period it covers; the other reports have none."
       },
       "ReportPageOfDriftRowDtoAndReconciliationTotalsDto": {
         "required": [
@@ -16736,7 +16736,7 @@
             ]
           }
         },
-        "description": "One page of a report (docs/api.md section 8.15): the items of the page in a stable order, the paging of a list, and\r\nthe totals of every page together, so that a report can be held against the ledger (BR-901, ADR 0036). A register\r\nalso says which period it covers; the other reports have none."
+        "description": "One page of a report (docs/api.md section 8.15): the items of the page in a stable order, the paging of a list, and\nthe totals of every page together, so that a report can be held against the ledger (BR-901, ADR 0036). A register\nalso says which period it covers; the other reports have none."
       },
       "ReportPageOfPayerOutstandingDtoAndOutstandingTotalsDto": {
         "required": [
@@ -16800,7 +16800,7 @@
             ]
           }
         },
-        "description": "One page of a report (docs/api.md section 8.15): the items of the page in a stable order, the paging of a list, and\r\nthe totals of every page together, so that a report can be held against the ledger (BR-901, ADR 0036). A register\r\nalso says which period it covers; the other reports have none."
+        "description": "One page of a report (docs/api.md section 8.15): the items of the page in a stable order, the paging of a list, and\nthe totals of every page together, so that a report can be held against the ledger (BR-901, ADR 0036). A register\nalso says which period it covers; the other reports have none."
       },
       "ReportPageOfPaymentRegisterRowDtoAndPaymentRegisterTotalsDto": {
         "required": [
@@ -16864,7 +16864,7 @@
             ]
           }
         },
-        "description": "One page of a report (docs/api.md section 8.15): the items of the page in a stable order, the paging of a list, and\r\nthe totals of every page together, so that a report can be held against the ledger (BR-901, ADR 0036). A register\r\nalso says which period it covers; the other reports have none."
+        "description": "One page of a report (docs/api.md section 8.15): the items of the page in a stable order, the paging of a list, and\nthe totals of every page together, so that a report can be held against the ledger (BR-901, ADR 0036). A register\nalso says which period it covers; the other reports have none."
       },
       "ReportPageOfPendingApprovalDtoAndPendingApprovalsTotalsDto": {
         "required": [
@@ -16928,7 +16928,7 @@
             ]
           }
         },
-        "description": "One page of a report (docs/api.md section 8.15): the items of the page in a stable order, the paging of a list, and\r\nthe totals of every page together, so that a report can be held against the ledger (BR-901, ADR 0036). A register\r\nalso says which period it covers; the other reports have none."
+        "description": "One page of a report (docs/api.md section 8.15): the items of the page in a stable order, the paging of a list, and\nthe totals of every page together, so that a report can be held against the ledger (BR-901, ADR 0036). A register\nalso says which period it covers; the other reports have none."
       },
       "ReportPageOfUnappliedPaymentDtoAndUnappliedCashTotalsDto": {
         "required": [
@@ -16992,7 +16992,7 @@
             ]
           }
         },
-        "description": "One page of a report (docs/api.md section 8.15): the items of the page in a stable order, the paging of a list, and\r\nthe totals of every page together, so that a report can be held against the ledger (BR-901, ADR 0036). A register\r\nalso says which period it covers; the other reports have none."
+        "description": "One page of a report (docs/api.md section 8.15): the items of the page in a stable order, the paging of a list, and\nthe totals of every page together, so that a report can be held against the ledger (BR-901, ADR 0036). A register\nalso says which period it covers; the other reports have none."
       },
       "ReportPaymentMethod": {
         "enum": [
@@ -17002,7 +17002,7 @@
           "BankTransfer",
           "Cheque"
         ],
-        "description": "How money was received or paid back, in a report. Reporting's own word for it, since it may not name the Payments\r\nmodule's enum (ADR 0036); the names are the same, and a test keeps them so."
+        "description": "How money was received or paid back, in a report. Reporting's own word for it, since it may not name the Payments\nmodule's enum (ADR 0036); the names are the same, and a test keeps them so."
       },
       "ReportPaymentStatus": {
         "enum": [
@@ -17010,7 +17010,7 @@
           "PendingReversal",
           "Reversed"
         ],
-        "description": "The state of a payment in a report. Reporting's own word for it, since it may not name the Payments module's enum\r\n(ADR 0036); the names are the same, and a test keeps them so."
+        "description": "The state of a payment in a report. Reporting's own word for it, since it may not name the Payments module's enum\n(ADR 0036); the names are the same, and a test keeps them so."
       },
       "ReportPeriodDto": {
         "required": [
@@ -17076,7 +17076,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "The body of a request to reverse a payment or one of its allocations: why (BR-305, BR-306). Unknown members are\r\nrefused."
+        "description": "The body of a request to reverse a payment or one of its allocations: why (BR-305, BR-306). Unknown members are\nrefused."
       },
       "ResetUserPasswordRequest": {
         "type": "object",
@@ -17114,7 +17114,7 @@
           "Cashier",
           "Viewer"
         ],
-        "description": "What a user may do in a tenant (BR-601; docs/requirements.md section 1). A user holds one or more. The member names\r\nare stored as text and are the codes of the `Roles` table, so renaming one is a data migration."
+        "description": "What a user may do in a tenant (BR-601; docs/requirements.md section 1). A user holds one or more. The member names\nare stored as text and are the codes of the `Roles` table, so renaming one is a data migration."
       },
       "ServiceItemDto": {
         "required": [
@@ -17178,14 +17178,14 @@
             "type": "string"
           }
         },
-        "description": "A service item as the API returns it. decimal ServiceItemDto.DefaultUnitPrice has up to four decimals and\r\ndecimal ServiceItemDto.TaxRatePercent up to two. string ServiceItemDto.Version is the row version in base64, the same value the\r\nresponse carries in its ETag header; a change sends it back in If-Match (BR-804, ADR 0007)."
+        "description": "A service item as the API returns it. decimal ServiceItemDto.DefaultUnitPrice has up to four decimals and\ndecimal ServiceItemDto.TaxRatePercent up to two. string ServiceItemDto.Version is the row version in base64, the same value the\nresponse carries in its ETag header; a change sends it back in If-Match (BR-804, ADR 0007)."
       },
       "ServiceItemStatus": {
         "enum": [
           "Active",
           "Inactive"
         ],
-        "description": "Whether an entry of the service catalogue can be put on new bill lines. The member names are stored as text\r\n(docs/database.md, section 3.3), so renaming one is a data migration."
+        "description": "Whether an entry of the service catalogue can be put on new bill lines. The member names are stored as text\n(docs/database.md, section 3.3), so renaming one is a data migration."
       },
       "Sex": {
         "enum": [
@@ -17261,7 +17261,7 @@
             "format": "double"
           }
         },
-        "description": "One card of the dashboard: its figure for the period, the same figure for the previous period, and the change in\r\npercent (BR-902). decimal? SummaryFigureDto.ChangePercent is null when the previous figure is zero, and both are null for a figure\r\nthat has no history (reconciliation drift)."
+        "description": "One card of the dashboard: its figure for the period, the same figure for the previous period, and the change in\npercent (BR-902). decimal? SummaryFigureDto.ChangePercent is null when the previous figure is zero, and both are null for a figure\nthat has no history (reconciliation drift)."
       },
       "SystemInfoResponse": {
         "required": [
@@ -17328,7 +17328,7 @@
             "type": "string"
           }
         },
-        "description": "The settings of the tenant (BR-607; docs/api.md section 8.13): the approval threshold (null for none), the back-date\r\nwindow and the default due days, the default prefix of each document type, and the tenant's version."
+        "description": "The settings of the tenant (BR-607; docs/api.md section 8.13): the approval threshold (null for none), the back-date\nwindow and the default due days, the default prefix of each document type, and the tenant's version."
       },
       "TrendInterval": {
         "enum": [
@@ -17389,7 +17389,7 @@
             "format": "double"
           }
         },
-        "description": "One step of the trend, a day or a week, DateOnly TrendPointDto.From to DateOnly TrendPointDto.To: what was billed and collected in it,\r\nand since the period's start up to its end."
+        "description": "One step of the trend, a day or a week, DateOnly TrendPointDto.From to DateOnly TrendPointDto.To: what was billed and collected in it,\nand since the period's start up to its end."
       },
       "UnappliedCashTotalsDto": {
         "required": [
@@ -17552,7 +17552,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "The body of `PATCH /api/v1/bills/{id}`: both dates and the two texts of a draft, and a text left out is\r\ncleared. The patient, the payer, the status and the lines cannot be changed here: a body that names them, or any\r\nmember the API does not know, is refused with 400."
+        "description": "The body of `PATCH /api/v1/bills/{id}`: both dates and the two texts of a draft, and a text left out is\ncleared. The patient, the payer, the status and the lines cannot be changed here: a body that names them, or any\nmember the API does not know, is refused with 400."
       },
       "UpdateCreditNoteHeaderRequest": {
         "type": "object",
@@ -17656,7 +17656,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "The body of `PATCH /api/v1/patients/{id}`: the complete demographics, every member sent, and an optional one\r\nleft out is cleared. The MRN and the status cannot be changed here: a body that names them, or any member the API\r\ndoes not know, is refused with 400."
+        "description": "The body of `PATCH /api/v1/patients/{id}`: the complete demographics, every member sent, and an optional one\nleft out is cleared. The MRN and the status cannot be changed here: a body that names them, or any member the API\ndoes not know, is refused with 400."
       },
       "UpdatePayerRequest": {
         "type": "object",
@@ -17684,7 +17684,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "The body of `PATCH /api/v1/payers/{id}`: the name and every contact detail, and a contact detail left out is\r\ncleared. The kind, the patient link and the status cannot be changed here: a body that names them, or any member the\r\nAPI does not know, is refused with 400."
+        "description": "The body of `PATCH /api/v1/payers/{id}`: the name and every contact detail, and a contact detail left out is\ncleared. The kind, the patient link and the status cannot be changed here: a body that names them, or any member the\nAPI does not know, is refused with 400."
       },
       "UpdateRefundRequest": {
         "type": "object",
@@ -17775,7 +17775,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "The body of `PATCH /api/v1/service-items/{id}`: the name, the price, the tax rate and the category, and a\r\ncategory left out is cleared. The code and the status cannot be changed here: a body that names them, or any member\r\nthe API does not know, is refused with 400."
+        "description": "The body of `PATCH /api/v1/service-items/{id}`: the name, the price, the tax rate and the category, and a\ncategory left out is cleared. The code and the status cannot be changed here: a body that names them, or any member\nthe API does not know, is refused with 400."
       },
       "UpdateSettingsRequest": {
         "type": "object",
@@ -17812,7 +17812,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "The body of `PATCH /api/v1/settings`: every setting it changes, as the new state (docs/api.md section 5). A\r\nthreshold left out or null means none. The prefixes are not here: they change through a prefix change. Unknown\r\nmembers are refused."
+        "description": "The body of `PATCH /api/v1/settings`: every setting it changes, as the new state (docs/api.md section 5). A\nthreshold left out or null means none. The prefixes are not here: they change through a prefix change. Unknown\nmembers are refused."
       },
       "UpdateUserRequest": {
         "type": "object",
