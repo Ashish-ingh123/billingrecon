@@ -39,3 +39,9 @@
   font-size: 1.125rem;
   margin: 0 0 0.75rem;
 }
+
+.links {
+  margin: 0;
+  padding-left: 1.25rem;
+  line-height: 1.9;
+}

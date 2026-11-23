@@ -78,6 +78,7 @@ React + TypeScript + Vite in `frontend/` (ADR 0038, Prompt 7.1). Node 22.22 or l
 | Errors | **`ProblemAlert`** | The one way a screen shows a refusal: the API's message, field messages not placed on fields, the wait of a 429, the reference (correlation id). |
 | Screens (ADR 0039) | Lists, records, forms | A list keeps its search, status and page in the address. Every change sends `If-Match` from the record's `version`. Who may change is `src/auth/permissions.ts`, a copy of the API's policies that a test holds to `Policies.cs`. Deactivate asks once more, in place. A 409 `concurrency_conflict` says nothing was saved, lists what changed, and offers "Load the latest version" or "Keep my changes". Decimals are typed as text, sent as JSON numbers, refused beyond 15 significant digits; amounts shown with Indian grouping. The API's field messages go at their fields. |
 | Bills (ADR 0040) | One editor for a draft; the key of an operation | A new draft is one `POST` with its lines; a correction sends what changed, the header (`PATCH`) then the lines (`PUT`) with chained versions. Create, void and post carry an `Idempotency-Key` from `useIdempotentRequest`: the same key when the same request is sent again after no answer, a fault or 409 `idempotency_in_progress`, a new one otherwise. Live totals are an estimate by exact arithmetic on `BigInt` (`src/bills/lineMath.ts`), held with the server's `LineCalculator` to one file of cases (`src/bills/lineCases.json`); after a save the server's figures are shown. Posting answers posted (200) or sent for approval (202). Every record's history is the `AuditTrail` component. |
+| Cashier (ADR 0041) | Allocate oldest first; refunds from their source; the payer statement | Allocating lists the payer's bills that owe something, oldest first, with "Apply oldest first"; the caps (each bill's balance due, the unapplied cash) are checked in exact paise (`src/money.ts`) before sending, and again by the server. A refund is drawn from a payment or a credit note, from its page or the payer statement (`/payers/:id/statement`). Every financial action on a document (reversal requests, a refund's void and submission) goes through `useDocumentAction`: the key of the operation, the retry, the conflict, the outcome. Approving a reversal or a refund is 7.5's. |
 | Session | **`sessionStorage`** | The token, its expiry and the roles read from it; gone with the tab, at expiry and on a 401 (row S5). The roles choose the navigation only; the API is the authority. |
 | Charts (7.6) | **Recharts** | SVG, so a series drawn with `var(--series-n)` follows the theme without a re-render. |
 | Tests | **Vitest**, jsdom, React Testing Library | The API faked by a `fetch` given to the client (`src/test/app.tsx`); no mocking package. |
@@ -408,7 +409,10 @@ frontend/                      React + TypeScript + Vite (ADR 0038): index.html 
                                and changes, the list, the record and the forms; ADR 0039), src/bills (api.ts, the list, the
                                view with useBillActions, the editor with LinesEditor, the pickers, lineMath.ts and
                                lineCases.json; ADR 0040), src/components also RecordPicker and AuditTrail, src/api also
-                               useIdempotentRequest, src/auth/permissions.ts (the
+                               useIdempotentRequest, src/payments (api.ts, the list, the record form, the payment's page
+                               with its reversal requests, AllocatePage) and src/refunds (api.ts, the list, the form from
+                               its source, the refund's page), src/payers also StatementPage, src/components also Badge,
+                               ReasonForm and useDocumentAction, money.ts (exact paise; ADR 0041), src/auth/permissions.ts (the
                                API's policies), format.ts and decimals.ts, routes.tsx, Providers.tsx; src/test (the app
                                renderer, routedApi, the records, the colour scan, the contrast and theme-script tests).
                                The OpenAPI document is kept equal to the API's by OpenApiSnapshotTests (IntegrationTests).
@@ -787,7 +791,9 @@ change as a copy of the API's policies held to `Policies.cs`, decimals typed as 
 section of their own (Accepted on the owner's approval of the Prompt 7.2 plan, 2026-11-23),
 0040 the bill screens: one editor for a draft saving what changed, the key of an operation in memory and reused on a
 retry of the same request, live totals by exact arithmetic on BigInt held with the server to one file of cases, names
-in the bill list read per patient and payer (Accepted on the owner's approval of the Prompt 7.3 plan, 2026-11-23).
+in the bill list read per patient and payer (Accepted on the owner's approval of the Prompt 7.3 plan, 2026-11-23),
+0041 the cashier screens: allocating oldest first with the caps checked in exact paise, a refund drawn from its source,
+the payer statement as a page of its own (Accepted on the owner's approval of the Prompt 7.4 plan, 2026-11-23).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1972,4 +1978,32 @@ Kept here so they survive between sessions. Remove an item when it is done.
       both sides), posted as BIL/26-27/000001 with its trail; a bill of 9,000 sent for approval (202); a draft voided with
       its reason; a Viewer with names in the list, no action, and no access to a new bill.
     - **Still to do:** the CI job's first run (runbook section 8, row 7.3).
-    - Next: Prompt 7.4 (cashier screens).
+    - Next: Prompt 7.4 (cashier screens). Done: item 40.
+40. **Prompt 7.4, the cashier screens (ADR 0041), written 2026-11-23, built and tested on the office machine.** On
+    `phase-2-billing`. The plan was approved "as recommended" with its three answers: allocate oldest first with "Apply
+    oldest first", a refund drawn from its source, the payer statement as a page of its own. No package, no migration, no
+    change of the API.
+    - Built: the payment list (status, method, dates, a payer's payments from their page); recording a payment from the
+      payer's page (the reference required for every method but cash); a payment's page (its allocations, unapplied cash,
+      the reversal of the payment or of one allocation asked with a reason, 202, and the audit trail); allocating
+      (`/payments/:id/allocate`: the payer's open bills oldest first, "Apply oldest first", the caps checked in exact paise
+      before sending, the API's per-line refusal at its bill, a conflict); the refund list, a refund drafted from a payment
+      or a credit note, corrected, voided and submitted (202); the payer statement (`/payers/:id/statement`: the balance,
+      the outstanding bills, the payments with unapplied cash and the credit notes with available credit, each with its
+      Allocate or Refund). Shared from here on: `money.ts`, `Badge`, `ReasonForm`, `useDocumentAction`. Approving and
+      rejecting reversals and refunds are 7.5's.
+    - **Changed in an existing test, called out:** the token's expiry test began on `/payments` as a page without requests
+      and begins on `/reports` instead, since the payment list now reads the API; its expectations are the same.
+    - **Tests:** 296 frontend tests (34 new). With five defects put in one at a time (no cap per bill, no cap on the total,
+      the reference never required, the refund's cap a paisa loose, an allocation without `If-Match`), each is caught.
+    - **Verified:** in `frontend/`, `npm audit` (none), the format check, lint, types, 296 tests and the build, and the
+      generated types equal to the committed document; in the repository, the Release build and `dotnet format
+      --verify-no-changes` are clean, and Domain 644, Application 423, Architecture 129 and the 743 integration tests
+      without a database pass (the `Database` collection was not run again: no production code of the API changed). **In
+      the browser**, against the API in Development on a throwaway LocalDB database: a Cashier recorded a UPI payment of
+      3,000 from the payer's page, was refused 2,511.08 against a bill owing 2,511.07, applied the payment oldest first
+      (1,049.48 and 1,950.52), asked for one allocation's reversal (202), read the statement (owed 560.55, unapplied 500.00,
+      net 60.55), drew a refund of 500.00 from it (500.01 refused) and submitted it (202); a Viewer read without acting and
+      had no access to recording.
+    - **Still to do:** the CI job's first run (runbook section 8, row 7.4).
+    - Next: Prompt 7.5 (approvals and reports).

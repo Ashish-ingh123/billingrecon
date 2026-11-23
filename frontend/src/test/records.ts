@@ -1,6 +1,8 @@
 import type { Bill, BillLine } from '../bills/api';
 import type { Patient } from '../patients/api';
 import type { Payer } from '../payers/api';
+import type { Allocation, BillSummary, Payment } from '../payments/api';
+import type { Refund } from '../refunds/api';
 import type { ServiceItem } from '../serviceItems/api';
 
 /** Records as the API answers them, for the tests of the screens; each test changes what it is about. */
@@ -101,6 +103,89 @@ export function bill(overrides: Partial<Bill> = {}): Bill {
     createdAtUtc: '2026-11-20T05:00:00+00:00',
     updatedAtUtc: '2026-11-20T05:00:00+00:00',
     version: 'AAAAAAAACAA=',
+    ...overrides,
+  };
+}
+
+/** A bill as a list answers it: posted, owing what it totals unless said otherwise. */
+export function billSummary(overrides: Partial<BillSummary> = {}): BillSummary {
+  return {
+    id: 'e5000000-0000-4000-8000-000000000011',
+    patientId: 'a1000000-0000-4000-8000-000000000001',
+    payerId: 'b2000000-0000-4000-8000-000000000002',
+    billDate: '2026-11-10',
+    dueDate: '2026-11-25',
+    encounterReference: null,
+    status: 'Posted',
+    number: 'BIL/26-27/000011',
+    total: 1049.48,
+    balanceDue: 1049.48,
+    createdAtUtc: '2026-11-10T05:00:00+00:00',
+    updatedAtUtc: '2026-11-10T05:00:00+00:00',
+    version: 'AAAAAAAACBA=',
+    ...overrides,
+  };
+}
+
+/** A cash payment of 1,500.00 from Asha's payer, nothing of it applied yet. */
+export function payment(overrides: Partial<Payment> = {}): Payment {
+  return {
+    id: 'f6000000-0000-4000-8000-000000000001',
+    number: 'PAY/26-27/000001',
+    fiscalYear: '2026-27',
+    payerId: 'b2000000-0000-4000-8000-000000000002',
+    paymentDate: '2026-11-21',
+    method: 'Cash',
+    reference: null,
+    amount: 1500,
+    unappliedAmount: 1500,
+    status: 'Posted',
+    notes: null,
+    reversedAtUtc: null,
+    reversalReason: null,
+    createdAtUtc: '2026-11-21T05:00:00+00:00',
+    updatedAtUtc: '2026-11-21T05:00:00+00:00',
+    version: 'AAAAAAAACQA=',
+    ...overrides,
+  };
+}
+
+export function allocation(overrides: Partial<Allocation> = {}): Allocation {
+  return {
+    id: 'f7000000-0000-4000-8000-000000000001',
+    billId: 'e5000000-0000-4000-8000-000000000011',
+    amount: 500,
+    status: 'Active',
+    allocatedAtUtc: '2026-11-21T06:00:00+00:00',
+    allocatedByUserId: 'd0000000-0000-4000-8000-000000000002',
+    reversedAtUtc: null,
+    reversalReason: null,
+    ...overrides,
+  };
+}
+
+/** A draft refund of 200.00 from the payment above. */
+export function refund(overrides: Partial<Refund> = {}): Refund {
+  return {
+    id: 'f8000000-0000-4000-8000-000000000001',
+    payerId: 'b2000000-0000-4000-8000-000000000002',
+    sourceKind: 'Payment',
+    paymentId: 'f6000000-0000-4000-8000-000000000001',
+    creditNoteId: null,
+    refundDate: '2026-11-22',
+    amount: 200,
+    method: 'UPI',
+    reference: 'asha@upi',
+    reason: 'Paid twice at the counter',
+    status: 'Draft',
+    number: null,
+    fiscalYear: null,
+    postedAtUtc: null,
+    voidedAtUtc: null,
+    voidReason: null,
+    createdAtUtc: '2026-11-22T05:00:00+00:00',
+    updatedAtUtc: '2026-11-22T05:00:00+00:00',
+    version: 'AAAAAAAACgA=',
     ...overrides,
   };
 }

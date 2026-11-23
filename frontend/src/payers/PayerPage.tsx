@@ -92,9 +92,7 @@ function PayerView({ payer }: { payer: Payer }) {
           An inactive payer receives no new bills, payments or refunds; what they owe is still allocated and reported.
         </p>
       )}
-      <p className={forms.section}>
-        <Link to={`/bills?payerId=${payer.id}`}>The bills this payer owes</Link>
-      </p>
+      <PayerLinks payer={payer} />
     </section>
   );
 }
@@ -108,5 +106,38 @@ function LinkedPatient({ id }: { id: string }) {
     <Link to={`/patients/${id}`}>
       {patient.data.fullName} (MRN {patient.data.mrn})
     </Link>
+  );
+}
+
+/** Where the payer's money is: their statement, their bills, payments and refunds, and recording a payment from them. */
+function PayerLinks({ payer }: { payer: Payer }) {
+  const canRecord = useCan('RecordPayments');
+  const canReadRefunds = useCan('ReadRefunds');
+
+  return (
+    <section className={forms.section} aria-labelledby="money-title">
+      <h2 id="money-title">Money</h2>
+      <ul className={forms.links}>
+        <li>
+          <Link to={`/payers/${payer.id}/statement`}>Statement: what they owe, unapplied cash and credit</Link>
+        </li>
+        <li>
+          <Link to={`/bills?payerId=${payer.id}`}>The bills this payer owes</Link>
+        </li>
+        <li>
+          <Link to={`/payments?payerId=${payer.id}`}>Their payments</Link>
+        </li>
+        {canReadRefunds && (
+          <li>
+            <Link to={`/refunds?payerId=${payer.id}`}>Their refunds</Link>
+          </li>
+        )}
+        {canRecord && payer.status === 'Active' && (
+          <li>
+            <Link to={`/payments/new?payerId=${payer.id}`}>Record a payment from them</Link>
+          </li>
+        )}
+      </ul>
+    </section>
   );
 }

@@ -12,6 +12,14 @@ import { PatientsPage } from './patients/PatientsPage';
 import { EditPayerPage, NewPayerPage } from './payers/PayerFormPage';
 import { PayerPage } from './payers/PayerPage';
 import { PayersPage } from './payers/PayersPage';
+import { StatementPage } from './payers/StatementPage';
+import { AllocatePage } from './payments/AllocatePage';
+import { PaymentPage } from './payments/PaymentPage';
+import { PaymentsPage } from './payments/PaymentsPage';
+import { RecordPaymentPage } from './payments/RecordPaymentPage';
+import { EditRefundPage, NewRefundPage } from './refunds/RefundFormPage';
+import { RefundPage } from './refunds/RefundPage';
+import { RefundsPage } from './refunds/RefundsPage';
 import { EditServiceItemPage, NewServiceItemPage } from './serviceItems/ServiceItemFormPage';
 import { ServiceItemPage } from './serviceItems/ServiceItemPage';
 import { ServiceItemsPage } from './serviceItems/ServiceItemsPage';
@@ -24,6 +32,8 @@ function screens(
   path: string,
   policies: { read: Policy; write: Policy },
   pages: { List: () => ReactNode; One: () => ReactNode; New: () => ReactNode; Edit: () => ReactNode },
+  /** The last part of the path of the change of a record: "edit", or "allocate" for a payment. */
+  change = 'edit',
 ): RouteObject[] {
   const { List, One, New, Edit } = pages;
   const read = (page: ReactNode) => <RequirePolicy policy={policies.read}>{page}</RequirePolicy>;
@@ -33,12 +43,12 @@ function screens(
     { path, element: read(<List />) },
     { path: `${path}/new`, element: write(<New />) },
     { path: `${path}/:id`, element: read(<One />) },
-    { path: `${path}/:id/edit`, element: write(<Edit />) },
+    { path: `${path}/:id/${change}`, element: write(<Edit />) },
   ];
 }
 
 /** The sections whose screens are built; every other section is a placeholder naming the prompt that builds it. */
-const built = new Set(['/patients', '/payers', '/service-items', '/bills']);
+const built = new Set(['/patients', '/payers', '/service-items', '/bills', '/payments', '/refunds']);
 
 const referenceData = { read: 'ReadReferenceData', write: 'WriteReferenceData' } as const;
 
@@ -74,6 +84,25 @@ export const routes: RouteObject[] = [
             '/bills',
             { read: 'ReadBills', write: 'WriteBills' },
             { List: BillsPage, One: BillPage, New: NewBillPage, Edit: EditBillPage },
+          ),
+          {
+            path: '/payers/:id/statement',
+            element: (
+              <RequirePolicy policy="Reports">
+                <StatementPage />
+              </RequirePolicy>
+            ),
+          },
+          ...screens(
+            '/payments',
+            { read: 'ReadPayments', write: 'RecordPayments' },
+            { List: PaymentsPage, One: PaymentPage, New: RecordPaymentPage, Edit: AllocatePage },
+            'allocate',
+          ),
+          ...screens(
+            '/refunds',
+            { read: 'ReadRefunds', write: 'DraftRefunds' },
+            { List: RefundsPage, One: RefundPage, New: NewRefundPage, Edit: EditRefundPage },
           ),
           ...sections
             .filter((section) => !built.has(section.path))

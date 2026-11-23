@@ -140,6 +140,14 @@ Since Prompt 7.3 (ADR 0040):
 - **The key of an operation is asserted on the wire:** the same `Idempotency-Key` on a retry after no answer or 409
   `idempotency_in_progress`, a new one after a refusal or a changed request.
 
+Since Prompt 7.4 (ADR 0041):
+
+- **A cap is tested at the paisa:** an amount one paisa above a bill's balance due, a payment's unapplied cash or a
+  refund's source is refused before anything is sent (`sent(...)` stays empty). `money.test.ts` holds the exact paise of
+  a typed amount and of a figure of the server, and accepts the amount at the cap.
+- **An answer about one line lands at that line:** a refusal naming `allocations[i].amount` is shown at the bill of that
+  line and not again in `ProblemAlert`.
+
 The jsdom environment has no `matchMedia`; `src/test/setup.ts` gives every test a system that prefers light, which a
 test changes with `stubColourScheme`, and clears both storages before each test.
 

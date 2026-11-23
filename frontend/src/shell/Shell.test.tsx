@@ -82,12 +82,12 @@ describe('the shell of a signed-in user', () => {
   });
 
   it('ends the session when the token expires, and brings the user back to the same page after signing in', async () => {
-    const { router } = renderApp('/payments', { session: sessionFor(['Cashier'], 150) });
+    const { router } = renderApp('/reports', { session: sessionFor(['Cashier'], 150) });
 
-    expect(await screen.findByRole('heading', { name: 'Payments' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Reports' })).toBeInTheDocument();
 
     expect(await screen.findByText('Your session has ended. Sign in again to continue.')).toBeInTheDocument();
-    await waitFor(() => expect(router.state.location.search).toBe('?returnTo=%2Fpayments'));
+    await waitFor(() => expect(router.state.location.search).toBe('?returnTo=%2Freports'));
     expect(window.sessionStorage.getItem(sessionStorageKey)).toBeNull();
   });
 
