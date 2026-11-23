@@ -1,0 +1,101 @@
+/* The reports (ADR 0043): totals in the footer, the export beside the filters, the index of the reports. */
+
+.totals th,
+.totals td {
+  font-weight: 700;
+  border-top: 2px solid var(--border);
+  background: var(--surface-sunken);
+}
+
+.beside {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  gap: 0.25rem 1.5rem;
+  margin: 0.75rem 0 0;
+}
+
+.beside div {
+  display: contents;
+}
+
+.beside dt {
+  color: var(--text-muted);
+}
+
+.beside dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.export {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.period {
+  align-self: center;
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.payer {
+  min-width: 18rem;
+  max-width: 28rem;
+}
+
+.groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.group {
+  padding: 1rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.group h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.group ul {
+  margin: 0;
+  padding-left: 1.125rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.group p {
+  margin: 0.125rem 0 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.clean {
+  padding: 1rem;
+  border-left: 4px solid var(--success);
+  background: var(--surface-raised);
+}
+
+.drift {
+  padding: 1rem;
+  border-left: 4px solid var(--danger);
+  background: var(--surface-raised);
+}

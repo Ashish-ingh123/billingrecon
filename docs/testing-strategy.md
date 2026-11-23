@@ -156,6 +156,11 @@ Since Prompt 7.5 (ADR 0042):
 - **The maker's own request is asserted to have no review**, as the API refuses it (BR-603); a conflict is asserted to
   name the state the checker saw and the state now.
 
+Since Prompt 7.5b (ADR 0043):
+
+- **An export is read back from the file the page made**: `URL.createObjectURL` is replaced in the test to keep the
+  Blob, whose bytes are read with `FileReader` (the BOM included), and the CSV's lines are asserted whole.
+
 The jsdom environment has no `matchMedia`; `src/test/setup.ts` gives every test a system that prefers light, which a
 test changes with `stubColourScheme`, and clears both storages before each test.
 

@@ -80,6 +80,7 @@ React + TypeScript + Vite in `frontend/` (ADR 0038, Prompt 7.1). Node 22.22 or l
 | Bills (ADR 0040) | One editor for a draft; the key of an operation | A new draft is one `POST` with its lines; a correction sends what changed, the header (`PATCH`) then the lines (`PUT`) with chained versions. Create, void and post carry an `Idempotency-Key` from `useIdempotentRequest`: the same key when the same request is sent again after no answer, a fault or 409 `idempotency_in_progress`, a new one otherwise. Live totals are an estimate by exact arithmetic on `BigInt` (`src/bills/lineMath.ts`), held with the server's `LineCalculator` to one file of cases (`src/bills/lineCases.json`); after a save the server's figures are shown. Posting answers posted (200) or sent for approval (202). Every record's history is the `AuditTrail` component. |
 | Cashier (ADR 0041) | Allocate oldest first; refunds from their source; the payer statement | Allocating lists the payer's bills that owe something, oldest first, with "Apply oldest first"; the caps (each bill's balance due, the unapplied cash) are checked in exact paise (`src/money.ts`) before sending, and again by the server. A refund is drawn from a payment or a credit note, from its page or the payer statement (`/payers/:id/statement`). Every financial action on a document (reversal requests, a refund's void and submission) goes through `useDocumentAction`: the key of the operation, the retry, the conflict, the outcome. Approving a reversal or a refund is 7.5's. |
 | Inbox, credit notes, adjustments (ADR 0042) | Decide in the inbox; draft from the bill | `/approvals` (policy `Decide`) lists what waits from the pending approvals report, which answers `parentDocumentId` (an allocation's payment, an application's credit note) and `makerComment`; **Review** reads the document as it is now and sends Approve (comment optional) or Reject (comment required) with that document's version and a key (none for a prefix change). The maker's own request shows no review. Credit notes and adjustments are drafted from the posted bill (`?billId=`); a credit note credits the bill's lines by quantity at their price and tax, plus free-text lines, capped per line and in total before sending. A credit note's credit is applied with the shared `ApplyToBills` form of the allocation. A document that waits links a checker to the inbox (`ReviewLink`). |
+| Reports (ADR 0043) | Eight screens for the six of BR-901; CSV in the browser | `/reports` and one screen per report, filters in the address, the server's totals in the footer. **Export CSV** reads every page of the filter (100 rows a request, at most 10,000), holds the rows to the server's totals (once more if they differ, then refused), and writes UTF-8 with a BOM, plain decimals, quoted fields and the formula guard (`src/reports/csv.ts`). One definition of the columns serves the screen and the CSV (`src/reports/columns.tsx`). |
 | Session | **`sessionStorage`** | The token, its expiry and the roles read from it; gone with the tab, at expiry and on a 401 (row S5). The roles choose the navigation only; the API is the authority. |
 | Charts (7.6) | **Recharts** | SVG, so a series drawn with `var(--series-n)` follows the theme without a re-render. |
 | Tests | **Vitest**, jsdom, React Testing Library | The API faked by a `fetch` given to the client (`src/test/app.tsx`); no mocking package. |
@@ -417,7 +418,9 @@ frontend/                      React + TypeScript + Vite (ADR 0038): index.html 
                                with how each of the eight kinds is read and decided, the inbox, ReviewLink), src/creditNotes
                                (api.ts, the list, the page, the editor with CreditLinesEditor, ApplyCreditPage) and
                                src/adjustments (api.ts, the list, the page, the form; ADR 0042), src/bills also
-                               ApplyToBills (the allocation and application form) and the payer's open bills, src/auth/permissions.ts (the
+                               ApplyToBills (the allocation and application form) and the payer's open bills, src/reports
+                               (api.ts, csv.ts, exportReport.ts, columns.tsx, view.ts, ReportParts, the index and the eight
+                               screens; ADR 0043), src/auth/permissions.ts (the
                                API's policies), format.ts and decimals.ts, routes.tsx, Providers.tsx; src/test (the app
                                renderer, routedApi, the records, the colour scan, the contrast and theme-script tests).
                                The OpenAPI document is kept equal to the API's by OpenApiSnapshotTests (IntegrationTests).
@@ -801,7 +804,9 @@ in the bill list read per patient and payer (Accepted on the owner's approval of
 the payer statement as a page of its own (Accepted on the owner's approval of the Prompt 7.4 plan, 2026-11-23),
 0042 the checker's inbox and the credit note and adjustment screens: the prompt split (reports in 7.5b), the pending
 approvals report answering `parentDocumentId` and `makerComment`, decisions made in the inbox and never by the maker, a
-credit note's lines from its bill (Accepted on the owner's approval of the Prompt 7.5 plan, 2026-11-23).
+credit note's lines from its bill (Accepted on the owner's approval of the Prompt 7.5 plan, 2026-11-23),
+0043 the report screens: eight screens for the six reports, the CSV written in the browser from every page and held to
+the server's totals (Accepted on the owner's approval of the Prompt 7.5b plan, 2026-11-23).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -2049,4 +2054,20 @@ Kept here so they survive between sessions. Remove an item when it is done.
       delivery. The copy's LocalDB patch of `SqlServerFixture` now needs its analyzer warnings silenced to build (copy
       only), or a run silently uses the copy's previous build.
     - **Still to do:** SQL Server 2022 and the CI job's first run (runbook section 8, row 7.5).
-    - Next: Prompt 7.5b (reports).
+    - Next: Prompt 7.5b (reports). Done: item 42.
+42. **Prompt 7.5b, the reports (ADR 0043), written 2026-11-23, built and tested on the office machine.** On `phase-2-billing`.
+    The plan was approved "as recommended": the CSV written in the browser and held to the server's totals, eight screens,
+    an index. No package, no migration, no change of the API.
+    - Built: `/reports` and the bill register, payment register, daily collection, outstanding by payer, unapplied cash,
+      available credit, pending approvals and reconciliation, each with its filters in the address, the server's totals
+      and **Export CSV** of every row of the filter (at most 10,000), checked against the totals.
+    - **Changed in existing code, called out:** `usePayer` takes `enabled`; the navigation's Reports section is built.
+    - **Tests:** 345 frontend tests (15 new). With only the first page exported, grouped amounts, the formula guard
+      dropped and the totals check skipped, one at a time, each is caught.
+    - **Verified:** in `frontend/`, `npm audit` (none), the format check, lint, types, 345 tests and the build (616 kB,
+      Vite's warning); the .NET side unchanged. **In the browser**, against the API in Development on a throwaway LocalDB
+      database: the registers, the collection (600.00 less 50.00 refunded, 550.00), outstanding (190.00 less 150.00, 40.00)
+      and the reconciliation (no drift) showed the API's figures, and the bill register's CSV, read in the page, had its
+      row, the payer `=Kumar, Ravi` guarded and quoted, and its totals. Not done: a CSV opened in a spreadsheet.
+    - **Still to do:** the CI job's first run; a CSV opened in a spreadsheet (runbook section 8, row 7.5b).
+    - Next: Prompt 7.6 (dashboard), which needs `docs/ui/dashboard.png` in the repository first.

@@ -638,6 +638,7 @@ dotnet test --filter "FullyQualifiedName~DatabasePermissionsOnSqlServerTests"
 | 7.3 | The frontend job of CI with the bill screens; and `LineCalculatorSharedCasesTests` there, which reads `frontend/src/bills/lineCases.json` from the checkout. |
 | 7.4 | The frontend job of CI with the cashier screens. |
 | 7.5 | `ReportsApiTests` on SQL Server 2022, with the two fields the pending approvals report gained (the allocation's payment and the application's credit note, joined in the same query); `OpenApiSnapshotTests`; the frontend job of CI with the inbox, credit note and adjustment screens. |
+| 7.5b | The frontend job of CI with the report screens; a CSV of each report opened in a spreadsheet by the owner. |
 
 A red result is reported as it is, with its output; the fix is its own commit on top, never an edit of history.
 

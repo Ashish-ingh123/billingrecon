@@ -104,9 +104,10 @@ export function usePayers(params: ListParams) {
   });
 }
 
-export function usePayer(id: string) {
+/** A payer; with `enabled` false it reads nothing (a filter with no payer chosen). */
+export function usePayer(id: string, enabled = true) {
   const client = useApiClient();
-  return useQuery({ queryKey: payerKeys.one(id), queryFn: () => getPayer(client, id) });
+  return useQuery({ queryKey: payerKeys.one(id), queryFn: () => getPayer(client, id), enabled });
 }
 
 /** The payer linked to a patient, or null when there is none (BR-104: at most one). */

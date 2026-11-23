@@ -26,6 +26,15 @@ import { PaymentPage } from './payments/PaymentPage';
 import { PaymentsPage } from './payments/PaymentsPage';
 import { RecordPaymentPage } from './payments/RecordPaymentPage';
 import { EditRefundPage, NewRefundPage } from './refunds/RefundFormPage';
+import { AvailableCreditPage } from './reports/AvailableCreditPage';
+import { BillRegisterPage } from './reports/BillRegisterPage';
+import { DailyCollectionPage } from './reports/DailyCollectionPage';
+import { OutstandingPage } from './reports/OutstandingPage';
+import { PaymentRegisterPage } from './reports/PaymentRegisterPage';
+import { PendingApprovalsReportPage } from './reports/PendingApprovalsReportPage';
+import { ReconciliationPage } from './reports/ReconciliationPage';
+import { ReportsIndex } from './reports/ReportsIndex';
+import { UnappliedCashPage } from './reports/UnappliedCashPage';
 import { RefundPage } from './refunds/RefundPage';
 import { RefundsPage } from './refunds/RefundsPage';
 import { EditServiceItemPage, NewServiceItemPage } from './serviceItems/ServiceItemFormPage';
@@ -66,6 +75,7 @@ const built = new Set([
   '/credit-notes',
   '/adjustments',
   '/approvals',
+  '/reports',
 ]);
 
 const referenceData = { read: 'ReadReferenceData', write: 'WriteReferenceData' } as const;
@@ -148,6 +158,26 @@ export const routes: RouteObject[] = [
               </RequirePolicy>
             ),
           },
+          ...(
+            [
+              ['/reports', ReportsIndex],
+              ['/reports/bills', BillRegisterPage],
+              ['/reports/payments', PaymentRegisterPage],
+              ['/reports/collection', DailyCollectionPage],
+              ['/reports/outstanding', OutstandingPage],
+              ['/reports/unapplied-cash', UnappliedCashPage],
+              ['/reports/available-credit', AvailableCreditPage],
+              ['/reports/pending-approvals', PendingApprovalsReportPage],
+              ['/reports/reconciliation', ReconciliationPage],
+            ] as const
+          ).map(([path, Page]) => ({
+            path,
+            element: (
+              <RequirePolicy policy="Reports">
+                <Page />
+              </RequirePolicy>
+            ),
+          })),
           ...sections
             .filter((section) => !built.has(section.path))
             .map((section) => ({ path: section.path, element: <SectionPage section={section} /> })),
