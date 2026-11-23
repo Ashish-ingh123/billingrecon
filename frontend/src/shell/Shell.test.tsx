@@ -54,7 +54,7 @@ describe('the shell of a signed-in user', () => {
   });
 
   it('signs out: the session is forgotten and the sign-in says so', async () => {
-    const { user, router } = renderApp('/bills', { session: sessionFor(['BillingClerk']) });
+    const { user, router } = renderApp('/reports', { session: sessionFor(['BillingClerk']) });
 
     await user.click(await screen.findByRole('button', { name: 'Sign out' }));
 
@@ -68,7 +68,7 @@ describe('the shell of a signed-in user', () => {
     const api = fakeApi(
       json(401, { title: 'Unauthorized', status: 401, detail: 'Not right.', errorCode: 'invalid_credentials' }),
     );
-    const { user } = renderApp('/bills', { session: sessionFor(['BillingClerk']), fetch: api.fetch });
+    const { user } = renderApp('/reports', { session: sessionFor(['BillingClerk']), fetch: api.fetch });
     await user.click(await screen.findByRole('button', { name: 'Sign out' }));
     expect(await screen.findByText('You have signed out.')).toBeInTheDocument();
 

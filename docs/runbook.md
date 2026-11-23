@@ -635,6 +635,7 @@ dotnet test --filter "FullyQualifiedName~DatabasePermissionsOnSqlServerTests"
 | 6.3 | `DashboardApiTests` on SQL Server 2022: the two statements of `LedgerMovementsQuery` (a `date` parameter, sums grouped by business date read back as `DateOnly`), the payment register ordered newest first, and the IST midnight boundary of a payment recorded at 23:59 and 00:01 in India. |
 | 7.1 | The frontend job of CI (it has not run: the repository is not on GitHub); `npm ci` and `npm test` in `frontend/` on the personal machine, whose Node version is not recorded (22.22 or later is needed); `OpenApiSnapshotTests` there, which also proves the document is the same on that machine's SDK. |
 | 7.2 | The frontend job of CI on Linux, which is also the first proof that `OpenApiSnapshotTests` gives the same document there now that it writes every line break of a description as LF (ADR 0039, built note). |
+| 7.3 | The frontend job of CI with the bill screens; and `LineCalculatorSharedCasesTests` there, which reads `frontend/src/bills/lineCases.json` from the checkout. |
 
 A red result is reported as it is, with its output; the fix is its own commit on top, never an edit of history.
 

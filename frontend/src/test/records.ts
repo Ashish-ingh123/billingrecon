@@ -1,3 +1,4 @@
+import type { Bill, BillLine } from '../bills/api';
 import type { Patient } from '../patients/api';
 import type { Payer } from '../payers/api';
 import type { ServiceItem } from '../serviceItems/api';
@@ -54,6 +55,52 @@ export function serviceItem(overrides: Partial<ServiceItem> = {}): ServiceItem {
     createdAtUtc: '2026-10-01T04:32:00+00:00',
     updatedAtUtc: '2026-10-01T04:32:00+00:00',
     version: 'AAAAAAAAB9M=',
+    ...overrides,
+  };
+}
+
+export function billLine(overrides: Partial<BillLine> = {}): BillLine {
+  return {
+    id: 'd4000000-0000-4000-8000-000000000001',
+    lineNo: 1,
+    serviceItemId: 'c3000000-0000-4000-8000-000000000003',
+    description: 'Complete blood count',
+    quantity: 3,
+    unitPrice: 333.3333,
+    lineAmount: 1000,
+    discountAmount: 0.5,
+    taxRatePercent: 5,
+    taxAmount: 49.98,
+    lineTotal: 1049.48,
+    ...overrides,
+  };
+}
+
+/** A draft of one line (the example of docs/api.md), for Asha Verma, owed by her own payer. */
+export function bill(overrides: Partial<Bill> = {}): Bill {
+  return {
+    id: 'e5000000-0000-4000-8000-000000000001',
+    patientId: 'a1000000-0000-4000-8000-000000000001',
+    payerId: 'b2000000-0000-4000-8000-000000000002',
+    billDate: '2026-11-20',
+    dueDate: '2026-12-05',
+    encounterReference: 'OPD-7781',
+    notes: null,
+    status: 'Draft',
+    number: null,
+    fiscalYear: null,
+    postedAtUtc: null,
+    subTotal: 1000,
+    discountTotal: 0.5,
+    taxTotal: 49.98,
+    total: 1049.48,
+    balanceDue: 1049.48,
+    voidedAtUtc: null,
+    voidReason: null,
+    lines: [billLine()],
+    createdAtUtc: '2026-11-20T05:00:00+00:00',
+    updatedAtUtc: '2026-11-20T05:00:00+00:00',
+    version: 'AAAAAAAACAA=',
     ...overrides,
   };
 }

@@ -45,3 +45,10 @@ export function formatDecimal(value: number | string, maxDecimals = 2): string {
 export function formatPercent(value: number | string): string {
   return `${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(Number(value))}%`;
 }
+
+const isoDateInIndia = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' });
+
+/** Today's business date in India (`yyyy-MM-dd`), as the API's clock reckons it (BR-003). */
+export function todayInIndia(now: Date = new Date()): string {
+  return isoDateInIndia.format(now);
+}

@@ -26,16 +26,16 @@ async function fillAndSubmit(user: ReturnType<typeof renderApp>['user'], hospita
 describe('signing in (US-02)', () => {
   it('sends the three fields without a token, keeps the session for the tab and the hospital for next time, and returns to the page asked for', async () => {
     const api = fakeApi(signedIn(['BillingClerk']));
-    const { user, router } = renderApp('/bills', { fetch: api.fetch });
+    const { user, router } = renderApp('/reports', { fetch: api.fetch });
 
-    // Not signed in: the sign-in, which will bring the user back to the bills.
+    // Not signed in: the sign-in, which will bring the user back to the reports.
     expect(await screen.findByRole('heading', { name: 'Sign in to BillingRecon' })).toBeInTheDocument();
-    expect(router.state.location.search).toBe('?returnTo=%2Fbills');
+    expect(router.state.location.search).toBe('?returnTo=%2Freports');
 
     await fillAndSubmit(user);
 
-    expect(await screen.findByRole('heading', { name: 'Bills' })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/bills');
+    expect(await screen.findByRole('heading', { name: 'Reports' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/reports');
 
     const [request] = api.requests;
     expect(request?.method).toBe('POST');

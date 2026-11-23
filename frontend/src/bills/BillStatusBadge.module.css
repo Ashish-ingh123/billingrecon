@@ -1,0 +1,30 @@
+.badge {
+  display: inline-block;
+  padding: 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+}
+
+.Draft {
+  color: var(--text-muted);
+}
+
+.PendingApproval,
+.PartiallyPaid {
+  color: var(--warning);
+}
+
+.Posted {
+  color: var(--accent);
+}
+
+.Settled {
+  color: var(--success);
+}
+
+.Voided {
+  color: var(--danger);
+}

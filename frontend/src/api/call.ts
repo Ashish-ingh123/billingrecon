@@ -33,6 +33,24 @@ export async function answer<T>(request: Promise<{ data?: T; error?: unknown; re
   return result.data;
 }
 
+/** Like {@link answer}, with the HTTP status of the success, for an action that answers 200 or 202 (a posting). */
+export async function answerWithStatus<T>(
+  request: Promise<{ data?: T; error?: unknown; response: Response }>,
+): Promise<{ data: T; status: number }> {
+  let result: { data?: T; error?: unknown; response: Response };
+  try {
+    result = await request;
+  } catch {
+    throw new ApiError(unreachableProblem());
+  }
+
+  if (result.data === undefined) {
+    throw new ApiError(problemFrom(result.response, result.error));
+  }
+
+  return { data: result.data, status: result.response.status };
+}
+
 /** What a thrown error says, as the error component shows it. */
 export function problemOf(error: unknown): ApiProblem {
   return error instanceof ApiError ? error.problem : unreachableProblem();

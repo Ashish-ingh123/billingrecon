@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react';
 import type { RouteObject } from 'react-router';
 import { RequireAuth } from './auth/RequireAuth';
+import { EditBillPage, NewBillPage } from './bills/BillFormPage';
+import { BillPage } from './bills/BillPage';
+import { BillsPage } from './bills/BillsPage';
+import type { Policy } from './auth/permissions';
 import { SignInPage } from './auth/SignInPage';
 import { EditPatientPage, NewPatientPage } from './patients/PatientFormPage';
 import { PatientPage } from './patients/PatientPage';
@@ -15,14 +19,15 @@ import { AppShell } from './shell/AppShell';
 import { sections } from './shell/navigation';
 import { HomeRedirect, NoAccessPage, NotFoundPage, RequirePolicy, SectionPage } from './shell/pages';
 
-/** The screens of a resource every role reads and some change (ADR 0039 point 3): list, record, create and correct. */
-function referenceData(
+/** The screens of a resource: list and record for the readers, create and correct for the writers (ADR 0039 point 3). */
+function screens(
   path: string,
+  policies: { read: Policy; write: Policy },
   pages: { List: () => ReactNode; One: () => ReactNode; New: () => ReactNode; Edit: () => ReactNode },
 ): RouteObject[] {
   const { List, One, New, Edit } = pages;
-  const read = (page: ReactNode) => <RequirePolicy policy="ReadReferenceData">{page}</RequirePolicy>;
-  const write = (page: ReactNode) => <RequirePolicy policy="WriteReferenceData">{page}</RequirePolicy>;
+  const read = (page: ReactNode) => <RequirePolicy policy={policies.read}>{page}</RequirePolicy>;
+  const write = (page: ReactNode) => <RequirePolicy policy={policies.write}>{page}</RequirePolicy>;
 
   return [
     { path, element: read(<List />) },
@@ -33,7 +38,9 @@ function referenceData(
 }
 
 /** The sections whose screens are built; every other section is a placeholder naming the prompt that builds it. */
-const built = new Set(['/patients', '/payers', '/service-items']);
+const built = new Set(['/patients', '/payers', '/service-items', '/bills']);
+
+const referenceData = { read: 'ReadReferenceData', write: 'WriteReferenceData' } as const;
 
 /** The app's pages: the sign-in, and behind it the shell with the screens of each section (ADR 0038, ADR 0039). */
 export const routes: RouteObject[] = [
@@ -45,19 +52,29 @@ export const routes: RouteObject[] = [
         element: <AppShell />,
         children: [
           { index: true, element: <HomeRedirect /> },
-          ...referenceData('/patients', {
+          ...screens('/patients', referenceData, {
             List: PatientsPage,
             One: PatientPage,
             New: NewPatientPage,
             Edit: EditPatientPage,
           }),
-          ...referenceData('/payers', { List: PayersPage, One: PayerPage, New: NewPayerPage, Edit: EditPayerPage }),
-          ...referenceData('/service-items', {
+          ...screens('/payers', referenceData, {
+            List: PayersPage,
+            One: PayerPage,
+            New: NewPayerPage,
+            Edit: EditPayerPage,
+          }),
+          ...screens('/service-items', referenceData, {
             List: ServiceItemsPage,
             One: ServiceItemPage,
             New: NewServiceItemPage,
             Edit: EditServiceItemPage,
           }),
+          ...screens(
+            '/bills',
+            { read: 'ReadBills', write: 'WriteBills' },
+            { List: BillsPage, One: BillPage, New: NewBillPage, Edit: EditBillPage },
+          ),
           ...sections
             .filter((section) => !built.has(section.path))
             .map((section) => ({ path: section.path, element: <SectionPage section={section} /> })),

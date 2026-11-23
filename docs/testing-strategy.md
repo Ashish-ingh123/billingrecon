@@ -131,6 +131,15 @@ Since Prompt 7.2 (ADR 0039):
 - **What is sent is asserted as sent:** the `If-Match` header of every change, the body of every create and correction
   (blanks as null, decimals as JSON numbers), and the query of every list.
 
+Since Prompt 7.3 (ADR 0040):
+
+- **One arithmetic, two implementations, one set of cases.** `frontend/src/bills/lineCases.json` lists bill lines and
+  what each comes to; `lineMath.test.ts` holds the browser's estimate to it and the Domain's
+  `LineCalculatorSharedCasesTests` holds the server's `LineCalculator` to it. A new case goes in the file, and both
+  sides must agree with it.
+- **The key of an operation is asserted on the wire:** the same `Idempotency-Key` on a retry after no answer or 409
+  `idempotency_in_progress`, a new one after a refusal or a changed request.
+
 The jsdom environment has no `matchMedia`; `src/test/setup.ts` gives every test a system that prefers light, which a
 test changes with `stubColourScheme`, and clears both storages before each test.
 

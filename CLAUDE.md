@@ -77,6 +77,7 @@ React + TypeScript + Vite in `frontend/` (ADR 0038, Prompt 7.1). Node 22.22 or l
 | Components | Our own, **CSS Modules** on the **design tokens** of `src/theme/tokens.css`; no UI kit | No raw colour outside `tokens.css` (a test scans every file); WCAG AA in both themes (a test computes the contrast). The theme (System, Light, Dark) is `data-theme` on `<html>`, set by the inline script of `index.html` before React mounts; its SHA-256 is pinned by a test for the CSP of 8.1. |
 | Errors | **`ProblemAlert`** | The one way a screen shows a refusal: the API's message, field messages not placed on fields, the wait of a 429, the reference (correlation id). |
 | Screens (ADR 0039) | Lists, records, forms | A list keeps its search, status and page in the address. Every change sends `If-Match` from the record's `version`. Who may change is `src/auth/permissions.ts`, a copy of the API's policies that a test holds to `Policies.cs`. Deactivate asks once more, in place. A 409 `concurrency_conflict` says nothing was saved, lists what changed, and offers "Load the latest version" or "Keep my changes". Decimals are typed as text, sent as JSON numbers, refused beyond 15 significant digits; amounts shown with Indian grouping. The API's field messages go at their fields. |
+| Bills (ADR 0040) | One editor for a draft; the key of an operation | A new draft is one `POST` with its lines; a correction sends what changed, the header (`PATCH`) then the lines (`PUT`) with chained versions. Create, void and post carry an `Idempotency-Key` from `useIdempotentRequest`: the same key when the same request is sent again after no answer, a fault or 409 `idempotency_in_progress`, a new one otherwise. Live totals are an estimate by exact arithmetic on `BigInt` (`src/bills/lineMath.ts`), held with the server's `LineCalculator` to one file of cases (`src/bills/lineCases.json`); after a save the server's figures are shown. Posting answers posted (200) or sent for approval (202). Every record's history is the `AuditTrail` component. |
 | Session | **`sessionStorage`** | The token, its expiry and the roles read from it; gone with the tab, at expiry and on a 401 (row S5). The roles choose the navigation only; the API is the authority. |
 | Charts (7.6) | **Recharts** | SVG, so a series drawn with `var(--series-n)` follows the theme without a re-render. |
 | Tests | **Vitest**, jsdom, React Testing Library | The API faked by a `fetch` given to the client (`src/test/app.tsx`); no mocking package. |
@@ -404,7 +405,10 @@ frontend/                      React + TypeScript + Vite (ADR 0038): index.html 
                                badge, the conflict notice, the inline confirmation, useRecordForm, useStatusActions),
                                src/shell (the navigation from the permission matrix, the shell, the placeholder pages,
                                RequirePolicy), src/patients, src/payers and src/serviceItems (each: api.ts with its queries
-                               and changes, the list, the record and the forms; ADR 0039), src/auth/permissions.ts (the
+                               and changes, the list, the record and the forms; ADR 0039), src/bills (api.ts, the list, the
+                               view with useBillActions, the editor with LinesEditor, the pickers, lineMath.ts and
+                               lineCases.json; ADR 0040), src/components also RecordPicker and AuditTrail, src/api also
+                               useIdempotentRequest, src/auth/permissions.ts (the
                                API's policies), format.ts and decimals.ts, routes.tsx, Providers.tsx; src/test (the app
                                renderer, routedApi, the records, the colour scan, the contrast and theme-script tests).
                                The OpenAPI document is kept equal to the API's by OpenApiSnapshotTests (IntegrationTests).
@@ -780,7 +784,10 @@ pinned by its hash; Recharts for 7.6; the token in `sessionStorage` (Accepted on
 proposal, 2026-11-23; it answers row S5 of the threat model),
 0039 screens: lists in the address, `If-Match` from the record's version, a conflict shown and decided by the user, who may
 change as a copy of the API's policies held to `Policies.cs`, decimals typed as text and sent as numbers, payers in a
-section of their own (Accepted on the owner's approval of the Prompt 7.2 plan, 2026-11-23).
+section of their own (Accepted on the owner's approval of the Prompt 7.2 plan, 2026-11-23),
+0040 the bill screens: one editor for a draft saving what changed, the key of an operation in memory and reused on a
+retry of the same request, live totals by exact arithmetic on BigInt held with the server to one file of cases, names
+in the bill list read per patient and payer (Accepted on the owner's approval of the Prompt 7.3 plan, 2026-11-23).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1936,4 +1943,33 @@ Kept here so they survive between sessions. Remove an item when it is done.
       (the record changed through the API behind the open form) kept and saved over, a service item priced 1250000.1234
       stored exactly and deactivated after the confirmation, and a Viewer with no action and no access to the forms.
     - **Still to do:** the CI job's first run (runbook section 8, row 7.2).
-    - Next: Prompt 7.3 (bill screens).
+    - Next: Prompt 7.3 (bill screens). Done: item 39.
+39. **Prompt 7.3, the bill screens (ADR 0040), written 2026-11-23, built and tested on the office machine.** On
+    `phase-2-billing`. The plan was approved "as recommended" with its four answers: one editor for a draft, the key of an
+    operation in memory, live totals on `BigInt` with no package, names in the list read per patient and payer. No
+    package, no migration, no change of the API.
+    - Built: the bill list (status and bill-date filters, a patient's or payer's bills from their pages, names per row);
+      the bill's view (status, number and fiscal year, parties, lines, the server's totals and balance, the void reason, a
+      banner while it waits for approval, the audit trail); post (confirmed; 200 posted with its number, 202 sent for
+      approval) and void (with a reason) for TenantAdmin, Supervisor and BillingClerk; the draft editor (patient and payer
+      pickers, the patient's own payer chosen for them, lines from the catalogue or in free text, per-line checks and the
+      API's per-line messages at their fields, live totals as an estimate). Shared from here on: `RecordPicker`,
+      `AuditTrail`, `useIdempotentRequest`, `answerWithStatus`, and `useRecordForm`'s mapping of the API's field names.
+    - **One file of cases for two arithmetics:** `frontend/src/bills/lineCases.json` (18 lines) holds both the browser's
+      `lineMath.ts` and the server's `LineCalculator` (`LineCalculatorSharedCasesTests`, Domain, new).
+    - **Changed in existing tests, called out:** three tests that used `/bills` as a page without requests (sign-out,
+      the notice after it, the sign-in's return) use `/reports` instead, since the bill list now reads the API; their
+      expectations are the same.
+    - **Tests:** 262 frontend tests (42 new), Domain 644 (19 new). With five defects put in one at a time (a new key every
+      time, "still running" not retryable, midpoints rounded down, the lines always sent, a 202 taken as posted), each is
+      caught.
+    - **Verified:** in `frontend/`, `npm audit` (none), the format check, lint, types, 262 tests and the build, and the
+      generated types equal to the committed document; in the repository, the Release build and `dotnet format
+      --verify-no-changes` are clean, and Domain 644, Application 423, Architecture 129 and the 743 integration tests
+      without a database pass (the `Database` collection was not run again: no production code of the API changed). **In
+      the browser**, against the API in Development on a throwaway LocalDB database with an approval threshold of 5,000:
+      a draft whose estimate (2,328.21) the server stored to the paisa, corrected by a `PATCH` and a `PUT` (2,511.07 on
+      both sides), posted as BIL/26-27/000001 with its trail; a bill of 9,000 sent for approval (202); a draft voided with
+      its reason; a Viewer with names in the list, no action, and no access to a new bill.
+    - **Still to do:** the CI job's first run (runbook section 8, row 7.3).
+    - Next: Prompt 7.4 (cashier screens).

@@ -17,6 +17,7 @@ export function useRecordForm<T, V extends FieldValues>({
   compared = [],
   valuesOf,
   reload,
+  mapField,
 }: {
   form: UseFormReturn<V>;
   /** The form's fields, named as the API names them, so its messages land on them. */
@@ -25,11 +26,14 @@ export function useRecordForm<T, V extends FieldValues>({
   compared?: readonly ComparedField<T>[];
   valuesOf?: (record: T) => V;
   reload?: () => Promise<T>;
+  /** For a field the API names otherwise than the form (`lines[1].quantity`): the form's field, or null when none. */
+  mapField?: (apiField: string) => Path<V> | null;
 }) {
   const [base, setBase] = useState<T | undefined>(initial);
   const [problem, setProblem] = useState<ApiProblem | null>(null);
   const [conflict, setConflict] = useState<{ latest: T; changes: Change[] } | null>(null);
   const [kept, setKept] = useState(false);
+  const [placed, setPlaced] = useState<string[]>([]);
 
   const clear = () => {
     setProblem(null);
@@ -51,15 +55,23 @@ export function useRecordForm<T, V extends FieldValues>({
     }
 
     const refused = problemOf(error);
-    for (const field of fields) {
-      const message = refused.fieldErrors[field]?.[0];
-      if (message !== undefined) {
+    const known = new Set<string>(fields);
+    const placedNow: string[] = [];
+    for (const [apiField, messages] of Object.entries(refused.fieldErrors)) {
+      const field = mapField?.(apiField) ?? (known.has(apiField) ? (apiField as Path<V>) : null);
+      const message = messages[0];
+      if (field !== null && message !== undefined) {
         form.setError(field, { type: 'server', message });
+        placedNow.push(apiField);
       }
     }
 
+    setPlaced(placedNow);
     setProblem(refused);
   };
+
+  /** The record is now this one (a part of a save went through): the next save sends its version. */
+  const rebase = (record: T) => setBase(record);
 
   const loadLatest = () => {
     if (conflict !== null && valuesOf !== undefined) {
@@ -77,5 +89,5 @@ export function useRecordForm<T, V extends FieldValues>({
     }
   };
 
-  return { base, problem, conflict, kept, failed, clear, loadLatest, keepMine };
+  return { base, problem, conflict, kept, placed, failed, clear, rebase, loadLatest, keepMine };
 }

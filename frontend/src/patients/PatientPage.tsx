@@ -94,6 +94,9 @@ function PatientView({ patient }: { patient: Patient }) {
         <p className={forms.note}>An inactive patient can be read and corrected, but no new bill is raised for them.</p>
       )}
       <PatientPayer patient={patient} canChange={canChange} />
+      <p className={forms.section}>
+        <Link to={`/bills?patientId=${patient.id}`}>The bills of this patient</Link>
+      </p>
     </section>
   );
 }

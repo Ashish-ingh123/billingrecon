@@ -1,0 +1,167 @@
+{
+  "about": "Bill lines and what they come to (BR-202, BR-203). The browser's lineMath.ts and the server's LineCalculator are both held to these cases: ADR 0040 point 3.",
+  "cases": [
+    {
+      "quantity": "3",
+      "unitPrice": "333.3333",
+      "discountAmount": "0.50",
+      "taxRatePercent": "5",
+      "lineAmount": "1000.00",
+      "taxAmount": "49.98",
+      "lineTotal": "1049.48"
+    },
+    {
+      "quantity": "1",
+      "unitPrice": "2.675",
+      "discountAmount": "0",
+      "taxRatePercent": "0",
+      "lineAmount": "2.68",
+      "taxAmount": "0.00",
+      "lineTotal": "2.68"
+    },
+    {
+      "quantity": "1",
+      "unitPrice": "1.005",
+      "discountAmount": "0",
+      "taxRatePercent": "0",
+      "lineAmount": "1.01",
+      "taxAmount": "0.00",
+      "lineTotal": "1.01"
+    },
+    {
+      "quantity": "1",
+      "unitPrice": "0.0050",
+      "discountAmount": "0",
+      "taxRatePercent": "0",
+      "lineAmount": "0.01",
+      "taxAmount": "0.00",
+      "lineTotal": "0.01"
+    },
+    {
+      "quantity": "1",
+      "unitPrice": "0.0049",
+      "discountAmount": "0",
+      "taxRatePercent": "0",
+      "lineAmount": "0.00",
+      "taxAmount": "0.00",
+      "lineTotal": "0.00"
+    },
+    {
+      "quantity": "3",
+      "unitPrice": "0.335",
+      "discountAmount": "0",
+      "taxRatePercent": "0",
+      "lineAmount": "1.01",
+      "taxAmount": "0.00",
+      "lineTotal": "1.01"
+    },
+    {
+      "quantity": "0.001",
+      "unitPrice": "5",
+      "discountAmount": "0",
+      "taxRatePercent": "0",
+      "lineAmount": "0.01",
+      "taxAmount": "0.00",
+      "lineTotal": "0.01"
+    },
+    {
+      "quantity": "0.001",
+      "unitPrice": "4.9999",
+      "discountAmount": "0",
+      "taxRatePercent": "0",
+      "lineAmount": "0.00",
+      "taxAmount": "0.00",
+      "lineTotal": "0.00"
+    },
+    {
+      "quantity": "2.5",
+      "unitPrice": "0.01",
+      "discountAmount": "0",
+      "taxRatePercent": "0",
+      "lineAmount": "0.03",
+      "taxAmount": "0.00",
+      "lineTotal": "0.03"
+    },
+    {
+      "quantity": "999999.999",
+      "unitPrice": "9999.9999",
+      "discountAmount": "0",
+      "taxRatePercent": "0",
+      "lineAmount": "9999999890.00",
+      "taxAmount": "0.00",
+      "lineTotal": "9999999890.00"
+    },
+    {
+      "quantity": "1",
+      "unitPrice": "100",
+      "discountAmount": "0",
+      "taxRatePercent": "18",
+      "lineAmount": "100.00",
+      "taxAmount": "18.00",
+      "lineTotal": "118.00"
+    },
+    {
+      "quantity": "1",
+      "unitPrice": "0.25",
+      "discountAmount": "0",
+      "taxRatePercent": "18",
+      "lineAmount": "0.25",
+      "taxAmount": "0.05",
+      "lineTotal": "0.30"
+    },
+    {
+      "quantity": "1",
+      "unitPrice": "0.10",
+      "discountAmount": "0",
+      "taxRatePercent": "25",
+      "lineAmount": "0.10",
+      "taxAmount": "0.03",
+      "lineTotal": "0.13"
+    },
+    {
+      "quantity": "1",
+      "unitPrice": "999.50",
+      "discountAmount": "0",
+      "taxRatePercent": "5",
+      "lineAmount": "999.50",
+      "taxAmount": "49.98",
+      "lineTotal": "1049.48"
+    },
+    {
+      "quantity": "1",
+      "unitPrice": "1000",
+      "discountAmount": "1000",
+      "taxRatePercent": "18",
+      "lineAmount": "1000.00",
+      "taxAmount": "0.00",
+      "lineTotal": "0.00"
+    },
+    {
+      "quantity": "1",
+      "unitPrice": "33.33",
+      "discountAmount": "0.33",
+      "taxRatePercent": "12.5",
+      "lineAmount": "33.33",
+      "taxAmount": "4.13",
+      "lineTotal": "37.13"
+    },
+    {
+      "quantity": "7",
+      "unitPrice": "142.8571",
+      "discountAmount": "0.99",
+      "taxRatePercent": "28",
+      "lineAmount": "1000.00",
+      "taxAmount": "279.72",
+      "lineTotal": "1278.73"
+    },
+    {
+      "quantity": "12.345",
+      "unitPrice": "67.8901",
+      "discountAmount": "12.34",
+      "taxRatePercent": "0.01",
+      "lineAmount": "838.10",
+      "taxAmount": "0.08",
+      "lineTotal": "825.84"
+    }
+  ]
+}

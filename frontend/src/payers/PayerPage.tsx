@@ -92,6 +92,9 @@ function PayerView({ payer }: { payer: Payer }) {
           An inactive payer receives no new bills, payments or refunds; what they owe is still allocated and reported.
         </p>
       )}
+      <p className={forms.section}>
+        <Link to={`/bills?payerId=${payer.id}`}>The bills this payer owes</Link>
+      </p>
     </section>
   );
 }

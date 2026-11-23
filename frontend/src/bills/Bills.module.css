@@ -1,0 +1,91 @@
+.fromCatalogue {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.totals {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  justify-content: end;
+  gap: 0.25rem 1.5rem;
+  margin: 1rem 0 0;
+}
+
+.totals div {
+  display: contents;
+}
+
+.totals dt {
+  color: var(--text-muted);
+}
+
+.totals dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.grand dt,
+.grand dd {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.estimate {
+  margin: 0.5rem 0 0;
+  text-align: right;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.lineCard {
+  display: grid;
+  grid-template-columns: 2fr repeat(4, minmax(6rem, 1fr)) minmax(7rem, auto) auto;
+  align-items: start;
+  gap: 0.5rem 0.75rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.lineCard:last-child {
+  border-bottom: none;
+}
+
+.lineTotal {
+  padding-top: 1.875rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.lineSource {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.lines {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.addLines {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.remove {
+  margin-top: 1.75rem;
+}
+
+@media (max-width: 64rem) {
+  .lineCard {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .lineTotal {
+    padding-top: 0;
+  }
+}
