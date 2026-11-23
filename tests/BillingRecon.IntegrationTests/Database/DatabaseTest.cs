@@ -32,10 +32,21 @@ public abstract class DatabaseTest(SqlServerFixture sqlServer) : IAsyncLifetime
         where TIdentity : ITenantContext, ICurrentUser
         => new(TestContexts.Options<TestDbContext>(SqlServer.ProbeConnectionString), identity, identity, clock ?? new FakeClock(Now));
 
-    /// <summary>The production context on the migrated application database, for the tenant and user of <paramref name="identity"/>.</summary>
+    /// <summary>
+    /// The production context on the migrated application database, for the tenant and user of <paramref name="identity"/>,
+    /// connected as the application's login: with the grants the application has (ADR 0034).
+    /// </summary>
     protected BillingReconDbContext ApiContext<TIdentity>(TIdentity identity, IClock? clock = null)
         where TIdentity : ITenantContext, ICurrentUser
         => new(TestContexts.Options<BillingReconDbContext>(SqlServer.ApiConnectionString), identity, identity, clock ?? new FakeClock(Now));
+
+    /// <summary>
+    /// The same context connected as the administrator, for a defect a test seeds on purpose that the application's login
+    /// may not cause: a changed or deleted ledger row, a constraint switched off (ADR 0034). Nothing else uses it.
+    /// </summary>
+    protected BillingReconDbContext AdministratorApiContext<TIdentity>(TIdentity identity)
+        where TIdentity : ITenantContext, ICurrentUser
+        => new(TestContexts.Options<BillingReconDbContext>(SqlServer.ApiAdminConnectionString), identity, identity, new FakeClock(Now));
 
     /// <summary>A new tenant, with its row in the application database, and a user of it: who an API test acts as.</summary>
     protected async Task<FixedIdentity> NewApiTenantAsync()

@@ -1,8 +1,8 @@
 # Security
 
-Authentication, authorisation, tenant isolation, maker-checker, secrets, data protection and the audit, as built, with
-the decisions they come from. Written with Prompt 5.3 (2026-11-21) and brought up to date with Prompt 5.3b; the threat
-model at the end lists what is known and not done yet.
+Authentication, authorisation, tenant isolation, maker-checker, secrets, data protection, the audit and the database
+logins, as built, with the decisions they come from. Written with Prompt 5.3 (2026-11-21) and brought up to date with
+Prompts 5.3b and 5.4; the threat model at the end lists what is known and not done yet. Prompt 5.4b writes it in full.
 
 ---
 
@@ -64,8 +64,23 @@ signs everybody out (`docs/runbook.md` section 9).
 - Phone numbers and e-mail addresses are masked before any log sink (ADR 0012); the request log leaves out query
   strings.
 - Every change of a financial or security-relevant record writes an audit record in its transaction, with who, when,
-  the correlation id and the record before and after (BR-701 to BR-703, ADR 0020). The grants that stop the
-  application's login from changing or deleting audit records are Prompt 5.4.
+  the correlation id and the record before and after (BR-701 to BR-703, ADR 0020).
+
+## 7. The database logins (ADR 0034)
+
+- The API connects as `billingrecon_app`, a member of the database role `billingrecon_application` alone; the
+  migrations run as `billingrecon_migrator` (`db_ddladmin`, `db_datareader`, `db_datawriter`, `db_securityadmin`).
+  Neither is `db_owner` nor can create a database. The logins and their passwords are made per environment
+  (`docs/runbook.md` section 10), never in git.
+- The role reads, adds and changes the tables of `dbo`. It cannot change or delete a ledger row or an audit record
+  (`DENY`), deletes only the four kinds of row that are not financial records (lines of a draft, roles of a user, the
+  key of a failed request), and only reads the roles and the migrations history (`docs/database.md` section 7). So a
+  statement that goes around the guards of the context, through raw SQL, a tool or a leaked connection string, is
+  still refused at the database (error 229).
+- Every database test runs as such a login, and a table-driven test compares each table's grants with the markers of
+  its entities.
+
+## 8. Threat model: known gaps
 
 ## 7. Threat model: known gaps
 
@@ -74,5 +89,6 @@ signs everybody out (`docs/runbook.md` section 9).
 | Guessing passwords | No rate limit or lockout of sign-ins; the slow hash limits the speed per guess | A follow-up of ADR 0031 (point 12) |
 | A stolen token | Valid until it expires, at most 60 minutes; no revocation | Accepted for R1 (ADR 0031 point 8) |
 | A disabled user or a removed role | Takes effect at the next sign-in | Accepted for R1 (ADR 0031 point 8, ADR 0032 point 8) |
-| The application's database login changing what it must not | No grants yet; the guards of the EF layer refuse it | Prompt 5.4 |
+| The application's database login changing what it must not | Refused at the database since Prompt 5.4: no DELETE of a financial row, no UPDATE or DELETE of the ledger and the audit trail (section 7); the EF guards refuse it first | Done (ADR 0034) |
+| The application's login reading what it should not, or another tenant's rows through raw SQL | It reads every table of the schema; the tenant filter of the context, not the database, keeps tenants apart, and the four sanctioned raw-SQL statements name the tenant | As designed (ADR 0009: a query filter, not row-level security); the threat model of Prompt 5.4b weighs it |
 | Transport and host headers | TLS, allowed hosts and the server header are not settled | Review finding 2.4 (CLAUDE.md section 9) |

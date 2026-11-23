@@ -547,7 +547,8 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
 
     private async Task ExecuteAsync(string sql)
     {
-        await using var context = ApiContext(SystemIdentity.Instance);
+        // A defect seeded on purpose, which the application's login may not cause (ADR 0034).
+        await using var context = AdministratorApiContext(SystemIdentity.Instance);
 
         await context.Database.ExecuteSqlRawAsync(sql);
     }

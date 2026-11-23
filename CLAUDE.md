@@ -45,7 +45,7 @@ the domain model, the schema and the tests.
 | Web API | **ASP.NET Core Web API with controllers** | No minimal APIs. Controllers derive from `ApiControllerBase`, are `sealed`, end in `Controller` (architecture test). Every route is under `/api/v1` (ADR 0013). Every error is an RFC 9457 ProblemDetails (ADR 0011). Health checks at `/health/live` (process is up) and `/health/ready` (the application database is reachable and has no pending migration), both anonymous. |
 | Authentication | **JWT bearer** (`Microsoft.AspNetCore.Authentication.JwtBearer` 10.0.12) | The API issues its own tokens at `POST /api/v1/auth/login` and checks them on every request: HS256 with `Jwt:SigningKey`, issuer `BillingRecon`, audience `BillingRecon.Api`, 60 minutes by the application's clock, claims `sub`, `tenant_id`, `role`. The tenant and user of a request come from its token only (`RequestPrincipalIdentity`). Deny by default: a fallback policy needs a user on every endpoint but the sign-in, the health checks and, in Development, OpenAPI and Scalar (an architecture test lists them). In Development a request without a token acts as the development user. ADR 0031. **Roles:** every action names exactly one policy of `Policies`, one per capability of the permission matrix (`docs/requirements.md` section 1); a role the policy does not admit gets 403 `forbidden`; a table-driven test walks every endpoint with every role. The checker's role (BR-603) is also checked by `ApprovalRequest` itself. ADR 0032. |
 | OpenAPI | **Built-in OpenAPI + Scalar UI**, Development only | `AddOpenApi`/`MapOpenApi` (document at `/openapi/v1.json`) and `MapScalarApiReference` (`/scalar`), mapped only when the environment is Development. |
-| Data | **EF Core 10 + SQL Server** | One context, `BillingReconDbContext`, whose conventions do the repetitive work (ADR 0015, section 5 below). Migrations live in `Infrastructure/Common/Migrations`, are applied at startup in Development only, and are a deployment step elsewhere. `dotnet-ef` is a local tool (`.config/dotnet-tools.json`, `dotnet tool restore`) at the same version as the EF Core packages; it uses the Infrastructure project and its design-time factory, never the API. SQL Server 2022 in Docker for dev and tests. |
+| Data | **EF Core 10 + SQL Server** | One context, `BillingReconDbContext`, whose conventions do the repetitive work (ADR 0015, section 5 below). Migrations live in `Infrastructure/Common/Migrations`, are applied at startup in Development only, and are a deployment step elsewhere. `dotnet-ef` is a local tool (`.config/dotnet-tools.json`, `dotnet tool restore`) at the same version as the EF Core packages; it uses the Infrastructure project and its design-time factory, never the API. SQL Server 2022 in Docker for dev and tests. **Logins (ADR 0034):** outside Development the API connects as `billingrecon_app`, a member of the database role `billingrecon_application` alone, which migration `0020_DatabaseRoles` creates with its grants (`docs/database.md` section 7); the migrations run as `billingrecon_migrator` (`db_ddladmin`, `db_datareader`, `db_datawriter`, `db_securityadmin`); the logins are made per environment (`docs/runbook.md` section 10). The database has `READ_COMMITTED_SNAPSHOT ON`, as EF Core creates one: the application relies on readers not waiting for writers. |
 | Banned APIs | **Microsoft.CodeAnalysis.BannedApiAnalyzers** | `src/BannedSymbols.txt` lists what production code must not call (system time and the machine's time zone, `IgnoreQueryFilters`, `EntityEntry.Reload`/`GetDatabaseValues`, `ExecuteUpdate`/`ExecuteDelete`, and since Prompt 3.1 every raw-SQL entry point of EF Core: `ExecuteSql*`, `SqlQuery*`, `FromSql*`, `GetDbConnection`); a call is build error RS0030. Five files may suppress it, each for one named reason: `SystemClock` (the system time); three that send constant, parameterised, tenant-bound SQL statements: `NumberSeriesAllocator` (two: the locked read-and-increment of a series, and since 2026-11-23 the same locked read alone, with which an approved prefix change holds its series, ADR 0033 "Amended 2026-11-23"), `ReceivablesLedger` (one: the locked change of a payer's balances) and `ReconciliationQuery` (one, read-only); and `LoginUserLookup`, the one `IgnoreQueryFilters`, around one query with the tenant in its predicate, because a sign-in has no tenant yet (ADR 0031). A sixth needs an ADR. Tests guard the list and where the rule may be suppressed (ADR 0015, ADR 0021). |
 | Validation | **FluentValidation** (12.2.0) | One public validator per command or query that has a shape to check, in the Application layer, run by its handler as the handler's first step; it checks the shape (presence, lengths, formats, ranges), the domain and the handler the business rules. A failure is 400 `validation_failed` with messages per field (ADR 0018). The API registers the validators with its scan of the Application assembly. |
 | Logging | **Serilog** | Compact JSON on the console, plus Seq when `Seq:ServerUrl` is set. Every event of a request carries CorrelationId (from `X-Correlation-Id` or generated, BR-703), and TenantId and UserId when the request is authenticated. Phone numbers and e-mail addresses are masked before any sink (ADR 0012). |
@@ -119,6 +119,8 @@ Office machine:
   `SqlServerFixture` can also be pointed at LocalDB (a patch to the copy only, never to the repository), so the
   whole `Database` collection runs here as a pre-check; the run with Docker on the personal machine stays the
   proof. LocalDB 2022 is not installed: its installer needs a licence acceptance, which is the owner's to give.
+  LocalDB here runs in mixed mode (SQL logins work), so the fixture's migrator and application logins (ADR 0034) run
+  on it too; it keeps its logins between runs, and the fixture gives them a new password each run.
 - **Since 2026-11-21 this machine has the .NET 10 SDK (10.0.404), installed by the owner.** `dotnet build`,
   `dotnet format` and `dotnet test` work here, and so does the repository's `dotnet-ef` 10.0.12. What still cannot
   run here is the `Database` collection as written: it needs Docker. **Since 2026-11-21 the migrations `0001` to
@@ -294,7 +296,8 @@ src/
                                 with its repository and read service, registered by AddPayments (Payments).
                                 The PrefixChanges table with its repository and read service, PrefixUsage and
                                 TenantRepository (Identity); NumberSeriesRepository (Common/Numbering). ADR 0033.
-                                Migrations go to Common/Migrations.
+                                Migrations go to Common/Migrations; `0020_DatabaseRoles` is the application's role
+                                and its grants, written by hand (ADR 0034).
   BillingRecon.Api/             Controllers, middleware and filters (correlation id, idempotency, tenant resolution),
                                 the error contract (Common/Errors: exception handler, Error to ProblemDetails mapper),
                                 authentication/authorisation, OpenAPI + Scalar, Program.cs (composition root),
@@ -323,7 +326,11 @@ tests/
                                    entities in a derived context). Database/: the `Database` collection on a real
                                    SQL Server 2022 (one Testcontainers container per run, a migrated and a probe
                                    database, Respawn resets; ADR 0016) and DatabaseApiFactory, which hosts the API
-                                   against it acting for a tenant. Support/: FakeClock, FixedIdentity,
+                                   against it acting for a tenant. The migrated database is made as the runbook makes
+                                   one: migrated by a login with the migrator's four roles, used by a login with the
+                                   application's role alone, so the API host and the production contexts run with the
+                                   production grants; a defect seeded on purpose uses AdministratorApiContext (ADR
+                                   0034). Support/: FakeClock, FixedIdentity,
                                    ThrowingIdentity, the CreateClientFor helper (every request carries a bearer token
                                    minted for it by the API's own issuer, ADR 0031), TestRoles, the Bogus-based TestData.
   BillingRecon.ArchitectureTests/  NetArchTest and file scans: layer rule, module rule with its listed exceptions,
@@ -464,20 +471,25 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
    Prompt 5.3 on; until then any second user of the tenant can decide.
 
 10. **No hard deletes of financial data** (BR-005, BR-102, BR-105). No `DELETE` statements and no
-    `DbSet.Remove` against financial tables; the application login has no DELETE grant on them.
+    `DbSet.Remove` against financial tables; the application login has no DELETE grant on them
+    (built with Prompt 5.4: the role `billingrecon_application`, ADR 0034, `docs/database.md` section 7).
     `ExecuteDelete` is banned outright (ADR 0015).
     Lifecycle is by status (Draft, PendingApproval, Posted, PartiallyPaid, Settled, Voided,
     Reversed) and by reversal documents. Drafts are voided, not deleted. Patients, payers and
     service items are deactivated by status, never deleted. **Two exceptions, neither a financial
     record:** a line of a *draft* bill is deleted when the draft's lines are replaced (ADR 0019),
     and the record of an idempotency key is deleted when its request failed with a fault, or when
-    it has expired (ADR 0006). The context refuses to delete a row of any entity that is not marked
-    `IHardDeletable`, which only `BillLine` and `IdempotencyKey` are; a test lists them.
+    it has expired (ADR 0006). Since then two more of the same kind: a line of a draft credit note
+    (ADR 0025) and a role of a user when the user's roles are replaced (ADR 0030). The context refuses
+    to delete a row of any entity that is not marked `IHardDeletable`, which only `BillLine`,
+    `CreditNoteLine`, `UserRole` and `IdempotencyKey` are; a test lists them, and the database grants
+    DELETE on their four tables alone (ADR 0034).
 
 11. **Append-only audit** (BR-701 – BR-703). Every state change to a financial or security-relevant
     entity writes an audit record (who, when in UTC, tenant, entity, action, before/after JSON,
     correlation id) in the same transaction. Audit and ledger tables are insert-only for the
-    application login: no UPDATE, no DELETE.
+    application login: no UPDATE, no DELETE (a `DENY` of the role `billingrecon_application` since
+    Prompt 5.4, ADR 0034).
     As built (ADR 0020): an aggregate is audited by raising a domain event, and **every state change
     raises one**, raised only when something really changed. The unit of work dispatches the events
     before it saves, and the generic `AuditSubscriber`, the only subscriber, writes one `AuditRecord`
@@ -554,7 +566,11 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
   the context, `FK_<Table>_<Column>`, whichever module the other entity is in: a configuration does
   not declare it and never names another module's entity for it (ADR 0021). A migration may carry
   one hand-written, idempotent data statement at the end of `Up()` when the model cannot express
-  it; the line is in the runbook and a test checks it (ADR 0021).
+  it; the line is in the runbook and a test checks it (ADR 0021). The database grants are the one
+  migration written wholly by hand, `0020_DatabaseRoles` (ADR 0034): a later table takes the schema's
+  `SELECT, INSERT, UPDATE`, and a table of an `IAppendOnly` or `IHardDeletable` entity adds its
+  `DENY UPDATE, DELETE` or `GRANT DELETE` line to its own migration; `DatabasePermissionsOnSqlServerTests`
+  fails with the line to add.
 - **Use cases** (ADR 0018). One public sealed handler per command or query, behind
   `ICommandHandler<TCommand, TResult>` or `IQueryHandler<TQuery, TResult>`, returning `Result<T>`. A
   command handler validates (`validator.GetErrorAsync` first), loads through a repository, compares
@@ -614,9 +630,9 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 | `docs/database.md` | Conventions, ER diagram, every R1 table with types/keys/indexes/CHECKs, number-series lock, ledger accounts and posting templates, balance identities and reconciliation SQL, idempotency lifecycle, permissions, migrations |
 | `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), the adjustment endpoints (Prompt 4.4), the reversal endpoints of payments and allocations (Prompt 4.5), the refunds (Prompt 4.6), the users (Prompt 5.1), authentication with the sign-in (Prompt 5.2), the permissions of each role (Prompt 5.3), and the tenant settings with the prefix changes (Prompt 5.3b) |
 | `docs/build-prompts.md` | The build prompts from zero to R1, reconstructed on 2026-11-20: what each finished prompt built, and the wording and order of the prompts still to give. Its phase numbers are the ones this file uses |
-| `docs/security.md` | Authentication, authorisation, tenancy, maker-checker, secrets, data protection, and the known gaps of the threat model. Written with Prompt 5.3, brought up to date with Prompt 5.3b |
+| `docs/security.md` | Authentication, authorisation, tenancy, maker-checker, secrets, data protection, the database logins, and the known gaps of the threat model. Written with Prompt 5.3, brought up to date with Prompts 5.3b and 5.4; written in full by 5.4b |
 | `docs/testing-strategy.md` | Test pyramid, tooling, database tests, architecture tests, CI gates |
-| `docs/runbook.md` | Written so far: local infrastructure, the "Verify on a Docker machine" checklist, migrations, tests, CI, the container image, idempotency keys, the deferred verification list, and sign-in with the signing key (section 9). Still to come: backups, incident procedures |
+| `docs/runbook.md` | Written so far: local infrastructure, the "Verify on a Docker machine" checklist, migrations, tests, CI, the container image, idempotency keys, the deferred verification list, sign-in with the signing key (section 9), and the database logins with the migrations outside Development (section 10). Still to come: backups, incident procedures |
 | `docs/adr/` | Architecture Decision Records. ADR 0000 defines the format. |
 
 ADRs so far: 0000 record decisions, 0001 target framework (.NET 8; superseded by 0014),
@@ -669,7 +685,10 @@ checker's role checked by the decision itself (Accepted on the owner's approval 
 document whose approval changes the default and this year's series, a prefix that belongs to one document type for
 good (Accepted on the owner's approval of the Prompt 5.3b plan, 2026-11-21; its built note point 5, the first number
 of a year taken during an approval, was closed on the owner's decision of 2026-11-23: the approval holds the series,
-"Amended 2026-11-23", which also amends ADR 0021 point 3 for the allocator's file).
+"Amended 2026-11-23", which also amends ADR 0021 point 3 for the allocator's file),
+0034 database roles, grants and the logins of the application: a migration of grants written by hand, schema-wide with
+the exceptions of the markers, the migrator's four roles, every database test as the application's login, the role
+owned by `dbo`, and `READ_COMMITTED_SNAPSHOT` (Accepted on the owner's approval of the Prompt 5.4 plan, 2026-11-23).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -780,17 +799,18 @@ Kept here so they survive between sessions. Remove an item when it is done.
    - built 2026-11-20 with the dispatch of domain events (Prompt 3.4, ADR 0020): the tenant and audit columns
      are stamped before the events are dispatched, and a commit reads the clock once
      (`BillingReconDbContext.BeginCommit` and `EndCommit`);
-   - with the logins of `docs/database.md` section 7: the grants, including `SELECT` on
-     `__EFMigrationsHistory` for the API's login, without which `/health/ready` can never answer 200;
+   - built 2026-11-23 with Prompt 5.4 (ADR 0034, item 32): the logins of `docs/database.md` section 7 and their
+     grants, including `SELECT` on `__EFMigrationsHistory` for the API's login, without which `/health/ready` could
+     never answer 200; and the procedure for applying migrations outside Development with the migration login
+     (`docs/runbook.md` section 10);
    - built 2026-11-21 with Prompt 5.2 (ADR 0031): `LoginUserLookup` as the one sanctioned use of
-     `IgnoreQueryFilters`, in `BannedSymbolsTests`. Still due: the procedure for applying migrations outside
-     Development with the migration login.
+     `IgnoreQueryFilters`, in `BannedSymbolsTests`.
 6. **Review findings of 2026-10-03 that are still open** (numbering from that review):
    - 1.1 closed 2026-10-17: the module rule and its two exceptions are written in ADR 0003 (amendment) and
      `ModuleDependencyTests`; Audit is generic over `IDomainEvent`, approval handlers live with their documents,
      aggregates take ids rather than each other.
    - 2.3 closed 2026-11-21 by Prompt 5.2: deny by default, a fallback policy that needs a user (ADR 0031);
-     2.4 TLS, allowed hosts, server header;
+     2.4 TLS, allowed hosts, server header (Prompt 5.4b);
      2.5 package lock files, `nuget.config`, transitive pinning (the CI cache keys on `Directory.Packages.props`
      and the project files instead of lock files).
    - 3.1, 3.2 and 3.3 closed 2026-10-17 (`ConventionTests`, `ModuleDependencyTests`, `LayerDependencyTests`:
@@ -799,8 +819,9 @@ Kept here so they survive between sessions. Remove an item when it is done.
      the layer tests; 3.7 xunit 2 is deprecated in favour of xunit.v3.
    - 4.3 most `.editorconfig` style rules were not enforced by the build on the .NET 8 SDK (the .NET 10 SDK
      enforced one more on 2026-10-17, explicit accessibility on interface members, which seven interfaces
-     gained; re-check the rest); 4.6 the version endpoint always says `1.0.0`; 4.7 `docs/security.md` is still a
-     stub (`docs/testing-strategy.md` was written with Prompt 1.4, `docs/api.md` with Prompt 2.2).
+     gained; re-check the rest); 4.6 the version endpoint always says `1.0.0`; 4.7 `docs/security.md` is no longer a
+     stub (Prompts 5.3 to 5.4) and is written in full by Prompt 5.4b (`docs/testing-strategy.md` was written with
+     Prompt 1.4, `docs/api.md` with Prompt 2.2).
    - 5.2 placeholder READMEs restate the module map; 5.3 one redundant test theory; 5.4 redundant build properties.
    - Closed by the DbContext step: 1.2 (the time rule is enforced by the banned-API analyzer, and the list
      includes `DateTimeOffset.UtcNow`) and 4.5 (`IClock` is an Application port, ADR 0015).
@@ -1579,4 +1600,41 @@ Kept here so they survive between sessions. Remove an item when it is done.
     - **Still to do:** SQL Server 2022 in Docker.
     - Next: Prompt 5.4 (database logins and grants), with the plan approved on 2026-11-23: split into 5.4 (logins and
       grants, migration `0020_DatabaseRoles`, ADR 0034) and 5.4b (TLS and HSTS, hosts, server header, sign-in rate
-      limit, CORS, `docs/security.md` in full).
+      limit, CORS, `docs/security.md` in full). Done: item 32.
+32. **Prompt 5.4, first half: database logins and grants (ADR 0034), written 2026-11-23, built and tested on .NET 10.**
+    On `phase-2-billing`, after the fix of item 31. The plan was approved "as recommended" with the fix; it split the
+    prompt: this is 5.4, the HTTP hardening and `docs/security.md` in full are 5.4b. Migration `0020_DatabaseRoles`,
+    scaffolded empty in the throwaway copy with the repository's `dotnet-ef`, copied back and written by hand.
+    - Built: the role `billingrecon_application` (owned by `dbo`) with schema-wide `SELECT, INSERT, UPDATE`,
+      `DENY UPDATE, DELETE` on the ledger and the audit trail, `DELETE` on the four `IHardDeletable` tables only, and
+      `Roles` and `__EFMigrationsHistory` read only; `docs/runbook.md` section 10 (the database, the two logins, the
+      migrations as the migrator, the check); `docs/database.md` section 7 rewritten (it listed DELETE on two tables of
+      the four); `docs/security.md` section 7.
+    - Decided by the owner with the plan (ADR 0034 points 1 to 4): the grants in a migration; schema-wide with the
+      markers' exceptions; the migrator's four roles; the database tests as the application's login.
+    - **Settled or found in the build (ADR 0034 points 5 to 7):** the role is created `AUTHORIZATION [dbo]` (otherwise
+      the migrator's user owned it); every run migrates as a login with the migrator's four roles (the plan kept the
+      administrator; this proves the runbook); and **the application relies on `READ_COMMITTED_SNAPSHOT ON`**, which EF
+      Core sets when it creates a database and a plain `CREATE DATABASE` does not: on a database made by hand, a read
+      waited for the open transaction of an idempotent request until it timed out. The runbook's database and the
+      fixture's set it, and a test checks it.
+    - **Test support changed:** `SqlServerFixture` creates the application database, the two logins (random passwords
+      per run) and their users; `ApiConnectionString` is the application's login, `ApiAdminConnectionString` and
+      `AdminConnectionStringFor` the administrator's (Respawn, the probe database, the databases a test creates);
+      `DatabaseTest.AdministratorApiContext` for a defect seeded on purpose, used by the eight helpers that change a
+      ledger row, a balance or a document behind the application's back (their expectations are unchanged).
+    - **Tests:** `DatabasePermissionsOnSqlServerTests` (the prompt's test: the application login gets 229 deleting a
+      bill or changing or deleting an audit record or a ledger row; the API connects as that login, which is no
+      administrator and holds the role alone; the role and grants belong to `dbo`; `READ_COMMITTED_SNAPSHOT`; every
+      table's permissions against its markers, failing with the line to add); `MigrationsTests` (the twentieth
+      migration and its script); `MigrationsOnSqlServerTests` lists twenty migrations. With the `DENY` on
+      `AuditRecords` and the `GRANT DELETE` on `UserRoles` removed in a copy, four tests fail, among them the users API
+      test that replaces roles.
+    - **Verified on .NET 10 (SDK 10.0.404):** in the repository, the Release build and `dotnet format
+      --verify-no-changes` are clean, and Domain 625, Application 394, Architecture 121 and the 660 integration tests
+      without a database pass; in a throwaway copy on LocalDB 2019 the integration project passes in full (1127 tests),
+      and the permission, idempotency, settings, users, readiness and migration tests (70) ran three more times without
+      a failure.
+    - **Still to do:** SQL Server 2022 in Docker (runbook section 8, row 5.4); the logins of runbook section 10 in each
+      environment.
+    - Next: Prompt 5.4b (HTTP hardening and `docs/security.md` in full), with its own plan.

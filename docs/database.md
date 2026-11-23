@@ -1073,25 +1073,31 @@ Only 2xx and 4xx responses are stored; a 5xx leaves no `Completed` row.
 
 ## 7. Database permissions
 
-Two logins. Migrations run as `billingrecon_migrator` (ddl_admin, db_datawriter). The API runs as
-`billingrecon_app` with:
+Two logins (ADR 0034). Migrations run as `billingrecon_migrator`, a member of `db_ddladmin`, `db_datareader`,
+`db_datawriter` and `db_securityadmin`: it changes the schema, runs the data steps (ADR 0021) and creates the role and
+its grants; it is not `db_owner` and cannot create a database. The API runs as `billingrecon_app`, a member of the
+database role **`billingrecon_application`** and of nothing else. Migration `0020_DatabaseRoles` creates the role, owned
+by `dbo`, with:
 
 | Tables | Permissions |
 |---|---|
-| All tables not listed below | `SELECT`, `INSERT`, `UPDATE` |
-| `LedgerPostings`, `LedgerEntries`, `AuditRecords` | `SELECT`, `INSERT` (BR-402, BR-702) |
-| `IdempotencyKeys` | `SELECT`, `INSERT`, `UPDATE`, `DELETE` (expiry sweep and reservation cleanup) |
-| `BillLines` | `SELECT`, `INSERT`, `UPDATE`, `DELETE`. The one business table with `DELETE`: replacing the lines of a draft removes the ones no longer wanted (BR-204, ADR 0019). The grant cannot tell a draft's line from a posted bill's; the aggregate allows it for drafts only, and the context refuses to delete a row of any other entity |
-| `Roles` | `SELECT` |
-| `__EFMigrationsHistory` | `SELECT`. The readiness check compares the migrations this table lists with the ones in the build; without the grant the API can never report ready (ADR 0015). EF Core creates the table, so its grant is not part of any table's migration: it belongs to the step that creates the logins. |
+| Every table of `dbo` not listed below, including tables later migrations add | `SELECT`, `INSERT`, `UPDATE` (`GRANT … ON SCHEMA::[dbo]`) |
+| `LedgerPostings`, `LedgerEntries`, `AuditRecords` (`IAppendOnly`) | `SELECT`, `INSERT`; `DENY UPDATE, DELETE` (BR-402, BR-702) |
+| `BillLines`, `CreditNoteLines`, `UserRoles`, `IdempotencyKeys` (`IHardDeletable`) | `SELECT`, `INSERT`, `UPDATE`, `DELETE`. Replacing the lines of a draft bill or credit note (BR-204, ADR 0019), the roles of a user (ADR 0030), and the key of a request that failed or expired (ADR 0006). The grant cannot tell a draft's line from a posted document's; the aggregate allows it for drafts only, and the context refuses to delete a row of any other entity |
+| `Roles` | `SELECT`; `DENY INSERT, UPDATE, DELETE` (reference data migration `0018` wrote) |
+| `__EFMigrationsHistory` | `SELECT`; `DENY INSERT, UPDATE, DELETE`. The readiness check compares the migrations this table lists with the ones in the build; without `SELECT` the API could never report ready (ADR 0015) |
 
-There is no `DELETE` grant on any other financial table; an EF `Remove` on one would fail at the database
-even if an architecture test missed it (BR-005). Since Prompt 2.4 it fails before that, in the context:
-`HardDeleteGuardInterceptor` refuses a save that deletes a row of any entity but `BillLine` (ADR 0019).
+There is no `DELETE` on any other table; a delete of a financial row fails at the database (error 229) even if the
+code above it went around the context (BR-005). Since Prompt 2.4 an EF `Remove` fails before that, in the context
+(`HardDeleteGuardInterceptor`, ADR 0019), and since Prompt 3.4 an update of an append-only row too
+(`AppendOnlyGuardInterceptor`, ADR 0020).
 
-Neither login exists yet: development and the tests run as `sa`, and no migration contains a
-`GRANT`. Until the logins and their grants are created, nothing at the database stops a delete or an
-update of an append-only table (CLAUDE.md, section 9).
+`DatabasePermissionsOnSqlServerTests` reads every table's permissions as the application's login and compares them with
+the markers of the table's entities: a new append-only or deletable table needs its line in its migration, and the test
+says which. The logins, their passwords and the creation of the database are `docs/runbook.md` section 10. The database
+is created with **`READ_COMMITTED_SNAPSHOT ON`**, as EF Core creates one: the application relies on readers not
+waiting for writers (ADR 0034, point 6). The database tests create their application database the same way, migrate it
+as a login with the migrator's four roles and run as one with the application's role (ADR 0034, point 4).
 
 ---
 
@@ -1121,12 +1127,15 @@ update of an append-only table (CLAUDE.md, section 9).
   | `0016_CreditApplicationReversals` | The reversal columns of `CreditNoteAllocations` and `AppliedAtPosting` (§3.3, "Added by migration `0016_CreditApplicationReversals`") | In the repository: `20261121082530_0016_CreditApplicationReversals`, scaffolded with EF Core 10.0.12 on 2026-11-21 on the office machine with the repository's `dotnet-ef` in a throwaway copy (the tool manifest in the repository carries the "came from another computer" mark, CLAUDE.md section 2) and copied back; verified in the repository: no pending model change. No table: five columns, three CHECK constraints (one of them created again) and one foreign key on `CreditNoteAllocations`. Not yet applied to SQL Server 2022. |
   | `0017_Refunds` | `Refunds` (§3.4, "Built 2026-11-21 (Prompt 4.6)") | In the repository: `20261121095549_0017_Refunds`, scaffolded with EF Core 10.0.12 on 2026-11-21 on the office machine with the repository's `dotnet-ef` in a throwaway copy (as `0016`) and copied back; verified in the repository: no pending model change. It holds `Refunds` alone: nine CHECK constraints, five foreign keys and five indexes, and nothing on another table. Not yet applied to SQL Server 2022. |
   | `0018_Users` | `Roles`, `Users`, `UserRoles` (§3.1, "Built 2026-11-21 (Prompt 5.1)") and the keys of every earlier user column | In the repository: `20261121103039_0018_Users`, scaffolded with EF Core 10.0.12 on 2026-11-21 on the office machine with the repository's `dotnet-ef` in a throwaway copy (as `0016`) and copied back; verified in the repository: no pending model change. Three tables, the five rows of `Roles`, and 34 foreign keys on earlier tables; no column of an earlier table changes. It fails on a development database whose rows name users that have no row: drop that database first (`docs/runbook.md` section 1). Not yet applied to SQL Server 2022. |
+  | `0019_PrefixChanges` | `PrefixChanges` (§3.6) and two checks on `Tenants` (ADR 0033) | In the repository: `20261121123625_0019_PrefixChanges`, scaffolded with EF Core 10.0.12 on 2026-11-21 on the office machine with the repository's `dotnet-ef` in a throwaway copy (as `0016`) and copied back; verified in the repository: no pending model change. One table, `CK_ApprovalRequests_DocumentType` created again with `PrefixChange`, and `CK_Tenants_PrefixesDistinct` and `CK_Tenants_PostingApprovalThreshold` (`docs/runbook.md` section 8 B). Not yet applied to SQL Server 2022. |
+  | `0020_DatabaseRoles` | The role `billingrecon_application` and its grants (§7) | In the repository: `20261123060549_0020_DatabaseRoles`, scaffolded empty with EF Core 10.0.12 on 2026-11-23 on the office machine in a throwaway copy (the model did not change; the snapshot is unchanged) and written by hand with `migrationBuilder.Sql`, as ADR 0034 allows. No table: one role owned by `dbo`, the grants of §7, a `Down()` that empties and drops the role. Applied in every run of the database tests by a login with the migrator's four roles; not yet applied to SQL Server 2022. |
 
 - CHECK constraints, unique and filtered indexes and computed columns are declared in the EF model
   (the entity configuration, or a convention of the context), so a scaffolded migration needs no
   hand editing and the model snapshot knows them. `migrationBuilder.Sql` is for what EF Core cannot
-  express, such as the permission grants of §7, added in the migration that creates the table
-  (ADR 0015).
+  express: the one data statement of `0008` (ADR 0021), and the role and grants of §7, which are migration
+  `0020_DatabaseRoles` (ADR 0034). A later table takes the schema's grants; an append-only or deletable one adds its
+  line to its own migration.
 - A test without a database fails when the model has a change that no migration contains, and
   others compare the script of the migrations with §3.1, §3.2 and §3.3.
 - Applied automatically when the API starts **in Development only**; everywhere else they are a

@@ -694,6 +694,47 @@ public sealed class MigrationsTests : IDisposable
         prefixChanges.ShouldContain("ALTER TABLE [Tenants] ADD CONSTRAINT [CK_Tenants_PostingApprovalThreshold] CHECK ([PostingApprovalThreshold] IS NULL OR [PostingApprovalThreshold] > 0)", Case.Sensitive);
     }
 
+    [Fact]
+    public void The_twentieth_migration_is_0020_DatabaseRoles()
+    {
+        var migrations = _context.Database.GetMigrations().ToArray();
+
+        migrations.Length.ShouldBeGreaterThanOrEqualTo(20, $"The DatabaseRoles migration is missing. {HowToAdd.Replace("<name>", "0020_DatabaseRoles", StringComparison.Ordinal)}");
+        migrations[19].ShouldEndWith("_0020_DatabaseRoles");
+    }
+
+    [Fact]
+    public void ADR0034_the_migrations_create_the_applications_role_with_its_grants_and_change_no_table()
+    {
+        var script = _context.GetService<IMigrator>().GenerateScript();
+        var roles = Between(script, "_0019_PrefixChanges", "_0020_DatabaseRoles");
+
+        // The role and its grants, written by hand (ADR 0034): the schema's tables to read, add and change; the ledger and
+        // the audit trail never changed or deleted; deleted only the rows that are not financial records; the roles and
+        // the history read only.
+        roles.ShouldContain("IF DATABASE_PRINCIPAL_ID(N'billingrecon_application') IS NULL EXEC(N'CREATE ROLE [billingrecon_application] AUTHORIZATION [dbo]');", Case.Sensitive);
+        roles.ShouldContain("GRANT SELECT, INSERT, UPDATE ON SCHEMA::[dbo] TO [billingrecon_application];", Case.Sensitive);
+        foreach (var table in new[] { "LedgerPostings", "LedgerEntries", "AuditRecords" })
+        {
+            roles.ShouldContain($"DENY UPDATE, DELETE ON [dbo].[{table}] TO [billingrecon_application];", Case.Sensitive);
+        }
+
+        foreach (var table in new[] { "BillLines", "CreditNoteLines", "UserRoles", "IdempotencyKeys" })
+        {
+            roles.ShouldContain($"GRANT DELETE ON [dbo].[{table}] TO [billingrecon_application];", Case.Sensitive);
+        }
+
+        roles.ShouldContain("DENY INSERT, UPDATE, DELETE ON [dbo].[Roles] TO [billingrecon_application];", Case.Sensitive);
+        roles.ShouldContain("DENY INSERT, UPDATE, DELETE ON [dbo].[__EFMigrationsHistory] TO [billingrecon_application];", Case.Sensitive);
+        roles.Split("GRANT DELETE").Length.ShouldBe(5, "DELETE is granted on the four tables above and nowhere else");
+
+        // Nothing else: no table changes, no login or password, no wider right.
+        foreach (var absent in new[] { "CREATE TABLE", "ALTER TABLE", "DROP ", "CREATE LOGIN", "CREATE USER", "PASSWORD", "CONTROL", "ALTER ON", "EXECUTE", "db_owner" })
+        {
+            roles.ShouldNotContain(absent, Case.Insensitive);
+        }
+    }
+
     // The part of the script of all migrations that the migration named second adds: each migration's part ends with the
     // row it writes to the history, which names it, so the part runs from the name of the one before to its own.
     private static string Between(string script, string from, string to)

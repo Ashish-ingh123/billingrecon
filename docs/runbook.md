@@ -259,7 +259,8 @@ dotnet ef database update --project src/BillingRecon.Infrastructure --connection
 ```
 
 Outside Development the API never migrates. Applying migrations there is a deployment step, run
-with the migration login (`docs/database.md` section 7); the procedure is still to be written.
+with the migration login (`docs/database.md` section 7); the procedure, with the creation of the logins, is
+section 10.
 
 **Undo the last migration** that has not been applied anywhere yet:
 
@@ -449,9 +450,9 @@ in order; nothing is removed until the owner has run it and sent the output.
 **B and E done on 2026-11-21, in the repository: migrations `0003` to `0015` are committed ("Migrations 0003 to 0015,
 scaffolded with EF Core 10"), each scaffolded on its own with EF Core 10.0.12 as B describes, and EF Core reports no
 pending model change. Do not run B again.** A, C and D are still owed on a machine with Docker. Since then
-`0016_CreditApplicationReversals` (Prompt 4.5b), `0017_Refunds` (Prompt 4.6), `0018_Users` (Prompt 5.1) and
-`0019_PrefixChanges` (Prompt 5.3b) were added the ordinary way, described in the paragraph after the table below; they
-are in the repository too.
+`0016_CreditApplicationReversals` (Prompt 4.5b), `0017_Refunds` (Prompt 4.6), `0018_Users` (Prompt 5.1),
+`0019_PrefixChanges` (Prompt 5.3b) and `0020_DatabaseRoles` (Prompt 5.4) were added the ordinary way, described in the
+paragraph after the table below; they are in the repository too.
 
 **Partly run on 2026-11-21, on the office machine, which got the .NET 10 SDK (10.0.404) that day; it still has no
 Docker.** In a throwaway copy of the tip of the branch with Prompt 4.4, with no version substitution: A and B ran
@@ -531,6 +532,7 @@ same way `PaymentWithAllocationsConfiguration.cs` comes back **after** `0011_Pay
 | `0017_Refunds` | 4.6 | Added the ordinary way, not by B. `Refunds`, with five foreign keys (`TenantId`, `PayerId`, `SourcePaymentId`, `SourceCreditNoteId`, `PostingId`), nine CHECK constraints and five indexes. Nothing on `Payments` or `CreditNotes` |
 | `0018_Users` | 5.1 | Added the ordinary way, not by B. `Roles` with its five rows, `Users` and `UserRoles`; then 34 foreign keys `FK_<Table>_<Column>` from every earlier column that names a user to `Users`. No column of an earlier table changes. Applied to a development database with data, it fails: drop that database first (section 1) |
 | `0019_PrefixChanges` | 5.3b | Added the ordinary way, not by B. `PrefixChanges`, with three foreign keys (`TenantId`, `CreatedByUserId`, `UpdatedByUserId`), six CHECK constraints and two indexes, one of them the filtered unique index of the waiting change. On `Tenants`: two CHECK constraints (`CK_Tenants_PrefixesDistinct`, `CK_Tenants_PostingApprovalThreshold`). On `ApprovalRequests`: `CK_ApprovalRequests_DocumentType` dropped and created again with `PrefixChange` in place of the unused `NumberSeries`. No column of an earlier table changes, and no data step |
+| `0020_DatabaseRoles` | 5.4 | Added the ordinary way, not by B: scaffolded empty (no model change) and written by hand (ADR 0034). The role `billingrecon_application`, owned by `dbo`, and its grants (`docs/database.md` section 7). No table changes. The logins are section 10 |
 
 **`0008_Receivables` is finished by hand** (ADR 0021): a scaffold writes schema, and this migration also has to
 open the balances of every payer that already exists. Open `Common/Migrations/*_0008_Receivables.cs` (not the
@@ -577,6 +579,7 @@ dotnet test --filter "FullyQualifiedName~CreditApplicationReversalsApiTests"
 dotnet test --filter "FullyQualifiedName~RefundsApiTests|FullyQualifiedName~EndToEndScenarioTests"
 dotnet test --filter "FullyQualifiedName~UsersApiTests"
 dotnet test --filter "FullyQualifiedName~SettingsApiTests"
+dotnet test --filter "FullyQualifiedName~DatabasePermissionsOnSqlServerTests"
 ```
 
 `SettingsApiTests` includes the ten rounds of a first bill and a prefix approval at the same instant (ADR 0033,
@@ -606,4 +609,86 @@ dotnet test --filter "FullyQualifiedName~SettingsApiTests"
 | 4.2 | That `PaymentConfiguration` can take the allocations out of the model and `PaymentWithAllocationsConfiguration` put them back, on EF Core 10 (the split of `0011` and `0012` depends on it). Two cashiers on the last rupee of one bill, with and without the gate, and ten payments allocated at once across overlapping bills of one payer, on SQL Server 2022. The refusal of the ledger under its lock, there. The failure injected at the ledger, the audit record and the save. |
 | 4.3 | Three aggregates (the credit note, its bill and the approval request) saved and audited by one commit on EF Core 10, and a credit note loaded with two collections by a split query there. Two credit notes approved at once against a paid bill that only one fits, on SQL Server 2022: this is the test that proves the caps are read again under the lock. The failure injected after the second ledger posting and after the audit record. |
 
+| 5.4 | The two test logins and the role on SQL Server 2022 on Linux: the fixture creates the logins with `CHECK_POLICY = OFF`, migrates as the migrator's four roles and runs every API test as the application's login; `DatabasePermissionsOnSqlServerTests` there, including `READ_COMMITTED_SNAPSHOT` on the database the fixture creates. |
+
 A red result is reported as it is, with its output; the fix is its own commit on top, never an edit of history.
+
+---
+
+## 10. Database logins and grants (ADR 0034)
+
+The API connects as **`billingrecon_app`**, a member of the database role `billingrecon_application` and of nothing
+else; the migrations run as **`billingrecon_migrator`**. The role and its grants are made by migration
+`0020_DatabaseRoles`; the logins, their passwords and their database users are made here, once per environment. Keep
+the two passwords in the secret store of the deployment, never in a file in git; `<…>` below are placeholders.
+
+**1. As the administrator** (a login with `CREATE DATABASE` and `ALTER ANY LOGIN`, for example `sysadmin`), on
+`master`:
+
+```sql
+CREATE DATABASE [BillingRecon];
+GO
+-- Readers see the last committed row instead of waiting for a writer: the application relies on it (ADR 0034,
+-- point 6). EF Core sends the same statement when it creates a database itself.
+IF SERVERPROPERTY('EngineEdition') <> 5 BEGIN ALTER DATABASE [BillingRecon] SET READ_COMMITTED_SNAPSHOT ON; END;
+GO
+CREATE LOGIN [billingrecon_migrator] WITH PASSWORD = N'<migrator password>';
+CREATE LOGIN [billingrecon_app] WITH PASSWORD = N'<application password>';
+GO
+USE [BillingRecon];
+CREATE USER [billingrecon_migrator] FOR LOGIN [billingrecon_migrator];
+ALTER ROLE [db_ddladmin] ADD MEMBER [billingrecon_migrator];
+ALTER ROLE [db_datareader] ADD MEMBER [billingrecon_migrator];
+ALTER ROLE [db_datawriter] ADD MEMBER [billingrecon_migrator];
+ALTER ROLE [db_securityadmin] ADD MEMBER [billingrecon_migrator];
+CREATE USER [billingrecon_app] FOR LOGIN [billingrecon_app];
+```
+
+The migrator changes the schema, runs the data steps and creates the role with its grants; it is not `db_owner` and
+cannot create a database (`docs/database.md` section 7).
+
+**2. As the migrator, apply the migrations**, now and at every release. The script is idempotent: it skips what the
+database already has. PowerShell, from the repository root; the password comes from the environment, not the command
+line:
+
+```powershell
+dotnet ef migrations script --idempotent --project src/BillingRecon.Infrastructure --output migrate.sql
+$env:SQLCMDPASSWORD = '<migrator password>'
+sqlcmd -S <server> -d BillingRecon -U billingrecon_migrator -b -i migrate.sql
+Remove-Item Env:SQLCMDPASSWORD
+```
+
+**3. As the administrator, once,** after the first run that applied `0020_DatabaseRoles`:
+
+```sql
+USE [BillingRecon];
+ALTER ROLE [billingrecon_application] ADD MEMBER [billingrecon_app];
+```
+
+**4. Point the API at the application's login**, with `Database__ConnectionString`, for example
+`Server=<server>;Database=BillingRecon;User Id=billingrecon_app;Password=<application password>;Encrypt=True`.
+Outside Development the API never migrates (`Database:ApplyMigrationsOnStartup` is false there).
+
+**5. Check**, connected as `billingrecon_app`:
+
+```sql
+SELECT IS_MEMBER(N'billingrecon_application') AS ApplicationRole, IS_MEMBER(N'db_owner') AS Owner;  -- 1 and 0
+DELETE FROM [dbo].[Bills] WHERE 1 = 0;  -- Msg 229: The DELETE permission was denied on the object 'Bills'
+```
+
+Then `/health/ready` answers 200; without `SELECT` on `__EFMigrationsHistory`, which the role has, it never would.
+
+**What the role may do** (migration `0020_DatabaseRoles`): read, add and change every table of `dbo`; never change or
+delete `LedgerPostings`, `LedgerEntries` or `AuditRecords`; delete only from `BillLines`, `CreditNoteLines`,
+`UserRoles` and `IdempotencyKeys` (the expiry sweep of section 7 too); only read `Roles` and `__EFMigrationsHistory`.
+A later migration that adds an append-only or a deletable table adds its own line; `DatabasePermissionsOnSqlServerTests`
+says which.
+
+**Development** keeps the administrator's connection (`sa` on the compose SQL Server, the Windows login on LocalDB): the
+API creates the database itself (with `READ_COMMITTED_SNAPSHOT` on), applies the migrations at startup, and the role
+exists with no member. To try the logins locally, run steps 1 to 5 against the compose server with a database of your
+own and start the API with that connection string.
+
+**Changing a password:** `ALTER LOGIN [billingrecon_app] WITH PASSWORD = N'<new>';`, update the secret, restart the
+API. **Removing the migrator's user** between releases is allowed: the role and its grants belong to `dbo` (ADR 0034,
+point 5), so `DROP USER [billingrecon_migrator]` takes nothing with it; make it again before the next release.
