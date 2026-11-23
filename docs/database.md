@@ -788,7 +788,8 @@ SELECT @next AS SequenceNumber,
   included, the first posting of the new series waits until that posting ends. Once per series, for milliseconds,
   without a deadlock (a use case locks one series). An existing series locks its own row only.
 - This was the one raw SQL statement of the application; every other raw-SQL entry point of EF Core is a build
-  error (`src/BannedSymbols.txt`). The ledger and the reconciliation have one each since Prompt 3.3 (ADR 0021).
+  error (`src/BannedSymbols.txt`). The ledger and the reconciliation have one each since Prompt 3.3 (ADR 0021), and
+  the dashboard's ledger movements two since Prompt 6.3 (section 5.7, ADR 0037).
 - **The hold of an approved prefix change** (ADR 0033, "Amended 2026-11-23"): `INumberSeries.HoldAsync` sends the
   first `SELECT` above alone, in the approval's transaction, after its checks and before it reads the tenant and the
   series. It locks the row, or the gap where the row will go, until the approval commits, and takes no number. A
@@ -1040,6 +1041,23 @@ A non-empty result is a **Sev-1 defect**: the runbook says stop postings for the
 rows and the correlation ids from `AuditRecords`, and fix the code path. Caches are never
 "corrected" by hand; if a fix requires rebuilding a cache, it is rebuilt from the ledger by a
 migration that is itself audited.
+
+### 5.7 The ledger by business date (the dashboard, ADR 0037)
+
+The dashboard (US-44, BR-902) derives its figures of past days from the ledger. `LedgerMovementsQuery`
+(Infrastructure.Receivables, behind the Application contract `ILedgerMovements`) sends two constant, read-only
+statements, each joining `LedgerEntries` to `LedgerPostings` with `@tenant` in the join and in the WHERE clause:
+
+- **Balances before a date**: Receivable (debit less credit), UnappliedCash and CreditAvailable (credit less debit) of
+  every entry whose posting's `BusinessDate` is before `@date`. One row.
+- **Movements by business date** from `@from` to `@to`, one row per date that has postings: *billed* (the Receivable
+  debits of `BillPosted` postings), *collected* (the Cash debits of `PaymentRecorded` postings, gross of later
+  reversals and refunds), and the change of Receivable and of UnappliedCash.
+
+The balance at the end of a day is the balance before the window plus every change up to that day. A posting's
+`BusinessDate` is its document's date (the bill date, the payment date) or, for a reversal, the day of its approval.
+Both filter on the columns of `IX_LedgerPostings_TenantId_BusinessDate` (no query plan has been looked at yet). `BannedSymbolsTests` pins the file: two suppressions, two
+constants, the tenant in both places, nothing that writes.
 
 ---
 

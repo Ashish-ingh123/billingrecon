@@ -58,6 +58,9 @@ public static class Policies
     /// <summary>The reports of BR-901: every role (the matrix's "Reports" row, ADR 0036).</summary>
     public const string Reports = nameof(Reports);
 
+    /// <summary>The dashboard (US-44, BR-902): whoever runs or audits the hospital (the matrix's "Dashboard" row, ADR 0037).</summary>
+    public const string Dashboard = nameof(Dashboard);
+
     /// <summary>Any signed-in user, whatever the roles: the service information.</summary>
     public const string SignedIn = nameof(SignedIn);
 
@@ -80,6 +83,7 @@ public static class Policies
         [Decide] = [Role.TenantAdmin, Role.Supervisor],
         [ReadAudit] = [Role.TenantAdmin, Role.Supervisor, Role.BillingClerk, Role.Cashier, Role.Viewer],
         [Reports] = [Role.TenantAdmin, Role.Supervisor, Role.BillingClerk, Role.Cashier, Role.Viewer],
+        [Dashboard] = [Role.TenantAdmin, Role.Supervisor, Role.Viewer],
     };
 
     /// <summary>Every policy of the catalogue, <see cref="SignedIn"/> included.</summary>

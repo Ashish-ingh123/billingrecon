@@ -58,9 +58,15 @@ public sealed partial class ReportingConventionTests
     }
 
     [Fact]
-    public void Every_action_of_the_reports_is_a_GET()
+    public void Every_action_of_the_reports_and_the_dashboard_is_a_GET()
     {
-        var methods = typeof(ReportsController).GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+        var controllers = typeof(ReportsController).Assembly.GetTypes()
+            .Where(type => type.Namespace == typeof(ReportsController).Namespace && typeof(Microsoft.AspNetCore.Mvc.ControllerBase).IsAssignableFrom(type))
+            .ToList();
+        controllers.Select(type => type.Name).ShouldBe(["DashboardController", "ReportsController"], ignoreOrder: true);
+
+        var methods = controllers
+            .SelectMany(controller => controller.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
             .SelectMany(action => action.GetCustomAttributes<HttpMethodAttribute>())
             .SelectMany(attribute => attribute.HttpMethods)
             .Distinct();

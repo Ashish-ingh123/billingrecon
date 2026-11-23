@@ -629,6 +629,7 @@ dotnet test --filter "FullyQualifiedName~DatabasePermissionsOnSqlServerTests"
 | 5.4b | The API image built from the Dockerfile and its smoke run in CI (`AllowedHosts=localhost`, no `Server` header, 400 `https_required` for an API request over plain HTTP); the per-account sign-in limit in `AuthApiTests` on SQL Server 2022. The smoke run's checks passed on the office machine against the published API on Kestrel, not in a container. |
 | 6.1 | `ReportsApiTests` on SQL Server 2022: the joins across modules, the comparisons of `Money` with zero and the order by a `Money` column, as Entity Framework 10 translates them there. |
 | 6.2 | The whole `Database` collection on SQL Server 2022 with the reconciliation after every test (`NumberSeriesGap` included): a test that passes on LocalDB but leaves drift there fails. `ReconciliationApiTests` and `BillAuditTrailApiTests`. |
+| 6.3 | `DashboardApiTests` on SQL Server 2022: the two statements of `LedgerMovementsQuery` (a `date` parameter, sums grouped by business date read back as `DateOnly`), the payment register ordered newest first, and the IST midnight boundary of a payment recorded at 23:59 and 00:01 in India. |
 
 A red result is reported as it is, with its output; the fix is its own commit on top, never an edit of history.
 

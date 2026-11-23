@@ -46,7 +46,9 @@ The permission matrix of `docs/requirements.md` section 1 is applied as named po
 action of the API names exactly one, and an architecture test keeps it so. A role a policy does not admit gets 403
 `forbidden`. A blank cell of the matrix is no access, not even reading, with one exception: a Cashier reads credit
 notes, to refund from one. The trail of a user in the audit is the TenantAdmin's alone, as the users are; so are the
-trails of the tenant, of its prefix changes and of its number series (ADR 0033), and the settings themselves. The table
+trails of the tenant, of its prefix changes and of its number series (ADR 0033), and the settings themselves. The
+dashboard is the TenantAdmin's, the Supervisor's and the Viewer's (US-44, ADR 0037); clerks and cashiers read the
+same figures in the reports, which every role may. The table
 of what each role may call is in `docs/api.md` section 2, and one table-driven test walks every endpoint with every
 role against the database.
 
@@ -163,7 +165,7 @@ it.
 | T2 | Deleting financial rows or changing the ledger and the audit trail around the application (raw SQL, a tool, a leaked connection string) | The application's database login has no DELETE on financial tables and no UPDATE or DELETE on the ledger and the audit trail | Done (ADR 0034). It may UPDATE the other tables, which the application needs; a changed cached balance is found by the reconciliation (rule 4): Accepted |
 | T3 | Writing another tenant's rows | The write guard of the context, the tenant in the WHERE clause of every UPDATE and DELETE | Done (ADR 0015) |
 | T4 | Sending fields the endpoint does not take (over-posting) | Unknown JSON members refused; explicit mapping to commands | Done (ADR 0018) |
-| T5 | SQL injection | Entity Framework parameterises; raw SQL is banned (RS0030) but for four constant, parameterised statements in three files a test lists, each with the tenant in its predicate | Done (ADR 0015, ADR 0021, ADR 0033) |
+| T5 | SQL injection | Entity Framework parameterises; raw SQL is banned (RS0030) but for six constant, parameterised statements in four files a test lists, each with the tenant in its predicate | Done (ADR 0015, ADR 0021, ADR 0033, ADR 0037) |
 | T6 | A financial POST replayed or sent twice | `Idempotency-Key`: a replay gets the first answer, a different body with the same key 422 | Done (ADR 0006) |
 | T7 | Two changes of one record racing (a lost update) | Row versions and `If-Match` | Done (ADR 0007) |
 | T8 | A forged `Host` header poisoning links the API writes (`Location`) | `AllowedHosts`, required outside Development | Done (ADR 0035) |

@@ -20,5 +20,6 @@ public sealed class PaymentRegisterQueryValidator : AbstractValidator<PaymentReg
 
         RuleFor(query => query.Method).IsInEnum().WithMessage("The method is Cash, Card, UPI, BankTransfer or Cheque.");
         RuleFor(query => query.Status).IsInEnum().WithMessage("The status is Posted, PendingReversal or Reversed.");
+        RuleFor(query => query.Order).IsInEnum().WithMessage("The order is OldestFirst or NewestFirst.");
     }
 }

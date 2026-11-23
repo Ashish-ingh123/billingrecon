@@ -16,6 +16,7 @@ public static class ReportingServiceCollectionExtensions
         services.AddScoped<ICollectionReports, CollectionReports>();
         services.AddScoped<IBalanceReports, BalanceReports>();
         services.AddScoped<IApprovalReports, ApprovalReports>();
+        services.AddScoped<IDashboardReports, DashboardReports>();
 
         return services;
     }

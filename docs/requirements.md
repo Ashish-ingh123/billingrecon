@@ -40,13 +40,16 @@ Permission matrix (✓ = allowed, R = read only):
 | Reversals: request (maker) | ✓ | ✓ | ✓ | ✓ | |
 | Approve or reject (checker) | ✓ | ✓ | | | |
 | Reports | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Dashboard | ✓ | ✓ | | | ✓ |
 
 The checker must always be a different user from the maker (BR-603), whatever the roles.
 
 *How the matrix is applied (ADR 0032, 2026-11-21):* a ✓ includes reading, and a blank cell is no access, not even
 reading, except that a Cashier reads credit notes (a refund may come from one). Applying a credit note's credit to
 another bill is in the credit notes' row; the checker's inbox of pending requests is in the checker's row; the audit
-trail is read by everyone (US-43), but the trail of a user by a TenantAdmin only.
+trail is read by everyone (US-43), but the trail of a user by a TenantAdmin only. The dashboard (US-44, BR-902; added
+with Prompt 6.3 on 2026-11-23) is the overview of whoever runs or audits the hospital; clerks and cashiers keep every
+report for their daily work.
 
 ---
 
@@ -62,7 +65,7 @@ trail is read by everyone (US-43), but the trail of a user by a TenantAdmin only
 | Payments | Payments by cash, card, UPI, bank transfer or cheque; allocation to bills; allocation reversal; payment reversal; refunds. |
 | Receivables | Double-entry receivables subledger, cached balances (bill, payment, credit note, payer), reconciliation query. |
 | Adjustments | Discount, write-off and rounding adjustments against a bill. |
-| Reporting | Bill register, payment register and daily collection, outstanding by payer, unapplied cash and credit, pending approvals, ledger reconciliation. |
+| Reporting | Bill register, payment register and daily collection, outstanding by payer, unapplied cash and credit, pending approvals, ledger reconciliation, and the dashboard (US-44, BR-902). |
 | Audit | Append-only audit trail for every financial and security-relevant change; correlation ids. |
 | Common | Money and rounding, fiscal year, clock, gapless numbering, idempotency, optimistic concurrency, tenancy. |
 
@@ -192,6 +195,7 @@ trail is read by everyone (US-43), but the trail of a user by a TenantAdmin only
 | Id | Rule |
 |---|---|
 | **BR-901** | R1 reports: bill register, payment register with daily collection by method, outstanding by payer, unapplied cash and available credit, pending approvals, and ledger reconciliation (cache versus ledger). Reports read committed data and every figure ties back to ledger entries. |
+| **BR-902** | The dashboard covers a period of business dates in India, `from` to `to` both included, the last 30 days ending today by default and at most 366 days, and compares each summary figure with the previous period of the same length; the change is in percent to two decimal places, null when the previous figure is zero. Billed is the Receivable debits of the bills posted with a bill date in the period; collected is the Cash debits of the payments recorded with a payment date in the period, gross of reversals and refunds; outstanding dues and unapplied cash are their ledger balances at the end of the period's last day; pending approvals are the requests still waiting at the end of that day in India; reconciliation drift is the current count only, with no previous figure. Ageing is the balance due of posted bills by days past their due date as of today, in the buckets 0–30 (bills not yet due included), 31–60, 61–90 and over 90. |
 
 ---
 
@@ -247,6 +251,7 @@ Acceptance criteria cite the rules they verify. "Given/when/then" is abbreviated
 | US-41 | As an auditor I run the reconciliation report. | Zero drift rows after every integration test scenario (BR-404); a seeded drift is reported. |
 | US-42 | As a Cashier I see today's collection by method. | Ties to payment ledger entries for the IST business date (BR-003, BR-901). |
 | US-43 | As a Viewer I read the audit trail of a bill. | Every state change present with before/after and correlation id (BR-701, BR-703). |
+| US-44 | As a Supervisor, a TenantAdmin or a Viewer I see the dashboard of a period, compared with the previous one. | Every figure equals the one derived from ledger entries; the ageing buckets add up to the outstanding dues; a bill due today is in 0–30; the period's edges fall at midnight in India; another hospital's data never appears; an empty period answers zeros; a BillingClerk or a Cashier is refused with 403 (BR-902). |
 
 ---
 

@@ -25,8 +25,11 @@ public sealed class BannedSymbolsTests
         // the locked read and change of the cached balances of a payer, which Entity Framework cannot express (ADR 0005),
         "src/BillingRecon.Infrastructure/Receivables/ReceivablesLedger.cs",
 
-        // and the read-only reconciliation of the ledger with its caches (ADR 0005; docs/database.md section 5.6).
+        // the read-only reconciliation of the ledger with its caches (ADR 0005; docs/database.md section 5.6),
         "src/BillingRecon.Infrastructure/Receivables/ReconciliationQuery.cs",
+
+        // and the read-only sums of the ledger by business date for the dashboard, two statements (ADR 0037).
+        "src/BillingRecon.Infrastructure/Receivables/LedgerMovementsQuery.cs",
 
         // The query filters switched off once, for the user a sign-in looks for: it has no tenant yet (ADR 0015, ADR 0031).
         "src/BillingRecon.Infrastructure/Identity/LoginUserLookup.cs",
@@ -214,15 +217,35 @@ public sealed class BannedSymbolsTests
         }
     }
 
-    [Fact]
-    public void The_reconciliation_only_reads()
+    [Theory]
+    [InlineData("src/BillingRecon.Infrastructure/Receivables/ReconciliationQuery.cs")]
+    [InlineData("src/BillingRecon.Infrastructure/Receivables/LedgerMovementsQuery.cs")]
+    public void The_reconciliation_and_the_ledger_movements_only_read(string path)
     {
-        var source = File.ReadAllText(RepositoryFiles.PathOf("src/BillingRecon.Infrastructure/Receivables/ReconciliationQuery.cs"));
+        var source = File.ReadAllText(RepositoryFiles.PathOf(path));
 
         foreach (var verb in new[] { "UPDATE ", "INSERT ", "DELETE ", "MERGE ", "TRUNCATE ", "EXEC " })
         {
             source.ShouldNotContain(verb, Case.Sensitive);
         }
+    }
+
+    [Fact]
+    public void The_ledger_movements_send_two_statements_made_of_constants_and_parameters_within_the_tenant()
+    {
+        var source = File.ReadAllText(RepositoryFiles.PathOf("src/BillingRecon.Infrastructure/Receivables/LedgerMovementsQuery.cs"));
+
+        // Two suppressions, each around one call; the texts are constants, and both joined tables name the tenant (ADR 0037).
+        source.Split("#pragma warning disable RS0030").Length.ShouldBe(3);
+        source.Split("SqlQueryRaw<").Length.ShouldBe(3);
+        source.ShouldContain("private const string BalancesBefore =");
+        source.ShouldContain("private const string Days =");
+        source.Split("WHERE  e.[TenantId] = @tenant").Length.ShouldBe(3);
+        source.Split("AND p.[TenantId] = @tenant").Length.ShouldBe(3);
+        source.ShouldNotContain("$\"\"\"");
+        source.ShouldNotContain("string.Format");
+        source.ShouldNotContain("ExecuteSql");
+        source.ShouldNotContain("FromSql");
     }
 
     [Fact]

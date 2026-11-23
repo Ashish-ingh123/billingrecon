@@ -24,6 +24,9 @@ public sealed record PaymentRegisterQuery : IPagedQuery
     /// <summary>Only the payments in this state.</summary>
     public ReportPaymentStatus? Status { get; init; }
 
+    /// <summary>The order of the items: the oldest first unless the newest are asked for (the dashboard's recent payments).</summary>
+    public ReportOrder Order { get; init; } = ReportOrder.OldestFirst;
+
     /// <inheritdoc />
     public int Page { get; init; } = Paging.FirstPage;
 

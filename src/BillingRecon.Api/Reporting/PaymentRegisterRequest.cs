@@ -6,7 +6,7 @@ namespace BillingRecon.Api.Reporting;
 
 /// <summary>
 /// The query string of <c>GET /api/v1/reports/payment-register</c>: <c>from</c> and <c>to</c> (both or neither),
-/// <c>payerId</c>, <c>method</c>, <c>status</c>, <c>page</c> and <c>pageSize</c>.
+/// <c>payerId</c>, <c>method</c>, <c>status</c>, <c>order</c>, <c>page</c> and <c>pageSize</c>.
 /// </summary>
 public sealed record PaymentRegisterRequest
 {
@@ -25,6 +25,9 @@ public sealed record PaymentRegisterRequest
     /// <summary>Only the payments in this state.</summary>
     public ReportPaymentStatus? Status { get; init; }
 
+    /// <summary><c>OldestFirst</c> (when left out) or <c>NewestFirst</c>.</summary>
+    public ReportOrder? Order { get; init; }
+
     /// <summary>The page, from 1; the first when left out.</summary>
     public int? Page { get; init; }
 
@@ -39,6 +42,7 @@ public sealed record PaymentRegisterRequest
         PayerId = PayerId is { } payerId ? new PayerId(payerId) : null,
         Method = Method,
         Status = Status,
+        Order = Order ?? ReportOrder.OldestFirst,
         Page = Page ?? Paging.FirstPage,
         PageSize = PageSize ?? Paging.DefaultPageSize,
     };

@@ -117,24 +117,32 @@ public sealed class RegisterReports(BillingReconDbContext context) : IRegisterRe
             ReportMapping.Sum(amounts.Select(amount => amount.Amount)),
             ReportMapping.Sum(amounts.Select(amount => amount.UnappliedAmount)));
 
-        var rows = await (
-                from payment in payments
-                join payer in context.Set<Payer>().AsNoTracking() on payment.PayerId equals payer.Id
-                orderby payment.PaymentDate, payment.FiscalYear, payment.SequenceNumber
-                select new
-                {
-                    payment.Id,
-                    payment.Number,
-                    payment.PaymentDate,
-                    payment.PayerId,
-                    PayerName = payer.Name,
-                    payment.Method,
-                    payment.Reference,
-                    payment.Amount,
-                    payment.UnappliedAmount,
-                    payment.Status,
-                    payment.ReversedAtUtc,
-                })
+        var joined =
+            from payment in payments
+            join payer in context.Set<Payer>().AsNoTracking() on payment.PayerId equals payer.Id
+            select new
+            {
+                payment.Id,
+                payment.Number,
+                payment.PaymentDate,
+                payment.FiscalYear,
+                payment.SequenceNumber,
+                payment.PayerId,
+                PayerName = payer.Name,
+                payment.Method,
+                payment.Reference,
+                payment.Amount,
+                payment.UnappliedAmount,
+                payment.Status,
+                payment.ReversedAtUtc,
+            };
+
+        // Chronological, or the newest first for the dashboard's recent payments (ADR 0037).
+        var ordered = query.Order == ReportOrder.NewestFirst
+            ? joined.OrderByDescending(row => row.PaymentDate).ThenByDescending(row => row.FiscalYear).ThenByDescending(row => row.SequenceNumber)
+            : joined.OrderBy(row => row.PaymentDate).ThenBy(row => row.FiscalYear).ThenBy(row => row.SequenceNumber);
+
+        var rows = await ordered
             .Skip(ReportMapping.Skip(query.Page, query.PageSize))
             .Take(query.PageSize)
             .ToListAsync(ct);

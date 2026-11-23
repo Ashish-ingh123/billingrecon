@@ -54,6 +54,7 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
         ["approve or reject"] = [TenantAdmin, Supervisor],
         ["audit trail"] = Everyone,
         ["reports"] = Everyone,
+        ["dashboard"] = [TenantAdmin, Supervisor, Viewer],
         ["signed in"] = Everyone,
     };
 
@@ -163,6 +164,14 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
         ("GET", "api/v1/reports/available-credit", "reports"),
         ("GET", "api/v1/reports/pending-approvals", "reports"),
         ("GET", "api/v1/reports/reconciliation", "reports"),
+
+        ("GET", "api/v1/dashboard/summary", "dashboard"),
+        ("GET", "api/v1/dashboard/trend", "dashboard"),
+        ("GET", "api/v1/dashboard/ageing", "dashboard"),
+        ("GET", "api/v1/dashboard/top-payers", "dashboard"),
+        ("GET", "api/v1/dashboard/recent-payments", "dashboard"),
+        ("GET", "api/v1/dashboard/pending-approvals", "dashboard"),
+        ("GET", "api/v1/dashboard/drift", "dashboard"),
     ];
 
     [Fact]

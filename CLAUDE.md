@@ -46,7 +46,7 @@ the domain model, the schema and the tests.
 | Authentication | **JWT bearer** (`Microsoft.AspNetCore.Authentication.JwtBearer` 10.0.12) | The API issues its own tokens at `POST /api/v1/auth/login` and checks them on every request: HS256 with `Jwt:SigningKey`, issuer `BillingRecon`, audience `BillingRecon.Api`, 60 minutes by the application's clock, claims `sub`, `tenant_id`, `role`. The tenant and user of a request come from its token only (`RequestPrincipalIdentity`). Deny by default: a fallback policy needs a user on every endpoint but the sign-in, the health checks and, in Development, OpenAPI and Scalar (an architecture test lists them). In Development a request without a token acts as the development user. ADR 0031. **Roles:** every action names exactly one policy of `Policies`, one per capability of the permission matrix (`docs/requirements.md` section 1); a role the policy does not admit gets 403 `forbidden`; a table-driven test walks every endpoint with every role. The checker's role (BR-603) is also checked by `ApprovalRequest` itself. ADR 0032. **Sign-in limits (ADR 0035):** 30 sign-ins a minute per client address (the rate limiter's policy `sign-in`) and an account held 15 minutes after 10 refusals (`SignInThrottleFilter`), both 429 `too_many_sign_ins` with `Retry-After`; fixed in code, in memory per instance. |
 | OpenAPI | **Built-in OpenAPI + Scalar UI**, Development only | `AddOpenApi`/`MapOpenApi` (document at `/openapi/v1.json`) and `MapScalarApiReference` (`/scalar`), mapped only when the environment is Development. |
 | Data | **EF Core 10 + SQL Server** | One context, `BillingReconDbContext`, whose conventions do the repetitive work (ADR 0015, section 5 below). Migrations live in `Infrastructure/Common/Migrations`, are applied at startup in Development only, and are a deployment step elsewhere. `dotnet-ef` is a local tool (`.config/dotnet-tools.json`, `dotnet tool restore`) at the same version as the EF Core packages; it uses the Infrastructure project and its design-time factory, never the API. SQL Server 2022 in Docker for dev and tests. **Logins (ADR 0034):** outside Development the API connects as `billingrecon_app`, a member of the database role `billingrecon_application` alone, which migration `0020_DatabaseRoles` creates with its grants (`docs/database.md` section 7); the migrations run as `billingrecon_migrator` (`db_ddladmin`, `db_datareader`, `db_datawriter`, `db_securityadmin`); the logins are made per environment (`docs/runbook.md` section 10). The database has `READ_COMMITTED_SNAPSHOT ON`, as EF Core creates one: the application relies on readers not waiting for writers. |
-| Banned APIs | **Microsoft.CodeAnalysis.BannedApiAnalyzers** | `src/BannedSymbols.txt` lists what production code must not call (system time and the machine's time zone, `IgnoreQueryFilters`, `EntityEntry.Reload`/`GetDatabaseValues`, `ExecuteUpdate`/`ExecuteDelete`, and since Prompt 3.1 every raw-SQL entry point of EF Core: `ExecuteSql*`, `SqlQuery*`, `FromSql*`, `GetDbConnection`); a call is build error RS0030. Five files may suppress it, each for one named reason: `SystemClock` (the system time); three that send constant, parameterised, tenant-bound SQL statements: `NumberSeriesAllocator` (two: the locked read-and-increment of a series, and since 2026-11-23 the same locked read alone, with which an approved prefix change holds its series, ADR 0033 "Amended 2026-11-23"), `ReceivablesLedger` (one: the locked change of a payer's balances) and `ReconciliationQuery` (one, read-only); and `LoginUserLookup`, the one `IgnoreQueryFilters`, around one query with the tenant in its predicate, because a sign-in has no tenant yet (ADR 0031). A sixth needs an ADR. Tests guard the list and where the rule may be suppressed (ADR 0015, ADR 0021). |
+| Banned APIs | **Microsoft.CodeAnalysis.BannedApiAnalyzers** | `src/BannedSymbols.txt` lists what production code must not call (system time and the machine's time zone, `IgnoreQueryFilters`, `EntityEntry.Reload`/`GetDatabaseValues`, `ExecuteUpdate`/`ExecuteDelete`, and since Prompt 3.1 every raw-SQL entry point of EF Core: `ExecuteSql*`, `SqlQuery*`, `FromSql*`, `GetDbConnection`); a call is build error RS0030. Six files may suppress it, each for one named reason: `SystemClock` (the system time); four that send constant, parameterised, tenant-bound SQL statements: `NumberSeriesAllocator` (two: the locked read-and-increment of a series, and since 2026-11-23 the same locked read alone, with which an approved prefix change holds its series, ADR 0033 "Amended 2026-11-23"), `ReceivablesLedger` (one: the locked change of a payer's balances), `ReconciliationQuery` (one, read-only) and, since Prompt 6.3, `LedgerMovementsQuery` (two, read-only: the ledger's balances before a date and its movements by business date, for the dashboard, ADR 0037); and `LoginUserLookup`, the one `IgnoreQueryFilters`, around one query with the tenant in its predicate, because a sign-in has no tenant yet (ADR 0031). A seventh needs an ADR. Tests guard the list and where the rule may be suppressed (ADR 0015, ADR 0021). |
 | Validation | **FluentValidation** (12.2.0) | One public validator per command or query that has a shape to check, in the Application layer, run by its handler as the handler's first step; it checks the shape (presence, lengths, formats, ranges), the domain and the handler the business rules. A failure is 400 `validation_failed` with messages per field (ADR 0018). The API registers the validators with its scan of the Application assembly. |
 | Logging | **Serilog** | Compact JSON on the console, plus Seq when `Seq:ServerUrl` is set. Every event of a request carries CorrelationId (from `X-Correlation-Id` or generated, BR-703), and TenantId and UserId when the request is authenticated. Phone numbers and e-mail addresses are masked before any sink (ADR 0012). |
 | Configuration | **appsettings + environment variables + user-secrets** | One strongly typed options class per section, validated at startup: the API refuses to start when misconfigured. Secrets (`Database:ConnectionString`, `Seq:ApiKey`, `Jwt:SigningKey`) come from user-secrets or environment variables, never from a file in git; the one key in git, Development's signing key, is refused outside Development. Outside Development `AllowedHosts` is required (no `*`); `ReverseProxy:KnownProxies` and `Cors:Origins` are checked at startup (ADR 0035, `docs/runbook.md` section 11). |
@@ -277,6 +277,11 @@ src/
                                 (Reporting). ADR 0036. The reconciliation report (ReconciliationReportQuery and its
                                 handler over IReconciliationQuery, DriftRowDto, ReconciliationTotalsDto) (Reporting)
                                 and the identity NumberSeriesGap (Receivables), ADR 0036 amended by Prompt 6.2.
+                                The dashboard (ADR 0037): the summary, trend and ageing queries with their handlers,
+                                validators and DTOs, DashboardPeriods, DashboardFigures, DashboardSeries, the port
+                                IDashboardReports, the recent payments over the payment register, and ReportOrder,
+                                the register's order (Reporting); ILedgerMovements with LedgerBalances and LedgerDay,
+                                the ledger by business date (Receivables).
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -309,6 +314,8 @@ src/
                                 and its grants, written by hand (ADR 0034). RegisterReports, CollectionReports,
                                 BalanceReports and ApprovalReports, which only read, with ReportMapping and AddReporting
                                 (Reporting; the one folder that may name every business module's entities, ADR 0036).
+                                DashboardReports, the open bills and the approval requests' instants (Reporting), and
+                                LedgerMovementsQuery, the sixth file with raw SQL (Receivables), ADR 0037.
   BillingRecon.Api/             Controllers, middleware and filters (correlation id, idempotency, tenant resolution),
                                 the error contract (Common/Errors: exception handler, Error to ProblemDetails mapper),
                                 authentication/authorisation, OpenAPI + Scalar, Program.cs (composition root),
@@ -334,7 +341,8 @@ src/
                                 ApiProblems, the ProblemDetails of a refusal made outside an action (Common/Errors);
                                 SignInLimits, AccountSignInLimiter and the SignInThrottle filter of the sign-in
                                 (Identity). ReportsController, eight GET reports under /api/v1/reports, with their
-                                request records (Reporting), ADR 0036.
+                                request records (Reporting), ADR 0036. DashboardController, seven GET panels under
+                                /api/v1/dashboard, and the policy Dashboard (Reporting), ADR 0037.
 tests/
   Directory.Build.props         Test defaults: xUnit, Shouldly, test SDK/runner, global usings.
   BillingRecon.Domain.Tests/  BillingRecon.Application.Tests/
@@ -661,7 +669,7 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 | `docs/requirements.md` | Domain and vocabulary, actors and permissions, R1 scope, the **BR-nnn business-rule catalogue**, user stories with acceptance criteria, NFRs, R2–R5 outlines |
 | `docs/domain-model.md` | Module map, value objects, aggregates with invariants (citing BR-ids), Bill state machine, transaction boundaries and the allocation exception, domain events, ports |
 | `docs/database.md` | Conventions, ER diagram, every R1 table with types/keys/indexes/CHECKs, number-series lock, ledger accounts and posting templates, balance identities and reconciliation SQL, idempotency lifecycle, permissions, migrations |
-| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), the adjustment endpoints (Prompt 4.4), the reversal endpoints of payments and allocations (Prompt 4.5), the refunds (Prompt 4.6), the users (Prompt 5.1), authentication with the sign-in (Prompt 5.2), the permissions of each role (Prompt 5.3), the tenant settings with the prefix changes (Prompt 5.3b), HTTPS only, hosts, CORS, the headers of an answer and the sign-in limits (Prompt 5.4b), and the reports (Prompts 6.1 and 6.2). Complete since Prompt 6.2: every endpoint, the actions of the audit trail, and the error-code catalogue (section 9), which `ApiDocumentationTests` keeps complete |
+| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), the adjustment endpoints (Prompt 4.4), the reversal endpoints of payments and allocations (Prompt 4.5), the refunds (Prompt 4.6), the users (Prompt 5.1), authentication with the sign-in (Prompt 5.2), the permissions of each role (Prompt 5.3), the tenant settings with the prefix changes (Prompt 5.3b), HTTPS only, hosts, CORS, the headers of an answer and the sign-in limits (Prompt 5.4b), the reports (Prompts 6.1 and 6.2), and the dashboard (Prompt 6.3). Complete since Prompt 6.2: every endpoint, the actions of the audit trail, and the error-code catalogue (section 9), which `ApiDocumentationTests` keeps complete |
 | `docs/build-prompts.md` | The build prompts from zero to R1, reconstructed on 2026-11-20: what each finished prompt built, and the wording and order of the prompts still to give. Its phase numbers are the ones this file uses |
 | `docs/security.md` | Authentication and the sign-in limits, authorisation, tenancy, maker-checker, transport (TLS, hosts, CORS, headers), secrets, data protection, the database logins, and the threat model of R1 (section 10: every threat done, accepted with its reason, or named with its prompt). Written in full with Prompt 5.4b |
 | `docs/testing-strategy.md` | Test pyramid, tooling, database tests, architecture tests, CI gates |
@@ -730,7 +738,11 @@ of the Prompt 5.4b plan, 2026-11-23; it answers ADR 0031 point 12 and amends ADR
 held against the ledger, the daily collection from the Cash entries of the business date, totals over every page, and
 Reporting's own words for the Billing and Payments enums (Accepted on the owner's approval of the Prompt 6.1 plan,
 2026-11-23; it amends ADR 0003 and ADR 0018; "Amended 2026-11-23 (Prompt 6.2)": the reconciliation report, gapless
-numbering as identity 11, and the reconciliation after every database test, on the owner's approval of the 6.2 plan).
+numbering as identity 11, and the reconciliation after every database test, on the owner's approval of the 6.2 plan),
+0037 the dashboard: figures from the ledger by business date, no history of drift, and a sixth raw-SQL file
+(`LedgerMovementsQuery`), seven panels under `/api/v1/dashboard` for TenantAdmin, Supervisor and Viewer, the payment
+register ordered newest first (Accepted on the owner's approval of the Prompt 6.3 proposal, 2026-11-23; it adds US-44 and
+BR-902 and amends ADR 0021 and ADR 0036).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1773,4 +1785,39 @@ Kept here so they survive between sessions. Remove an item when it is done.
       without a database pass; in a throwaway copy on LocalDB 2019 the `Database` collection passes in full (483 tests),
       every one now ending with the reconciliation, and the new and opted-out classes ran twice more without a failure.
     - **Still to do:** SQL Server 2022 in Docker (runbook section 8, row 6.2).
-    - Next: Prompt 6.3 (dashboard figures), which begins with a proposal of its user story for the owner.
+    - Next: Prompt 6.3 (dashboard figures), which begins with a proposal of its user story for the owner. Done: item 36.
+36. **Prompt 6.3, dashboard figures (ADR 0037), written 2026-11-23, built and tested on .NET 10.** On `phase-2-billing`.
+    The proposal (requirements and design) was approved "as recommended". No migration, no package.
+    - **New R1 scope** in `docs/requirements.md`: US-44, BR-902 and the matrix's row "Dashboard" (TenantAdmin, Supervisor,
+      Viewer).
+    - Built: seven GET panels under `/api/v1/dashboard` (`summary`, `trend`, `ageing`, `top-payers`, `recent-payments`,
+      `pending-approvals`, `drift`) under the new policy `Dashboard`; a period of IST business dates (the last 30 days by
+      default, at most 366, ending today at the latest) against the previous period of the same length; the figures of
+      past days summed from the ledger by business date through `ILedgerMovements` (Receivables) and
+      `LedgerMovementsQuery`, **the sixth file sanctioned for raw SQL** (two constant, read-only statements, pinned in
+      `BannedSymbolsTests`); the four lists call the handlers of the 6.1 and 6.2 reports; the payment register takes
+      `order=NewestFirst`.
+    - Decided by the owner with the proposal (ADR 0037 points 1 to 8): **no trend for the drift card** (its count of now,
+      no snapshot table); the ledger sums in SQL; collected gross of reversals and refunds; one endpoint per panel; the
+      policy; percentages rounded to two places, amounts never rounded.
+    - **Found in the build (ADR 0037 built note):** Entity Framework cannot sum `Money` behind its converter (a probe
+      failed), hence the SQL; `ReportingConventionTests` refuses `.Add(` in Reporting, so the series are filled by index
+      and an iterator (the test was not loosened).
+    - **Tests:** `DashboardHandlerTests` (Application, 14), `DashboardApiTests` (database, 7: a month of one hospital with
+      the clock walked through it, every card against ledger sums in SQL, the ageing total against the Receivable
+      account, a bill due today in `0-30`, payments at 23:59 and 00:01 in India, the trend's daily series, another
+      tenant, an empty tenant, refused periods), seven rows of `PermissionMatrixApiTests`, the register newest first in
+      `ReportsApiTests` with an unknown order refused, and the pins of the new file in `BannedSymbolsTests` (a new test
+      and a second case of a theory). Changed in existing tests, none weakened: `BannedSymbolsTests`
+      pins a sixth file and its "only reads" theory covers two files; `ReportingConventionTests` checks that every
+      controller of `Api.Reporting` has GET actions only, the dashboard's included. With four defects put in, one at a
+      time, in a throwaway copy (a request not pending on its own day, the last day of the ledger sums lost, a previous
+      period one day short, bills not yet due left out of the ageing), each is caught.
+    - **Verified on .NET 10 (SDK 10.0.404):** in the repository, the Release build and `dotnet format
+      --verify-no-changes` are clean, and Domain 625, Application 423, Architecture 129 and the 741 integration tests
+      without a database pass; in a throwaway copy on LocalDB 2019 the `Database` collection passes in full (490 tests,
+      each ending with the reconciliation), and the dashboard, report, matrix and reconciliation tests ran twice more
+      without a failure. No query plan of the two new statements has been looked at.
+    - **Still to do:** SQL Server 2022 in Docker (runbook section 8, row 6.3). The backend of R1 is written to its end;
+      the merge of `phase-2-billing` to `main` is the owner's step.
+    - Next: Prompt 7.1 (scaffold and sign-in), which needs a current Node LTS (the office machine has Node 6.10.1).

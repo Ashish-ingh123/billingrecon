@@ -57,6 +57,10 @@ entries and payer balances all name a payer. Three rules stood in its way.
    *Amended 2026-11-23 by ADR 0033 ("Amended 2026-11-23"):* `NumberSeriesAllocator` sends a second constant
    statement, the same locked read alone, so that an approved prefix change holds the series it changes; it is
    suppressed around its own one call, and the test pins two statements in that file.
+   *Amended 2026-11-23 by ADR 0037 (Prompt 6.3):* a fourth file, `LedgerMovementsQuery`, sends two constant,
+   read-only statements, the ledger's balances before a date and its movements by business date for the dashboard,
+   each suppressed around its own one call, with the tenant in the WHERE clause and in the join; the test pins them.
+   A fifth file needs an ADR.
 4. **A migration may carry a data statement written by hand, when the model cannot express it.** The rule of
    ADR 0015 was written against hand-edited *schema*; it stays for schema. For data:
    - the migration is scaffolded first, unchanged, and the statement is added at the end of `Up()`;

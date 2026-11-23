@@ -66,6 +66,7 @@ at the next sign-in. In short:
 | Approve, reject, and the inbox `GET /approval-requests` | ✓ | ✓ | | | |
 | Audit trail (the trails of a user, the tenant, its prefix changes and its number series: TenantAdmin only) | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Reports (section 8.15) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Dashboard (section 8.16) | ✓ | ✓ | | | ✓ |
 | `GET /api/v1/system/info` | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 A checker also has to be another user than the maker (BR-603): a decision by the maker is 403
@@ -863,7 +864,7 @@ date. A report reads committed rows and takes no lock.
 | Method and path | Answer | Query |
 |---|---|---|
 | `GET /api/v1/reports/bill-register` | page of posted bills, by bill date | `from`, `to`, `payerId`, `status` (`Posted`, `PartiallyPaid`, `Settled`) |
-| `GET /api/v1/reports/payment-register` | page of payments, by payment date, reversed ones included | `from`, `to`, `payerId`, `method`, `status` (`Posted`, `PendingReversal`, `Reversed`) |
+| `GET /api/v1/reports/payment-register` | page of payments, by payment date, reversed ones included | `from`, `to`, `payerId`, `method`, `status` (`Posted`, `PendingReversal`, `Reversed`), `order` (`OldestFirst` by default, `NewestFirst`) |
 | `GET /api/v1/reports/daily-collection` | the collection of one day by method | `date` |
 | `GET /api/v1/reports/outstanding-by-payer` | page of payers with a balance, the largest net outstanding first | `search` |
 | `GET /api/v1/reports/payers/{payerId}/balance` | one payer's balances (US-40); 404 `payer_not_found` | |
@@ -879,7 +880,8 @@ cover is a 400 `validation_failed` on `to`. `daily-collection` without a `date` 
 **A paged report** takes `page` and `pageSize` like any list (section 6) and answers
 `{ period, items, page, pageSize, totalCount, totals }`: `totals` are those of every page together, not of the page;
 `period` is the one a register covers, null for the other reports. Items of the registers are chronological, by date
-and then by number. Money is a decimal with two places, as everywhere.
+and then by number, the oldest first; the payment register can be asked for the newest first (`order=NewestFirst`).
+Money is a decimal with two places, as everywhere.
 
 - **Bill register** items: `billId`, `number`, `billDate`, `dueDate`, `patientId`, `patientName`, `payerId`,
   `payerName`, `total`, `balanceDue`, `status`, `postedAtUtc`. Totals: `bills`, `total` (the debits to Receivable of
@@ -912,6 +914,55 @@ and then by number. Money is a decimal with two places, as everywhere.
   `checkedAtUtc`, `rows`, and `byIdentity` (`identity`, `rows`). An empty report means none: the caches equal the
   ledger and every series is gapless. A drift row is a defect of the highest severity: the report also writes it to the
   log as an error, and never corrects anything (`docs/database.md` section 5.6 says what to do).
+
+### 8.16 Dashboard (US-44, BR-902; ADR 0037)
+
+Read-only, for a TenantAdmin, a Supervisor or a Viewer; a BillingClerk or a Cashier gets 403 `forbidden` (they keep
+every report of section 8.15). One endpoint per panel, so that each loads, and fails, on its own. Every figure is
+derived from the ledger by business date, or comes from one of the reports of section 8.15, never from a copy of their
+queries. Amounts are exact decimals with two places; nothing is rounded to lakh or crore on the server.
+
+| Method and path | Answer | Query |
+|---|---|---|
+| `GET /api/v1/dashboard/summary` | the six cards, each against the previous period | `from`, `to` |
+| `GET /api/v1/dashboard/trend` | billed and collected per day or per week, cumulative, and the daily figures of the sparklines | `from`, `to`, `interval` (`Day`, `Week`) |
+| `GET /api/v1/dashboard/ageing` | the balance due of posted bills by days past due, as of today in India | |
+| `GET /api/v1/dashboard/top-payers` | the first 5 rows of the outstanding-by-payer report, with its totals | |
+| `GET /api/v1/dashboard/recent-payments` | the 5 newest payments of the period, from the payment register, with its totals | `from`, `to` |
+| `GET /api/v1/dashboard/pending-approvals` | the 3 oldest rows of the pending-approvals report, with its totals | |
+| `GET /api/v1/dashboard/drift` | the first 3 rows of the reconciliation report, with its totals | |
+
+**The period** is `from` to `to`, business dates in India, both included: both given or neither, the end not before the
+start, at most 366 days, and **ending today in India at the latest**. Neither means the last 30 days ending today. A
+period it cannot cover is a 400 `validation_failed` on `to`. **The previous period** is the one of the same length that
+ends the day before the period starts (for 1 to 30 October, 1 to 30 September; for the last 30 days, the 30 before).
+
+- **Summary:** `period`, `previousPeriod`, and six cards, `totalBilled`, `amountCollected`, `outstandingDues`,
+  `unappliedCash`, `pendingApprovals` and `reconciliationDrift`, each `{ value, previous, changePercent }`.
+  `changePercent` is (value − previous) / previous × 100, two places, half away from zero, and null when `previous` is
+  zero.
+  - *Billed*: the debits to Receivable of the bills' postings dated in the period (the bills posted with a bill date in
+    it).
+  - *Collected*: the debits to Cash of the payments' postings dated in the period, **gross**: a later reversal or refund
+    does not lower it (the daily collection of section 8.15 shows them).
+  - *Outstanding dues* and *unapplied cash*: the balances of the Receivable and UnappliedCash accounts at the end of the
+    period's last day, from the ledger entries dated up to it.
+  - *Pending approvals*: the requests asked for on or before the period's last day (in India) and not decided by its
+    end.
+  - *Reconciliation drift*: the rows of the reconciliation now; `previous` and `changePercent` are always null, since
+    drift is not kept by day.
+- **Trend:** `period`, `interval`, `points` and `daily`. Without `interval`, a period of up to 31 days is answered per
+  day and a longer one per week. A point is `{ from, to, billed, collected, cumulativeBilled, cumulativeCollected }`; a
+  week runs Monday to Sunday, and the first and last weeks are cut by the period. `daily` has one row for every date of
+  the period, zeros included: `{ date, billed, collected, outstandingDues, unappliedCash, pendingApprovals }`, the last
+  three at the end of that day.
+- **Ageing:** `asOf` (today in India), `buckets`, `bills` and `total`. Always the four buckets `0-30` (a bill not yet
+  due, or due today, included), `31-60`, `61-90` and `90+`, by the days from the bill's due date to today, each with
+  `bills`, `amount` (their balance due) and `share` (percent of `total`, two places; the four may add up to 99.99 or
+  100.01). `total` is the outstanding dues of today. A draft, a voided bill, one that waits for approval and a settled
+  one are in no bucket.
+- **Top payers, recent payments, pending approvals, drift:** the answer of the report each comes from (section 8.15),
+  page 1 at the size above, with the totals of every page, so that a panel can say "5 of 23".
 
 ## 9. Error-code catalogue
 

@@ -103,6 +103,14 @@ public sealed class ReportsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
         (await scenario.ReadAsync<ReportPage<PaymentRegisterRowDto, PaymentRegisterTotalsDto>>("payment-register?method=Cash")).Totals.ShouldBe(new PaymentRegisterTotalsDto(2, 800.00m, 200.00m));
         (await scenario.ReadAsync<ReportPage<PaymentRegisterRowDto, PaymentRegisterTotalsDto>>("payment-register?status=Reversed")).Items.ShouldHaveSingleItem().PaymentId.ShouldBe(scenario.Card.Id);
         (await scenario.ReadAsync<ReportPage<PaymentRegisterRowDto, PaymentRegisterTotalsDto>>($"payment-register?payerId={scenario.First.Id}")).Items.ShouldHaveSingleItem().PaymentId.ShouldBe(scenario.Cheque.Id);
+
+        // Asked for the newest first (ADR 0037 point 6), the same payments come in the reverse order, a page holds the
+        // newest, and the totals stay those of every page.
+        var newest = await scenario.ReadAsync<ReportPage<PaymentRegisterRowDto, PaymentRegisterTotalsDto>>("payment-register?order=NewestFirst");
+        newest.Items.Select(payment => payment.PaymentId).ShouldBe(register.Items.Select(payment => payment.PaymentId).Reverse());
+        var firstTwo = await scenario.ReadAsync<ReportPage<PaymentRegisterRowDto, PaymentRegisterTotalsDto>>("payment-register?order=NewestFirst&page=1&pageSize=2");
+        firstTwo.Items.Select(payment => payment.PaymentId).ShouldBe([scenario.Waiting.Id, scenario.Card.Id]);
+        firstTwo.Totals.ShouldBe(register.Totals);
     }
 
     [Fact]
@@ -269,6 +277,7 @@ public sealed class ReportsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
         using var backwards = await viewer.GetAsync(Report("payment-register?from=2026-10-31&to=2026-10-01"));
         using var tooLong = await viewer.GetAsync(Report("bill-register?from=2025-10-01&to=2026-10-31"));
         using var method = await viewer.GetAsync(Report("payment-register?method=Barter"));
+        using var order = await viewer.GetAsync(Report("payment-register?order=Latest"));
 
         foreach (var response in new[] { half, backwards, tooLong })
         {
@@ -277,6 +286,7 @@ public sealed class ReportsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
         }
 
         await method.ShouldBeProblemAsync(HttpStatusCode.BadRequest, CommonErrors.ValidationFailedCode);
+        await order.ShouldBeProblemAsync(HttpStatusCode.BadRequest, CommonErrors.ValidationFailedCode);
     }
 
     private static Uri Report(string pathAndQuery) => new($"/api/v1/reports/{pathAndQuery}", UriKind.Relative);

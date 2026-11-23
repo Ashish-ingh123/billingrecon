@@ -16,6 +16,7 @@ public static class ReceivablesServiceCollectionExtensions
         services.AddScoped<IReceivablesLedger, ReceivablesLedger>();
         services.AddScoped<IPayerAccounts, PayerAccounts>();
         services.AddScoped<IReconciliationQuery, ReconciliationQuery>();
+        services.AddScoped<ILedgerMovements, LedgerMovementsQuery>();
 
         return services;
     }
