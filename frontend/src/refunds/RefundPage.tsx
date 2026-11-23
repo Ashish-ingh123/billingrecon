@@ -93,6 +93,8 @@ function RefundView({ refund }: { refund: Refund }) {
   const source =
     refund.sourceKind === 'Payment' && refund.paymentId !== null ? (
       <Link to={`/payments/${refund.paymentId}`}>The payment</Link>
+    ) : refund.creditNoteId !== null ? (
+      <Link to={`/credit-notes/${refund.creditNoteId}`}>The credit note</Link>
     ) : (
       'A credit note'
     );

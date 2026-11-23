@@ -4,8 +4,9 @@ import fieldStyles from './Field.module.css';
 import forms from './forms.module.css';
 
 /**
- * An action that needs a reason, asked for in place (ADR 0039 point 4): a reversal request, a void. The reason is
- * required and at most 500 characters, as the API has it.
+ * An action that needs a reason, asked for in place (ADR 0039 point 4): a reversal request, a void, a rejection. The
+ * reason is required and at most 500 characters, as the API has it; with `optional` it may be left empty (the comment of
+ * an approval, ADR 0042). `tone` makes the button a primary one where the action is no danger.
  */
 export function ReasonForm({
   label,
@@ -13,12 +14,16 @@ export function ReasonForm({
   onConfirm,
   onCancel,
   busy = false,
+  optional = false,
+  tone = 'danger',
 }: {
   label: string;
   confirmLabel: string;
   onConfirm: (reason: string) => void;
   onCancel: () => void;
   busy?: boolean;
+  optional?: boolean;
+  tone?: 'danger' | 'primary';
 }) {
   const id = useId();
   const [reason, setReason] = useState('');
@@ -26,7 +31,7 @@ export function ReasonForm({
 
   const confirm = () => {
     const text = reason.trim();
-    if (text === '') {
+    if (text === '' && !optional) {
       setError('Give the reason.');
       return;
     }
@@ -62,7 +67,7 @@ export function ReasonForm({
         )}
       </div>
       <div className={forms.actions}>
-        <button type="button" className={buttons.danger} disabled={busy} onClick={confirm}>
+        <button type="button" className={buttons[tone]} disabled={busy} onClick={confirm}>
           {confirmLabel}
         </button>
         <button type="button" className={buttons.secondary} onClick={onCancel}>

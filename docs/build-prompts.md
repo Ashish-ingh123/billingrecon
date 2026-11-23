@@ -39,9 +39,10 @@ is left; their numbering is mine, not the blueprint's.
 | 7.2 Patients, payers and catalogue screens | Written on 2026-11-23 with the owner's decisions (ADR 0039; CLAUDE.md section 9, item 38). Built and tested like 7.1: 220 frontend tests, the .NET gates; in the browser against the real API, a real conflict included. No package, no migration, no change of the API; `OpenApiSnapshotTests` now writes line breaks as LF |
 | 7.3 Bill screens | Written on 2026-11-23 with the owner's decisions (ADR 0040; CLAUDE.md section 9, item 39). Built and tested like 7.1: 262 frontend tests, the .NET gates with a Domain test that holds the server to the browser's line cases; in the browser against the real API, posting and approval included. No package, no migration, no change of the API |
 | 7.4 Cashier screens | Written on 2026-11-23 with the owner's decisions (ADR 0041; CLAUDE.md section 9, item 40). Built and tested like 7.1: 296 frontend tests, the .NET gates; in the browser against the real API, recording, allocation, a reversal request, the statement and a refund submitted. No package, no migration, no change of the API |
-| Everything else in R1 | Not started: the rest of the frontend (7.5 and 7.6; 7.6 needs the layout reference `docs/ui/dashboard.png` first), delivery (Phase 8) |
+| 7.5 Approvals, credit notes and adjustments | Written on 2026-11-23 with the owner's decisions (ADR 0042; CLAUDE.md section 9, item 41). The prompt was split with its plan: the reports are 7.5b. Built and tested like 7.1: 330 frontend tests, the .NET gates and the whole `Database` collection on LocalDB (the pending approvals report answers two more fields); in the browser against the real API, the Phase 4 scenario by three users. No package, no migration |
+| Everything else in R1 | Not started: the rest of the frontend (7.5b and 7.6; 7.6 needs the layout reference `docs/ui/dashboard.png` first), delivery (Phase 8) |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. 5.3b (tenant settings and prefix changes) is written too, and `0019` is in the repository. ADR 0033 built note point 5 was decided on 2026-11-23 (the approval holds the series) and is built as its own commit. 5.4 was split with its plan: its first half, the database logins and grants, is written too, and `0020` is in the repository. 5.4b (HTTP hardening and `docs/security.md` in full) is written too, with no migration; Phase 5 is written to its end, and its merge to `main` is the owner's step. 6.1 (registers and balances), 6.2 (reconciliation and audit trail) and 6.3 (dashboard figures) are written too, with no migration, on `phase-2-billing` like the rest: the backend of R1 is written to its end, and its merge to `main` is the owner's step. 7.1 (the frontend's scaffold and sign-in) is written too, on the same branch, with Node 24 on the office machine. 7.2 (patients, payers and catalogue screens), 7.3 (bill screens) and 7.4 (cashier screens) are written too. Next prompt: 7.5 (approvals and reports). What was decided for each built prompt is recorded under it below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. 5.3b (tenant settings and prefix changes) is written too, and `0019` is in the repository. ADR 0033 built note point 5 was decided on 2026-11-23 (the approval holds the series) and is built as its own commit. 5.4 was split with its plan: its first half, the database logins and grants, is written too, and `0020` is in the repository. 5.4b (HTTP hardening and `docs/security.md` in full) is written too, with no migration; Phase 5 is written to its end, and its merge to `main` is the owner's step. 6.1 (registers and balances), 6.2 (reconciliation and audit trail) and 6.3 (dashboard figures) are written too, with no migration, on `phase-2-billing` like the rest: the backend of R1 is written to its end, and its merge to `main` is the owner's step. 7.1 (the frontend's scaffold and sign-in) is written too, on the same branch, with Node 24 on the office machine. 7.2 (patients, payers and catalogue screens), 7.3 (bill screens), 7.4 (cashier screens) and 7.5 (the checker's inbox, credit notes and adjustments; split with its plan) are written too. Next prompt: 7.5b (reports). What was decided for each built prompt is recorded under it below.**
 
 ## How to use these prompts
 
@@ -824,6 +825,32 @@ adjustment drafting, and the six R1 reports with date filters and CSV export.
 Done when: the Phase 4 scenario can be performed entirely in the browser by three users.
 ```
 
+**Owner's decisions for 7.5, recorded 2026-11-23 (the plan was approved "as recommended"; ADR 0042):** **the prompt is
+split**: 7.5 builds the inbox, the credit notes and the adjustments and is done with the three-user scenario, and the
+reports are **7.5b** below; **the pending approvals report answers `parentDocumentId` and `makerComment`**, a change of
+the API, so that an allocation or an application of credit is decided through its payment or credit note and the checker
+reads the maker's reason; **decisions are made in the inbox**, a request reviewed in place, the maker's own request
+without a review; **a credit note's lines come from its bill**, by quantity at the bill line's price and tax, with free-text
+lines beside them. Built as decided: the allocation form of 7.4 is shared with the application of credit
+(`ApplyToBills`), and credit notes and adjustments are drafted from the posted bill they correct.
+
+#### 7.5b Reports
+
+```
+Read the reports in docs/api.md section 8.15 and BR-901, and the screens ADRs 0039 to 0042.
+Build the six R1 reports of BR-901 under /reports: the bill register, the payment register with
+the daily collection by method, outstanding by payer with a payer's balance, unapplied cash and
+available credit, pending approvals, and the reconciliation. Each with its filters in the address
+(the registers a period of business dates in India, the current month by default), its totals over
+every page as the API answers them, exact amounts with Indian grouping, and a CSV export of every
+row of the filter, not only the page shown, with the totals and the period.
+Decide with the plan where the CSV is written (in the browser from every page, or by the API).
+Tests: each report's filters sent and kept in the address, its totals the server's, the CSV's rows,
+amounts and escaping, and access by role.
+Done when: every report after the Phase 4 scenario shows the figures the API answers, and its CSV
+opens in a spreadsheet with the same rows and totals.
+```
+
 #### 7.6 Dashboard
 
 The layout reference `docs/ui/dashboard.png` must be in the repository before this prompt is given.
@@ -843,7 +870,7 @@ Build the dashboard as the landing page for the roles the permission matrix allo
 - billing against collections line chart (collections dashed, tooltip with both values);
 - ageing donut with the total in the centre and a legend showing amount and share;
 - recent payments, top outstanding payers (with proportional bars), pending approvals and
-  reconciliation exceptions, each with a "view all" link to the screen built in 7.4 or 7.5.
+  reconciliation exceptions, each with a "view all" link to the screen built in 7.4, 7.5 or 7.5b.
   The approvals panel follows the checker's-inbox rule of 7.5 (a maker does not see a Review
   action on their own request).
 Money: cards may show a compact figure (₹12.8L) with the exact amount in a tooltip and for

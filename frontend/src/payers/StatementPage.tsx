@@ -3,13 +3,14 @@ import { Link, useParams } from 'react-router';
 import { useApiClient } from '../api/ApiClientContext';
 import { answer } from '../api/call';
 import { useCan } from '../auth/permissions';
+import { mostOpenBills, usePayerOpenBills } from '../bills/api';
 import table from '../components/DataTable.module.css';
 import { Details } from '../components/Details';
 import forms from '../components/forms.module.css';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
 import { formatDate, formatDecimal } from '../format';
-import { methodLabels, mostOpenBills, usePayerOpenBills } from '../payments/api';
+import { methodLabels } from '../payments/api';
 import { usePayer } from './api';
 import styles from './Statement.module.css';
 

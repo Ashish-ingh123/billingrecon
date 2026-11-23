@@ -89,3 +89,10 @@
     padding-top: 0;
   }
 }
+
+.corrections {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.375rem;
+}

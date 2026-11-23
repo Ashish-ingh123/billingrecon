@@ -93,7 +93,7 @@ export const sections: readonly Section[] = [
     label: 'Reports',
     roles: everyone,
     purpose: 'The registers, the daily collection, balances and the reconciliation.',
-    builtBy: '7.5',
+    builtBy: '7.5b',
   },
   {
     path: '/administration',

@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { sessionStorageKey } from '../auth/session';
-import { fakeApi, json, renderApp, sessionFor } from '../test/app';
+import { fakeApi, json, renderApp, routedApi, sessionFor } from '../test/app';
 
 describe('the shell of a signed-in user', () => {
   it('shows the hospital, the user and their roles, and the sections their roles may open', async () => {
@@ -39,7 +39,19 @@ describe('the shell of a signed-in user', () => {
   });
 
   it('moves between sections without signing in again', async () => {
-    const { user, router } = renderApp('/', { session: sessionFor(['Supervisor']) });
+    // The inbox reads what waits; here, nothing.
+    const api = routedApi({
+      'GET /api/v1/reports/pending-approvals': () =>
+        json(200, {
+          period: null,
+          items: [],
+          page: 1,
+          pageSize: 20,
+          totalCount: 0,
+          totals: { requests: 0, oldestRequestedAtUtc: null },
+        }),
+    });
+    const { user, router } = renderApp('/', { session: sessionFor(['Supervisor']), fetch: api.fetch });
 
     await user.click(await screen.findByRole('link', { name: 'Approvals' }));
 

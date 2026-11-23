@@ -55,7 +55,9 @@ public sealed class ApprovalReports(BillingReconDbContext context, IClock clock)
                     request.DocumentType,
                     request.Action,
                     request.DocumentId,
+                    document?.ParentId,
                     request.MakerUserId.Value,
+                    request.MakerComment,
                     request.RequestedAtUtc,
                     todayIst.DayNumber - clock.ToIstDate(request.RequestedAtUtc).DayNumber,
                     document?.PayerId.Value,
@@ -68,13 +70,14 @@ public sealed class ApprovalReports(BillingReconDbContext context, IClock clock)
             null, items, query.Page, query.PageSize, count, new PendingApprovalsTotalsDto(count, oldest));
     }
 
-    // The payer and the amount of the documents of the page, by kind and id. A prefix change has neither.
+    // The payer and the amount of the documents of the page, by kind and id, and for an allocation or an application of
+    // credit the payment or the credit note it belongs to. A prefix change has none of them.
     private async Task<Dictionary<(ApprovalDocumentType, Guid), DocumentFacts>> DocumentsAsync(IReadOnlyList<ApprovalRequest> requests, CancellationToken ct)
     {
         List<Guid> Ids(ApprovalDocumentType type) => [.. requests.Where(request => request.DocumentType == type).Select(request => request.DocumentId)];
 
         var facts = new Dictionary<(ApprovalDocumentType, Guid), DocumentFacts>();
-        void Add(ApprovalDocumentType type, Guid id, PayerId payerId, Money amount) => facts[(type, id)] = new DocumentFacts(payerId, amount);
+        void Add(ApprovalDocumentType type, Guid id, PayerId payerId, Money amount, Guid? parentId = null) => facts[(type, id)] = new DocumentFacts(payerId, amount, parentId);
 
         var billIds = Ids(ApprovalDocumentType.Bill).Select(id => new BillId(id)).ToList();
         foreach (var bill in await context.Set<Bill>().AsNoTracking().Where(bill => billIds.Contains(bill.Id)).Select(bill => new { bill.Id, bill.PayerId, bill.Total }).ToListAsync(ct))
@@ -111,11 +114,11 @@ public sealed class ApprovalReports(BillingReconDbContext context, IClock clock)
                 from allocation in context.Set<PaymentAllocation>().AsNoTracking()
                 join payment in context.Set<Payment>().AsNoTracking() on allocation.PaymentId equals payment.Id
                 where allocationIds.Contains(allocation.Id)
-                select new { allocation.Id, payment.PayerId, allocation.Amount })
+                select new { allocation.Id, payment.PayerId, allocation.Amount, PaymentId = payment.Id })
             .ToListAsync(ct);
         foreach (var allocation in allocations)
         {
-            Add(ApprovalDocumentType.PaymentAllocation, allocation.Id.Value, allocation.PayerId, allocation.Amount);
+            Add(ApprovalDocumentType.PaymentAllocation, allocation.Id.Value, allocation.PayerId, allocation.Amount, allocation.PaymentId.Value);
         }
 
         var applicationIds = Ids(ApprovalDocumentType.CreditNoteAllocation).Select(id => new CreditNoteAllocationId(id)).ToList();
@@ -123,15 +126,15 @@ public sealed class ApprovalReports(BillingReconDbContext context, IClock clock)
                 from application in context.Set<CreditNoteAllocation>().AsNoTracking()
                 join creditNote in context.Set<CreditNote>().AsNoTracking() on application.CreditNoteId equals creditNote.Id
                 where applicationIds.Contains(application.Id)
-                select new { application.Id, creditNote.PayerId, application.Amount })
+                select new { application.Id, creditNote.PayerId, application.Amount, CreditNoteId = creditNote.Id })
             .ToListAsync(ct);
         foreach (var application in applications)
         {
-            Add(ApprovalDocumentType.CreditNoteAllocation, application.Id.Value, application.PayerId, application.Amount);
+            Add(ApprovalDocumentType.CreditNoteAllocation, application.Id.Value, application.PayerId, application.Amount, application.CreditNoteId.Value);
         }
 
         return facts;
     }
 
-    private sealed record DocumentFacts(PayerId PayerId, Money Amount);
+    private sealed record DocumentFacts(PayerId PayerId, Money Amount, Guid? ParentId);
 }

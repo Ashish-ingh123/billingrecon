@@ -15879,7 +15879,9 @@
           "documentType",
           "action",
           "documentId",
+          "parentDocumentId",
           "makerUserId",
+          "makerComment",
           "requestedAtUtc",
           "waitingDays",
           "payerId",
@@ -15902,9 +15904,22 @@
             "type": "string",
             "format": "uuid"
           },
+          "parentDocumentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
           "makerUserId": {
             "type": "string",
             "format": "uuid"
+          },
+          "makerComment": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "requestedAtUtc": {
             "type": "string",
@@ -15941,7 +15956,7 @@
             "format": "double"
           }
         },
-        "description": "A maker-checker request that waits for a decision (BR-604, BR-901): what it asks, of which document, by whom and since\nwhen, how many days that is in India, and the document's payer and amount where it has them. A prefix change has\nneither."
+        "description": "A maker-checker request that waits for a decision (BR-604, BR-901): what it asks, of which document, by whom, with what\ncomment and since when, how many days that is in India, and the document's payer and amount where it has them. A prefix\nchange has neither. The reversal of an allocation or of an application of credit names the payment or the credit note\nit belongs to, through which it is decided (ADR 0042 point 2)."
       },
       "PendingApprovalsTotalsDto": {
         "required": [

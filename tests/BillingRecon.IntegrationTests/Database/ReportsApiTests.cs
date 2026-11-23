@@ -231,6 +231,9 @@ public sealed class ReportsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
         ]);
         pending.Items.Select(request => request.PayerName).ShouldBe([scenario.Second.Name, scenario.First.Name]);
         pending.Items.ShouldAllBe(request => request.MakerUserId == scenario.Maker.UserId!.Value.Value);
+        pending.Items.Select(request => (request.ParentDocumentId, request.MakerComment)).ShouldBe(
+            [((Guid?)null, (string?)"Asked for by the payer"), (null, null)],
+            "a reversal carries the maker's reason, a posting none, and neither belongs to another document");
         pending.Totals.ShouldBe(new PendingApprovalsTotalsDto(2, pending.Items[0].RequestedAtUtc));
 
         // Neither document has the posting its request waits for.
@@ -238,6 +241,51 @@ public sealed class ReportsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
         (await LedgerAsync($"SELECT CAST(COUNT(*) AS decimal(18,2)) AS [Value] FROM dbo.LedgerPostings p WHERE p.[TenantId] = {tenant} AND p.[DocumentId] = {scenario.PendingCredit.Id}")).ShouldBe(0m);
 
         (await scenario.ReadAsync<ReportPage<PendingApprovalDto, PendingApprovalsTotalsDto>>("pending-approvals?documentType=CreditNote")).Items.ShouldHaveSingleItem().DocumentId.ShouldBe(scenario.PendingCredit.Id);
+    }
+
+    [Fact]
+    public async Task BR901_a_waiting_reversal_of_an_allocation_or_of_an_application_of_credit_names_the_payment_or_the_credit_note_it_belongs_to()
+    {
+        await using var scenario = await ScenarioAsync();
+        using var clerk = scenario.Factory.CreateClientFor(scenario.Maker, "BillingClerk", "Cashier");
+
+        // The cheque's 400.00 on the admission is asked back; 50.00 of the consultation's credit note goes to the bill of
+        // the day before, and is asked back too.
+        var cheque = await DocumentAsync<PaymentAllocationsDto>(clerk, $"/api/v1/payments/{scenario.Cheque.Id}/allocations");
+        var onAdmission = cheque.Allocations.Single(allocation => allocation.BillId == scenario.Admission.Id && allocation.Status == PaymentAllocationStatus.Active);
+        await ReversalRequestedAsync(clerk, scenario.Cheque.Id, $"/api/v1/payments/{scenario.Cheque.Id}/allocations/{onAdmission.Id}");
+
+        var credit = await DocumentAsync<CreditNoteDto>(clerk, $"/api/v1/credit-notes/{scenario.Credit.Id}");
+        CreditNoteDto applied;
+        using (var response = await clerk.SendWithIfMatchAsync(
+            HttpMethod.Post,
+            CreditNote(credit.Id, "applications"),
+            new ApplyCreditNoteRequest { Applications = [new CreditApplicationRequest { BillId = scenario.YesterdayBill.Id, Amount = 50m }] },
+            PayersApi.ETag(credit.Version)))
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+            applied = await response.ReadAsAsync<CreditNoteDto>();
+        }
+
+        var later = applied.Applications.Single(application => !application.AppliedAtPosting);
+        using (var asked = await clerk.SendWithIfMatchAsync(
+            HttpMethod.Post,
+            new Uri($"/api/v1/credit-notes/{credit.Id}/applications/{later.Id}/reverse", UriKind.Relative),
+            new ReverseCreditApplicationRequest { Reason = "Applied to the wrong bill" },
+            PayersApi.ETag(applied.Version)))
+        {
+            asked.StatusCode.ShouldBe(HttpStatusCode.Accepted, await asked.Content.ReadAsStringAsync());
+        }
+
+        var allocations = await scenario.ReadAsync<ReportPage<PendingApprovalDto, PendingApprovalsTotalsDto>>("pending-approvals?documentType=PaymentAllocation");
+        var applications = await scenario.ReadAsync<ReportPage<PendingApprovalDto, PendingApprovalsTotalsDto>>("pending-approvals?documentType=CreditNoteAllocation");
+
+        var allocation = allocations.Items.ShouldHaveSingleItem();
+        (allocation.DocumentId, allocation.ParentDocumentId, allocation.MakerComment, allocation.PayerId, allocation.Amount)
+            .ShouldBe((onAdmission.Id, (Guid?)scenario.Cheque.Id, (string?)"Asked for by the payer", (Guid?)scenario.First.Id, (decimal?)400.00m));
+        var application = applications.Items.ShouldHaveSingleItem();
+        (application.DocumentId, application.ParentDocumentId, application.MakerComment, application.PayerId, application.Amount)
+            .ShouldBe((later.Id, (Guid?)scenario.Credit.Id, (string?)"Applied to the wrong bill", (Guid?)scenario.Second.Id, (decimal?)50.00m));
     }
 
     [Fact]
@@ -295,6 +343,17 @@ public sealed class ReportsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
         where T : class
     {
         using var response = await client.GetAsync(Report(pathAndQuery));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+
+        return await response.ReadAsAsync<T>();
+    }
+
+    // A document as its own endpoint answers it, outside the reports.
+    private static async Task<T> DocumentAsync<T>(HttpClient client, string path)
+        where T : class
+    {
+        using var response = await client.GetAsync(new Uri(path, UriKind.Relative));
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
 

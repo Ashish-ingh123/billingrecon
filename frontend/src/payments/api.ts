@@ -6,8 +6,7 @@ import type { components } from '../api/schema';
 import type { Tone } from '../components/Badge';
 import type { ComparedField } from '../components/conflict';
 import { pageSize } from '../components/listParams';
-import { formatDate, formatDecimal } from '../format';
-import { paiseOfServer } from '../money';
+import { formatDecimal } from '../format';
 
 /** A payment as the API answers one (`docs/api.md` section 8.7). */
 export type Payment = components['schemas']['PaymentDto'];
@@ -15,8 +14,6 @@ export type PaymentWithAllocations = components['schemas']['PaymentAllocationsDt
 export type Allocation = components['schemas']['PaymentAllocationDto'];
 export type PaymentMethod = components['schemas']['PaymentMethod'];
 export type PaymentStatus = components['schemas']['PaymentStatus'];
-/** A bill as a list answers it: no lines. */
-export type BillSummary = components['schemas']['BillSummaryDto'];
 
 export const paymentMethods: readonly PaymentMethod[] = ['Cash', 'Card', 'UPI', 'BankTransfer', 'Cheque'];
 
@@ -202,43 +199,4 @@ export function usePaymentWithAllocations(id: string, enabled = true) {
     queryFn: () => getPaymentWithAllocations(client, id),
     enabled,
   });
-}
-
-/** How many of a payer's bills the allocation form and the statement show at most (ADR 0041, Consequences). */
-export const mostOpenBills = 200;
-
-/**
- * The posted bills of a payer that still owe something, oldest bill date first (ADR 0041 point 1): the posted and the
- * partly paid ones, read a page of 100 each.
- */
-export function usePayerOpenBills(payerId: string) {
-  const client = useApiClient();
-  return useQuery({
-    queryKey: ['payer-open-bills', payerId],
-    queryFn: async () => {
-      const read = (status: 'Posted' | 'PartiallyPaid') =>
-        answer(
-          client.GET('/api/v1/bills', {
-            params: { query: { PayerId: payerId, Status: status, Page: 1, PageSize: 100 } },
-          }),
-        );
-      const [posted, partlyPaid] = await Promise.all([read('Posted'), read('PartiallyPaid')]);
-      const bills: BillSummary[] = [...posted.items, ...partlyPaid.items].filter(
-        (bill) => paiseOfServer(bill.balanceDue) > 0n,
-      );
-      const truncated = Number(posted.totalCount) > 100 || Number(partlyPaid.totalCount) > 100;
-
-      return {
-        bills: bills.sort(
-          (a, b) => a.billDate.localeCompare(b.billDate) || (a.number ?? '').localeCompare(b.number ?? ''),
-        ),
-        truncated,
-      };
-    },
-  });
-}
-
-/** How a bill reads in a list of open bills: its number and date. */
-export function billLabel(bill: { number: string | null; billDate: string }): string {
-  return `${bill.number ?? 'No number'} of ${formatDate(bill.billDate)}`;
 }

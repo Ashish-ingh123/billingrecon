@@ -79,6 +79,7 @@ React + TypeScript + Vite in `frontend/` (ADR 0038, Prompt 7.1). Node 22.22 or l
 | Screens (ADR 0039) | Lists, records, forms | A list keeps its search, status and page in the address. Every change sends `If-Match` from the record's `version`. Who may change is `src/auth/permissions.ts`, a copy of the API's policies that a test holds to `Policies.cs`. Deactivate asks once more, in place. A 409 `concurrency_conflict` says nothing was saved, lists what changed, and offers "Load the latest version" or "Keep my changes". Decimals are typed as text, sent as JSON numbers, refused beyond 15 significant digits; amounts shown with Indian grouping. The API's field messages go at their fields. |
 | Bills (ADR 0040) | One editor for a draft; the key of an operation | A new draft is one `POST` with its lines; a correction sends what changed, the header (`PATCH`) then the lines (`PUT`) with chained versions. Create, void and post carry an `Idempotency-Key` from `useIdempotentRequest`: the same key when the same request is sent again after no answer, a fault or 409 `idempotency_in_progress`, a new one otherwise. Live totals are an estimate by exact arithmetic on `BigInt` (`src/bills/lineMath.ts`), held with the server's `LineCalculator` to one file of cases (`src/bills/lineCases.json`); after a save the server's figures are shown. Posting answers posted (200) or sent for approval (202). Every record's history is the `AuditTrail` component. |
 | Cashier (ADR 0041) | Allocate oldest first; refunds from their source; the payer statement | Allocating lists the payer's bills that owe something, oldest first, with "Apply oldest first"; the caps (each bill's balance due, the unapplied cash) are checked in exact paise (`src/money.ts`) before sending, and again by the server. A refund is drawn from a payment or a credit note, from its page or the payer statement (`/payers/:id/statement`). Every financial action on a document (reversal requests, a refund's void and submission) goes through `useDocumentAction`: the key of the operation, the retry, the conflict, the outcome. Approving a reversal or a refund is 7.5's. |
+| Inbox, credit notes, adjustments (ADR 0042) | Decide in the inbox; draft from the bill | `/approvals` (policy `Decide`) lists what waits from the pending approvals report, which answers `parentDocumentId` (an allocation's payment, an application's credit note) and `makerComment`; **Review** reads the document as it is now and sends Approve (comment optional) or Reject (comment required) with that document's version and a key (none for a prefix change). The maker's own request shows no review. Credit notes and adjustments are drafted from the posted bill (`?billId=`); a credit note credits the bill's lines by quantity at their price and tax, plus free-text lines, capped per line and in total before sending. A credit note's credit is applied with the shared `ApplyToBills` form of the allocation. A document that waits links a checker to the inbox (`ReviewLink`). |
 | Session | **`sessionStorage`** | The token, its expiry and the roles read from it; gone with the tab, at expiry and on a 401 (row S5). The roles choose the navigation only; the API is the authority. |
 | Charts (7.6) | **Recharts** | SVG, so a series drawn with `var(--series-n)` follows the theme without a re-render. |
 | Tests | **Vitest**, jsdom, React Testing Library | The API faked by a `fetch` given to the client (`src/test/app.tsx`); no mocking package. |
@@ -412,7 +413,11 @@ frontend/                      React + TypeScript + Vite (ADR 0038): index.html 
                                useIdempotentRequest, src/payments (api.ts, the list, the record form, the payment's page
                                with its reversal requests, AllocatePage) and src/refunds (api.ts, the list, the form from
                                its source, the refund's page), src/payers also StatementPage, src/components also Badge,
-                               ReasonForm and useDocumentAction, money.ts (exact paise; ADR 0041), src/auth/permissions.ts (the
+                               ReasonForm and useDocumentAction, money.ts (exact paise; ADR 0041), src/approvals (api.ts
+                               with how each of the eight kinds is read and decided, the inbox, ReviewLink), src/creditNotes
+                               (api.ts, the list, the page, the editor with CreditLinesEditor, ApplyCreditPage) and
+                               src/adjustments (api.ts, the list, the page, the form; ADR 0042), src/bills also
+                               ApplyToBills (the allocation and application form) and the payer's open bills, src/auth/permissions.ts (the
                                API's policies), format.ts and decimals.ts, routes.tsx, Providers.tsx; src/test (the app
                                renderer, routedApi, the records, the colour scan, the contrast and theme-script tests).
                                The OpenAPI document is kept equal to the API's by OpenApiSnapshotTests (IntegrationTests).
@@ -793,7 +798,10 @@ section of their own (Accepted on the owner's approval of the Prompt 7.2 plan, 2
 retry of the same request, live totals by exact arithmetic on BigInt held with the server to one file of cases, names
 in the bill list read per patient and payer (Accepted on the owner's approval of the Prompt 7.3 plan, 2026-11-23),
 0041 the cashier screens: allocating oldest first with the caps checked in exact paise, a refund drawn from its source,
-the payer statement as a page of its own (Accepted on the owner's approval of the Prompt 7.4 plan, 2026-11-23).
+the payer statement as a page of its own (Accepted on the owner's approval of the Prompt 7.4 plan, 2026-11-23),
+0042 the checker's inbox and the credit note and adjustment screens: the prompt split (reports in 7.5b), the pending
+approvals report answering `parentDocumentId` and `makerComment`, decisions made in the inbox and never by the maker, a
+credit note's lines from its bill (Accepted on the owner's approval of the Prompt 7.5 plan, 2026-11-23).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -2006,4 +2014,39 @@ Kept here so they survive between sessions. Remove an item when it is done.
       net 60.55), drew a refund of 500.00 from it (500.01 refused) and submitted it (202); a Viewer read without acting and
       had no access to recording.
     - **Still to do:** the CI job's first run (runbook section 8, row 7.4).
-    - Next: Prompt 7.5 (approvals and reports).
+    - Next: Prompt 7.5 (approvals and reports). Done: item 41.
+41. **Prompt 7.5, the checker's inbox, credit notes and adjustments (ADR 0042), written 2026-11-23, built and tested on the
+    office machine.** On `phase-2-billing`. The plan was approved "as recommended" with its four answers: the prompt split
+    (the six reports with CSV are **7.5b**, worded in `docs/build-prompts.md`), two fields added to the pending approvals
+    report, decisions made in the inbox, a credit note's lines from its bill. No package, no migration.
+    - **Changed in the API, called out:** `PendingApprovalDto` answers `parentDocumentId` (an allocation's payment, an
+      application's credit note) and `makerComment`, filled by `ApprovalReports` from rows it already joined; `docs/api.md`
+      sections 8.6 (which still said "`Bill` so far") and 8.15; the OpenAPI snapshot and the frontend's types rewritten.
+    - Built: `/approvals` for TenantAdmin and Supervisor, the eight kinds reviewed in place and approved (comment optional)
+      or rejected (comment required) with their document's version and a key (none for a prefix change), the maker's own
+      request without a review; credit notes (list, page, draft from a posted bill with lines of the bill by quantity and
+      free-text lines, correction by `PATCH` then `PUT`, void, submit, apply credit with the shared `ApplyToBills` form,
+      reversal of a later application); adjustments (list, page, draft from a bill that owes, correction by `PUT`, void,
+      submit); a posted bill's actions and its credit notes and adjustments; `ReviewLink` on every waiting document.
+    - **Changed in existing code and tests, called out:** the open bills of a payer moved from the payments module to the
+      bills module; `ReasonForm` gained `optional` and `tone`; `useBill` takes `enabled`; a refund's credit note source
+      links to the credit note; the shell test that opens `/approvals` now gives the inbox an empty answer to read (its
+      expectations are the same); `ReportsApiTests` asserts the two new fields of the requests it had, and has one new test.
+    - **Tests:** 330 frontend tests (34 new), and one new database test. With six defects put in one at a time (review
+      shown to the maker, a decision without its version, a rounding of a rupee accepted, a quantity above the billed one, a
+      line above its bill line, an empty comment sent as text), each is caught.
+    - **Verified:** in `frontend/`, `npm audit` (none), the format check, lint, types, 330 tests and the build, and the
+      generated types equal to the committed document; in the repository, the Release build and `dotnet format
+      --verify-no-changes` are clean, and Domain 644, Application 423, Architecture 129 and the 743 integration tests without
+      a database pass; in a throwaway copy on LocalDB 2019 the `Database` collection passes in full (491). **In the
+      browser**, the Phase 4 scenario by three users against the API in Development on a throwaway LocalDB database: a clerk
+      posted BIL/26-27/000001 (716.00); a cashier recorded 600.00, allocated 400.00, asked for that allocation's reversal and
+      submitted a refund of 200.00; the clerk drafted a credit note of the dressing line (3 refused against the 2 billed) and
+      a discount of 90.00 (a rounding of 1.00 refused), submitted both, and had no access to the inbox; a supervisor approved
+      all four from the inbox, which showed both makers and the reversal's reason. The bill owed 500.00, the payment held
+      400.00, CN, ADJ and REF were numbered, and the reconciliation found no drift.
+    - **Found:** the bundle is 586 kB minified (169 kB gzip), above Vite's 500 kB warning; splitting by route is left to
+      delivery. The copy's LocalDB patch of `SqlServerFixture` now needs its analyzer warnings silenced to build (copy
+      only), or a run silently uses the copy's previous build.
+    - **Still to do:** SQL Server 2022 and the CI job's first run (runbook section 8, row 7.5).
+    - Next: Prompt 7.5b (reports).

@@ -455,8 +455,9 @@ created, changed or deleted.
 |---|---|---|
 | `GET /api/v1/approval-requests?status=&documentType=&page=&pageSize=` | 200, a page of requests, oldest first | 400 |
 
-`status` is `Pending` (the default), `Approved` or `Rejected`; `documentType` is `Bill` so far. A request:
-`id`, `documentType`, `documentId`, `action` (`Post`), `status`, `makerUserId`, `makerComment`, `checkerUserId`,
+`status` is `Pending` (the default), `Approved` or `Rejected`; `documentType` is `Bill`, `CreditNote`, `Adjustment`,
+`Refund`, `Payment`, `PaymentAllocation`, `CreditNoteAllocation` or `PrefixChange`; `action` is `Post`, `Reverse` or
+`ChangePrefix`. A request: `id`, `documentType`, `documentId`, `action`, `status`, `makerUserId`, `makerComment`, `checkerUserId`,
 `checkerComment`, `requestedAtUtc`, `decidedAtUtc`. The last three of the checker are null while it is pending.
 
 ### 8.7 Payments (US-30; BR-205, BR-301, BR-302, BR-309)
@@ -902,10 +903,13 @@ Money is a decimal with two places, as everywhere.
   `unappliedAmount` (the balance of UnappliedCash).
 - **Available credit** items: `creditNoteId`, `number`, `creditNoteDate`, `billId`, `billNumber`, `payerId`,
   `payerName`, `total`, `availableAmount`. Totals: `creditNotes`, `availableAmount` (the balance of CreditAvailable).
-- **Pending approvals** items: `approvalRequestId`, `documentType`, `action`, `documentId`, `makerUserId`,
-  `requestedAtUtc`, `waitingDays` (in India, from the day of the request to today), and the document's `payerId`,
-  `payerName` and `amount` where it has them (a prefix change has none). Totals: `requests`, `oldestRequestedAtUtc`.
-  This report is everyone's; the checker's inbox (section 8.6) stays the checkers'.
+- **Pending approvals** items: `approvalRequestId`, `documentType`, `action`, `documentId`, `parentDocumentId` (for
+  the reversal of an allocation, its payment; of an application of credit, its credit note; null for every other
+  request: the decision is sent to that document, ADR 0042), `makerUserId`, `makerComment` (the maker's reason for a
+  reversal or a prefix change, null for a posting), `requestedAtUtc`, `waitingDays` (in India, from the day of the
+  request to today), and the document's `payerId`, `payerName` and `amount` where it has them (a prefix change has
+  none). Totals: `requests`, `oldestRequestedAtUtc`. This report is everyone's, and the frontend's checker's inbox is
+  built on it (ADR 0042); the list of section 8.6 stays the checkers'.
 - **Reconciliation** (US-41, BR-404; Prompt 6.2): every place where a cached balance differs from the ledger, or the
   ledger or a number series breaks one of its identities (`docs/database.md` sections 5.5 and 5.6). Items: `identity`
   (for example `BillBalance`, `PayerReceivable`, `UnbalancedPosting`, `NumberSeriesGap`), `subjectId` (the bill,

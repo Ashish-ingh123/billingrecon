@@ -148,6 +148,14 @@ Since Prompt 7.4 (ADR 0041):
 - **An answer about one line lands at that line:** a refusal naming `allocations[i].amount` is shown at the bill of that
   line and not again in `ProblemAlert`.
 
+Since Prompt 7.5 (ADR 0042):
+
+- **Every kind of request is decided in one table-driven test** (`Approvals.test.tsx`): for each of the eight, the
+  document the inbox reads, the path the approval goes to, the version in `If-Match` and the key (none for a prefix
+  change). A new kind of maker-checker document adds its row.
+- **The maker's own request is asserted to have no review**, as the API refuses it (BR-603); a conflict is asserted to
+  name the state the checker saw and the state now.
+
 The jsdom environment has no `matchMedia`; `src/test/setup.ts` gives every test a system that prefers light, which a
 test changes with `stubColourScheme`, and clears both storages before each test.
 

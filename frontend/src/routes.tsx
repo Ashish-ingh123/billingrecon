@@ -1,11 +1,19 @@
 import type { ReactNode } from 'react';
 import type { RouteObject } from 'react-router';
+import { AdjustmentPage } from './adjustments/AdjustmentPage';
+import { EditAdjustmentPage, NewAdjustmentPage } from './adjustments/AdjustmentFormPage';
+import { AdjustmentsPage } from './adjustments/AdjustmentsPage';
+import { ApprovalsPage } from './approvals/ApprovalsPage';
 import { RequireAuth } from './auth/RequireAuth';
 import { EditBillPage, NewBillPage } from './bills/BillFormPage';
 import { BillPage } from './bills/BillPage';
 import { BillsPage } from './bills/BillsPage';
 import type { Policy } from './auth/permissions';
 import { SignInPage } from './auth/SignInPage';
+import { ApplyCreditPage } from './creditNotes/ApplyCreditPage';
+import { EditCreditNotePage, NewCreditNotePage } from './creditNotes/CreditNoteFormPage';
+import { CreditNotePage } from './creditNotes/CreditNotePage';
+import { CreditNotesPage } from './creditNotes/CreditNotesPage';
 import { EditPatientPage, NewPatientPage } from './patients/PatientFormPage';
 import { PatientPage } from './patients/PatientPage';
 import { PatientsPage } from './patients/PatientsPage';
@@ -48,7 +56,17 @@ function screens(
 }
 
 /** The sections whose screens are built; every other section is a placeholder naming the prompt that builds it. */
-const built = new Set(['/patients', '/payers', '/service-items', '/bills', '/payments', '/refunds']);
+const built = new Set([
+  '/patients',
+  '/payers',
+  '/service-items',
+  '/bills',
+  '/payments',
+  '/refunds',
+  '/credit-notes',
+  '/adjustments',
+  '/approvals',
+]);
 
 const referenceData = { read: 'ReadReferenceData', write: 'WriteReferenceData' } as const;
 
@@ -104,6 +122,32 @@ export const routes: RouteObject[] = [
             { read: 'ReadRefunds', write: 'DraftRefunds' },
             { List: RefundsPage, One: RefundPage, New: NewRefundPage, Edit: EditRefundPage },
           ),
+          ...screens(
+            '/credit-notes',
+            { read: 'ReadCreditNotes', write: 'DraftCreditNotesAndAdjustments' },
+            { List: CreditNotesPage, One: CreditNotePage, New: NewCreditNotePage, Edit: EditCreditNotePage },
+          ),
+          {
+            path: '/credit-notes/:id/apply',
+            element: (
+              <RequirePolicy policy="DraftCreditNotesAndAdjustments">
+                <ApplyCreditPage />
+              </RequirePolicy>
+            ),
+          },
+          ...screens(
+            '/adjustments',
+            { read: 'ReadAdjustments', write: 'DraftCreditNotesAndAdjustments' },
+            { List: AdjustmentsPage, One: AdjustmentPage, New: NewAdjustmentPage, Edit: EditAdjustmentPage },
+          ),
+          {
+            path: '/approvals',
+            element: (
+              <RequirePolicy policy="Decide">
+                <ApprovalsPage />
+              </RequirePolicy>
+            ),
+          },
           ...sections
             .filter((section) => !built.has(section.path))
             .map((section) => ({ path: section.path, element: <SectionPage section={section} /> })),

@@ -12,7 +12,6 @@ import { methodLabels, type PaymentMethod } from '../payments/api';
 /** A refund as the API answers one (`docs/api.md` section 8.10). */
 export type Refund = components['schemas']['RefundDto'];
 export type RefundStatus = components['schemas']['RefundStatus'];
-export type CreditNote = components['schemas']['CreditNoteDto'];
 
 export const refundStatuses: readonly RefundStatus[] = ['Draft', 'PendingApproval', 'Posted', 'Voided'];
 
@@ -167,14 +166,4 @@ export function useRefunds(params: RefundListParams) {
 export function useRefund(id: string) {
   const client = useApiClient();
   return useQuery({ queryKey: refundKeys.one(id), queryFn: () => getRefund(client, id) });
-}
-
-/** A credit note, the source of a refund; with `enabled` false it reads nothing (a refund drawn from a payment). */
-export function useCreditNote(id: string, enabled = true) {
-  const client = useApiClient();
-  return useQuery({
-    queryKey: ['credit-notes', id],
-    queryFn: () => answer(client.GET('/api/v1/credit-notes/{id}', { params: { path: { id } } })),
-    enabled,
-  });
 }

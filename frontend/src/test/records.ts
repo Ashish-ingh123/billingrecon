@@ -1,7 +1,10 @@
-import type { Bill, BillLine } from '../bills/api';
+import type { Adjustment } from '../adjustments/api';
+import type { PendingApproval } from '../approvals/api';
+import type { Bill, BillLine, BillSummary } from '../bills/api';
+import type { CreditApplication, CreditNote, CreditNoteLine } from '../creditNotes/api';
 import type { Patient } from '../patients/api';
 import type { Payer } from '../payers/api';
-import type { Allocation, BillSummary, Payment } from '../payments/api';
+import type { Allocation, Payment } from '../payments/api';
 import type { Refund } from '../refunds/api';
 import type { ServiceItem } from '../serviceItems/api';
 
@@ -188,6 +191,114 @@ export function refund(overrides: Partial<Refund> = {}): Refund {
     version: 'AAAAAAAACgA=',
     ...overrides,
   };
+}
+
+/** The whole first line of the bill above, credited at the bill's price and tax. */
+export function creditNoteLine(overrides: Partial<CreditNoteLine> = {}): CreditNoteLine {
+  return {
+    lineNo: 1,
+    billLineId: 'd4000000-0000-4000-8000-000000000001',
+    description: 'Complete blood count',
+    quantity: 3,
+    unitPrice: 333.3333,
+    lineAmount: 1000,
+    discountAmount: 0.5,
+    taxRatePercent: 5,
+    taxAmount: 49.98,
+    lineTotal: 1049.48,
+    ...overrides,
+  };
+}
+
+export function creditApplication(overrides: Partial<CreditApplication> = {}): CreditApplication {
+  return {
+    id: 'f9100000-0000-4000-8000-000000000001',
+    billId: 'e5000000-0000-4000-8000-000000000001',
+    amount: 300,
+    status: 'Active',
+    allocatedAtUtc: '2026-11-22T06:00:00+00:00',
+    allocatedByUserId: null,
+    appliedAtPosting: true,
+    reversedAtUtc: null,
+    reversalReason: null,
+    ...overrides,
+  };
+}
+
+/** A draft credit note of the bill above, crediting its whole line. */
+export function creditNote(overrides: Partial<CreditNote> = {}): CreditNote {
+  return {
+    id: 'f9000000-0000-4000-8000-000000000001',
+    billId: 'e5000000-0000-4000-8000-000000000001',
+    payerId: 'b2000000-0000-4000-8000-000000000002',
+    patientId: 'a1000000-0000-4000-8000-000000000001',
+    creditNoteDate: '2026-11-22',
+    reason: 'Test not done',
+    status: 'Draft',
+    number: null,
+    fiscalYear: null,
+    postedAtUtc: null,
+    subTotal: 1000,
+    discountTotal: 0.5,
+    taxTotal: 49.98,
+    total: 1049.48,
+    availableAmount: 0,
+    voidedAtUtc: null,
+    voidReason: null,
+    lines: [creditNoteLine()],
+    applications: [],
+    createdAtUtc: '2026-11-22T05:00:00+00:00',
+    updatedAtUtc: '2026-11-22T05:00:00+00:00',
+    version: 'AAAAAAAACwA=',
+    ...overrides,
+  };
+}
+
+/** A draft discount of 49.48 on the bill above. */
+export function adjustment(overrides: Partial<Adjustment> = {}): Adjustment {
+  return {
+    id: 'fa000000-0000-4000-8000-000000000001',
+    billId: 'e5000000-0000-4000-8000-000000000001',
+    payerId: 'b2000000-0000-4000-8000-000000000002',
+    adjustmentDate: '2026-11-22',
+    kind: 'Discount',
+    amount: 49.48,
+    reason: 'Staff discount',
+    status: 'Draft',
+    number: null,
+    fiscalYear: null,
+    postedAtUtc: null,
+    voidedAtUtc: null,
+    voidReason: null,
+    createdAtUtc: '2026-11-22T05:00:00+00:00',
+    updatedAtUtc: '2026-11-22T05:00:00+00:00',
+    version: 'AAAAAAAADAA=',
+    ...overrides,
+  };
+}
+
+/** A request that waits, as the pending approvals report answers it: by another user, a day ago. */
+export function pendingApproval(overrides: Partial<PendingApproval> = {}): PendingApproval {
+  return {
+    approvalRequestId: 'fb000000-0000-4000-8000-000000000001',
+    documentType: 'Bill',
+    action: 'Post',
+    documentId: 'e5000000-0000-4000-8000-000000000001',
+    parentDocumentId: null,
+    makerUserId: 'd0000000-0000-4000-8000-000000000009',
+    makerComment: null,
+    requestedAtUtc: '2026-11-22T05:00:00+00:00',
+    waitingDays: 1,
+    payerId: 'b2000000-0000-4000-8000-000000000002',
+    payerName: 'Asha Verma',
+    amount: 1049.48,
+    ...overrides,
+  };
+}
+
+/** A page of a report, with its totals, as the API answers one. */
+export function reportPage<T, U>(items: T[], totals: U, totalCount = items.length) {
+  return { period: null, items, page: 1, pageSize: 20, totalCount, totals };
 }
 
 /** A page of a list, as the API answers one. */

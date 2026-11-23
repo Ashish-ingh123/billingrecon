@@ -13,6 +13,7 @@ import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
 import { ProblemAlert } from '../components/ProblemAlert';
 import { useRecordForm } from '../components/useRecordForm';
+import { useCreditNote } from '../creditNotes/api';
 import { formatDate, formatDecimal, todayInIndia } from '../format';
 import { checkAmount, paiseOfServer } from '../money';
 import { checkReference, methodLabels, paymentMethods, usePaymentWithAllocations } from '../payments/api';
@@ -27,7 +28,6 @@ import {
   refundKeys,
   refundsChanged,
   refundValues,
-  useCreditNote,
   useRefund,
   type Refund,
   type RefundSource,
@@ -192,7 +192,7 @@ function FromCreditNote({ id }: { id: string }) {
         date: source.creditNoteDate,
         payerId: source.payerId,
         available: source.availableAmount,
-        link: `/payers/${source.payerId}/statement`,
+        link: `/credit-notes/${source.id}`,
       }}
     />
   );
@@ -317,7 +317,7 @@ function EditRefundSource({ refund }: { refund: Refund }) {
           date: creditNote.data.creditNoteDate,
           payerId: refund.payerId,
           available: creditNote.data.availableAmount,
-          link: `/payers/${refund.payerId}/statement`,
+          link: `/credit-notes/${creditNote.data.id}`,
         };
 
   return facts === null ? (
