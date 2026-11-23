@@ -11,6 +11,7 @@ using BillingRecon.Domain.Common;
 using BillingRecon.Domain.Identity;
 using BillingRecon.Domain.Payments;
 using BillingRecon.IntegrationTests.Support;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace BillingRecon.IntegrationTests.Database;
@@ -30,6 +31,8 @@ public sealed class SettingsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
 
     // 17 October 2026 in India: fiscal year 2026-27.
     private static readonly DateOnly Today = new(2026, 10, 17);
+
+    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(30);
 
     // 2 x 60.00 at 5%: 126.00.
     private static readonly BillLineRequest Dressing = BillingApi.FreeTextLine("Dressing", 2m, 60m, 5m);
@@ -203,6 +206,98 @@ public sealed class SettingsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     }
 
     [Fact]
+    public async Task ADR0033_an_approval_in_the_instant_of_the_first_number_of_the_year_waits_for_it_and_then_changes_the_series_it_created()
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var admin = await NewApiTenantAsync();
+        using var client = factory.CreateClientFor(admin, "TenantAdmin");
+        using var supervisor = factory.CreateClientFor(new FixedIdentity(admin.TenantId, new UserId(Guid.NewGuid())), "Supervisor");
+        var (patient, payer) = await client.NewBillPartiesAsync();
+        var change = await RequestedAsync(client, DocumentType.Bill, "INV");
+        var tenantId = admin.TenantId!.Value.Value;
+
+        // The first bill number of the year, stopped where built note point 5 found the gap: the series' place in the
+        // index is locked and the tenant's default read, as the allocator does (docs/database.md section 4.1); the row
+        // is not written yet.
+        await using var numbering = new SqlConnection(SqlServer.ApiConnectionString);
+        await numbering.OpenAsync();
+        await using var transaction = (SqlTransaction)await numbering.BeginTransactionAsync();
+        await SeriesSqlAsync(numbering, transaction, "SELECT COUNT(*) FROM [dbo].[NumberSeries] WITH (UPDLOCK, HOLDLOCK) WHERE [TenantId] = @tenant AND [DocumentType] = 'Bill' AND [FiscalYear] = @fiscalYear", tenantId);
+        var defaultRead = (string?)await SeriesSqlAsync(numbering, transaction, "SELECT [BillPrefix] FROM [dbo].[Tenants] WHERE [Id] = @tenant", tenantId);
+        defaultRead.ShouldBe("BIL");
+
+        // The checker approves in that instant: the approval must wait for the number being taken.
+        var approval = Task.Run(() => ApprovedAsync(supervisor, change));
+        var early = await Task.WhenAny(approval, Task.Delay(TimeSpan.FromMilliseconds(750)));
+        early.ShouldNotBeSameAs(approval, "the approval must hold the series, and so wait for the number being taken");
+
+        // The number goes on as the allocator does: the series created from the default it read, number 1 taken.
+        await SeriesSqlAsync(
+            numbering,
+            transaction,
+            "INSERT [dbo].[NumberSeries] ([Id], [TenantId], [DocumentType], [FiscalYear], [Prefix], [NextNumber], [CreatedAtUtc], [UpdatedAtUtc]) VALUES (NEWID(), @tenant, 'Bill', @fiscalYear, @prefix, 2, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())",
+            tenantId,
+            defaultRead);
+        await transaction.CommitAsync();
+
+        // The approval then finds the series and gives it the new prefix: no series is left behind with the old one.
+        var (status, body) = await approval.WaitAsync(Patience);
+        status.ShouldBe(HttpStatusCode.OK, body);
+        (await SettingsAsync(client)).Settings.Prefixes.Bill.ShouldBe("INV");
+        await using (var context = ApiContext(admin))
+        {
+            (await context.Set<NumberSeries>().AsNoTracking().SingleAsync()).Prefix.ShouldBe("INV");
+        }
+
+        (await PostedBillAsync(client, patient.Id, payer.Id)).Number.ShouldBe("INV/26-27/000002");
+    }
+
+    [Fact]
+    public async Task ADR0033_a_first_bill_of_the_year_and_an_approval_at_the_same_instant_both_succeed_and_leave_the_series_with_the_new_prefix()
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+
+        for (var round = 0; round < 10; round++)
+        {
+            var admin = await NewApiTenantAsync();
+            using var client = factory.CreateClientFor(admin, "TenantAdmin");
+            using var supervisor = factory.CreateClientFor(new FixedIdentity(admin.TenantId, new UserId(Guid.NewGuid())), "Supervisor");
+            var (patient, payer) = await client.NewBillPartiesAsync();
+            var draft = await client.CreateBillAsync(new CreateBillRequest { PatientId = patient.Id, PayerId = payer.Id, BillDate = Today, DueDate = Today, Lines = [Dressing] });
+            var change = await RequestedAsync(client, DocumentType.Bill, "INV");
+
+            // No series of the year exists: the first number and the approval race for it.
+            using var start = new SemaphoreSlim(0, 2);
+            var posting = Task.Run(async () =>
+            {
+                await start.WaitAsync();
+                using var response = await client.SendWithIfMatchAsync(HttpMethod.Post, BillingApi.Bill(draft.Id, "post"), body: null, PayersApi.ETag(draft.Version));
+
+                return response.IsSuccessStatusCode
+                    ? (response.StatusCode, (await response.ReadAsAsync<BillDto>()).Number!)
+                    : (response.StatusCode, await response.Content.ReadAsStringAsync());
+            });
+            var approval = Task.Run(async () =>
+            {
+                await start.WaitAsync();
+
+                return await ApprovedAsync(supervisor, change);
+            });
+            start.Release(2);
+
+            var (postStatus, number) = await posting.WaitAsync(Patience);
+            var (approveStatus, approveBody) = await approval.WaitAsync(Patience);
+
+            postStatus.ShouldBe(HttpStatusCode.OK, number);
+            approveStatus.ShouldBe(HttpStatusCode.OK, approveBody);
+            number.ShouldBeOneOf("BIL/26-27/000001", "INV/26-27/000001");
+            await using var context = ApiContext(admin);
+            (await context.Set<NumberSeries>().AsNoTracking().SingleAsync()).Prefix.ShouldBe("INV", $"round {round}: the series of the year must carry the approved prefix");
+            (await context.Set<Tenant>().AsNoTracking().SingleAsync()).BillPrefix.ShouldBe("INV");
+        }
+    }
+
+    [Fact]
     public async Task BR002_a_prefix_change_of_another_tenant_is_answered_as_one_nobody_has()
     {
         using var factory = new DatabaseApiFactory(SqlServer);
@@ -250,6 +345,25 @@ public sealed class SettingsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
         response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
 
         return await response.ReadAsAsync<BillDto>();
+    }
+
+    // An approval of a change at the version it was asked for at; the answer's status and body, read once.
+    private static async Task<(HttpStatusCode Status, string Body)> ApprovedAsync(HttpClient checker, PrefixChangeDto change)
+    {
+        using var response = await checker.SendWithIfMatchAsync(HttpMethod.Post, PrefixChange(change.Id, "approve"), body: null, PayersApi.ETag(change.Version));
+
+        return (response.StatusCode, await response.Content.ReadAsStringAsync());
+    }
+
+    // One step of a number being taken, sent by the test on its own connection inside its own transaction.
+    private static async Task<object?> SeriesSqlAsync(SqlConnection connection, SqlTransaction transaction, string sql, Guid tenantId, string? prefix = null)
+    {
+        await using var command = new SqlCommand(sql, connection, transaction);
+        command.Parameters.Add(new SqlParameter("@tenant", tenantId));
+        command.Parameters.Add(new SqlParameter("@fiscalYear", System.Data.SqlDbType.Char, FiscalYear.LabelLength) { Value = FiscalYear.FromDate(Today).Label });
+        command.Parameters.Add(new SqlParameter("@prefix", System.Data.SqlDbType.VarChar, 3) { Value = (object?)prefix ?? DBNull.Value });
+
+        return await command.ExecuteScalarAsync();
     }
 
     private static async Task<BillDto> BillAsync(HttpClient client, Guid id)

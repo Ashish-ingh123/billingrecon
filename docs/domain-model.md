@@ -392,9 +392,10 @@ BR-802). Prefix changes go through `ApprovalRequest` with `Action = ChangePrefix
 - `NumberSeries` is an entity of the model that nothing creates or advances through code: the allocator's one
   statement does both. *Since Prompt 5.3b (ADR 0033)* it is an aggregate with one command, `ChangePrefix(prefix, at)`,
   which an approved prefix change calls for the series of the current fiscal year; it raises `NumberSeriesPrefixChanged`
-  and leaves `NextNumber` alone. Its row version guards it against a number taken in the same instant. A series
-  that does not exist yet has no row version: the first number of a type in a year, taken in the milliseconds of an
-  approval, keeps the old prefix (ADR 0033, built note point 5).
+  and leaves `NextNumber` alone. *Since 2026-11-23 (ADR 0033, "Amended 2026-11-23")* the approval first holds the
+  series through `INumberSeries.HoldAsync`, the allocator's locked read alone, whether the series exists yet or not:
+  no number is taken from it and nobody creates it until the approval commits, so a series that does not exist yet
+  cannot be created with the old prefix in the instant of an approval. The row version still guards the change.
 - No document takes a number yet; bill posting is the first (Prompt 3.5).
 
 ### 4.12 Tenant and User (Identity module)

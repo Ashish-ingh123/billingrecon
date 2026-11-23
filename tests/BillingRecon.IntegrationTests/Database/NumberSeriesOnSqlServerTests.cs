@@ -399,6 +399,80 @@ public sealed class NumberSeriesOnSqlServerTests(SqlServerFixture sqlServer) : D
     }
 
     [Fact]
+    public async Task ADR0033_a_held_series_that_does_not_exist_yet_is_created_only_after_the_holder_ends_with_the_default_of_that_moment()
+    {
+        var tenant = await NewProbeTenantAsync();
+        await using var holding = ProbeContext(tenant);
+        await new NumberSeriesAllocator(holding, tenant, new FakeClock(Now)).HoldAsync(DocumentType.Bill, Fy2026, CancellationToken.None);
+        holding.Database.CurrentTransaction.ShouldNotBeNull("the hold opens the transaction of the use case");
+
+        // The first bill of the year is asked for while the series is held: it must not be created yet.
+        var first = Task.Run(() => TakeAndSaveAsync(tenant, DocumentType.Bill, Fy2026));
+        var early = await Task.WhenAny(first, Task.Delay(TimeSpan.FromMilliseconds(750)));
+        early.ShouldNotBeSameAs(first, "the first number must wait for the hold");
+
+        // What an approved prefix change writes in its transaction: the tenant's new default.
+        (await holding.Database.ExecuteSqlAsync($"UPDATE [dbo].[Tenants] SET [BillPrefix] = 'INV' WHERE [Id] = {tenant.TenantId!.Value.Value}")).ShouldBe(1);
+        await holding.Database.CurrentTransaction!.CommitAsync();
+
+        (await first.WaitAsync(Patience)).Value.ShouldBe("INV/26-27/000001");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ADR0033_holding_an_existing_series_makes_a_taker_wait_and_takes_no_number_itself(bool holderCommits)
+    {
+        var tenant = await NewProbeTenantAsync();
+        await TakeAndSaveAsync(tenant, DocumentType.Bill, Fy2026);
+        await using var holding = ProbeContext(tenant);
+        await new NumberSeriesAllocator(holding, tenant, new FakeClock(Now)).HoldAsync(DocumentType.Bill, Fy2026, CancellationToken.None);
+
+        var second = Task.Run(() => TakeAndSaveAsync(tenant, DocumentType.Bill, Fy2026));
+        var early = await Task.WhenAny(second, Task.Delay(TimeSpan.FromMilliseconds(750)));
+        early.ShouldNotBeSameAs(second, "the taker must wait for the hold");
+
+        if (holderCommits)
+        {
+            await holding.Database.CurrentTransaction!.CommitAsync();
+        }
+        else
+        {
+            await holding.Database.CurrentTransaction!.RollbackAsync();
+        }
+
+        (await second.WaitAsync(Patience)).Value.ShouldBe("BIL/26-27/000002");
+        await using var reader = ProbeContext(tenant);
+        (await reader.Set<NumberSeries>().SingleAsync()).NextNumber.ShouldBe(3);
+        (await GapsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ADR0033_a_hold_never_waits_for_another_tenants_existing_series_and_without_a_tenant_or_with_bad_arguments_opens_nothing()
+    {
+        var tenantA = await NewProbeTenantAsync();
+        var tenantB = await NewProbeTenantAsync();
+        await TakeAndSaveAsync(tenantA, DocumentType.Bill, Fy2026);
+        await TakeAndSaveAsync(tenantB, DocumentType.Bill, Fy2026);
+        await using var holdingA = ProbeContext(tenantA);
+        await new NumberSeriesAllocator(holdingA, tenantA, new FakeClock(Now)).HoldAsync(DocumentType.Bill, Fy2026, CancellationToken.None);
+
+        // B's series exists: B locks its own row and nothing of A's.
+        (await TakeAndSaveAsync(tenantB, DocumentType.Bill, Fy2026).WaitAsync(TimeSpan.FromSeconds(5))).Value.ShouldBe("BIL/26-27/000002");
+
+        await using var system = ProbeContext(SystemIdentity.Instance);
+        await Should.ThrowAsync<InvalidOperationException>(
+            () => new NumberSeriesAllocator(system, SystemIdentity.Instance, new FakeClock(Now)).HoldAsync(DocumentType.Bill, Fy2026, CancellationToken.None));
+        system.Database.CurrentTransaction.ShouldBeNull("nothing was opened for a scope that has no tenant");
+
+        await using var context = ProbeContext(tenantB);
+        var series = new NumberSeriesAllocator(context, tenantB, new FakeClock(Now));
+        (await Should.ThrowAsync<ArgumentException>(() => series.HoldAsync((DocumentType)42, Fy2026, CancellationToken.None))).ParamName.ShouldBe("type");
+        (await Should.ThrowAsync<ArgumentException>(() => series.HoldAsync(DocumentType.Bill, default, CancellationToken.None))).ParamName.ShouldBe("fiscalYear");
+        context.Database.CurrentTransaction.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task One_context_can_post_twice_each_in_its_own_transaction()
     {
         var tenant = await NewProbeTenantAsync();

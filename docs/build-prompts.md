@@ -28,11 +28,12 @@ is left; their numbering is mine, not the blueprint's.
 | 5.1 Users and roles | Written on 2026-11-21 with the owner's decisions (ADR 0030; CLAUDE.md section 9, item 27). Built and tested on .NET 10 like 4.6: build, format gate and the tests without a database in the repository, the database tests in a throwaway copy on LocalDB 2019; not run on SQL Server 2022; migration `0018_Users` in the repository. A development database with data must be dropped before `0018` |
 | 5.2 Sign-in and JWT | Written on 2026-11-21 with the owner's decisions (ADR 0031; CLAUDE.md section 9, item 28). Built and tested on .NET 10 like 5.1; no migration |
 | 5.3 Role permissions | Written on 2026-11-21 with the owner's decisions (ADR 0032; CLAUDE.md section 9, item 29), the first half of the prompt. Built and tested on .NET 10 like 5.1; no migration |
-| 5.3b Tenant settings and prefix changes | Written on 2026-11-21 with the owner's decisions (ADR 0033; CLAUDE.md section 9, item 30). Built and tested on .NET 10 like 5.1; migration `0019_PrefixChanges` in the repository. ADR 0033 built note point 5 (the first number of a year taken during an approval) waits for the owner |
+| 5.3b Tenant settings and prefix changes | Written on 2026-11-21 with the owner's decisions (ADR 0033; CLAUDE.md section 9, item 30). Built and tested on .NET 10 like 5.1; migration `0019_PrefixChanges` in the repository. Committed (`31243e3`, `7755271`) |
+| 5.3b fix: the prefix approval holds the series | Written on 2026-11-23 with the owner's decision on ADR 0033 built note point 5 (option B; ADR 0033 "Amended 2026-11-23"; CLAUDE.md section 9, item 31). Built and tested on .NET 10 like 5.1; no migration. Its own commit, before 5.4 |
 | Everything else in R1 | Not started: database logins and hardening (5.4), reports, frontend, delivery |
 | 6.3 Dashboard figures and 7.6 Dashboard (added 2026-11-21, with theming in 7.1) | Not started. 6.3 runs after 6.2, 7.6 after 7.5; the layout reference `docs/ui/dashboard.png` is still to be added; the drift card's trend (none, or a snapshot table and a new migration) is the owner's open decision, asked in 6.3 |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. 5.3b (tenant settings and prefix changes) is written too, and `0019` is in the repository. Next prompt: 5.4 (database logins and hardening), once the owner has decided ADR 0033 built note point 5. What was decided for each built prompt is recorded under it below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. 5.3b (tenant settings and prefix changes) is written too, and `0019` is in the repository. ADR 0033 built note point 5 was decided on 2026-11-23 (the approval holds the series) and is built as its own commit. Next prompt: 5.4 (database logins and grants), whose plan the owner approved on 2026-11-23, then 5.4b (HTTP hardening). What was decided for each built prompt is recorded under it below.**
 
 ## How to use these prompts
 
@@ -563,9 +564,12 @@ Done when: US-03 passes and the matrix test names the new endpoints.
 document type `NumberSeries` is renamed `PrefixChange`; a prefix belongs to one document type for good (never another
 type's default, nor a prefix another type's series or changes ever had); the trails of the tenant, of its prefix
 changes and of its number series are the TenantAdmin's alone. No new raw SQL. Built as decided; the build added no
-Idempotency-Key on the prefix-change posts and answers the request with 201 (ADR 0033 built note). **Open:** a first
-number of a type in a fiscal year, taken in the milliseconds of an approval, keeps the old prefix for that year
-(ADR 0033 built note point 5); closing it needs a locked read, which is raw SQL, so it is the owner's decision.
+Idempotency-Key on the prefix-change posts and answers the request with 201 (ADR 0033 built note). **Found while
+building, closed 2026-11-23:** a first number of a type in a fiscal year, taken in the milliseconds of an approval,
+kept the old prefix for that year (ADR 0033 built note point 5). The owner chose option B with the plan of 5.4: the
+approval holds the series with the allocator's locked read alone (one more statement in the allocator's file, no new
+sanctioned file), built and committed on its own before 5.4 (ADR 0033 "Amended 2026-11-23"; CLAUDE.md section 9,
+item 31).
 
 #### 5.4 Database logins and hardening
 
@@ -576,6 +580,41 @@ insert-only audit and ledger, SELECT on __EFMigrationsHistory); run the database
 application login. TLS and HSTS, allowed hosts, server header removed, rate limit on login, CORS
 for the frontend origin. Write docs/security.md in full, with a threat model.
 Done when: a test proves the application login cannot delete a bill or update an audit row.
+```
+
+**Owner's decisions for 5.4, recorded 2026-11-23 (the plan was approved "as recommended"):** the prompt is built in two
+steps, each with its own commit, after the fix of ADR 0033 built note point 5 is committed: **5.4, the database logins
+and grants (ADR 0034)**, then **5.4b, the HTTP hardening and `docs/security.md` in full**. For 5.4:
+- the grants are in a migration, **`0020_DatabaseRoles`**, scaffolded empty and filled by hand with
+  `migrationBuilder.Sql`, idempotent, with a `Down()`: it creates the database role `billingrecon_application`, so the
+  grants exist wherever the migrations run; the logins, their passwords and their database users are made per
+  environment by a script in the runbook (a new section 10), never in git;
+- the grants are schema-wide with exceptions taken from the model's markers: `SELECT, INSERT, UPDATE` on the schema
+  `dbo`; `DENY UPDATE, DELETE` on the append-only tables (`LedgerPostings`, `LedgerEntries`, `AuditRecords`);
+  `DELETE` only on the tables of the `IHardDeletable` entities (`BillLines`, `CreditNoteLines`, `UserRoles`,
+  `IdempotencyKeys`: four, where `docs/database.md` section 7 lists two, which is corrected); `Roles` and
+  `__EFMigrationsHistory` read-only. A table-driven test compares every table's effective permissions with its markers,
+  so a future append-only table without its `DENY` fails it with the line to add;
+- the migrator login holds `db_ddladmin`, `db_datareader`, `db_datawriter` and `db_securityadmin` (it creates the role
+  and grants), where section 7 named two roles;
+- the database tests run as the application login wherever production code meets the migrated test database (the API
+  host and the contexts of the production code); Respawn, the migration, the catalogue checks, the probe database and
+  the Development and Pending databases stay on the administrator's connection. The test login has a random password
+  per run. LocalDB 2019 on the office machine runs in mixed mode, so this is pre-checked there.
+
+#### 5.4b HTTP hardening and the security document
+
+```
+Read the 5.4 decisions above, ADR 0031 point 12, the review finding 2.4 in CLAUDE.md section 9 item 6,
+the security row of docs/requirements.md section 5 and docs/security.md.
+Propose first, for my approval: where TLS ends (the API or a proxy in front of it) and what that means
+for HSTS, HTTPS redirection and forwarded headers; how allowed hosts are configured and checked at
+startup; the rate limit of sign-ins (the built-in limiter, its partition and limits, the 429 answer as a
+ProblemDetails with its errorCode and Retry-After); CORS for the frontend origin from configuration.
+Then build them with the server header removed, and write docs/security.md in full with a threat model.
+No new package. Keep the CI smoke run of the image green.
+Done when: a test proves each header and refusal, and docs/security.md has no "planned" row left
+without a prompt or an accepted risk.
 ```
 
 Merge `phase-5-identity` to `main`.

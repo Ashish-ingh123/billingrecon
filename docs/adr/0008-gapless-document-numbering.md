@@ -110,6 +110,9 @@ decided beyond the text above, each with the owner's approval of the plan unless
    suppress the rule, for one call, listed in `BannedSymbolsTests` with its reason. Its statement is a constant;
    every value is a parameter; the tenant comes from the current scope and is in every WHERE clause; the instants
    come from the clock. A test checks that the file has one suppression, one call and no spliced text.
+   (Since then three more files may suppress RS0030, ADR 0021 and ADR 0031; and since 2026-11-23 this file sends a second
+   statement, the locked read alone, with which an approved prefix change holds its series, ADR 0033 "Amended
+   2026-11-23".)
 4. **The tenant's default prefix is read inside the same statement**, from the tenant's row, only when the series
    is created and under the same range lock. A tenant without a row gets no number and no series (a fault).
 5. **The typed wrappers** (`BillNumber`, `PaymentNumber` and the others) are not built: each arrives with the

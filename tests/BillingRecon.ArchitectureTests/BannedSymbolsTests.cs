@@ -143,17 +143,23 @@ public sealed class BannedSymbolsTests
     }
 
     [Fact]
-    public void The_number_series_allocator_sends_one_statement_made_of_constants_and_parameters()
+    public void The_number_series_allocator_sends_two_statements_made_of_constants_and_parameters_within_the_tenant()
     {
         var allocator = File.ReadAllText(RepositoryFiles.PathOf("src/BillingRecon.Infrastructure/Common/Numbering/NumberSeriesAllocator.cs"));
 
-        // One suppression, around one call, and the SQL text is a constant: nothing is ever spliced into it.
-        allocator.Split("#pragma warning disable RS0030").Length.ShouldBe(2);
-        allocator.Split("SqlQueryRaw").Length.ShouldBe(2);
+        // Two suppressions, each around one call, and the SQL texts are constants: nothing is ever spliced into them.
+        // TakeNext takes a number (ADR 0008); HoldSeries is its locked read alone, for a prefix change (ADR 0033, built
+        // note point 5). Both lock the series of the current tenant, by the same key.
+        allocator.Split("#pragma warning disable RS0030").Length.ShouldBe(3);
+        allocator.Split("SqlQueryRaw").Length.ShouldBe(3);
         allocator.ShouldContain("private const string TakeNext =");
-        allocator.ShouldContain("WITH (UPDLOCK, HOLDLOCK)");
+        allocator.ShouldContain("private const string HoldSeries =");
+        allocator.Split("WITH (UPDLOCK, HOLDLOCK)").Length.ShouldBe(3);
+        allocator.Split("WHERE  [TenantId] = @tenant AND [DocumentType] = @type AND [FiscalYear] = @fiscalYear").Length.ShouldBe(4);
         allocator.ShouldNotContain("$\"\"\"");
         allocator.ShouldNotContain("string.Format");
+        allocator.ShouldNotContain("ExecuteSql");
+        allocator.ShouldNotContain("FromSql");
     }
 
     [Theory]

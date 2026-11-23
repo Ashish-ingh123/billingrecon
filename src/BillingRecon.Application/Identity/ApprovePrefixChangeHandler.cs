@@ -9,8 +9,13 @@ namespace BillingRecon.Application.Identity;
 /// A checker approves a prefix change, and that is the change (BR-603, BR-606, BR-802; ADR 0033): the decision on the
 /// request, the tenant's default prefix, the prefix of the type's series of the current fiscal year (by today's date in
 /// India) when one exists, and the audit records are one commit. The checker is not the maker and holds Supervisor or
-/// TenantAdmin; the prefix must still belong to no other kind of document. A number taken in the same instant changes
-/// the series too, and the row version answers 409: the checker tries again.
+/// TenantAdmin; the prefix must still belong to no other kind of document.
+/// <para>
+/// After every check, the approval holds this year's series of the type under the lock a number takes, whether the
+/// series exists yet or not (ADR 0033, built note point 5): a number being taken finishes first and the approval then
+/// changes the series it took from, and a first number asked for meanwhile waits and is then created from the new
+/// default. Both take the series before the tenant, so neither waits for the other in a circle.
+/// </para>
 /// </summary>
 public sealed class ApprovePrefixChangeHandler(
     IValidator<ApprovePrefixChangeCommand> validator,
@@ -20,6 +25,7 @@ public sealed class ApprovePrefixChangeHandler(
     IApprovalRequestRepository approvals,
     ITenantRepository tenants,
     IPrefixUsage usage,
+    INumberSeries numberSeries,
     INumberSeriesRepository series,
     IUnitOfWork unitOfWork) : ICommandHandler<ApprovePrefixChangeCommand, PrefixChangeDto>
 {
@@ -78,10 +84,14 @@ public sealed class ApprovePrefixChangeHandler(
             return approved.Error;
         }
 
+        // Held until the commit, before the tenant and the series are read.
+        var fiscalYear = FiscalYear.FromDate(clock.ToIstDate(now));
+        await numberSeries.HoldAsync(change.DocumentType, fiscalYear, ct);
+
         var tenant = await tenants.GetCurrentAsync(ct);
         tenant.ChangePrefix(change.DocumentType, change.ToPrefix);
 
-        var current = await series.FindAsync(change.DocumentType, FiscalYear.FromDate(clock.ToIstDate(now)), ct);
+        var current = await series.FindAsync(change.DocumentType, fiscalYear, ct);
         current?.ChangePrefix(change.ToPrefix, now);
 
         var committed = await unitOfWork.CommitAsync(ct);

@@ -46,7 +46,7 @@ the domain model, the schema and the tests.
 | Authentication | **JWT bearer** (`Microsoft.AspNetCore.Authentication.JwtBearer` 10.0.12) | The API issues its own tokens at `POST /api/v1/auth/login` and checks them on every request: HS256 with `Jwt:SigningKey`, issuer `BillingRecon`, audience `BillingRecon.Api`, 60 minutes by the application's clock, claims `sub`, `tenant_id`, `role`. The tenant and user of a request come from its token only (`RequestPrincipalIdentity`). Deny by default: a fallback policy needs a user on every endpoint but the sign-in, the health checks and, in Development, OpenAPI and Scalar (an architecture test lists them). In Development a request without a token acts as the development user. ADR 0031. **Roles:** every action names exactly one policy of `Policies`, one per capability of the permission matrix (`docs/requirements.md` section 1); a role the policy does not admit gets 403 `forbidden`; a table-driven test walks every endpoint with every role. The checker's role (BR-603) is also checked by `ApprovalRequest` itself. ADR 0032. |
 | OpenAPI | **Built-in OpenAPI + Scalar UI**, Development only | `AddOpenApi`/`MapOpenApi` (document at `/openapi/v1.json`) and `MapScalarApiReference` (`/scalar`), mapped only when the environment is Development. |
 | Data | **EF Core 10 + SQL Server** | One context, `BillingReconDbContext`, whose conventions do the repetitive work (ADR 0015, section 5 below). Migrations live in `Infrastructure/Common/Migrations`, are applied at startup in Development only, and are a deployment step elsewhere. `dotnet-ef` is a local tool (`.config/dotnet-tools.json`, `dotnet tool restore`) at the same version as the EF Core packages; it uses the Infrastructure project and its design-time factory, never the API. SQL Server 2022 in Docker for dev and tests. |
-| Banned APIs | **Microsoft.CodeAnalysis.BannedApiAnalyzers** | `src/BannedSymbols.txt` lists what production code must not call (system time and the machine's time zone, `IgnoreQueryFilters`, `EntityEntry.Reload`/`GetDatabaseValues`, `ExecuteUpdate`/`ExecuteDelete`, and since Prompt 3.1 every raw-SQL entry point of EF Core: `ExecuteSql*`, `SqlQuery*`, `FromSql*`, `GetDbConnection`); a call is build error RS0030. Five files may suppress it, each for one named reason: `SystemClock` (the system time); three that each send one constant, parameterised, tenant-bound SQL statement: `NumberSeriesAllocator`, `ReceivablesLedger` (the locked change of a payer's balances) and `ReconciliationQuery` (read-only); and `LoginUserLookup`, the one `IgnoreQueryFilters`, around one query with the tenant in its predicate, because a sign-in has no tenant yet (ADR 0031). A sixth needs an ADR. Tests guard the list and where the rule may be suppressed (ADR 0015, ADR 0021). |
+| Banned APIs | **Microsoft.CodeAnalysis.BannedApiAnalyzers** | `src/BannedSymbols.txt` lists what production code must not call (system time and the machine's time zone, `IgnoreQueryFilters`, `EntityEntry.Reload`/`GetDatabaseValues`, `ExecuteUpdate`/`ExecuteDelete`, and since Prompt 3.1 every raw-SQL entry point of EF Core: `ExecuteSql*`, `SqlQuery*`, `FromSql*`, `GetDbConnection`); a call is build error RS0030. Five files may suppress it, each for one named reason: `SystemClock` (the system time); three that send constant, parameterised, tenant-bound SQL statements: `NumberSeriesAllocator` (two: the locked read-and-increment of a series, and since 2026-11-23 the same locked read alone, with which an approved prefix change holds its series, ADR 0033 "Amended 2026-11-23"), `ReceivablesLedger` (one: the locked change of a payer's balances) and `ReconciliationQuery` (one, read-only); and `LoginUserLookup`, the one `IgnoreQueryFilters`, around one query with the tenant in its predicate, because a sign-in has no tenant yet (ADR 0031). A sixth needs an ADR. Tests guard the list and where the rule may be suppressed (ADR 0015, ADR 0021). |
 | Validation | **FluentValidation** (12.2.0) | One public validator per command or query that has a shape to check, in the Application layer, run by its handler as the handler's first step; it checks the shape (presence, lengths, formats, ranges), the domain and the handler the business rules. A failure is 400 `validation_failed` with messages per field (ADR 0018). The API registers the validators with its scan of the Application assembly. |
 | Logging | **Serilog** | Compact JSON on the console, plus Seq when `Seq:ServerUrl` is set. Every event of a request carries CorrelationId (from `X-Correlation-Id` or generated, BR-703), and TenantId and UserId when the request is authenticated. Phone numbers and e-mail addresses are masked before any sink (ADR 0012). |
 | Configuration | **appsettings + environment variables + user-secrets** | One strongly typed options class per section, validated at startup: the API refuses to start when misconfigured. Secrets (`Database:ConnectionString`, `Seq:ApiKey`, `Jwt:SigningKey`) come from user-secrets or environment variables, never from a file in git; the one key in git, Development's signing key, is refused outside Development. |
@@ -668,7 +668,8 @@ checker's role checked by the decision itself (Accepted on the owner's approval 
 0033 tenant settings and prefix changes: the three settings by a TenantAdmin, a prefix change as a maker-checker
 document whose approval changes the default and this year's series, a prefix that belongs to one document type for
 good (Accepted on the owner's approval of the Prompt 5.3b plan, 2026-11-21; its built note point 5, the first number
-of a year taken during an approval, awaits the owner's decision).
+of a year taken during an approval, was closed on the owner's decision of 2026-11-23: the approval holds the series,
+"Amended 2026-11-23", which also amends ADR 0021 point 3 for the allocator's file).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1533,7 +1534,7 @@ Kept here so they survive between sessions. Remove an item when it is done.
       index and If-Match refuse repeats); the request answers 201; the change's own methods are `RecordApproval` and
       `RecordRejection`, so the convention test that counts the decisions of approval requests (now sixteen) sees
       each once.
-    - **Found, open for the owner (ADR 0033 built note point 5):** the approval's 409 covers a series that exists. When
+    - **Found, closed 2026-11-23 by item 31 (ADR 0033 built note point 5):** the approval's 409 covers a series that exists. When
       the first number of a type in a fiscal year is taken in the milliseconds between the approval's read of the
       series and its commit, the allocator creates the series with the old prefix and the approval answers 200; that
       year's series keeps the old prefix, numbers stay unique and gapless. `docs/database.md` section 4.4 finds it;
@@ -1552,5 +1553,30 @@ Kept here so they survive between sessions. Remove an item when it is done.
       without a database pass; in a throwaway copy on LocalDB 2019 the integration project passes in full (1114
       tests), and the settings, matrix, bill approval, migration and number series tests ran five more times without a
       failure.
-    - **Still to do:** SQL Server 2022 in Docker; the owner's decision on ADR 0033 built note point 5.
-    - Next: Prompt 5.4 (database grants), after that decision.
+    - **Still to do:** SQL Server 2022 in Docker. (The owner's decision on ADR 0033 built note point 5: made and built,
+      item 31.)
+31. **The prefix approval holds the series (ADR 0033, "Amended 2026-11-23"), written 2026-11-23, built and tested on
+    .NET 10.** On `phase-2-billing`, its own commit between 5.3b and 5.4. The owner chose option B of three put in the
+    plan ("approve as recommended"). No migration.
+    - Built: `INumberSeries.HoldAsync`, the allocator's locked read alone (`HoldSeries`, a second constant statement in
+      `NumberSeriesAllocator.cs`, under its own suppression of RS0030; no new sanctioned file); `ApprovePrefixChangeHandler`
+      holds this year's series of the type after every check and before it reads the tenant and the series, so a
+      number in flight finishes first and the approval changes the series it created, and a first number asked for
+      meanwhile waits and starts from the new default. A number in the same instant no longer makes the approval answer
+      409.
+    - **Changed expectation, called out:** `BannedSymbolsTests` pinned one statement in the allocator's file and now pins
+      two, both constants with the tenant in the WHERE clause and the same lock. The five test decorators of
+      `INumberSeries` (`BillApprovalApiTests`, `BillPostingApiTests`, `PaymentsApiTests`) pass the hold through.
+    - **Tests:** Application (the order of the hold, nothing held when refused; 2 new), Database (`NumberSeriesOnSqlServerTests`:
+      a hold of a missing series and of an existing one, isolation and arguments, 4 new; `SettingsApiTests`: the
+      approval stopped by the test in the gap of point 5, and ten rounds of a first bill and an approval at once, 2
+      new). With the hold removed in a throwaway copy, both API tests fail, the second because a series kept the old
+      prefix: the race is shown by a test, not only by reading the code.
+    - **Verified on .NET 10 (SDK 10.0.404):** in the repository, the Release build and `dotnet format
+      --verify-no-changes` are clean, and Domain 625, Application 394, Architecture 121 and the 658 integration tests
+      without a database pass; in a throwaway copy on LocalDB 2019 the integration project passes in full (1120 tests),
+      and the settings, number series, bill approval and bill posting tests (81) ran five more times without a failure.
+    - **Still to do:** SQL Server 2022 in Docker.
+    - Next: Prompt 5.4 (database logins and grants), with the plan approved on 2026-11-23: split into 5.4 (logins and
+      grants, migration `0020_DatabaseRoles`, ADR 0034) and 5.4b (TLS and HSTS, hosts, server header, sign-in rate
+      limit, CORS, `docs/security.md` in full).

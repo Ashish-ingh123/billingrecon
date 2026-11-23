@@ -584,6 +584,8 @@ public sealed class BillApprovalApiTests(SqlServerFixture sqlServer) : DatabaseT
 
     private sealed class NumberThenFault(INumberSeries inner) : INumberSeries
     {
+        public Task HoldAsync(DocumentType type, FiscalYear fiscalYear, CancellationToken ct) => inner.HoldAsync(type, fiscalYear, ct);
+
         public async Task<DocumentNumber> NextAsync(DocumentType type, FiscalYear fiscalYear, CancellationToken ct)
         {
             await inner.NextAsync(type, fiscalYear, ct);

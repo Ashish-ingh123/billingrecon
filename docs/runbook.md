@@ -576,7 +576,11 @@ dotnet test --filter "FullyQualifiedName~PaymentReversalsApiTests"
 dotnet test --filter "FullyQualifiedName~CreditApplicationReversalsApiTests"
 dotnet test --filter "FullyQualifiedName~RefundsApiTests|FullyQualifiedName~EndToEndScenarioTests"
 dotnet test --filter "FullyQualifiedName~UsersApiTests"
+dotnet test --filter "FullyQualifiedName~SettingsApiTests"
 ```
+
+`SettingsApiTests` includes the ten rounds of a first bill and a prefix approval at the same instant (ADR 0033,
+"Amended 2026-11-23").
 
 **E. Send back**
 

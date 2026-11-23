@@ -18,14 +18,28 @@ namespace BillingRecon.Infrastructure.Common.Numbering;
 /// </list>
 /// The transaction is opened here when the use case has none yet; the unit of work commits it with the save.
 /// <para>
-/// This is the one file of the production code that sends SQL of its own: raw SQL goes around the tenant filter, the
-/// save guards and the audit stamps, so its entry points are banned (RS0030) and this file alone may use one
-/// (BannedSymbolsTests). The statement carries what those guards would have added: the tenant in every WHERE clause,
-/// taken from the current scope, and the instants from the clock. Every value is a parameter; the text is a constant.
+/// It also holds a series for an approved prefix change (<see cref="HoldAsync"/>, ADR 0033 built note point 5): the
+/// same locked read, without the insert and the increment.
+/// </para>
+/// <para>
+/// This file is one of the few in the production code that send SQL of their own: raw SQL goes around the tenant
+/// filter, the save guards and the audit stamps, so its entry points are banned (RS0030) and only the sanctioned files
+/// may use one (BannedSymbolsTests). Its two statements carry what those guards would have added: the tenant in every
+/// WHERE clause, taken from the current scope, and the instants from the clock. Every value is a parameter; the texts
+/// are constants.
 /// </para>
 /// </summary>
 public sealed class NumberSeriesAllocator(BillingReconDbContext context, ITenantContext tenantContext, IClock clock) : INumberSeries
 {
+    // The read of TakeNext alone: the row of the series, or the gap in the index where it will go, locked until the
+    // transaction ends. COUNT(*) only gives the statement a result; nobody reads it.
+    private const string HoldSeries =
+        """
+        SELECT COUNT(*) AS [Value]
+        FROM   [dbo].[NumberSeries] WITH (UPDLOCK, HOLDLOCK)
+        WHERE  [TenantId] = @tenant AND [DocumentType] = @type AND [FiscalYear] = @fiscalYear;
+        """;
+
     // The tenant's default prefix for the document type is read only when the series is created, under the same
     // range lock. Without a tenant row there is no prefix: nothing is inserted and no number comes back.
     private const string TakeNext =
@@ -68,38 +82,31 @@ public sealed class NumberSeriesAllocator(BillingReconDbContext context, ITenant
         """;
 
     /// <inheritdoc />
+    public async Task HoldAsync(DocumentType type, FiscalYear fiscalYear, CancellationToken ct)
+    {
+        var tenantId = CheckArguments(type, fiscalYear, "A number series was held in a scope that has no tenant.");
+        await EnsureTransactionAsync(ct);
+
+        object[] parameters = [.. SeriesKey(tenantId, type, fiscalYear)];
+
+#pragma warning disable RS0030 // Sanctioned raw SQL: the locked read of a number series, held for a prefix change (ADR 0033, built note point 5).
+        _ = await context.Database.SqlQueryRaw<int>(HoldSeries, parameters).ToListAsync(ct);
+#pragma warning restore RS0030
+    }
+
+    /// <inheritdoc />
     public async Task<DocumentNumber> NextAsync(DocumentType type, FiscalYear fiscalYear, CancellationToken ct)
     {
-        if (!Enum.IsDefined(type))
-        {
-            throw new ArgumentException("The document type is not one the enum defines.", nameof(type));
-        }
-
-        if (fiscalYear.IsDefault)
-        {
-            throw new ArgumentException("A number is taken for a fiscal year; the default value is not one.", nameof(fiscalYear));
-        }
-
-        var tenantId = tenantContext.TenantId
-            ?? throw new InvalidOperationException("A document number was asked for in a scope that has no tenant.");
-
-        // The transaction of the use case: opened here if the use case has not saved or taken anything yet, and
-        // committed by the unit of work. If the request ends without a commit, the context is disposed and the
-        // transaction rolls back, and the number with it.
-        if (context.Database.CurrentTransaction is null)
-        {
-            await context.Database.BeginTransactionAsync(ct);
-        }
+        var tenantId = CheckArguments(type, fiscalYear, "A document number was asked for in a scope that has no tenant.");
+        await EnsureTransactionAsync(ct);
 
         object[] parameters =
         [
-            new SqlParameter("@tenant", tenantId.Value),
-            new SqlParameter("@type", System.Data.SqlDbType.VarChar, 20) { Value = type.ToString() },
-            new SqlParameter("@fiscalYear", System.Data.SqlDbType.Char, FiscalYear.LabelLength) { Value = fiscalYear.Label },
+            .. SeriesKey(tenantId, type, fiscalYear),
             new SqlParameter("@now", System.Data.SqlDbType.DateTimeOffset) { Value = clock.UtcNow },
         ];
 
-#pragma warning disable RS0030 // The one sanctioned use of raw SQL: the locked read-and-increment of a number series (ADR 0008, ADR 0015).
+#pragma warning disable RS0030 // Sanctioned raw SQL: the locked read-and-increment of a number series (ADR 0008, ADR 0015).
         var taken = await context.Database.SqlQueryRaw<TakenNumber>(TakeNext, parameters).ToListAsync(ct);
 #pragma warning restore RS0030
 
@@ -119,6 +126,40 @@ public sealed class NumberSeriesAllocator(BillingReconDbContext context, ITenant
             throw new InvalidOperationException(
                 $"The {type} series of fiscal year {fiscalYear} is exhausted: number {sequence} with prefix {prefix} does not fit {DocumentNumber.MaxLength} characters.",
                 exception);
+        }
+    }
+
+    // The parameters that name a series: the tenant of the current scope, never one passed in.
+    private static SqlParameter[] SeriesKey(TenantId tenantId, DocumentType type, FiscalYear fiscalYear) =>
+    [
+        new SqlParameter("@tenant", tenantId.Value),
+        new SqlParameter("@type", System.Data.SqlDbType.VarChar, 20) { Value = type.ToString() },
+        new SqlParameter("@fiscalYear", System.Data.SqlDbType.Char, FiscalYear.LabelLength) { Value = fiscalYear.Label },
+    ];
+
+    private TenantId CheckArguments(DocumentType type, FiscalYear fiscalYear, string noTenant)
+    {
+        if (!Enum.IsDefined(type))
+        {
+            throw new ArgumentException("The document type is not one the enum defines.", nameof(type));
+        }
+
+        if (fiscalYear.IsDefault)
+        {
+            throw new ArgumentException("A series belongs to a fiscal year; the default value is not one.", nameof(fiscalYear));
+        }
+
+        return tenantContext.TenantId ?? throw new InvalidOperationException(noTenant);
+    }
+
+    // The transaction of the use case: opened here if the use case has not saved or taken anything yet, and committed by
+    // the unit of work. If the request ends without a commit, the context is disposed and the transaction rolls back,
+    // and the number with it, and the lock ends.
+    private async Task EnsureTransactionAsync(CancellationToken ct)
+    {
+        if (context.Database.CurrentTransaction is null)
+        {
+            await context.Database.BeginTransactionAsync(ct);
         }
     }
 

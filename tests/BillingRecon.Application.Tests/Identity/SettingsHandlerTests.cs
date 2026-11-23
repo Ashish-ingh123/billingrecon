@@ -12,7 +12,8 @@ namespace BillingRecon.Application.Tests.Identity;
 /// The tenant's settings and its prefix changes with the ports replaced (US-03; BR-603, BR-607, BR-802; ADR 0033): the
 /// settings at the version read and only a change committed; a prefix change refused when it changes nothing, while
 /// another waits, or when the prefix belongs to another type, and otherwise opened for a second person; its approval
-/// asked again whether the prefix is free, then giving the type the prefix on the tenant and on this year's series.
+/// asked again whether the prefix is free, then holding this year's series and giving the type the prefix on the tenant
+/// and on that series.
 /// </summary>
 public sealed class SettingsHandlerTests
 {
@@ -27,6 +28,7 @@ public sealed class SettingsHandlerTests
     private readonly IPrefixUsage _usage = Substitute.For<IPrefixUsage>();
     private readonly IApprovalRequestRepository _approvals = Substitute.For<IApprovalRequestRepository>();
     private readonly INumberSeriesRepository _series = Substitute.For<INumberSeriesRepository>();
+    private readonly INumberSeries _numbers = Substitute.For<INumberSeries>();
     private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
     private readonly ICorrelationContext _correlation = Substitute.For<ICorrelationContext>();
     private readonly IClock _clock = TestDoubles.ClockAt(TestDoubles.Today);
@@ -173,6 +175,46 @@ public sealed class SettingsHandlerTests
     }
 
     [Fact]
+    public async Task ADR0033_the_approval_holds_this_years_series_after_every_check_and_before_it_reads_the_tenant_and_the_series()
+    {
+        Waiting("BIL", "INV");
+        AsChecker();
+
+        var result = await Approve().HandleAsync(new ApprovePrefixChangeCommand(ChangeId, Version(), null), CancellationToken.None);
+
+        // Built note point 5: a first number of the year cannot be created from the old default in the instant of the
+        // approval, because the series is held, existing or not, until the commit; and the series is taken before the
+        // tenant, in the order a number takes them.
+        result.IsSuccess.ShouldBeTrue();
+        Received.InOrder(() =>
+        {
+            _usage.IsTakenAsync(DocumentType.Bill, "INV", Arg.Any<CancellationToken>());
+            _numbers.HoldAsync(DocumentType.Bill, Fy, Arg.Any<CancellationToken>());
+            _tenants.GetCurrentAsync(Arg.Any<CancellationToken>());
+            _series.FindAsync(DocumentType.Bill, Fy, Arg.Any<CancellationToken>());
+            _unitOfWork.CommitAsync(Arg.Any<CancellationToken>());
+        });
+        await _numbers.Received(1).HoldAsync(Arg.Any<DocumentType>(), Arg.Any<FiscalYear>(), Arg.Any<CancellationToken>());
+        await _numbers.DidNotReceiveWithAnyArgs().NextAsync(default, default, default);
+    }
+
+    [Fact]
+    public async Task ADR0033_an_approval_that_is_refused_holds_no_series()
+    {
+        Waiting("BIL", "INV");
+
+        // The maker, then a checker who finds the prefix taken by another type.
+        var byMaker = await Approve().HandleAsync(new ApprovePrefixChangeCommand(ChangeId, Version(), null), CancellationToken.None);
+        AsChecker();
+        _usage.IsTakenAsync(DocumentType.Bill, "INV", Arg.Any<CancellationToken>()).Returns(true);
+        var taken = await Approve().HandleAsync(new ApprovePrefixChangeCommand(ChangeId, Version(), null), CancellationToken.None);
+
+        byMaker.Error.Code.ShouldBe(CommonErrors.ApprovalCheckerIsMakerCode);
+        taken.Error.Code.ShouldBe(IdentityErrors.PrefixInUseCode);
+        await _numbers.DidNotReceiveWithAnyArgs().HoldAsync(default, default, default);
+    }
+
+    [Fact]
     public async Task Without_a_series_this_year_only_the_default_changes()
     {
         Waiting("CN", "CRN");
@@ -284,7 +326,7 @@ public sealed class SettingsHandlerTests
         => new(new RequestPrefixChangeCommandValidator(), _clock, _currentUser, _correlation, _tenants, _changes, _usage, _approvals, unitOfWork ?? _unitOfWork);
 
     private ApprovePrefixChangeHandler Approve()
-        => new(new ApprovePrefixChangeCommandValidator(), _clock, _currentUser, _changes, _approvals, _tenants, _usage, _series, _unitOfWork);
+        => new(new ApprovePrefixChangeCommandValidator(), _clock, _currentUser, _changes, _approvals, _tenants, _usage, _numbers, _series, _unitOfWork);
 
     private RejectPrefixChangeHandler Reject()
         => new(new RejectPrefixChangeCommandValidator(), _clock, _currentUser, _changes, _approvals, _unitOfWork);

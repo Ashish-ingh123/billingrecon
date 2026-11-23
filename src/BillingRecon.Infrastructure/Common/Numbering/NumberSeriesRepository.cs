@@ -6,8 +6,9 @@ using Microsoft.EntityFrameworkCore;
 namespace BillingRecon.Infrastructure.Common.Numbering;
 
 /// <summary>
-/// A series of the current tenant, tracked, for an approved change of its prefix (ADR 0033). Its row version guards the
-/// change: a number taken meanwhile changes the row, and the save answers 409.
+/// A series of the current tenant, tracked, for an approved change of its prefix (ADR 0033). The approval holds the
+/// series first (<see cref="INumberSeries.HoldAsync"/>), so no number is taken from it before the save; its row version
+/// still guards the change.
 /// </summary>
 public sealed class NumberSeriesRepository(BillingReconDbContext context) : INumberSeriesRepository
 {

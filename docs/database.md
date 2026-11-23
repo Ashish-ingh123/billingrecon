@@ -787,8 +787,15 @@ SELECT @next AS SequenceNumber,
   the new row will go, up to the next row. If that next row is a series with a posting in flight, another tenant's
   included, the first posting of the new series waits until that posting ends. Once per series, for milliseconds,
   without a deadlock (a use case locks one series). An existing series locks its own row only.
-- This is the one raw SQL statement of the application; every other raw-SQL entry point of EF Core is a build
-  error (`src/BannedSymbols.txt`).
+- This was the one raw SQL statement of the application; every other raw-SQL entry point of EF Core is a build
+  error (`src/BannedSymbols.txt`). The ledger and the reconciliation have one each since Prompt 3.3 (ADR 0021).
+- **The hold of an approved prefix change** (ADR 0033, "Amended 2026-11-23"): `INumberSeries.HoldAsync` sends the
+  first `SELECT` above alone, in the approval's transaction, after its checks and before it reads the tenant and the
+  series. It locks the row, or the gap where the row will go, until the approval commits, and takes no number. A
+  number and an approval so take the series first and the tenant row second, in the same order: a number in flight
+  finishes first and the approval changes the series it created; a first number asked for during the approval waits,
+  then starts from the new default. Like a first number, a hold of a series that does not exist yet may wait for a
+  neighbour (above).
 
 ### 4.2 Fiscal year
 
@@ -812,9 +819,11 @@ The same query runs against `CreditNotes`, `Payments`, `Adjustments` and `Refund
 ### 4.4 Prefix of the current series (ADR 0033)
 
 The series of today's fiscal year carries the tenant's default prefix of its type: both are set together when a
-prefix change is approved, and a series created later starts from the default. The one exception is the race of
-ADR 0033 (built note point 5): the first number of a type in a year, taken in the milliseconds of an approval, creates
-the series with the old prefix. Any row of this query is that case:
+prefix change is approved, and a series created later starts from the default. Until 2026-11-23 there was one
+exception, the race of ADR 0033 (built note point 5): the first number of a type in a year, taken in the milliseconds
+of an approval, created the series with the old prefix. The approval now holds the series first (§4.1, "The hold of an
+approved prefix change"), so this query should find nothing; a row is a series created before that change, or a
+defect:
 
 ```sql
 DECLARE @fy char(7) = '2026-27';   -- today's fiscal year, by the date in India
@@ -831,8 +840,9 @@ AND    s.Prefix <> CASE s.DocumentType
                    END;
 ```
 
-No test runs it after every scenario. A row is repaired through the API: one more change of that type, or two to come
-back to the prefix that was asked for.
+No test runs it after every scenario; the tests of the hold (`SettingsApiTests`, `NumberSeriesOnSqlServerTests`) check
+the series against the default after an approval. A row is repaired through the API: one more change of that type, or
+two to come back to the prefix that was asked for.
 
 ---
 

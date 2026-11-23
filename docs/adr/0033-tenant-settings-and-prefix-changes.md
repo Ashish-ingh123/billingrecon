@@ -2,7 +2,8 @@
 
 - **Status:** Accepted. The owner approved the plan of Prompt 5.3 on 2026-11-21, whose questions 7 and 8 are points 4
   and 6 below, and the plan of Prompt 5.3b the same day with the four recommended answers, which are points 3, 5, 6 and
-  9. The built note at the end records what the build found.
+  9. The built note at the end records what the build found. Its point 5 was decided by the owner on 2026-11-23 (option
+  B, "approve as recommended"), which amends point 7 and the last alternative: see "Amended 2026-11-23" at the end.
 - **Date:** 2026-11-21
 - **Deciders:** project owner, Claude Code
 - **Refines:** ADR 0008 (a series' prefix changes), ADR 0023 (the document type of an approval request), ADR 0032
@@ -44,7 +45,9 @@ audited; BR-802 and BR-604 make a change of prefix a maker-checker action that a
    `prefix_change_pending`. A prefix is one to three characters `[A-Z0-9]`, trimmed and upper-cased first.
 7. **No new raw SQL.** The series row is changed through the model and its row version. A number taken in the same
    instant as an approval changes that row too, so the approval answers 409 `concurrency_conflict` and the checker
-   tries again.
+   tries again. *Amended 2026-11-23:* the approval now holds the series first, under the lock a number takes, with
+   one more statement in the allocator's file; a number in flight finishes first and the approval then changes the
+   series without a 409 (see the end).
 8. **Everything is audited:** the settings change on the tenant, the request, its approval or rejection, the new
    default on the tenant (`PrefixChanged`) and the new prefix of the series (`PrefixChanged` on `NumberSeries`, which
    becomes an aggregate for it).
@@ -61,8 +64,9 @@ audited; BR-802 and BR-604 make a change of prefix a maker-checker action that a
 - **Change only the defaults.** Rejected: the change would show only in the next fiscal year.
 - **Prefixes distinct only from the other four current defaults.** Rejected with the plan: a credit note could take
   `BIL` in a year whose bills already used it.
-- **Lock the series row with raw SQL during an approval.** Rejected: raw SQL is allowed in four named statements only
-  (ADR 0021), and a rare 409 is an honest answer.
+- **Lock the series row with raw SQL during an approval.** Rejected at first: raw SQL is allowed in four named
+  statements only (ADR 0021), and a rare 409 is an honest answer. Adopted on 2026-11-23, once the build had shown that
+  the 409 does not cover a series that does not exist yet (built note point 5, "Amended 2026-11-23").
 
 ## Consequences
 
@@ -96,7 +100,7 @@ Built as decided above. What the build settled beyond the text, and one finding:
    milliseconds. `docs/database.md` section 4.4 has the query that finds it; one more change of that type, or two to
    come back to the prefix asked for, repairs it. Closing it needs the approval to lock the range of the series (a
    locked read in the allocator's file), which is new raw SQL, the alternative rejected above; so it is not built, and
-   the owner decides.
+   the owner decides. *Closed on 2026-11-23, see below.*
 
 **Verification.** On .NET 10 (SDK 10.0.404): in the repository, the Release build and `dotnet format
 --verify-no-changes` are clean, and Domain 625, Application 392, Architecture 121 and the 658 integration tests without
@@ -104,3 +108,51 @@ a database pass; in a throwaway copy, with migration `0019` scaffolded there by 
 back, the whole integration project passes on LocalDB 2019 (1114 tests), and the settings, matrix, bill approval,
 migration and number series tests ran five more times without a failure. Still owed: the same on SQL Server 2022 in
 Docker (`docs/runbook.md` section 8). The finding of point 5 was found by reading the code, not by a test.
+
+## Amended 2026-11-23: the approval holds the series (built note point 5 closed)
+
+The owner chose, of three options put in the plan (B: the approval locks the series range with the allocator's own locked
+read; A: the approval creates the series and the unique key settles the race; C: leave it, with the query of
+`docs/database.md` section 4.4), **option B**. Option A was not chosen: without also reordering the allocator's
+statement, the approval (tenant row, then the series' place in the index) and a first number (the series' place, then
+the tenant row) take their locks in opposite orders and can deadlock; and it leaves series with no number taken.
+
+1. **`INumberSeries.HoldAsync(type, fiscalYear)`** runs the locked read of the allocator alone, `SELECT … FROM
+   NumberSeries WITH (UPDLOCK, HOLDLOCK)` for the current tenant's series, in the transaction of the use case, which it
+   opens if none is open. It holds the row when the series exists, and the gap in the unique index where it will go
+   when it does not, until the commit or the rollback. It takes no number and writes nothing.
+2. **`ApprovePrefixChangeHandler` holds this year's series of the type after every check** (the version, the pending
+   state, the checker, the decision of the approval request, the prefix still free) and **before it reads the tenant
+   and the series**. So an approval and a number take the series first and the tenant row second, in the same order,
+   and neither waits for the other in a circle:
+   - a number in flight (the series locked, the default read, the row not written yet) finishes first; the approval
+     then finds the series it created and changes its prefix, and answers 200;
+   - a first number asked for while the approval holds the series waits, and is then created from the new default.
+   In neither case does that year's series keep the old prefix. A number taken in the same instant as the approval no
+   longer makes it answer 409: it waits for the approval or the approval waits for it. The row version still guards
+   the change.
+3. **One more statement in `NumberSeriesAllocator.cs`**, the file that already may send SQL: `HoldSeries`, a constant
+   with the same three parameters and the tenant in its WHERE clause, under its own suppression of RS0030. No new
+   file is sanctioned. `BannedSymbolsTests` now pins two statements in that file, both constants, both locking the
+   series of the current tenant by the same key (a changed expectation, called out). This amends ADR 0021 point 3
+   ("each one constant statement") for that file, and ADR 0008 built note point 3.
+4. **Like a first number, a hold of a series that does not exist yet locks a gap**, and may wait for a neighbouring
+   series whose posting is in flight, or make that neighbour's first number wait (ADR 0008, built note): once per
+   approval, for milliseconds.
+
+**Tests.** Application: the hold comes after the check of the prefix and before the reads of the tenant and the
+series, and an approval that is refused holds nothing. Database: a hold of a series that does not exist yet keeps a
+first number waiting until the holder ends, which then takes the default of that moment; a hold of an existing series
+keeps a taker waiting and takes no number; a hold never waits for another tenant's existing series and opens nothing
+without a tenant or with bad arguments; an approval in the instant of the first number of the year, stopped by the
+test between its read of the default and its insert, waits for it and then changes the series it created; and ten
+rounds of a first bill and an approval at the same instant, each round on a fresh tenant, all end with both answers 200
+and the series of the year carrying the new prefix. With the hold removed in a throwaway copy, the last two tests
+fail: the first because the approval does not wait, the second because a series kept the old prefix, which shows the
+finding of point 5 by a test as well.
+
+**Verification.** On .NET 10 (SDK 10.0.404): in the repository, the Release build and `dotnet format
+--verify-no-changes` are clean, and Domain 625, Application 394, Architecture 121 and the 658 integration tests
+without a database pass; in a throwaway copy the whole integration project passes on LocalDB 2019 (1120 tests), and
+the settings, number series, bill approval and bill posting tests (81) ran five more times without a failure. Still
+owed: SQL Server 2022 in Docker.
