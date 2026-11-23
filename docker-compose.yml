@@ -1,9 +1,11 @@
-# Local development infrastructure for BillingRecon: SQL Server 2022 (Developer edition) and Seq.
+# Local run of BillingRecon (ADR 0045): SQL Server 2022 (Developer edition) and Seq; the migration step, the API and the
+# frontend behind nginx with TLS; and, when DEMO_ENABLED=true in .env, the demo hospital with a week of bills and payments.
+# `docker compose up --build` starts it all; the app is then at https://localhost (docs/runbook.md section 13).
 #
-# This file was written on a machine without Docker. Image tags, variables, ports and healthcheck commands were
-# checked against the vendors' documentation and image metadata on 2026-10-03; the owner first started the
-# containers on 2026-10-17. The results of "Verify on a Docker machine" in docs/runbook.md are still to be
-# recorded there.
+# The sql and seq services were written on a machine without Docker. Image tags, variables, ports and healthcheck
+# commands were checked against the vendors' documentation and image metadata on 2026-10-03; the owner first started
+# the containers on 2026-10-17. The results of "Verify on a Docker machine" in docs/runbook.md are still to be recorded
+# there. The services of Prompt 8.1 have not run yet either (runbook section 8, row 8.1).
 #
 # Before the first start, copy .env.example to .env and fill it in. No secret and no licence acceptance lives in
 # this file; both come from .env, which git ignores.
@@ -63,7 +65,90 @@ services:
       retries: 4
       start_period: 15s
 
+  # The database, its logins and every migration, as docs/runbook.md section 10 does it by hand; runs, then stops.
+  migrate:
+    build:
+      context: .
+      dockerfile: deploy/migrate/Dockerfile
+    environment:
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env, see .env.example}"
+      MIGRATOR_PASSWORD: "${BILLINGRECON_MIGRATOR_PASSWORD:?Set BILLINGRECON_MIGRATOR_PASSWORD in .env, see .env.example}"
+      APP_PASSWORD: "${BILLINGRECON_APP_PASSWORD:?Set BILLINGRECON_APP_PASSWORD in .env, see .env.example}"
+    depends_on:
+      sql:
+        condition: service_healthy
+    restart: "no"
+
+  # The API outside Development: it never migrates, connects as billingrecon_app, refuses plain HTTP and believes the
+  # forwarded headers of the frontend container alone (ADR 0035). Not published: it is reached through nginx.
+  api:
+    build:
+      context: .
+      dockerfile: src/BillingRecon.Api/Dockerfile
+    container_name: billingrecon-api
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      Database__ConnectionString: "Server=sql;Database=BillingRecon;User Id=billingrecon_app;Password=${BILLINGRECON_APP_PASSWORD};Encrypt=True;TrustServerCertificate=True"
+      Jwt__SigningKey: "${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env, see .env.example}"
+      AllowedHosts: "localhost;frontend"
+      ReverseProxy__KnownProxies__0: "172.28.0.10"
+      Seq__ServerUrl: "http://seq"
+      Demo__Enabled: "${DEMO_ENABLED:-false}"
+      Demo__AdminPassword: "${DEMO_PASSWORD:-}"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      seq:
+        condition: service_healthy
+
+  # nginx: the app's files with their own headers, TLS with a local certificate made on the first start, /api passed to
+  # the API. Its fixed address is the API's one known proxy.
+  frontend:
+    build:
+      context: frontend
+    container_name: billingrecon-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${HTTPS_HOST_PORT:-443}:443"
+      - "127.0.0.1:${HTTP_HOST_PORT:-80}:80"
+    volumes:
+      - certs:/etc/nginx/certs
+    networks:
+      default:
+        ipv4_address: 172.28.0.10
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # The demo (ADR 0045 point 1), when DEMO_ENABLED=true: four more users, the catalogue, patients and payers, and a
+  # week of bills and payments, all entered through the API as its users would. Does nothing the second time.
+  demo-seed:
+    image: node:24-alpine
+    environment:
+      DEMO_ENABLED: "${DEMO_ENABLED:-false}"
+      DEMO_PASSWORD: "${DEMO_PASSWORD:-}"
+      BASE_URL: "https://frontend"
+      NODE_EXTRA_CA_CERTS: "/certs/tls.crt"
+    volumes:
+      - ./deploy/demo:/demo:ro
+      - certs:/certs:ro
+    command: ["node", "/demo/seed.mjs"]
+    depends_on:
+      frontend:
+        condition: service_healthy
+    restart: "no"
+
 # Named volumes keep the data across `docker compose down`. `docker compose down -v` deletes BOTH of them.
 volumes:
   sql-data:
   seq-data:
+  # The local certificate of nginx, made on the first start.
+  certs:
+
+# A fixed range, so that the API can name its proxy by address.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24

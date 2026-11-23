@@ -640,6 +640,7 @@ dotnet test --filter "FullyQualifiedName~DatabasePermissionsOnSqlServerTests"
 | 7.5 | `ReportsApiTests` on SQL Server 2022, with the two fields the pending approvals report gained (the allocation's payment and the application's credit note, joined in the same query); `OpenApiSnapshotTests`; the frontend job of CI with the inbox, credit note and adjustment screens. |
 | 7.5b | The frontend job of CI with the report screens; a CSV of each report opened in a spreadsheet by the owner. |
 | 7.6 | The frontend job of CI with the dashboard and Recharts 3.10.1; the dashboard at a phone width. |
+| 8.1 | `docker compose up --build` on a clean machine with `DEMO_ENABLED=true` (section 13): `migrate` ends 0, `api` and `frontend` healthy, `demo-seed` prints "The demo is ready"; https://localhost signs in as `supervisor@demo.local` and shows the dashboard; the page's headers carry the policy, `frame-ancestors 'none'` and `nosniff`; http://localhost redirects; the images of `migrate`, `api` and `frontend` build. `DemoTenantSeederTests` on SQL Server 2022. |
 
 A red result is reported as it is, with its output; the fix is its own commit on top, never an edit of history.
 
@@ -684,7 +685,7 @@ line:
 ```powershell
 dotnet ef migrations script --idempotent --project src/BillingRecon.Infrastructure --output migrate.sql
 $env:SQLCMDPASSWORD = '<migrator password>'
-sqlcmd -S <server> -d BillingRecon -U billingrecon_migrator -b -i migrate.sql
+sqlcmd -S <server> -d BillingRecon -U billingrecon_migrator -b -I -i migrate.sql
 Remove-Item Env:SQLCMDPASSWORD
 ```
 
@@ -846,3 +847,43 @@ as for NuGet (section 5). The audit stays on.
 `sessionStorage` under `billingrecon.session`, gone when the tab closes or the user signs out; the theme
 (`billingrecon.theme`) and the last hospital code (`billingrecon.hospital`) in `localStorage`. A user who reports being
 signed out after an hour has met the token's 60 minutes (ADR 0031): there is no refresh.
+
+---
+
+## 13. The one-command local run (ADR 0045)
+
+`docker-compose.yml` runs the whole application on one machine with Docker: SQL Server and Seq; **`migrate`**, which
+makes the database and the two logins of section 10, applies every migration as `billingrecon_migrator` and puts
+`billingrecon_app` in its role, then stops; **`api`** outside Development, as `billingrecon_app`, not published;
+**`frontend`**, nginx with the app, TLS with a local certificate and `/api` passed to the API as its one known proxy
+(section 11); and **`demo-seed`**, which fills the demo hospital when it is asked for.
+
+1. Copy `.env.example` to `.env` and fill it in: the two licence acceptances, the `sa` password, the passwords of
+   `billingrecon_migrator` and `billingrecon_app`, `JWT_SIGNING_KEY` (base64 of 32 random bytes; `.env.example` says how),
+   and for the demo `DEMO_ENABLED=true` with `DEMO_PASSWORD` (12 to 128 characters).
+2. From the repository root:
+
+   ```powershell
+   docker compose up --build
+   ```
+
+3. Open **https://localhost**. The certificate is made on the first start and signed by nobody: the browser warns once;
+   accept it for localhost. With the demo, sign in with the hospital code `demo`, `DEMO_PASSWORD` and one of
+   `admin@demo.local`, `supervisor@demo.local`, `clerk@demo.local`, `cashier@demo.local`, `viewer@demo.local`. Without
+   it, there is no hospital to sign in to: no API makes one (ADR 0045).
+
+**What the demo holds:** five users, one per role; a catalogue of five items; six patients with their own payers; two
+bills a day for the last seven days, most of them paid in full or in part; an overpayment, and its refund waiting for a
+checker in Approvals. The seed signs in and enters all of it through the API, so the numbers, the ledger and the audit
+trail are the API's own; a second `up` finds the patients and does nothing.
+
+**Again and over:** `docker compose up` again keeps everything (the volumes). `docker compose down -v` deletes the
+database, Seq's data and the certificate; the next `up` starts from nothing. A changed `.env` password of a login is set
+by the next `migrate`; a changed `DEMO_PASSWORD` changes nothing for users that exist.
+
+**Ports:** nginx listens on 443 and 80 of the loopback address (`HTTPS_HOST_PORT`, `HTTP_HOST_PORT` in `.env`). On other
+ports, open `https://localhost:<port>` yourself: the redirect from plain HTTP keeps 443. The API answers only through
+nginx; Seq stays at http://localhost:5341.
+
+**When `migrate` fails:** `docker compose logs migrate` shows sqlcmd's message. The migration script needs
+`QUOTED_IDENTIFIER` on (`sqlcmd -I`, as section 10 has it): without it the filtered indexes are refused.

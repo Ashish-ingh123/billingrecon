@@ -90,9 +90,14 @@ React + TypeScript + Vite in `frontend/` (ADR 0038, Prompt 7.1). Node 22.22 or l
 
 ### Delivery
 
-Docker Compose for local runs: `sql` (SQL Server 2022 Developer) and `seq` exist in `docker-compose.yml`; `api`
-and `frontend` join later. Licence acceptance and the SQL Server password come from `.env` (copy `.env.example`),
-which git ignores. The API has a multi-stage image, `src/BillingRecon.Api/Dockerfile` (Debian-based runtime with
+Docker Compose runs it all (ADR 0045, Prompt 8.1, runbook section 13): `sql` (SQL Server 2022 Developer) and `seq`;
+`migrate` (the database and the two logins as the administrator, the idempotent migration script as
+`billingrecon_migrator`, `sqlcmd -I`); `api` outside Development as `billingrecon_app`; `frontend`, nginx with the app,
+TLS with a self-signed certificate made on its first start, the app's own headers (CSP with the theme script's hash,
+`frame-ancestors 'none'`, nosniff, HSTS), `/api` passed to the API as its one known proxy; and `demo-seed`, which with
+`DEMO_ENABLED=true` fills the hospital `demo` through the API (`deploy/demo/seed.mjs`) after the API's opt-in bootstrap of
+that hospital and its administrator (`DemoTenantSeeder`). Licence acceptances, passwords and the signing key come from
+`.env` (copy `.env.example`), which git ignores. The API has a multi-stage image, `src/BillingRecon.Api/Dockerfile` (Debian-based runtime with
 time zone data, non-root user, health check; ADR 0017). GitHub Actions, `.github/workflows/ci.yml`, runs on every
 push to `main` and every pull request: restore with the NuGet audit, `dotnet format --verify-no-changes`, build
 with warnings as errors, every test including the database tests (the runners have Docker), coverage and a
@@ -184,8 +189,10 @@ Directory.Packages.props       Central package management: every package version
 global.json                    Pins the .NET 10 SDK feature band (10.0.400, latestPatch; ADR 0014).
 .config/dotnet-tools.json      Local tools: dotnet-ef, same version as the EF Core packages. Restore with dotnet tool restore.
 .editorconfig                  Code style and naming, enforced in the build (EnforceCodeStyleInBuild).
-docker-compose.yml             Local infrastructure: SQL Server 2022 Developer and Seq (first run 2026-10-17; checklist results pending, see section 9).
-.env.example                   Template for .env (licence acceptance, sa password, ports). .env itself is git-ignored.
+docker-compose.yml             The one-command run (ADR 0045): SQL Server, Seq, migrate, api, frontend (nginx) and demo-seed. Not run
+                               with Docker yet for the services of 8.1 (runbook section 8, row 8.1).
+.env.example                   Template for .env (licence acceptances, passwords, the signing key, the demo, ports). .env itself is git-ignored.
+deploy/                        migrate/ (the migration image and its SQL steps) and demo/seed.mjs (the demo through the API).
 .dockerignore                  What the API image build never sees: build output, tests, docs, .env, the git history.
 .github/workflows/ci.yml       GitHub Actions: format, build, tests with Docker, coverage, vulnerability report,
                                migration script, API image built and smoke-run (ADR 0017).
@@ -722,7 +729,7 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 | `docs/build-prompts.md` | The build prompts from zero to R1, reconstructed on 2026-11-20: what each finished prompt built, and the wording and order of the prompts still to give. Its phase numbers are the ones this file uses |
 | `docs/security.md` | Authentication and the sign-in limits, authorisation, tenancy, maker-checker, transport (TLS, hosts, CORS, headers), secrets, data protection, the database logins, and the threat model of R1 (section 10: every threat done, accepted with its reason, or named with its prompt). Written in full with Prompt 5.4b |
 | `docs/testing-strategy.md` | Test pyramid, tooling, database tests, architecture tests, the frontend's tests (section 5a), CI gates |
-| `docs/runbook.md` | Written so far: local infrastructure, the "Verify on a Docker machine" checklist, migrations, tests, CI, the container image, idempotency keys, the deferred verification list, sign-in with the signing key (section 9), the database logins with the migrations outside Development (section 10), the proxy in front of the API with its hosts and origins (section 11), and the frontend with its commands, a local sign-in and the OpenAPI snapshot (section 12). Still to come: backups, incident procedures |
+| `docs/runbook.md` | Written so far: local infrastructure, the "Verify on a Docker machine" checklist, migrations, tests, CI, the container image, idempotency keys, the deferred verification list, sign-in with the signing key (section 9), the database logins with the migrations outside Development (section 10), the proxy in front of the API with its hosts and origins (section 11), the frontend with its commands, a local sign-in and the OpenAPI snapshot (section 12), and the one-command local run with the demo (section 13). Still to come: backups, incident procedures |
 | `docs/adr/` | Architecture Decision Records. ADR 0000 defines the format. |
 
 ADRs so far: 0000 record decisions, 0001 target framework (.NET 8; superseded by 0014),
@@ -811,7 +818,10 @@ credit note's lines from its bill (Accepted on the owner's approval of the Promp
 the server's totals (Accepted on the owner's approval of the Prompt 7.5b plan, 2026-11-23),
 0044 the dashboard screen: the layout reference from the prototype, one card per colour token, compact money with the
 exact amount kept, panels that fail alone, Recharts 3.10.1 loaded with its route (Accepted on the owner's approval of the
-Prompt 7.6 plan, 2026-11-23).
+Prompt 7.6 plan, 2026-11-23),
+0045 the one-command local run: nginx with a local certificate as the API's known proxy, the migrations as in runbook
+section 10 by a `migrate` service, a demo hospital bootstrapped by the API and filled through it (Accepted on the owner's
+approval of the Prompt 8.1 plan, 2026-11-23).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -854,7 +864,7 @@ them needs the API's configuration, and only "apply" needs a database.
 
 Useful URLs while running: `/health/live`, `/health/ready`, `/api/v1/system/info`, the Seq UI at
 `http://localhost:5341`, and in Development `/openapi/v1.json` and `/scalar`.
-Planned: `api` and `frontend` services in Docker Compose (Prompt 8.1).
+The whole application with the demo: `docker compose up --build`, then https://localhost (runbook section 13).
 
 The frontend, from `frontend/` (Node 22.22 or later; every command and how to sign in locally: `docs/runbook.md`
 section 12):
@@ -2093,4 +2103,20 @@ Kept here so they survive between sessions. Remove an item when it is done.
       ₹12,50,040.00 as in the 6.1 reports, collected gross, one approval with its Review, no drift, in light and dark.
     - **Still to do:** the CI job's first run; the dashboard at a phone width (runbook section 8, row 7.6). The frontend of
       R1 is written to its end; the merge of `phase-2-billing` to `main` is the owner's step.
-    - Next: Prompt 8.1 (delivery).
+    - Next: Prompt 8.1 (delivery). Done: item 44.
+44. **Prompt 8.1, the one-command local run (ADR 0045), written 2026-11-23, on branch `phase-8-delivery`** (cut from
+    `phase-2-billing`). The plan was approved "as recommended". No migration, no package, no change of the API's contract.
+    - Built: `migrate`, `api`, `frontend` and `demo-seed` in `docker-compose.yml`; `deploy/migrate` (the image, `logins.sql`,
+      `membership.sql`, `setup.sh`); `frontend/Dockerfile` with nginx, its certificate script and its headers; the API's
+      opt-in `DemoTenantSeeder` with `DemoOptions` (Infrastructure, Identity); `deploy/demo/seed.mjs`; `.env.example`;
+      runbook section 13; threat model rows S5 and E6 done.
+    - **Found and fixed, called out:** runbook section 10 step 2 ran the migration script without `sqlcmd -I`, which SQL
+      Server refuses for the filtered indexes (Msg 1934); it now passes `-I`, as `setup.sh` does.
+    - **Tests:** 6 new .NET tests (the demo refused without a usable password, off by default; its administrator signs in
+      to the demo hospital and a second start changes nothing; no demo hospital when off).
+    - **Verified here:** the Release build and format gate; Domain 644, Application 423, Architecture 129, 747
+      integration tests without a database; the `Database` collection on LocalDB in the throwaway copy (493); the SQL steps
+      twice on LocalDB (as the app: its role, not `db_owner`, snapshot isolation, 20 migrations, `/health/ready` 200); the
+      demo seed against the API in Development (14 bills, 10 payments, a refund waiting, no drift) and its second run.
+    - **Not verified:** nginx, the three images and `docker compose up` (no Docker here; runbook section 8, row 8.1).
+    - Next: Prompt 8.2 (performance and browser tests).

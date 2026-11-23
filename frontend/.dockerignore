@@ -1,0 +1,5 @@
+# Build context of frontend/Dockerfile: the sources and the lock file, never the local installs or builds.
+node_modules/
+dist/
+coverage/
+*.log

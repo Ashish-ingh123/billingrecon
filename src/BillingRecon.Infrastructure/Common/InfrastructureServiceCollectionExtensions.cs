@@ -73,6 +73,13 @@ public static class InfrastructureServiceCollectionExtensions
     {
         services.AddScoped<ILoginUserLookup, LoginUserLookup>();
 
+        // The demo hospital and its administrator, in any environment, when Demo:Enabled asks for them (ADR 0045).
+        services.AddOptions<DemoOptions>()
+            .BindConfiguration(DemoOptions.SectionName)
+            .Validate(DemoOptions.IsUsable, DemoOptions.PasswordMessage)
+            .ValidateOnStart();
+        services.AddHostedService<DemoTenantSeeder>();
+
         if (environment.IsDevelopment())
         {
             services.AddOptions<DevelopmentIdentityOptions>()
