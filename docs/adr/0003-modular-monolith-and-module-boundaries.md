@@ -152,3 +152,15 @@ a payer may be given the bill, and never read a patient, a payer, their statuses
 The owner accepted this exception on 2026-11-20. The same question returns with every later table that refers to a
 patient, a payer or a bill: each one is a new row in this table, decided then, or the convention above replaces them
 all.
+
+## Amendment 2026-11-23: Reporting reads every business module (accepted by the owner, 2026-11-23)
+
+Prompt 6.1 built the reports of BR-901, which join what several modules own (a bill, its payer, its ledger postings; a
+request and its document). `docs/domain-model.md` section 2 has always given Reporting that role: it "reads any module's
+tables through query services; never writes".
+
+**Decision.** Five more allowed exceptions, listed in the test with their reason: `BillingRecon.Infrastructure.Reporting`
+may depend on `BillingRecon.Domain.Payers`, `.Billing`, `.Payments`, `.Receivables` and `.Adjustments`, to read their
+entities through the context, with the tenant filter. No other layer of Reporting has an exception. In exchange,
+`ReportingConventionTests` keeps Reporting from writing: no port that writes, no repository, no call that changes or saves
+an entity, every set read untracked, only GET actions (ADR 0036).

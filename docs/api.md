@@ -65,6 +65,7 @@ at the next sign-in. In short:
 | Ask for a reversal (payment, allocation, application of credit) | ✓ | ✓ | ✓ | ✓ | |
 | Approve, reject, and the inbox `GET /approval-requests` | ✓ | ✓ | | | |
 | Audit trail (the trails of a user, the tenant, its prefix changes and its number series: TenantAdmin only) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Reports (section 8.15) | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /api/v1/system/info` | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 A checker also has to be another user than the maker (BR-603): a decision by the maker is 403
@@ -832,3 +833,53 @@ does not change the answer.
 
 The trails of a change (`entityType=PrefixChange`: `Requested`, `Approved`, `Rejected`), of the tenant
 (`PrefixChanged`) and of the series (`entityType=NumberSeries`: `PrefixChanged`) are the TenantAdmin's alone.
+
+### 8.15 Reports (BR-901, US-40, US-42; ADR 0036)
+
+Read-only, for every role. Each figure ties to the ledger: the totals of the registers to the postings of their
+documents, the balances to the accounts they cache (BR-404), the collection of a day to the Cash entries of that business
+date. A report reads committed rows and takes no lock.
+
+| Method and path | Answer | Query |
+|---|---|---|
+| `GET /api/v1/reports/bill-register` | page of posted bills, by bill date | `from`, `to`, `payerId`, `status` (`Posted`, `PartiallyPaid`, `Settled`) |
+| `GET /api/v1/reports/payment-register` | page of payments, by payment date, reversed ones included | `from`, `to`, `payerId`, `method`, `status` (`Posted`, `PendingReversal`, `Reversed`) |
+| `GET /api/v1/reports/daily-collection` | the collection of one day by method | `date` |
+| `GET /api/v1/reports/outstanding-by-payer` | page of payers with a balance, the largest net outstanding first | `search` |
+| `GET /api/v1/reports/payers/{payerId}/balance` | one payer's balances (US-40); 404 `payer_not_found` | |
+| `GET /api/v1/reports/unapplied-cash` | page of payments that hold unapplied cash, the oldest first | `payerId` |
+| `GET /api/v1/reports/available-credit` | page of posted credit notes that hold available credit, the oldest first | `payerId` |
+| `GET /api/v1/reports/pending-approvals` | page of the requests that wait for a checker, the oldest first | `documentType` |
+
+**Periods.** A register covers `from` to `to` (`yyyy-MM-dd`, business dates in India), both included: both given or
+neither, the end not before the start, at most 366 days. Neither means the current month in India. A period it cannot
+cover is a 400 `validation_failed` on `to`. `daily-collection` without a `date` is today's in India.
+
+**A paged report** takes `page` and `pageSize` like any list (section 6) and answers
+`{ period, items, page, pageSize, totalCount, totals }`: `totals` are those of every page together, not of the page;
+`period` is the one a register covers, null for the other reports. Items of the registers are chronological, by date
+and then by number. Money is a decimal with two places, as everywhere.
+
+- **Bill register** items: `billId`, `number`, `billDate`, `dueDate`, `patientId`, `patientName`, `payerId`,
+  `payerName`, `total`, `balanceDue`, `status`, `postedAtUtc`. Totals: `bills`, `total` (the debits to Receivable of
+  their postings), `balanceDue`. A draft, a voided bill and one that waits for approval are in no register.
+- **Payment register** items: `paymentId`, `number`, `paymentDate`, `payerId`, `payerName`, `method`, `reference`,
+  `amount`, `unappliedAmount`, `status`, `reversedAtUtc`. Totals: `payments`, `amount` (the debits to Cash of their
+  postings), `unappliedAmount`.
+- **Daily collection** (US-42): `date`, `methods` (one row per method, all five, zeros included) and `totals`, each with
+  `payments` (recorded that day), `received`, `reversed` (payments whose reversal was approved that day, under their
+  method), `refunded` (refunds of that day, under the refund's method) and `net` (received less reversed less refunded).
+  The totals' `net` is the movement of the Cash account on that date. A payment dated the day before is in that day's
+  collection, whenever it was recorded.
+- **Outstanding by payer** and **a payer's balance** (US-40): `payerId`, `payerName`, `receivable`, `unappliedCash`,
+  `creditAvailable`, `netOutstanding` (the first less the other two). The list leaves out payers whose three balances
+  are zero; the single balance answers zeros for such a payer. Totals: `payers` and the four sums.
+- **Unapplied cash** items: `paymentId`, `number`, `paymentDate`, `payerId`, `payerName`, `method`, `amount`,
+  `unappliedAmount`, `status` (a payment waiting for its reversal still holds its money). Totals: `payments`,
+  `unappliedAmount` (the balance of UnappliedCash).
+- **Available credit** items: `creditNoteId`, `number`, `creditNoteDate`, `billId`, `billNumber`, `payerId`,
+  `payerName`, `total`, `availableAmount`. Totals: `creditNotes`, `availableAmount` (the balance of CreditAvailable).
+- **Pending approvals** items: `approvalRequestId`, `documentType`, `action`, `documentId`, `makerUserId`,
+  `requestedAtUtc`, `waitingDays` (in India, from the day of the request to today), and the document's `payerId`,
+  `payerName` and `amount` where it has them (a prefix change has none). Totals: `requests`, `oldestRequestedAtUtc`.
+  This report is everyone's; the checker's inbox (section 8.6) stays the checkers'.

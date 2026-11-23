@@ -55,6 +55,9 @@ public static class Policies
     /// <summary>Reading the audit trail: every role (US-43); the trail of a user is the TenantAdmin's alone.</summary>
     public const string ReadAudit = nameof(ReadAudit);
 
+    /// <summary>The reports of BR-901: every role (the matrix's "Reports" row, ADR 0036).</summary>
+    public const string Reports = nameof(Reports);
+
     /// <summary>Any signed-in user, whatever the roles: the service information.</summary>
     public const string SignedIn = nameof(SignedIn);
 
@@ -76,6 +79,7 @@ public static class Policies
         [RequestReversals] = [Role.TenantAdmin, Role.Supervisor, Role.BillingClerk, Role.Cashier],
         [Decide] = [Role.TenantAdmin, Role.Supervisor],
         [ReadAudit] = [Role.TenantAdmin, Role.Supervisor, Role.BillingClerk, Role.Cashier, Role.Viewer],
+        [Reports] = [Role.TenantAdmin, Role.Supervisor, Role.BillingClerk, Role.Cashier, Role.Viewer],
     };
 
     /// <summary>Every policy of the catalogue, <see cref="SignedIn"/> included.</summary>

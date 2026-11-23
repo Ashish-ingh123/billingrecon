@@ -37,7 +37,16 @@ public sealed class ModuleDependencyTests
             "BillingRecon.Infrastructure.Billing",
             "BillingRecon.Domain.Payers",
             "The Bills table has foreign keys to Patients and Payers (docs/database.md section 3.3); BillConfiguration names the two entity types to declare them and uses nothing else of them (ADR 0003, amendment of 2026-11-20)."),
+        .. ReportingReads("Payers", "Billing", "Payments", "Receivables", "Adjustments"),
     ];
+
+    // The query services of Reporting read the tables of every business module, joined and paged, and never write
+    // (ReportingConventionTests); docs/domain-model.md section 2, ADR 0003 amendment of 2026-11-23, ADR 0036.
+    private static AllowedDependency[] ReportingReads(params string[] modules)
+        => [.. modules.Select(module => new AllowedDependency(
+            "BillingRecon.Infrastructure.Reporting",
+            $"BillingRecon.Domain.{module}",
+            "The reports read every module's tables through query services that only read (BR-901; docs/domain-model.md section 2; ADR 0003, amendment of 2026-11-23; ADR 0036)."))];
 
     public static TheoryData<string> BusinessModules()
     {

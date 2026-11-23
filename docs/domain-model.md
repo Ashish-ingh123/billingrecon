@@ -41,7 +41,7 @@
 | **Payments** | `Payment` + `PaymentAllocation`, `Refund` | `PaymentNumber`, `RefundNumber`, `PaymentMethod` | |
 | **Receivables** | `LedgerPosting` + `LedgerEntry` (append-only), `PayerBalance` (cache) | `LedgerAccount`, `IReceivablesLedger` | Owns the posting templates and the reconciliation query. |
 | **Adjustments** | `Adjustment` | `AdjustmentNumber`, `AdjustmentKind` | |
-| **Reporting** | none (read models / queries) | | Reads any module's tables through query services; never writes. |
+| **Reporting** | none (read models / queries) | `ReportBillStatus`, `ReportPaymentStatus`, `ReportPaymentMethod` (its own words for the Billing and Payments enums) | Reads any module's tables through query services; never writes. Built with Prompt 6.1 (ADR 0036): its Infrastructure may name the entities of every business module (five exceptions of ADR 0003), and `ReportingConventionTests` keeps it from writing. |
 | **Audit** | `AuditRecord` (append-only) | `IAuditWriter` | Subscribes to every domain event. |
 
 Cross-module rule (CLAUDE.md §3): a module touches another module's data only through that module's

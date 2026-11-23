@@ -270,7 +270,11 @@ src/
                                 settings use cases (get, update) and the prefix change use cases (request,
                                 approve, reject, get, list) with ITenantRepository, IPrefixChangeRepository,
                                 IPrefixChangeReadService and IPrefixUsage (Identity); INumberSeriesRepository
-                                (Common). ADR 0033.
+                                (Common). ADR 0033. The eight report queries with their handlers, validators and
+                                DTOs, ReportPage (the list answer with its totals and period), ReportPeriods, the
+                                ports IRegisterReports, ICollectionReports, IBalanceReports and IApprovalReports, and
+                                Reporting's own words ReportBillStatus, ReportPaymentStatus, ReportPaymentMethod
+                                (Reporting). ADR 0036.
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -300,7 +304,9 @@ src/
                                 The PrefixChanges table with its repository and read service, PrefixUsage and
                                 TenantRepository (Identity); NumberSeriesRepository (Common/Numbering). ADR 0033.
                                 Migrations go to Common/Migrations; `0020_DatabaseRoles` is the application's role
-                                and its grants, written by hand (ADR 0034).
+                                and its grants, written by hand (ADR 0034). RegisterReports, CollectionReports,
+                                BalanceReports and ApprovalReports, which only read, with ReportMapping and AddReporting
+                                (Reporting; the one folder that may name every business module's entities, ADR 0036).
   BillingRecon.Api/             Controllers, middleware and filters (correlation id, idempotency, tenant resolution),
                                 the error contract (Common/Errors: exception handler, Error to ProblemDetails mapper),
                                 authentication/authorisation, OpenAPI + Scalar, Program.cs (composition root),
@@ -325,7 +331,8 @@ src/
                                 HTTPS outside Development) and SecurityHeadersMiddleware; HealthEndpoints (Common);
                                 ApiProblems, the ProblemDetails of a refusal made outside an action (Common/Errors);
                                 SignInLimits, AccountSignInLimiter and the SignInThrottle filter of the sign-in
-                                (Identity).
+                                (Identity). ReportsController, eight GET reports under /api/v1/reports, with their
+                                request records (Reporting), ADR 0036.
 tests/
   Directory.Build.props         Test defaults: xUnit, Shouldly, test SDK/runner, global usings.
   BillingRecon.Domain.Tests/  BillingRecon.Application.Tests/
@@ -353,7 +360,8 @@ tests/
                                    (BannedSymbolsTests); the one anonymous action and the one user of the sign-in
                                    scope, and the sign-in's two rate limits on it alone (AuthenticationConventionTests);
                                    one policy of the catalogue on every action,
-                                   and the checker's roles in every decision (PermissionConventionTests).
+                                   and the checker's roles in every decision (PermissionConventionTests); Reporting
+                                   writes nothing (ReportingConventionTests).
 frontend/                      React + TypeScript + Vite (planned)
 docs/                          Design documents and ADRs (see section 7)
 ```
@@ -391,6 +399,9 @@ placeholder describing what belongs there; delete it when real code arrives.
   `docs/domain-model.md` §6.
 - Cross-cutting modules (`Common`, `Identity`, `Audit`) may be used by any module and must not
   reference business modules.
+- `Reporting` reads: its Infrastructure may name the entities of every business module, to query them through the
+  context, and it writes nothing; its Application and Api layers follow the rule like any module (ADR 0036, ADR 0003
+  amendment of 2026-11-23, `ReportingConventionTests`).
 - All of the above are asserted by NetArchTest tests in `tests/BillingRecon.ArchitectureTests`. A violation fails the build.
 
 ---
@@ -644,7 +655,7 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 | `docs/requirements.md` | Domain and vocabulary, actors and permissions, R1 scope, the **BR-nnn business-rule catalogue**, user stories with acceptance criteria, NFRs, R2–R5 outlines |
 | `docs/domain-model.md` | Module map, value objects, aggregates with invariants (citing BR-ids), Bill state machine, transaction boundaries and the allocation exception, domain events, ports |
 | `docs/database.md` | Conventions, ER diagram, every R1 table with types/keys/indexes/CHECKs, number-series lock, ledger accounts and posting templates, balance identities and reconciliation SQL, idempotency lifecycle, permissions, migrations |
-| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), the adjustment endpoints (Prompt 4.4), the reversal endpoints of payments and allocations (Prompt 4.5), the refunds (Prompt 4.6), the users (Prompt 5.1), authentication with the sign-in (Prompt 5.2), the permissions of each role (Prompt 5.3), the tenant settings with the prefix changes (Prompt 5.3b), and HTTPS only, hosts, CORS, the headers of an answer and the sign-in limits (Prompt 5.4b) |
+| `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), the adjustment endpoints (Prompt 4.4), the reversal endpoints of payments and allocations (Prompt 4.5), the refunds (Prompt 4.6), the users (Prompt 5.1), authentication with the sign-in (Prompt 5.2), the permissions of each role (Prompt 5.3), the tenant settings with the prefix changes (Prompt 5.3b), HTTPS only, hosts, CORS, the headers of an answer and the sign-in limits (Prompt 5.4b), and the reports (Prompt 6.1) |
 | `docs/build-prompts.md` | The build prompts from zero to R1, reconstructed on 2026-11-20: what each finished prompt built, and the wording and order of the prompts still to give. Its phase numbers are the ones this file uses |
 | `docs/security.md` | Authentication and the sign-in limits, authorisation, tenancy, maker-checker, transport (TLS, hosts, CORS, headers), secrets, data protection, the database logins, and the threat model of R1 (section 10: every threat done, accepted with its reason, or named with its prompt). Written in full with Prompt 5.4b |
 | `docs/testing-strategy.md` | Test pyramid, tooling, database tests, architecture tests, CI gates |
@@ -708,7 +719,11 @@ owned by `dbo`, and `READ_COMMITTED_SNAPSHOT` (Accepted on the owner's approval 
 0035 HTTP hardening: TLS at the proxy with forwarded headers from known proxies only, HTTPS only without a redirect and
 HSTS, allowed hosts checked by the API, two sign-in limits (per address and per account), CORS from configuration, no
 Server header and the headers of an answer, and the accepted risks of the threat model (Accepted on the owner's approval
-of the Prompt 5.4b plan, 2026-11-23; it answers ADR 0031 point 12 and amends ADR 0017's smoke run).
+of the Prompt 5.4b plan, 2026-11-23; it answers ADR 0031 point 12 and amends ADR 0017's smoke run),
+0036 Reporting reads every module and writes none: five exceptions to the module rule for its Infrastructure, figures
+held against the ledger, the daily collection from the Cash entries of the business date, totals over every page, and
+Reporting's own words for the Billing and Payments enums (Accepted on the owner's approval of the Prompt 6.1 plan,
+2026-11-23; it amends ADR 0003 and ADR 0018).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1698,3 +1713,32 @@ Kept here so they survive between sessions. Remove an item when it is done.
     - **Still to do:** SQL Server 2022 in Docker and the CI smoke run of the image (runbook section 8, row 5.4b); in each
       environment, `AllowedHosts`, the proxy's address and TLS at the proxy (runbook section 11).
     - Next: Prompt 6.1 (registers and balances). Phase 5 is written to its end; its merge to `main` is the owner's step.
+      Done: item 34.
+34. **Prompt 6.1, registers and balances (ADR 0036), written 2026-11-23, built and tested on .NET 10.** On
+    `phase-2-billing` like the rest (the owner kept the branch with the plan). The plan was approved "as recommended". No
+    migration, no package.
+    - Built: the Reporting module in three layers (the Domain has none): eight GET reports under `/api/v1/reports`
+      (bill register, payment register, daily collection, outstanding by payer, a payer's balance, unapplied cash,
+      available credit, pending approvals), each paged report answering its totals over every page; the policy
+      `Reports` for all five roles; the README placeholders of `Application/`, `Infrastructure/` and `Api/Reporting` are
+      gone (`Domain/Reporting` keeps its own, having no code).
+    - Decided by the owner with the plan (ADR 0036 points 1 to 7): five allowed exceptions of the module rule for
+      `Infrastructure.Reporting` (ADR 0003, amendment of 2026-11-23) and a test that Reporting never writes; where each
+      figure comes from; the daily collection from the Cash entries of the date; the endpoints; totals over every page;
+      the policy; the branch.
+    - **Found in the build (ADR 0036 built note and point 7):** Reporting's Application and Api layers may not name
+      `BillStatus`, `PaymentStatus` or `PaymentMethod`, so the module has its own three words, mapped explicitly and kept
+      in step by `ReportVocabularyTests`; the database cannot sum a `Money` behind its converter, so totals are added in
+      memory over the matching rows' amounts; the payer of a balance is found through the Payers module's own query.
+    - **Tests:** `ReportingHandlerTests` (Application, 14), `ReportsApiTests` (database, 8: every report after a month
+      of one hospital, each figure against ledger sums in SQL, the IST date boundary, filters and paging, another
+      tenant, an empty tenant, the reconciliation), `ReportVocabularyTests` (3), `ReportingConventionTests`
+      (architecture, 3), eight rows of `PermissionMatrixApiTests` and the five exceptions of `ModuleDependencyTests`.
+      With the refunds left out of the collection, zero balances listed, drafts let into the register and an `.Add(`
+      in a Reporting file, in a throwaway copy, five tests fail, each change caught. No existing expectation changed.
+    - **Verified on .NET 10 (SDK 10.0.404):** in the repository, the Release build and `dotnet format
+      --verify-no-changes` are clean, and Domain 625, Application 408, Architecture 125 and the 741 integration tests
+      without a database pass; in a throwaway copy on LocalDB 2019 the integration project passes in full (1220 tests),
+      and the report and permission tests ran twice more without a failure.
+    - **Still to do:** SQL Server 2022 in Docker (runbook section 8, row 6.1).
+    - Next: Prompt 6.2 (reconciliation and audit trail).
