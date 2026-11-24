@@ -613,6 +613,12 @@ dotnet test --filter "FullyQualifiedName~DatabasePermissionsOnSqlServerTests"
 
 **What that run has to show, because nothing here could** (the office machine has .NET 9 and LocalDB 2019 only):
 
+**Run on the personal machine on 2026-11-24, by the owner's report (no output sent):** on the tip with Prompt 8.1, `dotnet
+test` with Docker passed, the `Database` collection on SQL Server 2022 included; and `docker compose up --build` with the
+demo, after two fixes to the images (ADR 0045 built note). Until the output of C comes back (the summary line of each test
+project), the rows below stay as they are, except row 8.1, which keeps only what that run did not check. D's repeated runs
+were not part of it.
+
 | Prompt | Not proven anywhere yet |
 |---|---|
 | 2.2 | The run itself; then 2.2-close (CLAUDE.md section 9, item 9). |
@@ -640,7 +646,7 @@ dotnet test --filter "FullyQualifiedName~DatabasePermissionsOnSqlServerTests"
 | 7.5 | `ReportsApiTests` on SQL Server 2022, with the two fields the pending approvals report gained (the allocation's payment and the application's credit note, joined in the same query); `OpenApiSnapshotTests`; the frontend job of CI with the inbox, credit note and adjustment screens. |
 | 7.5b | The frontend job of CI with the report screens; a CSV of each report opened in a spreadsheet by the owner. |
 | 7.6 | The frontend job of CI with the dashboard and Recharts 3.10.1; the dashboard at a phone width. |
-| 8.1 | `docker compose up --build` on a clean machine with `DEMO_ENABLED=true` (section 13): `migrate` ends 0, `api` and `frontend` healthy, `demo-seed` prints "The demo is ready"; https://localhost signs in as `supervisor@demo.local` and shows the dashboard; the page's headers carry the policy, `frame-ancestors 'none'` and `nosniff`; http://localhost redirects; the images of `migrate`, `api` and `frontend` build. `DemoTenantSeederTests` on SQL Server 2022. |
+| 8.1 | Run on 2026-11-24 (above): the images built, `migrate` and `demo-seed` ran to their end, `api` and `frontend` up, https://localhost signed in as `supervisor@demo.local` and showed the dashboard, `DemoTenantSeederTests` in the suite. **Still owed:** the page's headers carry the policy, `frame-ancestors 'none'` and `nosniff`; http://localhost redirects to https. |
 
 A red result is reported as it is, with its output; the fix is its own commit on top, never an edit of history.
 

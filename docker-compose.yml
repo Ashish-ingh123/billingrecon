@@ -5,7 +5,8 @@
 # The sql and seq services were written on a machine without Docker. Image tags, variables, ports and healthcheck
 # commands were checked against the vendors' documentation and image metadata on 2026-10-03; the owner first started
 # the containers on 2026-10-17. The results of "Verify on a Docker machine" in docs/runbook.md are still to be recorded
-# there. The services of Prompt 8.1 have not run yet either (runbook section 8, row 8.1).
+# there. The services of Prompt 8.1 first ran on the owner's machine on 2026-11-24, after two fixes to the images
+# (ADR 0045 built note); what that run did not check is in runbook section 8, row 8.1.
 #
 # Before the first start, copy .env.example to .env and fill it in. No secret and no licence acceptance lives in
 # this file; both come from .env, which git ignores.

@@ -1,7 +1,8 @@
 # ADR 0045: The one-command local run: nginx with TLS in front of the API, the migrations as the migrator, and a demo entered through the API
 
 - **Status:** Accepted. The owner approved the plan of Prompt 8.1 on 2026-11-23 "as recommended" (points 1 to 4 below).
-  The built note records what the build found. Not run with Docker yet: this machine has none (runbook section 8, row 8.1).
+  The built note records what the build found. First run with Docker on the owner's personal machine on 2026-11-24, with
+  two fixes to the images (built note, "Run with Docker"); runbook section 8, row 8.1 keeps what is still owed.
 - **Date:** 2026-11-23
 - **Deciders:** project owner, Claude Code
 - **Builds on:** ADR 0017 (the API image), ADR 0034 (logins and grants), ADR 0035 (TLS at the proxy), ADR 0038 (the
@@ -64,3 +65,17 @@ referrer.
   API in Development with the demo on (14 bills, 10 payments, one refund waiting, no drift, the dashboard equal to the
   bill register), and a second run that does nothing; `DemoTenantSeederTests` and `DemoStartupValidationTests`. **Not
   verified:** nginx, the images and `docker compose up` itself (runbook section 8, row 8.1).
+
+## Run with Docker (2026-11-24)
+
+The owner ran `docker compose up --build` with the demo on the personal machine and reported: the three images built,
+`migrate` and `demo-seed` ran to their end, `sql`, `seq`, `api` and `frontend` were up, and https://localhost signed in as
+`supervisor@demo.local` and showed the dashboard. Two fixes were made there and are their own commit:
+
+- **The `migrate` image restores the Infrastructure project before `dotnet ef` writes the script**, which reads the
+  project's restore output first.
+- **The frontend image builds on `node:24-bookworm-slim`, not `node:24-alpine`**: on Alpine (musl) the native bindings of
+  Vite 8 and Rolldown failed. nginx stays on Alpine. The healthcheck names `127.0.0.1`, because `localhost` can resolve to
+  `::1` and nginx listens on IPv4 only.
+
+Not checked in that run: the page's headers and the redirect of http://localhost (runbook section 8, row 8.1).

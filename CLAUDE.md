@@ -189,8 +189,8 @@ Directory.Packages.props       Central package management: every package version
 global.json                    Pins the .NET 10 SDK feature band (10.0.400, latestPatch; ADR 0014).
 .config/dotnet-tools.json      Local tools: dotnet-ef, same version as the EF Core packages. Restore with dotnet tool restore.
 .editorconfig                  Code style and naming, enforced in the build (EnforceCodeStyleInBuild).
-docker-compose.yml             The one-command run (ADR 0045): SQL Server, Seq, migrate, api, frontend (nginx) and demo-seed. Not run
-                               with Docker yet for the services of 8.1 (runbook section 8, row 8.1).
+docker-compose.yml             The one-command run (ADR 0045): SQL Server, Seq, migrate, api, frontend (nginx) and demo-seed. First run
+                               with Docker on the owner's machine on 2026-11-24 (runbook section 8, row 8.1).
 .env.example                   Template for .env (licence acceptances, passwords, the signing key, the demo, ports). .env itself is git-ignored.
 deploy/                        migrate/ (the migration image and its SQL steps) and demo/seed.mjs (the demo through the API).
 .dockerignore                  What the API image build never sees: build output, tests, docs, .env, the git history.
@@ -1212,6 +1212,10 @@ Kept here so they survive between sessions. Remove an item when it is done.
     - **Branch:** Phase 3 work (3.1, 3.2, 3.4 and what follows) is on `phase-2-billing` too, because the owner
       asked for the current branch; the branch-per-phase rule of item 8 resumes when the owner says so.
     - **If the run of section 8 is red:** the fix is a commit on top, with the output that showed it.
+    - **2026-11-24, the owner's report:** `dotnet test` ran with Docker on the personal machine, on the tip with Prompt
+      8.1, the `Database` collection on SQL Server 2022 through Testcontainers included, and passed. Its output (the
+      summary line of each test project) was not sent, so the rows of `docs/runbook.md` section 8 stay until it is; the
+      repeated runs of D there are not part of that report.
 17. **Prompt 3.3 (receivables ledger; ADR 0005 built, ADR 0021), written 2026-11-20 after 3.4, not built on
     .NET 10 yet.** Verification is deferred with the rest (item 16).
     - Built: `LedgerPosting` and `LedgerEntry` (append-only, balanced, the six accounts and subject rules of
@@ -2119,4 +2123,11 @@ Kept here so they survive between sessions. Remove an item when it is done.
       twice on LocalDB (as the app: its role, not `db_owner`, snapshot isolation, 20 migrations, `/health/ready` 200); the
       demo seed against the API in Development (14 bills, 10 payments, a refund waiting, no drift) and its second run.
     - **Not verified:** nginx, the three images and `docker compose up` (no Docker here; runbook section 8, row 8.1).
+    - **Run on the owner's personal machine, 2026-11-24 (the owner's report; no output sent):** `docker compose up --build`
+      with the demo on: the three images built, `migrate` and `demo-seed` ran to their end, `sql`, `seq`, `api` and
+      `frontend` were up, and https://localhost signed in as `supervisor@demo.local` and showed the dashboard. It took two
+      fixes, made there and brought in as their own commit: the `migrate` image restores the Infrastructure project before
+      `dotnet ef` writes the script; the frontend image builds on `node:24-bookworm-slim` (on Alpine the native bindings of
+      Vite 8 and Rolldown failed) and its healthcheck names `127.0.0.1` (nginx listens on IPv4 only). `dotnet test` with
+      Docker ran there too (item 16). **Still owed from row 8.1:** the page's headers and the redirect of http://localhost.
     - Next: Prompt 8.2 (performance and browser tests).

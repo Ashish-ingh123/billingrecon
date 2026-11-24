@@ -11,7 +11,9 @@ WORKDIR /source
 COPY global.json Directory.Build.props Directory.Packages.props .editorconfig ./
 COPY .config/ .config/
 COPY src/ src/
+# dotnet ef reads the project's restore output before it builds (NETSDK1004 without it): restore first.
 RUN dotnet tool restore \
+    && dotnet restore src/BillingRecon.Infrastructure/BillingRecon.Infrastructure.csproj \
     && dotnet ef migrations script --idempotent --project src/BillingRecon.Infrastructure --output /out/migrate.sql
 
 # sqlcmd comes with the SQL Server image the compose file already pulls.
