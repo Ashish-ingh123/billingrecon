@@ -7,7 +7,9 @@ describe('the shell of a signed-in user', () => {
   it('shows the hospital, the user and their roles, and the sections their roles may open', async () => {
     const { router } = renderApp('/', { session: sessionFor(['TenantAdmin']) });
 
-    expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
+    // The dashboard loads on demand with its charts, which can take more than the default second in a full run
+    // (backlog B35, closed by Prompt 9.2): the wait is longer, what is expected is the same.
+    expect(await screen.findByRole('heading', { name: 'Dashboard' }, { timeout: 5000 })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/dashboard');
     expect(screen.getByText('city-hospital')).toBeInTheDocument();
     expect(screen.getByText('asha@example.org')).toBeInTheDocument();

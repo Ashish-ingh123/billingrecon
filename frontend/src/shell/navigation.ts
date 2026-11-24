@@ -1,3 +1,4 @@
+import type { IconName } from '../brand/Icon';
 import type { Role } from '../auth/roles';
 
 /**
@@ -8,6 +9,8 @@ import type { Role } from '../auth/roles';
 export interface Section {
   path: string;
   label: string;
+  /** Its icon in the navigation (ADR 0048). */
+  icon: IconName;
   roles: readonly Role[];
   /** What the section is for. */
   purpose: string;
@@ -20,6 +23,7 @@ const everyone: readonly Role[] = ['TenantAdmin', 'Supervisor', 'BillingClerk', 
 export const sections: readonly Section[] = [
   {
     path: '/dashboard',
+    icon: 'grid',
     label: 'Dashboard',
     roles: ['TenantAdmin', 'Supervisor', 'Viewer'],
     purpose: 'The figures of a period against the previous one, the ageing of what is owed, and what needs attention.',
@@ -27,6 +31,7 @@ export const sections: readonly Section[] = [
   },
   {
     path: '/patients',
+    icon: 'user',
     label: 'Patients',
     roles: everyone,
     purpose: 'Register patients and correct their details.',
@@ -34,6 +39,7 @@ export const sections: readonly Section[] = [
   },
   {
     path: '/payers',
+    icon: 'wallet',
     label: 'Payers',
     roles: everyone,
     purpose: "Who owes the bills: a patient's own payer, or a guarantor.",
@@ -41,6 +47,7 @@ export const sections: readonly Section[] = [
   },
   {
     path: '/service-items',
+    icon: 'tag',
     label: 'Service items',
     roles: everyone,
     purpose: 'The catalogue of services a bill is made of.',
@@ -48,6 +55,7 @@ export const sections: readonly Section[] = [
   },
   {
     path: '/bills',
+    icon: 'receipt',
     label: 'Bills',
     roles: everyone,
     purpose: 'Draft, post and look up bills.',
@@ -55,6 +63,7 @@ export const sections: readonly Section[] = [
   },
   {
     path: '/payments',
+    icon: 'card',
     label: 'Payments',
     roles: everyone,
     purpose: 'Record payments, allocate them to bills, and ask for reversals.',
@@ -62,6 +71,7 @@ export const sections: readonly Section[] = [
   },
   {
     path: '/refunds',
+    icon: 'undo',
     label: 'Refunds',
     roles: ['TenantAdmin', 'Supervisor', 'Cashier', 'Viewer'],
     purpose: "Refund a payment's unapplied cash or a credit note's available credit.",
@@ -69,6 +79,7 @@ export const sections: readonly Section[] = [
   },
   {
     path: '/credit-notes',
+    icon: 'receipt-minus',
     label: 'Credit notes',
     roles: everyone,
     purpose: 'Credit a posted bill, and apply the credit to other bills.',
@@ -76,6 +87,7 @@ export const sections: readonly Section[] = [
   },
   {
     path: '/adjustments',
+    icon: 'sliders',
     label: 'Adjustments',
     roles: ['TenantAdmin', 'Supervisor', 'BillingClerk', 'Viewer'],
     purpose: 'Discounts, write-offs and rounding against a bill.',
@@ -83,6 +95,7 @@ export const sections: readonly Section[] = [
   },
   {
     path: '/approvals',
+    icon: 'check-circle',
     label: 'Approvals',
     roles: ['TenantAdmin', 'Supervisor'],
     purpose: 'The requests that wait for a second person to approve or reject them.',
@@ -90,6 +103,7 @@ export const sections: readonly Section[] = [
   },
   {
     path: '/reports',
+    icon: 'report',
     label: 'Reports',
     roles: everyone,
     purpose: 'The registers, the daily collection, balances and the reconciliation.',
@@ -97,6 +111,7 @@ export const sections: readonly Section[] = [
   },
   {
     path: '/administration',
+    icon: 'gear',
     label: 'Users and settings',
     roles: ['TenantAdmin'],
     purpose: "The hospital's users and their roles, its settings and its document prefixes.",

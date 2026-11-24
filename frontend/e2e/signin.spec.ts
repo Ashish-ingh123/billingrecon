@@ -135,7 +135,8 @@ test('the waves drift, and with reduced motion nothing moves at all', async ({ p
 
 test('the keyboard walks the page in the order it reads', async ({ page }) => {
   await open(page, 'light');
-  const stops = ['Theme', 'Hospital code', 'E-mail address', 'Password', 'Show password', 'Sign in'];
+  // The theme pill is one stop, on the setting chosen: the test chose Light.
+  const stops = ['Light', 'Hospital code', 'E-mail address', 'Password', 'Show password', 'Sign in'];
 
   for (const stop of stops) {
     await page.keyboard.press('Tab');

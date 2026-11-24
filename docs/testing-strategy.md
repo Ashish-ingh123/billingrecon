@@ -184,6 +184,10 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   policy, read from `frontend/deploy/nginx.conf` and put on the page's response by the test, with no
   `securitypolicyviolation`, no console error and no layout shift; no animation at all with reduced motion; the order
   of the keyboard; 390 and 360 px without a sideways scroll. It needs the built app, not the dev server.
+- **The shell in the browser** (Prompt 9.2, ADR 0048), `frontend/e2e/shell.spec.ts`: a session in the tab and the API's
+  answers given by the test; the patients list in both themes at 1440 and 390 px under nginx's policy, with nothing
+  refused, no console error, no sideways scroll and no layout shift; the drawer by keyboard (it holds the focus, Escape
+  gives it back); nothing animated with reduced motion; the specimen page absent from a production build.
 - **The browser journey**, `frontend/e2e/journey.spec.ts` (Playwright, Chromium or an installed Edge or Chrome): a
   clerk registers a patient and their payer, drafts a bill with a catalogue line and a free-text line and posts it; a
   cashier records the payment and applies it oldest first, which settles the bill and empties the statement; a

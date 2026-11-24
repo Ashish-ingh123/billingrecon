@@ -94,7 +94,7 @@ React + TypeScript + Vite in `frontend/` (ADR 0038, Prompt 7.1). Node 22.22 or l
 | Tests | **Vitest**, jsdom, React Testing Library | The API faked by a `fetch` given to the client (`src/test/app.tsx`); no mocking package. Vitest reads `src/` only. |
 | Browser journey (ADR 0046) | **Playwright** 1.65.1 | `e2e/journey.spec.ts`, its own `tsconfig.e2e.json`, `npm run e2e`; against https://localhost by default (`E2E_BASE_URL`), Chromium or an installed browser (`E2E_BROWSER_CHANNEL`); a console error on any page fails the step, the browser's `/favicon.ico` excepted. |
 | Lint and format | **ESLint 9** (type-aware TypeScript, hooks, `jsx-a11y`, no `dangerouslySetInnerHTML`), **Prettier** | ESLint stays on 9 until `jsx-a11y` supports 10. Warnings are errors. One `eslint-disable`, in a test, with its reason. |
-| Brand and tokens (ADR 0047) | Inter, self-hosted; our own icons; the sign-in page | Since Prompt 9.1 `tokens.css` holds, for both themes, the brand's blues, the sign-in page's ground, shadows, radii, spacing, type sizes and durations; a token's name holds no CSS colour word (the scan reads it as one). Inter comes from `@fontsource-variable/inter`, bundled and served from our origin, with a metric-matched fallback. Icons are `src/brand/Icon.tsx` (inline SVG, `currentColor`); `BrandMark` is the product's mark, `CompanyCredit` the ashline logo and name. The sign-in page is laid out in the pixels of `docs/ui/sign-in.png` (`--u`), animates only transform and opacity, and nothing with reduced motion. `VITE_SUPPORT_EMAIL` (from `SUPPORT_EMAIL` in `.env`) is the sign-in page's "Contact support". |
+| Brand and tokens (ADR 0047) | Inter, self-hosted; our own icons; the sign-in page | Since Prompt 9.1 `tokens.css` holds, for both themes, the brand's blues, the sign-in page's ground, shadows, radii, spacing, type sizes and durations; a token's name holds no CSS colour word (the scan reads it as one). Inter comes from `@fontsource-variable/inter`, bundled and served from our origin, with a metric-matched fallback. Icons are `src/brand/Icon.tsx` (inline SVG, `currentColor`); `BrandMark` is the product's mark, `CompanyCredit` the ashline logo and name. The sign-in page is laid out in the pixels of `docs/ui/sign-in.png` (`--u`), animates only transform and opacity, and nothing with reduced motion. `VITE_SUPPORT_EMAIL` (from `SUPPORT_EMAIL` in `.env`) is the sign-in page's "Contact support". Since 9.2 (ADR 0048): the shell has a sidebar with an icon per section, a rail (kept in `localStorage`) and a drawer under 900 px; the theme is a pill of three (`ThemeToggle`, a radio group named "Theme"); a page change names the tab and focuses the heading; badges carry an icon from `components/tones.ts`; loading is a skeleton (`LoadState`), an empty list an `EmptyState`; `/design`, the specimen of the shared components, exists in Development builds only. |
 | Packages | 30, pinned exactly (Recharts added by 7.6, `@playwright/test` by 8.2, `@fontsource-variable/inter` by 9.1), `package-lock.json` committed | `npm ci` in CI; `npm audit` fails on any advisory; Dependabot a week after a release. A new package needs approval (section 6). |
 
 ### Delivery
@@ -456,7 +456,9 @@ frontend/                      React + TypeScript + Vite (ADR 0038): index.html 
                                The OpenAPI document is kept equal to the API's by OpenApiSnapshotTests (IntegrationTests).
                                src/assets/brand: the company's mark, ashline-logo.svg. src/brand (Icon, BrandMark,
                                CompanyCredit), src/config.ts (what the build was given), public/favicon.svg, and
-                               e2e/signin.spec.ts, the sign-in page in the browser (ADR 0047).
+                               e2e/signin.spec.ts, the sign-in page in the browser (ADR 0047). src/shell/usePageFocus.ts,
+                               src/components/tones.ts, EmptyState, src/theme/ThemeToggle, src/design (the specimen page)
+                               and e2e/shell.spec.ts (ADR 0048).
                                e2e/journey.spec.ts with playwright.config.ts and tsconfig.e2e.json: the browser journey
                                (ADR 0046).
 docs/                          Design documents and ADRs (see section 7)
@@ -856,7 +858,10 @@ the Prompt 8.2 plan and decisions, 2026-11-24),
 0047 the brand, the design tokens and the sign-in page: the page laid out in the reference's own pixels, tokens for both
 themes with field borders at 3:1, Inter self-hosted through a package, our own icons, the ashline credit, motion by
 transform and opacity only, nothing changed in the theme script or nginx's headers (Accepted on the owner's approval of
-the Prompt 9.1 plan, 2026-11-24).
+the Prompt 9.1 plan, 2026-11-24),
+0048 the shell, the theme toggle and the shared components: a sidebar with a rail and a drawer, the theme as a pill of three
+over a radio group, the heading focused after a navigation, tables that scroll inside their frame, badges with an icon,
+skeletons, a specimen page in Development builds (Accepted on the owner's approval of the Prompt 9.2 plan, 2026-11-24).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -952,4 +957,6 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    Edge against the built app (within 4 px of the reference in both themes, nginx's policy applied in the test with
    nothing refused, the journey of 8.2 passing), 385 component tests. **Owed:** the photograph,
    `frontend/src/assets/brand/signin-hospital.webp`, which the owner does not have yet (the page takes it when the file
-   is added, with no change of code); the page through nginx (runbook section 8, row 9.1). Next: 9.2.
+   is added, with no change of code); the page through nginx (runbook section 8, row 9.1). **9.2 is written too (ADR 0048):**
+   392 component tests and 16 browser tests in Edge against the built app; some components are left for 9.3 (ADR 0048,
+   built note); owed: the shell through nginx (row 9.2). Next: 9.3.

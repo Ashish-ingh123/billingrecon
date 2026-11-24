@@ -1,0 +1,26 @@
+/* A list with nothing to show (ADR 0048). */
+
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-7) var(--space-5);
+  text-align: center;
+}
+
+.drawing {
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  font-size: 2rem;
+  color: var(--accent);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-pill);
+}
+
+.message {
+  max-width: 28rem;
+  margin: 0;
+  color: var(--text-muted);
+}

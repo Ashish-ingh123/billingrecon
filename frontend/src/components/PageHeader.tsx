@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
+import { Icon } from '../brand/Icon';
 import styles from './PageHeader.module.css';
 
 /** The top of a screen: where it sits, its title, what it is, and its actions. */
@@ -18,7 +19,8 @@ export function PageHeader({
     <header className={styles.header}>
       {back !== undefined && (
         <Link className={styles.back} to={back.to}>
-          ← {back.label}
+          <Icon name="arrow-left" />
+          {`Back to ${back.label}`}
         </Link>
       )}
       <div className={styles.row}>

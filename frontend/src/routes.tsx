@@ -196,6 +196,18 @@ export const routes: RouteObject[] = [
           ...sections
             .filter((section) => !built.has(section.path))
             .map((section) => ({ path: section.path, element: <SectionPage section={section} /> })),
+          // The specimen of the shared components, in Development builds only (ADR 0048): left out of a production build.
+          ...(import.meta.env.DEV
+            ? [
+                {
+                  path: '/design',
+                  lazy: async () => {
+                    const { DesignPage } = await import('./design/DesignPage');
+                    return { element: <DesignPage /> };
+                  },
+                },
+              ]
+            : []),
           { path: '/no-access', element: <NoAccessPage /> },
           { path: '*', element: <NotFoundPage /> },
         ],

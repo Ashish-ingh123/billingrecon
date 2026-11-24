@@ -48,7 +48,8 @@ describe('the sign-in page (ADR 0047)', () => {
     const password = screen.getByLabelText('Password');
     expect(password).toHaveAttribute('autocomplete', 'current-password');
     expect(password).toHaveAttribute('placeholder', 'Enter your password');
-    expect(screen.getByLabelText('Theme')).toHaveValue('system');
+    expect(screen.getByRole('radiogroup', { name: 'Theme' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'System' })).toBeChecked();
   });
 
   it('shows and hides the password with one button that says which', async () => {

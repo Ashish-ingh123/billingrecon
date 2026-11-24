@@ -1,0 +1,60 @@
+/* The skeleton of what is loading (ADR 0048): grey lines with a sheen that passes over them, by transform only. */
+
+.skeleton {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.said {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.line {
+  position: relative;
+  display: block;
+  height: 0.9rem;
+  overflow: hidden;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-pill);
+}
+
+.line:nth-of-type(1) {
+  width: 60%;
+}
+
+.line:nth-of-type(2) {
+  width: 85%;
+}
+
+.line:nth-of-type(3) {
+  width: 40%;
+}
+
+.line::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--skeleton-sheen);
+  transform: translateX(-100%);
+  animation: sheen 1.4s var(--ease-in-out) infinite;
+}
+
+@keyframes sheen {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .line::after {
+    animation: none;
+    opacity: 0;
+  }
+}

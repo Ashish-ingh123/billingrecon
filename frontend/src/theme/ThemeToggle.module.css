@@ -1,0 +1,81 @@
+/*
+ * The theme pill (ADR 0048): three icons on a sunken track, and a raised thumb that slides under the one chosen. The
+ * radio inputs fill their cells, invisible, so a click, a tap and the keyboard all land on them.
+ */
+
+.toggle {
+  --cell: 2rem;
+
+  position: relative;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: var(--cell);
+  height: var(--cell);
+  padding: 3px;
+  box-sizing: content-box;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+}
+
+.thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: var(--cell);
+  height: var(--cell);
+  background: var(--surface-raised);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-raised);
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+.toggle[data-chosen='dark'] .thumb {
+  transform: translateX(100%);
+}
+
+.toggle[data-chosen='system'] .thumb {
+  transform: translateX(200%);
+}
+
+.option {
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.option:has(.input:checked) {
+  color: var(--accent);
+}
+
+.option:hover {
+  color: var(--text);
+}
+
+.option:has(.input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.icon {
+  position: relative;
+  font-size: 1.05rem;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb {
+    transition: none;
+  }
+}

@@ -10,7 +10,7 @@ import { Icon, type IconName } from '../brand/Icon';
 import { ProblemAlert } from '../components/ProblemAlert';
 import { supportEmail } from '../config';
 import { landingPath } from '../shell/navigation';
-import { ThemeSelect } from '../theme/ThemeSelect';
+import { ThemeToggle } from '../theme/ThemeToggle';
 import { useAuth } from './AuthContext';
 import { safeReturnPath } from './returnPath';
 import { readHospital, sessionFromSignIn, storeHospital, type Session } from './session';
@@ -116,7 +116,7 @@ export function SignInPage() {
     <div className={styles.page}>
       <SignInBackdrop />
       <header className={styles.theme}>
-        <ThemeSelect />
+        <ThemeToggle />
       </header>
 
       <section className={styles.brand} aria-label="BillingRecon">

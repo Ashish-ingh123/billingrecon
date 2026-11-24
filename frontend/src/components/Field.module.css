@@ -31,6 +31,17 @@
   border-color: var(--focus);
 }
 
+.input:disabled,
+.input:read-only:not(select) {
+  color: var(--text-muted);
+  background: var(--surface-sunken);
+  border-style: dashed;
+}
+
+.input:disabled {
+  cursor: not-allowed;
+}
+
 .input[aria-invalid='true'] {
   border-color: var(--danger);
 }

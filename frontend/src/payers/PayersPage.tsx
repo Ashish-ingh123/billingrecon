@@ -4,6 +4,7 @@ import buttons from '../components/buttons.module.css';
 import table from '../components/DataTable.module.css';
 import { ListFilters, Pagination } from '../components/ListControls';
 import { useListParams } from '../components/listParams';
+import { EmptyState } from '../components/EmptyState';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
@@ -32,11 +33,11 @@ export function PayersPage() {
       {payers.data === undefined ? (
         <LoadState error={payers.error} what="payers" />
       ) : payers.data.items.length === 0 ? (
-        <p className={table.empty}>
+        <EmptyState icon="wallet">
           {params.search === '' && params.status === undefined && params.page === 1
             ? 'No payer exists yet.'
             : 'No payer matches.'}
-        </p>
+        </EmptyState>
       ) : (
         <>
           <div className={table.wrap}>
