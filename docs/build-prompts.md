@@ -49,9 +49,10 @@ is left; their numbering is mine, not the blueprint's.
 | 9.2 The shell and the shared components | Written on 2026-11-24 with the owner's decisions (ADR 0048), on `phase-9-interface`: the sidebar with icons, its rail and its drawer, the top bar, the ashline credit, a three-way theme pill in place of the drop-down, the tab's title and the heading's focus after a navigation, the shared components restyled from the tokens, skeletons and empty states, a specimen page in Development builds. 392 component tests and 16 browser tests in the installed Edge, the 8.2 journey through the new shell. Some components were left for 9.3 (ADR 0048, built note); not seen through nginx |
 | 9.3 The money screens: shared components, bills, credit notes, adjustments | Written on 2026-11-24 (ADR 0049), on `phase-9-interface`, after the owner split 9.3 in two: money as one component, one mapping of every status with its icon, the totals card, banners, the history as a timeline, units and a required mark in fields, pending buttons, the refused field focused; bills, credit notes and adjustments, the no-access and not-found pages. 422 component tests and 31 browser tests in the installed Edge, the 8.2 journey through the new screens. Not seen through nginx |
 | 9.3b The cashier's screens and the inbox | Written on 2026-11-24 (ADR 0049, amended), on `phase-9-interface`: the meter of what is left to apply, figures cards and banners on the payment's and refund's pages, the statement's four tiles drawn without a shift, the inbox as cards, units and required marks on the cashier's forms. 422 component tests and 53 browser tests in the installed Edge, the 8.2 journey. Not seen through nginx |
-| 9.4 (the dashboard, reports and finishing pass) | Written as a prompt on 2026-11-24, not started |
+| 9.4 The dashboard and its tooltips | Written on 2026-11-24 (ADR 0050), on `phase-9-interface`, after the owner split 9.4: one tooltip component on two new tokens, opened and closed by pointer, keyboard and tap, on the cards, sparklines, line chart (crosshair by the arrow keys), donut (drawn here) and the top payers' bars; a table for every chart; the period as a segmented control; no inline style; no layout shift. 448 component tests and 60 browser tests in the installed Edge, the 8.2 journey. Not seen through nginx |
+| 9.4b (the reports, print, the finishing pass, the budgets, v1.1.0) | Written as a prompt on 2026-11-24, not started |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. 5.3b (tenant settings and prefix changes) is written too, and `0019` is in the repository. ADR 0033 built note point 5 was decided on 2026-11-23 (the approval holds the series) and is built as its own commit. 5.4 was split with its plan: its first half, the database logins and grants, is written too, and `0020` is in the repository. 5.4b (HTTP hardening and `docs/security.md` in full) is written too, with no migration; Phase 5 is written to its end, and its merge to `main` is the owner's step. 6.1 (registers and balances), 6.2 (reconciliation and audit trail) and 6.3 (dashboard figures) are written too, with no migration, on `phase-2-billing` like the rest: the backend of R1 is written to its end, and its merge to `main` is the owner's step. 7.1 (the frontend's scaffold and sign-in) is written too, on the same branch, with Node 24 on the office machine. 7.2 (patients, payers and catalogue screens), 7.3 (bill screens), 7.4 (cashier screens) and 7.5 (the checker's inbox, credit notes and adjustments; split with its plan), 7.5b (reports) and 7.6 (dashboard) are written too: the frontend of R1 is written to its end. 8.1 (one-command local run) is written too, on `phase-8-delivery`, and so are 8.2 (performance and browser tests) and 8.3 (release R1, tagged `v1.0.0`): R1 is written to its end. On 2026-11-24 the owner reported the first run on the personal machine: `docker compose up --build` with the demo, and `dotnet test` with Docker, which passed; its output is still to be sent, so the rows of runbook section 8 stay until then. No prompt is left in R1. Phase 9, the interface, has begun: 9.1 (the brand, the tokens and the sign-in page) is written, without the photograph, which is still to come, and so are 9.2 (the shell and the shared components) and 9.3 (the money screens' shared components, bills, credit notes and adjustments); and 9.3b (payments, refunds, the statement and the inbox) is written too; next is 9.4 (the dashboard, the reports and the finishing pass); what else follows is in `docs/backlog.md` and the release plan of CLAUDE.md. What was decided for each built prompt is recorded under it below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. 5.3b (tenant settings and prefix changes) is written too, and `0019` is in the repository. ADR 0033 built note point 5 was decided on 2026-11-23 (the approval holds the series) and is built as its own commit. 5.4 was split with its plan: its first half, the database logins and grants, is written too, and `0020` is in the repository. 5.4b (HTTP hardening and `docs/security.md` in full) is written too, with no migration; Phase 5 is written to its end, and its merge to `main` is the owner's step. 6.1 (registers and balances), 6.2 (reconciliation and audit trail) and 6.3 (dashboard figures) are written too, with no migration, on `phase-2-billing` like the rest: the backend of R1 is written to its end, and its merge to `main` is the owner's step. 7.1 (the frontend's scaffold and sign-in) is written too, on the same branch, with Node 24 on the office machine. 7.2 (patients, payers and catalogue screens), 7.3 (bill screens), 7.4 (cashier screens) and 7.5 (the checker's inbox, credit notes and adjustments; split with its plan), 7.5b (reports) and 7.6 (dashboard) are written too: the frontend of R1 is written to its end. 8.1 (one-command local run) is written too, on `phase-8-delivery`, and so are 8.2 (performance and browser tests) and 8.3 (release R1, tagged `v1.0.0`): R1 is written to its end. On 2026-11-24 the owner reported the first run on the personal machine: `docker compose up --build` with the demo, and `dotnet test` with Docker, which passed; its output is still to be sent, so the rows of runbook section 8 stay until then. No prompt is left in R1. Phase 9, the interface, has begun: 9.1 (the brand, the tokens and the sign-in page) is written, without the photograph, which is still to come, and so are 9.2 (the shell and the shared components) and 9.3 (the money screens' shared components, bills, credit notes and adjustments); and 9.3b (payments, refunds, the statement and the inbox) is written too; and 9.4 (the dashboard and its tooltips) is written too; next is 9.4b (the reports, print, the finishing pass and the release); what else follows is in `docs/backlog.md` and the release plan of CLAUDE.md. What was decided for each built prompt is recorded under it below.**
 
 ## How to use these prompts
 
@@ -1300,7 +1301,10 @@ as one product from the sign-in to the approved refund, in both themes.
 **Owner's decision for 9.3b, recorded 2026-11-24 (ADR 0049, amendment):** the plan was approved with the inbox as a list of
 cards, its test finding list items instead of rows with the same assertions (keeping rows drawn as cards was offered).
 
-#### 9.4 The dashboard, the reports and the finishing pass
+#### 9.4 The dashboard, the reports and the finishing pass (split: 9.4 the dashboard, 9.4b the rest)
+
+As written on 2026-11-24 and then split at the owner's word: 9.4 built the dashboard with its tooltips (ADR 0050); 9.4b,
+below, takes the reports, print, the finishing pass, the budgets and the release. The prompt below is kept as given.
 
 ```
 Read ADRs 0043, 0044 and 0047 to 0049 and "The bar of Phase 9" in docs/build-prompts.md;
@@ -1367,6 +1371,49 @@ browser: every route in both themes with no console error, no content security p
 and no layout shift, and nothing animated with reduced motion.
 Update the README (a screenshot, "a product of ashline"), docs/testing-strategy.md, the runbook
 and CLAUDE.md; close backlog row B21. Write ADR 0050 and propose the tag v1.1.0.
+Done when: I open every screen in both themes at a desktop and a phone width and none looks
+older than the sign-in page; the budgets hold; and the journey of 8.2 passes through nginx on my
+personal machine with no content security policy refusal.
+```
+
+**Owner's decisions for 9.4, recorded 2026-11-24 (ADR 0050):** the plan was approved with its recommended split (the
+dashboard and its tooltips now; the rest in 9.4b). Two dashboard tests change their way in (the card's figure as the
+button of its tooltip, the period by its radio button), not what they check.
+
+#### 9.4b The reports, print, the finishing pass and the release
+
+```
+Read ADRs 0043, 0044 and 0047 to 0050 and "The bar of Phase 9" in docs/build-prompts.md;
+docs/backlog.md, rows B21 and B35.
+
+Show me the plan first: the report screens at 1440 and 390 px; the budgets (the JavaScript and
+the CSS a first visit to the sign-in page loads, compressed; the largest chunk of any other
+route) and how the routes are split; what a printed page looks like; the accessibility checks,
+and whether to add @axe-core/playwright for them (ask, with its version, licence and size).
+
+The reports: the index as cards, an icon and a line each; on each report a filter bar, the table
+with its totals row always in view, and Export CSV showing its progress and its end.
+
+Print: a bill, a payer statement and each report print cleanly on A4: no shell, dark text on
+white, the hospital's name and the date at the top, no row cut in two.
+
+The finishing pass, over every screen:
+- from 360 to 1,920 px wide, and at 200% zoom: no sideways scroll, nothing clipped, nothing
+  overlapping;
+- by keyboard alone and by a screen reader's outline: one h1, headings in order, a name on every
+  control, focus never lost, a live region for what arrives later; Windows forced colours and
+  prefers-contrast still readable;
+- routes load on demand (backlog B21), within the budgets, which a test of the build holds;
+- a chosen set of screenshots in docs/ui/ (each kind of screen, both themes), and the full set,
+  every route in both themes at two widths, as an artifact of the browser suite, not in git.
+
+No change of behaviour: no change of the API, of a route, of a policy or of what a screen sends;
+the dashboard's figures and the bytes of a CSV stay as they are.
+Tests: every existing test unweakened; the budgets; print (the shell is not printed). In the
+browser: every route in both themes with no console error, no content security policy refusal
+and no layout shift, and nothing animated with reduced motion.
+Update the README (a screenshot, "a product of ashline"), docs/testing-strategy.md, the runbook
+and CLAUDE.md; close backlog row B21. Amend ADR 0050 and propose the tag v1.1.0.
 Done when: I open every screen in both themes at a desktop and a phone width and none looks
 older than the sign-in page; the budgets hold; and the journey of 8.2 passes through nginx on my
 personal machine with no content security policy refusal.

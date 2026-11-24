@@ -236,11 +236,18 @@ export async function open(
       });
       new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
-          const shift = entry as unknown as { value: number; sources?: { node?: Node }[] };
+          const shift = entry as unknown as {
+            value: number;
+            startTime: number;
+            sources?: { node?: Node; previousRect: DOMRectReadOnly; currentRect: DOMRectReadOnly }[];
+          };
           probe.shift += shift.value;
           for (const source of shift.sources ?? []) {
             const node = source.node as Element | undefined;
-            probe.moved.push(`${node?.nodeName ?? '?'}.${String(node?.className ?? '')} ${shift.value.toFixed(4)}`);
+            // What moved, by how much, and when: the failure names the cause.
+            probe.moved.push(
+              `${node?.nodeName ?? '?'}.${String(node?.className ?? '')} ${shift.value.toFixed(4)} at ${String(Math.round(shift.startTime))} ms, y ${String(Math.round(source.previousRect.y))}->${String(Math.round(source.currentRect.y))}, h ${String(Math.round(source.previousRect.height))}->${String(Math.round(source.currentRect.height))}`,
+            );
           }
         }
       }).observe({ type: 'layout-shift', buffered: true });

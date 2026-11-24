@@ -659,6 +659,7 @@ were not part of it.
 | 8.1 | Run on 2026-11-24 (above): the images built, `migrate` and `demo-seed` ran to their end, `api` and `frontend` up, https://localhost signed in as `supervisor@demo.local` and showed the dashboard, `DemoTenantSeederTests` in the suite. **Still owed:** the page's headers carry the policy, `frame-ancestors 'none'` and `nosniff`; http://localhost redirects to https. |
 | 8.2 | The load test of section 14 at full size (10,000 bills) through nginx on SQL Server 2022, with `SERVER_TIMING=true` and at least 2 GB free: every target met, no drift (send the whole output); the stress figure with no pause. The browser journey of section 14 against https://localhost, which is also the first check in a browser of nginx's content security policy (no console error); the frontend job of CI with `@playwright/test` in the lock file and the step that runs `deploy/load/stats.test.mjs`; `ServerTimingApiTests` and the new test of `IdempotencyKeysOnSqlServerTests` on SQL Server 2022. The office machine ran the load on LocalDB at 2,000 bills only (ADR 0046, built note). |
 | 8.3 | The backup and its check of section 15 in the `sql` container (`docker compose cp`, the two scripts, the `.bak` copied out), and the recovery model of the compose database (`FULL` expected). The scripts ran on LocalDB 2019 only. `TraceabilityTests` in the suite. |
+| 9.4 | The dashboard through nginx at https://localhost: the six cards, the two charts and the four panels in both themes on a desktop and a phone, the tooltips by mouse, keyboard and tap (a phone), no content security policy refusal in the console; `dashboard.spec.ts` there with the API's answers given by the test. |
 | 9.3b | The cashier's screens and the inbox through nginx at https://localhost: a payment recorded and allocated with the meter, a refund, a payer's statement and the inbox, in both themes on a desktop and a phone, no content security policy refusal in the console; `cashier.spec.ts` there with the API's answers given by the test; and in Seq, no "severe error" from the database during the journey (backlog B35). |
 | 9.3 | The money screens through nginx at https://localhost: a bill drafted, edited and posted, a credit note and an adjustment, in both themes on a desktop and a phone, the totals card in view while the lines scroll, no content security policy refusal in the console; `money.spec.ts` there with the API's answers given by the test. |
 | 9.2 | The shell through nginx at https://localhost: the sidebar, the rail and the drawer, the theme pill, the patients, payers and service items in both themes on a desktop and a phone, no content security policy refusal in the console; `shell.spec.ts` there with the API's answers given by the test. |
@@ -961,11 +962,11 @@ for one that came over HTTPS (the API believes the loopback, section 11); that i
 
 ### The browser journey (`frontend/e2e/journey.spec.ts`)
 
-Five files: `journey.spec.ts`, the main journey, which needs the API and the demo; since Prompt 9.2 `shell.spec.ts`, the
+Six files: `journey.spec.ts`, the main journey, which needs the API and the demo; since Prompt 9.2 `shell.spec.ts`, the
 shell and the patients list with the API's answers given by the test; since Prompt 9.3 `money.spec.ts`, the bill editor, a
 posted bill, a credit note and an adjustment the same way (a request it did not expect fails it); since Prompt 9.3b
 `cashier.spec.ts`, the payment, allocating, a refund, the statement and the inbox, with the helper both share,
-`e2e/stubbed.ts`; and, since Prompt 9.1, `signin.spec.ts`,
+`e2e/stubbed.ts`; since Prompt 9.4 `dashboard.spec.ts`, the dashboard and its tooltips on the same helper; and, since Prompt 9.1, `signin.spec.ts`,
 the sign-in page alone (its layout against `docs/ui/sign-in.png`, nginx's content security policy applied in the test,
 reduced motion, the keyboard, narrow windows), which needs no API but does need the **built** app: the one-command run,
 or `npm run build` and `npm run preview` with `E2E_BASE_URL=http://localhost:4173` (the Vite dev server's own inline

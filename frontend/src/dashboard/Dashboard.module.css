@@ -1,12 +1,26 @@
-/* The dashboard (ADR 0044): six cards, two charts and four panels on a grid that reflows from six cards to one. */
+/* The dashboard (ADR 0044, ADR 0050): six cards, two charts and four panels on a grid that reflows from six cards to two,
+   every colour a token, every tooltip the shared one. */
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-  gap: 1rem;
-  margin: 0 0 1rem;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: 0 0 var(--space-3);
   padding: 0;
   list-style: none;
+}
+
+@media (max-width: 87.5rem) {
+  .cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 40rem) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
 }
 
 /* One component, one colour token per card: the token mixed into the surface, a stronger share in dark. */
@@ -14,29 +28,92 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 11rem;
-  padding: 1rem 1rem 0;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--card-color) 8%, var(--surface-raised));
-  border: 1px solid color-mix(in srgb, var(--card-color) 30%, var(--border));
-  border-radius: 8px;
+  min-width: 0;
+  min-height: 12.75rem;
+  padding: var(--space-4) var(--space-4) 0;
+  background: color-mix(in srgb, var(--card-color) 7%, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--card-color) 28%, var(--border-soft));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
 }
 
 :global(:root[data-theme='dark']) .card {
-  background: color-mix(in srgb, var(--card-color) 20%, var(--surface-raised));
+  background: color-mix(in srgb, var(--card-color) 16%, var(--surface-raised));
+}
+
+.cardPlaceholder {
+  background: var(--surface-sunken);
+  box-shadow: none;
+  animation: pulse 1.4s var(--ease-in-out) infinite alternate;
+}
+
+.series1 {
+  --card-color: var(--series-1);
+}
+
+.series2 {
+  --card-color: var(--series-2);
+}
+
+.series3 {
+  --card-color: var(--series-3);
+}
+
+.series4 {
+  --card-color: var(--series-4);
+}
+
+.series5 {
+  --card-color: var(--series-5);
+}
+
+.series6 {
+  --card-color: var(--series-6);
+}
+
+/* The figure's tooltip keeps to the side of the card nearer the middle of the screen. */
+.card:nth-child(n + 4) [role='tooltip'] {
+  right: 0;
+  left: auto;
+}
+
+@media (max-width: 87.5rem) {
+  .card:nth-child(n + 4) [role='tooltip'] {
+    right: auto;
+    left: 0;
+  }
+
+  .card:nth-child(3n) [role='tooltip'] {
+    right: 0;
+    left: auto;
+  }
+}
+
+@media (max-width: 40rem) {
+  .card:nth-child(3n) [role='tooltip'],
+  .card:nth-child(n + 4) [role='tooltip'] {
+    right: auto;
+    left: 0;
+  }
+
+  .card:nth-child(even) [role='tooltip'] {
+    right: 0;
+    left: auto;
+  }
 }
 
 .cardHead {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  font-weight: 600;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .cardTitle {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: var(--text-sm);
   font-weight: 600;
+  line-height: 1.3;
 }
 
 .icon {
@@ -45,21 +122,22 @@
   place-items: center;
   width: 2rem;
   height: 2rem;
+  font-size: 1.125rem;
   color: var(--surface-raised);
   background: var(--card-color);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 
 .value {
-  margin: 0.75rem 0 0;
-  font-size: 1.75rem;
+  margin: var(--space-3) 0 0;
+  font-size: clamp(1.375rem, 1.1rem + 0.6vw, 1.75rem);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .change {
-  margin: 0.25rem 0 0;
-  font-size: 0.875rem;
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -77,24 +155,40 @@
 
 .against {
   margin: 0;
-  font-size: 0.8125rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
 .note {
-  margin: auto 0 0.75rem;
-  font-size: 0.8125rem;
+  margin: auto 0 var(--space-3);
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
-/* The sparkline runs flush to the card's bottom edge, under its padding. */
+/* The sparkline runs flush to the card's bottom edge; its drawing is clipped to the card's corners, its tooltip is not. */
 .spark {
   height: 3rem;
-  margin: auto -1rem 0;
+  margin: auto calc(-1 * var(--space-4)) 0;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.spark :global(.recharts-surface) {
+  clip-path: inset(0 round 0 0 var(--radius-lg) var(--radius-lg));
+}
+
+.spark :global(.recharts-surface):focus-visible {
+  outline: none;
+}
+
+.spark:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .visuallyHidden {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   overflow: hidden;
@@ -102,10 +196,22 @@
   white-space: nowrap;
 }
 
+.daily {
+  margin: 0 0 var(--space-5);
+}
+
+.daily summary,
+.panel summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--accent);
+  font-size: var(--text-sm);
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .wide {
@@ -121,11 +227,22 @@
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 1rem;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4) var(--space-5);
   background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+/* The charts' panels keep their loaded height from the first paint, so the row under them never moves (ADR 0050). */
+.chartPanel {
+  min-height: 28rem;
+}
+
+.chartPanel .skeleton {
+  flex: 1;
 }
 
 .panelHead {
@@ -133,55 +250,61 @@
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .panelHead h2 {
   margin: 0;
-  font-size: 1.0625rem;
+  font-size: var(--text-lg);
+}
+
+.panelHead a {
+  font-size: var(--text-sm);
+  font-weight: 600;
 }
 
 .skeleton {
   height: 9rem;
-  background: linear-gradient(90deg, var(--surface-sunken), var(--surface-raised), var(--surface-sunken));
-  background-size: 200% 100%;
-  border-radius: 6px;
-  animation: shimmer 1.4s ease-in-out infinite;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-md);
+  animation: pulse 1.4s var(--ease-in-out) infinite alternate;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .skeleton {
-    animation: none;
-  }
-}
-
-@keyframes shimmer {
-  from {
-    background-position: 100% 0;
-  }
-
+@keyframes pulse {
   to {
-    background-position: -100% 0;
+    opacity: 0.55;
   }
 }
 
 .empty {
   margin: 0;
-  padding: 1rem 0;
+  padding: var(--space-4) 0;
   color: var(--text-muted);
 }
 
+/* Billing against collections. */
 .chart {
   height: 16rem;
 }
 
+.chart :global(.recharts-surface):focus-visible {
+  outline: none;
+}
+
+.chart:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+  border-radius: var(--radius-sm);
+}
+
 .legend {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: var(--space-4);
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
 }
 
@@ -189,7 +312,7 @@
   display: inline-block;
   width: 1.25rem;
   height: 0;
-  margin-right: 0.375rem;
+  margin-right: var(--space-2);
   vertical-align: middle;
   border-top: 2px solid var(--series-1);
 }
@@ -198,27 +321,80 @@
   border-top: 2px dashed var(--series-3);
 }
 
+.hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* The ageing donut, drawn here: a slice that is pointed at or chosen thickens, and the centre names it. */
 .ageing {
   display: grid;
-  grid-template-columns: minmax(10rem, 13rem) 1fr;
+  grid-template-columns: minmax(10rem, 13rem) minmax(0, 1fr);
   align-items: center;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 @media (max-width: 40rem) {
   .ageing {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .donut {
+    justify-self: center;
   }
 }
 
 .donut {
   position: relative;
-  height: 12rem;
+  width: 100%;
+  max-width: 13rem;
+  aspect-ratio: 1;
+  border-radius: var(--radius-pill);
+}
+
+.donut:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
+
+.donut svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.slice {
+  stroke: var(--surface-raised);
+  stroke-width: 2;
+  cursor: pointer;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.dim {
+  opacity: 0.45;
+}
+
+.bucket1 {
+  fill: var(--series-1);
+}
+
+.bucket2 {
+  fill: var(--series-3);
+}
+
+.bucket3 {
+  fill: var(--series-2);
+}
+
+.bucket4 {
+  fill: var(--series-5);
 }
 
 .donutCentre {
   position: absolute;
-  inset: 0;
+  inset: 22%;
   display: grid;
   place-content: center;
   text-align: center;
@@ -226,44 +402,196 @@
 }
 
 .donutCentre strong {
-  font-size: 1.375rem;
+  font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums;
 }
 
 .donutCentre span {
-  font-size: 0.8125rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
+}
+
+.donutTip {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 50%;
+  z-index: 5;
+  transform: translateX(-50%);
 }
 
 .dot {
   display: inline-block;
   width: 0.625rem;
   height: 0.625rem;
-  margin-right: 0.5rem;
+  margin-right: var(--space-2);
   border-radius: 2px;
 }
 
-.bar {
-  height: 0.5rem;
-  min-width: 6rem;
-  background: var(--surface-sunken);
-  border-radius: 4px;
+.dot.bucket1 {
+  background: var(--series-1);
 }
 
-.barFill {
-  height: 100%;
+.dot.bucket2 {
+  background: var(--series-3);
+}
+
+.dot.bucket3 {
+  background: var(--series-2);
+}
+
+.dot.bucket4 {
+  background: var(--series-5);
+}
+
+/* The top payers' bars: a meter of each payer's net against the largest. */
+.bar {
+  display: block;
+  width: 100%;
+  min-width: 6rem;
+  height: 0.5rem;
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+}
+
+.bar::-webkit-meter-bar {
+  height: 0.5rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+}
+
+.bar::-webkit-meter-optimum-value,
+.bar::-webkit-meter-suboptimum-value,
+.bar::-webkit-meter-even-less-good-value {
+  border-radius: var(--radius-pill);
   background: var(--series-1);
-  border-radius: 4px;
+}
+
+.bar::-moz-meter-bar {
+  border-radius: var(--radius-pill);
+  background: var(--series-1);
+}
+
+.barTip {
+  display: block;
+  width: 100%;
+}
+
+.barTip > button {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) 0;
 }
 
 .small {
   display: block;
-  font-size: 0.8125rem;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
+.periodLine {
+  display: block;
+  min-height: 3em;
+}
+
+@media (max-width: 40rem) {
+  .periodLine {
+    min-height: 4.5em;
+  }
+}
+
+/* The period: a segmented control of the ranges, and two dates for a custom one. */
 .period {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 0.5rem;
+  gap: var(--space-2);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.segments {
+  display: inline-flex;
+  max-width: 100%;
+  overflow-x: auto;
+  gap: 2px;
+  margin: 0;
+  padding: 3px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+}
+
+.segments legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.segment {
+  position: relative;
+}
+
+.segment input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.segment span {
+  display: block;
+  min-height: 2rem;
+  padding: 0.3125rem var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-muted);
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.segment input:checked + span {
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
+.segment input:focus-visible + span {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (max-width: 40rem) {
+  .period {
+    width: 100%;
+  }
+
+  .segments {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .segment {
+    flex: 1 0 auto;
+  }
+
+  .segment span {
+    text-align: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  .cardPlaceholder {
+    animation: none;
+  }
+
+  .slice {
+    transition: none;
+  }
 }

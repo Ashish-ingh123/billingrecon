@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { json, renderApp, routedApi, sessionFor, type Handler } from '../test/app';
 import { pendingApproval, problem, reportPage } from '../test/records';
@@ -174,7 +174,8 @@ describe('a summary card', () => {
       </ul>,
     );
 
-    const value = screen.getByTitle('₹18,14,675.50');
+    // Since Prompt 9.4 (ADR 0050) the figure is the button of its own tooltip, named by the exact amount; no title.
+    const value = screen.getByRole('button', { name: '₹18,14,675.50' });
     expect(value).toHaveTextContent('₹18.1L');
     expect(within(value).getByText('₹18,14,675.50')).toBeInTheDocument();
     const change = screen.getByText(/26\.4%/);
@@ -218,7 +219,7 @@ describe('the dashboard (US-44)', () => {
 
     const cards = await screen.findByRole('list', { name: 'Summary' });
     expect(within(cards).getAllByRole('listitem')).toHaveLength(6);
-    expect(within(cards).getByTitle('₹19,10,000.00')).toHaveTextContent('₹19.1L');
+    expect(within(cards).getByRole('button', { name: '₹19,10,000.00' })).toHaveTextContent('₹19.1L');
     expect(within(cards).getByText('No trend: drift rows are not kept over time.')).toBeInTheDocument();
     expect(
       screen.getByText('25 Oct 2026 to 23 Nov 2026, compared with 25 Sept 2026 to 24 Oct 2026 (IST business dates)', {
@@ -269,7 +270,8 @@ describe('the dashboard (US-44)', () => {
     const api = routedApi(dashboardRoutes());
     const { user, router } = renderApp('/dashboard', { session: supervisor, fetch: api.fetch });
 
-    await user.selectOptions(await screen.findByLabelText('Period'), 'Last 7 days');
+    // Since Prompt 9.4 (ADR 0050) the period is a segmented control: a radio group named Period.
+    await user.click(await screen.findByRole('radio', { name: 'Last 7 days' }));
 
     expect(router.state.location.search).toBe('?range=7');
     const searches = api.sent('GET', '/api/v1/dashboard/summary').map((sent) => new URL(sent.url).searchParams);
@@ -303,5 +305,127 @@ describe('the dashboard (US-44)', () => {
 
     expect(await screen.findByRole('heading', { name: 'No access' })).toBeInTheDocument();
     expect(api.requests).toHaveLength(0);
+  });
+});
+
+/** The tooltips of the dashboard (Prompt 9.4, ADR 0050): what each says, from the API's figures, and how it opens and closes. */
+describe('the tooltips of the dashboard (ADR 0050)', () => {
+  it("opens the card's tooltip on hover with the exact figure, the previous one and the change, and closes it", async () => {
+    const api = routedApi(dashboardRoutes());
+    const { user } = renderApp('/dashboard', { session: supervisor, fetch: api.fetch });
+    const figure = await screen.findByRole('button', { name: '₹18,14,675.50' });
+
+    await user.hover(figure);
+    const tip = screen.getByRole('tooltip');
+    expect(tip).toHaveTextContent(
+      'Outstanding duesThis period₹18,14,675.50Previous period₹14,35,661.79Change↑ +26.4%, a change for the worse',
+    );
+    expect(figure).toHaveAttribute('aria-describedby', tip.id);
+
+    await user.unhover(figure);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
+  it("opens a card's tooltip on keyboard focus and closes it on Escape and on blur", async () => {
+    const api = routedApi(dashboardRoutes());
+    const { user } = renderApp('/dashboard', { session: supervisor, fetch: api.fetch });
+    const figure = await screen.findByRole('button', { name: '₹19,10,000.00' });
+
+    act(() => figure.focus());
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Previous period₹13,69,176.92');
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(figure).toHaveFocus();
+
+    act(() => figure.blur());
+    act(() => figure.focus());
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+    await user.tab();
+    expect(figure).not.toHaveFocus();
+    expect(screen.queryAllByRole('tooltip').map((tip) => tip.textContent)).not.toContainEqual(
+      expect.stringContaining('Total billing'),
+    );
+  });
+
+  it('opens a tooltip on a tap and closes it on a second tap', async () => {
+    const api = routedApi(dashboardRoutes());
+    const { user } = renderApp('/dashboard', { session: supervisor, fetch: api.fetch });
+    const figure = await screen.findByRole('button', { name: '₹16,90,000.00' });
+    act(() => figure.blur());
+
+    await user.pointer({ keys: '[TouchA]', target: figure });
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Amount collected');
+    await user.pointer({ keys: '[TouchA]', target: figure });
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
+  it("says a top payer's four figures from the top payers' answer, and sends nothing for it", async () => {
+    const api = routedApi(dashboardRoutes());
+    const { user } = renderApp('/dashboard', { session: supervisor, fetch: api.fetch });
+    const bar = await screen.findByRole('button', { name: 'The figures of Vikram Mishra' });
+    const sent = api.requests.length;
+
+    await user.hover(bar);
+
+    expect(screen.getByRole('tooltip')).toHaveTextContent(
+      'Vikram MishraOwed on bills₹1,78,651.00Unapplied cash₹0.00Available credit₹0.00Net outstanding₹1,78,651.00',
+    );
+    expect(api.requests).toHaveLength(sent);
+    expect(
+      within(screen.getByRole('table', { name: 'The figures of the top payers' })).getAllByRole('row'),
+    ).toHaveLength(3);
+  });
+
+  it("thickens the ageing's slice it is on, names it in the centre, and goes from bucket to bucket by the keys", async () => {
+    const api = routedApi(dashboardRoutes());
+    const { user } = renderApp('/dashboard', { session: supervisor, fetch: api.fetch });
+    const donut = await screen.findByRole('slider', { name: /outstanding, by days past the due date/ });
+    const slices = donut.querySelectorAll('path');
+    expect(slices).toHaveLength(4);
+    const before = slices[3]!.getAttribute('d');
+
+    await user.hover(slices[3]!);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Over 90 daysAmount₹7,39,613.00Share40.76%Bills1');
+    expect(donut).toHaveTextContent('₹7,39,613.00Over 90 days');
+    expect(donut.querySelectorAll('path')[3]!.getAttribute('d')).not.toBe(before);
+    await user.unhover(donut);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(donut).toHaveTextContent('₹18.1LOutstanding');
+
+    act(() => donut.focus());
+    await user.keyboard('{ArrowRight}');
+    expect(donut).toHaveAttribute('aria-valuetext', '0–30 days: ₹8,17,705.00, 45.06%');
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('31–60 daysAmount₹1,07,490.00Share5.92%');
+    await user.keyboard('{ArrowLeft}{ArrowLeft}');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Over 90 days');
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
+  it('keeps every daily figure behind the sparklines in a table', async () => {
+    const day = (date: string, billed: number) => ({
+      date,
+      billed,
+      collected: 250,
+      outstandingDues: 1814675.5,
+      unappliedCash: 350000,
+      pendingApprovals: 11,
+    });
+    const api = routedApi(
+      dashboardRoutes({
+        'GET /api/v1/dashboard/trend': () =>
+          json(200, { period, interval: 'Day', points: [], daily: [day('2026-10-25', 1000), day('2026-10-26', 0)] }),
+      }),
+    );
+    renderApp('/dashboard', { session: supervisor, fetch: api.fetch });
+
+    const daily = await screen.findByRole('table', { name: 'The figures of each day' });
+    // The table stands from the first paint (no shift); its rows arrive with the trend.
+    await within(daily).findByRole('row', { name: /25 Oct 2026/ });
+    expect(within(daily).getAllByRole('row')).toHaveLength(3);
+    expect(within(daily).getByRole('row', { name: /25 Oct 2026/ })).toHaveTextContent(
+      '25 Oct 20261,000.00250.0018,14,675.503,50,000.0011',
+    );
   });
 });

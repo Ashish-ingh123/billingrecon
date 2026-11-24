@@ -79,6 +79,19 @@ describe.each(Object.entries(themes))('the %s theme', (_, tokens) => {
     expect(contrast(tokens[foreground] ?? '', tokens[background] ?? '')).toBeGreaterThanOrEqual(4.5);
   });
 
+  // Since Prompt 9.4 (ADR 0050): a tooltip's text on its ground, and its edge against every surface it floats over.
+  it.each(['text', 'text-muted', 'accent', 'success', 'danger', 'warning'])(
+    '%s text on surface-popover is at least 4.5:1',
+    (foreground) => {
+      expect(tokens['surface-popover'], '--surface-popover').toMatch(/^#[0-9a-f]{6}$/i);
+      expect(contrast(tokens[foreground] ?? '', tokens['surface-popover'] ?? '')).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  it.each([...surfaces, 'surface-popover'])('border-strong against %s is at least 3:1', (background) => {
+    expect(contrast(tokens['border-strong'] ?? '', tokens[background] ?? '')).toBeGreaterThanOrEqual(3);
+  });
+
   it.each(pairs(series, ['surface', 'surface-raised']))('%s against %s is at least 3:1', (foreground, background) => {
     expect(contrast(tokens[foreground] ?? '', tokens[background] ?? '')).toBeGreaterThanOrEqual(3);
   });

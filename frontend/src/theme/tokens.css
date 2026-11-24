@@ -91,6 +91,9 @@
   --success-soft: #e3f4ea;
   --warning-soft: #fff1da;
   --danger-soft: #fde7e5;
+  /* Since Prompt 9.4 (ADR 0050): the ground and the edge of a tooltip. */
+  --surface-popover: #ffffff;
+  --border-strong: #3f4f70;
   --focus: #0b4fd0;
   --focus-halo: rgba(11, 79, 208, 0.22);
 
@@ -160,6 +163,8 @@
   --success-soft: #0f2a1c;
   --warning-soft: #2b200b;
   --danger-soft: #331414;
+  --surface-popover: #1a2a4a;
+  --border-strong: #a9b6d3;
   --focus: #78aeff;
   --focus-halo: rgba(120, 174, 255, 0.3);
 

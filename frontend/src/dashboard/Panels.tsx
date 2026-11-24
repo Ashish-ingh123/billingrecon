@@ -14,6 +14,7 @@ import { counted } from '../reports/view';
 import type { DashboardPeriod } from './api';
 import { useDriftPanel, usePendingPanel, useRecentPayments, useTopPayers } from './api';
 import styles from './Dashboard.module.css';
+import { Tip, TipBox } from './Tooltip';
 
 /**
  * A panel of the dashboard (ADR 0044 point 4): its title and "View all", then its own loading skeleton, its own error (the
@@ -141,16 +142,42 @@ export function TopPayersPanel() {
                 <tbody>
                   {data.items.map((payer) => {
                     const net = signedPaise(payer.netOutstanding);
-                    const width = largest > 0n && net > 0n ? Number((net * 1000n) / largest) / 10 : 0;
                     return (
                       <tr key={payer.payerId}>
                         <td>
                           <Link to={`/payers/${payer.payerId}/statement`}>{payer.payerName}</Link>
                         </td>
-                        <td aria-hidden="true">
-                          <div className={styles.bar}>
-                            <div className={styles.barFill} style={{ width: `${String(width)}%` }} />
-                          </div>
+                        <td>
+                          {/* The bar of the payer's net against the largest, with the payer's four figures in its tooltip,
+                              all from the top payers' answer: no request is sent for a tooltip (ADR 0050). */}
+                          <Tip
+                            align="end"
+                            className={styles.barTip}
+                            label={`The figures of ${payer.payerName}`}
+                            tip={
+                              <TipBox
+                                title={payer.payerName}
+                                rows={[
+                                  { label: 'Owed on bills', value: `₹${formatDecimal(payer.receivable)}` },
+                                  { label: 'Unapplied cash', value: `₹${formatDecimal(payer.unappliedCash)}` },
+                                  { label: 'Available credit', value: `₹${formatDecimal(payer.creditAvailable)}` },
+                                  {
+                                    label: 'Net outstanding',
+                                    value: `₹${formatDecimal(payer.netOutstanding)}`,
+                                    strong: true,
+                                  },
+                                ]}
+                              />
+                            }
+                          >
+                            <meter
+                              className={styles.bar}
+                              min={0}
+                              max={Number(largest > 0n ? largest : 1n)}
+                              value={Number(net > 0n ? net : 0n)}
+                              aria-hidden="true"
+                            />
+                          </Tip>
                         </td>
                         <td className={table.number}>{formatDecimal(payer.netOutstanding)}</td>
                       </tr>
@@ -159,6 +186,41 @@ export function TopPayersPanel() {
                 </tbody>
               </table>
             </div>
+            <details>
+              <summary>Show the figures as a table</summary>
+              <div className={table.wrap}>
+                <table className={table.table} aria-label="The figures of the top payers">
+                  <thead>
+                    <tr>
+                      <th scope="col">Payer</th>
+                      <th scope="col" className={table.number}>
+                        Owed on bills (₹)
+                      </th>
+                      <th scope="col" className={table.number}>
+                        Unapplied cash (₹)
+                      </th>
+                      <th scope="col" className={table.number}>
+                        Available credit (₹)
+                      </th>
+                      <th scope="col" className={table.number}>
+                        Net outstanding (₹)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.items.map((payer) => (
+                      <tr key={payer.payerId}>
+                        <th scope="row">{payer.payerName}</th>
+                        <td className={table.number}>{formatDecimal(payer.receivable)}</td>
+                        <td className={table.number}>{formatDecimal(payer.unappliedCash)}</td>
+                        <td className={table.number}>{formatDecimal(payer.creditAvailable)}</td>
+                        <td className={table.number}>{formatDecimal(payer.netOutstanding)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
             <p className={styles.small}>
               {counted(data.totals?.payers ?? data.totalCount, 'payer owes', 'payers owe')} or hold something today.
             </p>

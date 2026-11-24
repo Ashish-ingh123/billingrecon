@@ -1,72 +1,27 @@
-import { useId, useState, type FormEvent, type ReactNode } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router';
 import { problemOf } from '../api/call';
+import { Icon } from '../brand/Icon';
 import buttons from '../components/buttons.module.css';
+import table from '../components/DataTable.module.css';
 import listStyles from '../components/ListControls.module.css';
 import { PageHeader } from '../components/PageHeader';
 import { ProblemAlert } from '../components/ProblemAlert';
-import { formatDate, todayInIndia } from '../format';
+import { formatDate, formatDecimal, todayInIndia } from '../format';
 import { useAgeing, useSummary, useTrend, type DashboardPeriod, type DailyFigures } from './api';
 import { AgeingChart, TrendChart } from './Charts';
 import styles from './Dashboard.module.css';
 import { DriftPanel, Panel, PendingApprovalsPanel, RecentPaymentsPanel, TopPayersPanel } from './Panels';
-import { SummaryCard } from './SummaryCard';
+import { SummaryCard, type SparkPoint } from './SummaryCard';
 
-/** A line icon of the cards, drawn here: no icon package (ADR 0044 point 1). */
-function Icon({ children }: { children: ReactNode }) {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {children}
-    </svg>
-  );
-}
-
+/** The icon of each card, from the shared set (ADR 0047): beside its label, never alone. */
 const icons = {
-  bill: (
-    <Icon>
-      <path d="M6 2h9l4 4v16H6z" />
-      <path d="M9 12h7M9 16h7M9 8h3" />
-    </Icon>
-  ),
-  cash: (
-    <Icon>
-      <rect x="2" y="6" width="20" height="12" rx="2" />
-      <circle cx="12" cy="12" r="3" />
-    </Icon>
-  ),
-  clock: (
-    <Icon>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 3" />
-    </Icon>
-  ),
-  stack: (
-    <Icon>
-      <ellipse cx="12" cy="6" rx="8" ry="3" />
-      <path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" />
-    </Icon>
-  ),
-  check: (
-    <Icon>
-      <rect x="3" y="3" width="18" height="18" rx="3" />
-      <path d="M8 12l3 3 5-6" />
-    </Icon>
-  ),
-  alert: (
-    <Icon>
-      <path d="M12 3l10 18H2z" />
-      <path d="M12 10v5M12 18v.01" />
-    </Icon>
-  ),
+  bill: <Icon name="receipt" />,
+  cash: <Icon name="wallet" />,
+  clock: <Icon name="clock" />,
+  stack: <Icon name="card" />,
+  check: <Icon name="check-circle" />,
+  alert: <Icon name="alert" />,
 };
 
 const ranges = ['7', '30', '90'] as const;
@@ -110,31 +65,20 @@ function PeriodPicker({ range, period, choose }: ReturnType<typeof usePeriod>) {
     }
   };
 
+  const pick = (value: string) =>
+    choose(value === '30' ? {} : value === 'custom' ? { range: 'custom', from, to } : { range: value });
+
   return (
     <form className={styles.period} aria-label="Choose the period" onSubmit={apply}>
-      <div className={listStyles.field}>
-        <label htmlFor={rangeId}>Period</label>
-        <select
-          id={rangeId}
-          className={listStyles.input}
-          value={range}
-          onChange={(event) =>
-            choose(
-              event.target.value === '30'
-                ? {}
-                : event.target.value === 'custom'
-                  ? { range: 'custom', from, to }
-                  : { range: event.target.value },
-            )
-          }
-        >
-          {ranges.map((days) => (
-            <option key={days} value={days}>
-              Last {days} days
-            </option>
-          ))}
-          <option value="custom">Custom</option>
-        </select>
+      <div className={styles.segments} role="radiogroup" aria-label="Period" id={rangeId}>
+        {[...ranges.map((days) => [days, `Last ${days} days`] as const), ['custom', 'Custom'] as const].map(
+          ([value, words]) => (
+            <label key={value} className={styles.segment}>
+              <input type="radio" name={rangeId} value={value} checked={range === value} onChange={() => pick(value)} />
+              <span>{words}</span>
+            </label>
+          ),
+        )}
       </div>
       {range === 'custom' && (
         <>
@@ -169,8 +113,57 @@ function PeriodPicker({ range, period, choose }: ReturnType<typeof usePeriod>) {
   );
 }
 
-const series = (daily: readonly DailyFigures[] | undefined, pick: (day: DailyFigures) => number | string) =>
-  daily?.map((day) => Number(pick(day)));
+const series = (
+  daily: readonly DailyFigures[] | undefined,
+  pick: (day: DailyFigures) => number | string,
+): SparkPoint[] | undefined => daily?.map((day) => ({ date: day.date, value: pick(day) }));
+
+/**
+ * The days behind the sparklines as a table (ADR 0050): nothing is shown only in a tooltip.
+ */
+function DailyTable({ daily }: { daily: readonly DailyFigures[] | undefined }) {
+  return (
+    <details className={styles.daily}>
+      <summary>Show the daily figures as a table</summary>
+      <div className={table.wrap}>
+        <table className={table.table} aria-label="The figures of each day">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col" className={table.number}>
+                Billed (₹)
+              </th>
+              <th scope="col" className={table.number}>
+                Collected (₹)
+              </th>
+              <th scope="col" className={table.number}>
+                Outstanding dues (₹)
+              </th>
+              <th scope="col" className={table.number}>
+                Unapplied cash (₹)
+              </th>
+              <th scope="col" className={table.number}>
+                Pending approvals
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {(daily ?? []).map((day) => (
+              <tr key={day.date}>
+                <td>{formatDate(day.date)}</td>
+                <td className={table.number}>{formatDecimal(day.billed)}</td>
+                <td className={table.number}>{formatDecimal(day.collected)}</td>
+                <td className={table.number}>{formatDecimal(day.outstandingDues)}</td>
+                <td className={table.number}>{formatDecimal(day.unappliedCash)}</td>
+                <td className={table.number}>{String(day.pendingApprovals)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  );
+}
 
 /**
  * The dashboard (US-44, BR-902; ADR 0044), for a TenantAdmin, a Supervisor or a Viewer: the figures of a period against
@@ -195,9 +188,12 @@ export function DashboardPage() {
       <PageHeader
         title="Dashboard"
         subtitle={
-          data === undefined
-            ? 'The figures of a period against the previous one.'
-            : `${formatDate(data.period.from)} to ${formatDate(data.period.to)}, compared with ${formatDate(data.previousPeriod.from)} to ${formatDate(data.previousPeriod.to)} (IST business dates)`
+          // The line keeps the height of the period's dates from the first paint, so nothing moves when they arrive.
+          <span className={styles.periodLine}>
+            {data === undefined
+              ? 'The figures of a period against the previous one.'
+              : `${formatDate(data.period.from)} to ${formatDate(data.period.to)}, compared with ${formatDate(data.previousPeriod.from)} to ${formatDate(data.previousPeriod.to)} (IST business dates)`}
+          </span>
         }
         actions={<PeriodPicker key={`${picked.range}${picked.period.from}`} {...picked} />}
       />
@@ -205,7 +201,12 @@ export function DashboardPage() {
         summary.error !== null ? (
           <ProblemAlert problem={problemOf(summary.error)} />
         ) : (
-          <div className={styles.skeleton} role="status" aria-label="Loading the summary" />
+          // Six placeholders the size of the cards, so that nothing below moves when the figures arrive (ADR 0050).
+          <ul className={styles.cards} role="status" aria-label="Loading the summary" aria-busy="true">
+            {[1, 2, 3, 4, 5, 6].map((place) => (
+              <li key={place} className={`${styles.card} ${styles.cardPlaceholder}`} />
+            ))}
+          </ul>
         )
       ) : (
         <ul className={styles.cards} aria-label="Summary">
@@ -271,9 +272,11 @@ export function DashboardPage() {
           />
         </ul>
       )}
+      <DailyTable daily={daily} />
       <div className={styles.grid}>
         <Panel
           title="Billing against collections"
+          className={styles.chartPanel}
           query={trend}
           isEmpty={(answer) => answer.points.length === 0}
           empty="No figures in this period."
@@ -282,6 +285,7 @@ export function DashboardPage() {
         </Panel>
         <Panel
           title="Outstanding dues ageing"
+          className={styles.chartPanel}
           viewAll={{ to: '/reports/outstanding' }}
           query={ageing}
           isEmpty={(answer) => Number(answer.total) === 0}

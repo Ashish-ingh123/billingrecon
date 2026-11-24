@@ -26,6 +26,13 @@
   gap: var(--space-4);
 }
 
+/* The title block takes the row first, so whether the actions wrap under it does not hang on the subtitle's length
+   (ADR 0050: a subtitle that arrives later never moves the actions). */
+.row > :first-child {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
 .title {
   margin: 0;
   font-size: var(--text-2xl);
@@ -42,4 +49,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  min-width: 0;
+  max-width: 100%;
 }
