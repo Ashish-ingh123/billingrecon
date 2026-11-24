@@ -469,6 +469,13 @@ kept by each instance of the API in memory, so a restart forgets them and two in
 
 ## 8. Deferred verification: the running list for the personal machine
 
+**Since Prompt 10.0 the whole list runs as one command**, from the repository root with Docker Desktop running and
+`.env` in place: `powershell -ExecutionPolicy Bypass -File deployerifypersonal-machine.ps1` (`-SkipLoad` leaves out the
+10,000-bill load). It runs A, C and D below (D three rounds), the frontend's gates, the one-command run afresh with the
+checks of section 2 and row 8.1, the load of row 8.2, every browser suite through nginx, and the backup of row 8.3, and
+writes everything to `verify-10.0.log`, which is sent back. What it cannot do is listed at its end: the event in Seq,
+a CSV opened in a spreadsheet, the screens looked at by the owner.
+
 On 2026-11-20 the owner decided to go on building and to run the verification on the personal machine later.
 Until this list has been run and its output recorded, **nothing after Prompt 2.1 has been built on .NET 10, run on
 SQL Server 2022, or had its migration scaffolded with EF Core 10**; every commit made in the meantime says so in

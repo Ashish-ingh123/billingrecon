@@ -178,3 +178,7 @@ secrets.json
 docker-compose.override.local.yml
 .docker/data/
 **/mssql-data/
+
+# Prompt 10.0: the log and the backup copy of the personal-machine run
+verify-10.0.log
+BillingRecon.bak
