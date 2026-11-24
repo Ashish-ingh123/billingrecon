@@ -9,7 +9,10 @@ import { AuditTrail } from '../components/AuditTrail';
 import { Badge } from '../components/Badge';
 import buttons from '../components/buttons.module.css';
 import table from '../components/DataTable.module.css';
+import { Banner } from '../components/Banner';
 import { Details } from '../components/Details';
+import summary from '../components/Summary.module.css';
+import { TotalsCard } from '../components/TotalsCard';
 import forms from '../components/forms.module.css';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
@@ -147,33 +150,45 @@ function PaymentView({ record }: { record: PaymentWithAllocations }) {
         />
       )}
       {payment.status === 'PendingReversal' && (
-        <p className={forms.note} role="status">
+        <Banner tone="warning" title="Waiting for its reversal" live>
           This payment waits for its reversal: a Supervisor or an administrator other than the one who asked decides.
           Nothing can be allocated from it meanwhile.
-        </p>
+        </Banner>
       )}
       {allocationWaits && (
-        <p className={forms.note} role="status">
+        <Banner tone="warning" title="An allocation waits for its reversal" live>
           An allocation of this payment waits for its reversal; nothing else can be reversed until it is decided.
-        </p>
+        </Banner>
       )}
       {payment.status === 'Reversed' && (
-        <p className={forms.note}>
+        <Banner tone="danger" title="Reversed">
           Reversed {formatInstant(payment.reversedAtUtc)}: {payment.reversalReason}
-        </p>
+        </Banner>
       )}
-      <Details
-        items={[
-          ['Payer', payer.data === undefined ? '…' : <Link to={`/payers/${payment.payerId}`}>{payer.data.name}</Link>],
-          ['Payment date', formatDate(payment.paymentDate)],
-          ['Method', methodLabels[payment.method]],
-          ['Reference', payment.reference],
-          ['Amount', `₹${formatDecimal(payment.amount)}`],
-          ['Unapplied cash', `₹${formatDecimal(payment.unappliedAmount)}`],
-          ['Notes', payment.notes],
-          ['Recorded', formatInstant(payment.createdAtUtc)],
-        ]}
-      />
+      <div className={summary.split}>
+        <Details
+          items={[
+            [
+              'Payer',
+              payer.data === undefined ? '…' : <Link to={`/payers/${payment.payerId}`}>{payer.data.name}</Link>,
+            ],
+            ['Payment date', formatDate(payment.paymentDate)],
+            ['Method', methodLabels[payment.method]],
+            ['Reference', payment.reference],
+            ['Notes', payment.notes],
+            ['Recorded', formatInstant(payment.createdAtUtc)],
+          ]}
+        />
+        <div>
+          <TotalsCard
+            label="Figures of the payment"
+            rows={[
+              { label: 'Amount', value: payment.amount, strong: true },
+              { label: 'Unapplied cash', value: payment.unappliedAmount, apart: true },
+            ]}
+          />
+        </div>
+      </div>
 
       <section className={forms.section} aria-labelledby="allocations-title">
         <h2 id="allocations-title">Allocations</h2>

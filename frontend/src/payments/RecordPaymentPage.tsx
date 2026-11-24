@@ -126,6 +126,7 @@ function RecordPaymentForm({ initialPayer }: { initialPayer: Payer | null }) {
           <TextField
             id="payment-date"
             label="Payment date"
+            requiredMark
             type="date"
             max={todayInIndia()}
             error={errors.paymentDate?.message}
@@ -134,6 +135,7 @@ function RecordPaymentForm({ initialPayer }: { initialPayer: Payer | null }) {
           <SelectField
             id="payment-method"
             label="Method"
+            requiredMark
             error={errors.method?.message}
             {...register('method', { validate: (value) => value !== '' || 'Choose the method.' })}
           >
@@ -154,6 +156,8 @@ function RecordPaymentForm({ initialPayer }: { initialPayer: Payer | null }) {
           <TextField
             id="payment-amount"
             label="Amount (₹)"
+            leading="₹"
+            requiredMark
             inputMode="decimal"
             error={errors.amount?.message}
             {...register('amount', {

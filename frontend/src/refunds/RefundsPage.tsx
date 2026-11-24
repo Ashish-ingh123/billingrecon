@@ -5,6 +5,7 @@ import buttons from '../components/buttons.module.css';
 import table from '../components/DataTable.module.css';
 import { Pagination } from '../components/ListControls';
 import listStyles from '../components/ListControls.module.css';
+import { EmptyState } from '../components/EmptyState';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
 import { formatDate, formatDecimal } from '../format';
@@ -89,7 +90,7 @@ export function RefundsPage() {
       {refunds.data === undefined ? (
         <LoadState error={refunds.error} what="refunds" />
       ) : refunds.data.items.length === 0 ? (
-        <p className={table.empty}>No refund matches.</p>
+        <EmptyState icon="undo">No refund matches.</EmptyState>
       ) : (
         <>
           <div className={table.wrap}>

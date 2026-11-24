@@ -94,7 +94,7 @@ React + TypeScript + Vite in `frontend/` (ADR 0038, Prompt 7.1). Node 22.22 or l
 | Tests | **Vitest**, jsdom, React Testing Library | The API faked by a `fetch` given to the client (`src/test/app.tsx`); no mocking package. Vitest reads `src/` only. |
 | Browser journey (ADR 0046) | **Playwright** 1.65.1 | `e2e/journey.spec.ts`, its own `tsconfig.e2e.json`, `npm run e2e`; against https://localhost by default (`E2E_BASE_URL`), Chromium or an installed browser (`E2E_BROWSER_CHANNEL`); a console error on any page fails the step, the browser's `/favicon.ico` excepted. |
 | Lint and format | **ESLint 9** (type-aware TypeScript, hooks, `jsx-a11y`, no `dangerouslySetInnerHTML`), **Prettier** | ESLint stays on 9 until `jsx-a11y` supports 10. Warnings are errors. One `eslint-disable`, in a test, with its reason. |
-| Brand and tokens (ADR 0047) | Inter, self-hosted; our own icons; the sign-in page | Since Prompt 9.1 `tokens.css` holds, for both themes, the brand's blues, the sign-in page's ground, shadows, radii, spacing, type sizes and durations; a token's name holds no CSS colour word (the scan reads it as one). Inter comes from `@fontsource-variable/inter`, bundled and served from our origin, with a metric-matched fallback. Icons are `src/brand/Icon.tsx` (inline SVG, `currentColor`); `BrandMark` is the product's mark, `CompanyCredit` the ashline logo and name. The sign-in page is laid out in the pixels of `docs/ui/sign-in.png` (`--u`), animates only transform and opacity, and nothing with reduced motion. `VITE_SUPPORT_EMAIL` (from `SUPPORT_EMAIL` in `.env`) is the sign-in page's "Contact support". Since 9.2 (ADR 0048): the shell has a sidebar with an icon per section, a rail (kept in `localStorage`) and a drawer under 900 px; the theme is a pill of three (`ThemeToggle`, a radio group named "Theme"); a page change names the tab and focuses the heading; badges carry an icon from `components/tones.ts`; loading is a skeleton (`LoadState`), an empty list an `EmptyState`; `/design`, the specimen of the shared components, exists in Development builds only. Since 9.3 (ADR 0049): money is `formatMoney` and `<Money>` (a sign and a word for a credit or a negative amount); every status of every document is one mapping, `components/documentStatuses.ts`, with its word, tone and icon; a document's totals are `TotalsCard` (an estimate says so; a changed figure is marked); a document's state is a `Banner`; the audit trail is a timeline; a field may carry its unit and a required mark. |
+| Brand and tokens (ADR 0047) | Inter, self-hosted; our own icons; the sign-in page | Since Prompt 9.1 `tokens.css` holds, for both themes, the brand's blues, the sign-in page's ground, shadows, radii, spacing, type sizes and durations; a token's name holds no CSS colour word (the scan reads it as one). Inter comes from `@fontsource-variable/inter`, bundled and served from our origin, with a metric-matched fallback. Icons are `src/brand/Icon.tsx` (inline SVG, `currentColor`); `BrandMark` is the product's mark, `CompanyCredit` the ashline logo and name. The sign-in page is laid out in the pixels of `docs/ui/sign-in.png` (`--u`), animates only transform and opacity, and nothing with reduced motion. `VITE_SUPPORT_EMAIL` (from `SUPPORT_EMAIL` in `.env`) is the sign-in page's "Contact support". Since 9.2 (ADR 0048): the shell has a sidebar with an icon per section, a rail (kept in `localStorage`) and a drawer under 900 px; the theme is a pill of three (`ThemeToggle`, a radio group named "Theme"); a page change names the tab and focuses the heading; badges carry an icon from `components/tones.ts`; loading is a skeleton (`LoadState`), an empty list an `EmptyState`; `/design`, the specimen of the shared components, exists in Development builds only. Since 9.3 (ADR 0049): money is `formatMoney` and `<Money>` (a sign and a word for a credit or a negative amount); every status of every document is one mapping, `components/documentStatuses.ts`, with its word, tone and icon; a document's totals are `TotalsCard` (an estimate says so; a changed figure is marked); a document's state is a `Banner`; the audit trail is a timeline; a field may carry its unit and a required mark. Since 9.3b: allocating and applying credit show `ApplyMeter`; the statement's four figures are tiles; the inbox is a list of cards. |
 | Packages | 30, pinned exactly (Recharts added by 7.6, `@playwright/test` by 8.2, `@fontsource-variable/inter` by 9.1), `package-lock.json` committed | `npm ci` in CI; `npm audit` fails on any advisory; Dependabot a week after a release. A new package needs approval (section 6). |
 
 ### Delivery
@@ -460,7 +460,8 @@ frontend/                      React + TypeScript + Vite (ADR 0038): index.html 
                                src/components/tones.ts, EmptyState, src/theme/ThemeToggle, src/design (the specimen page)
                                and e2e/shell.spec.ts (ADR 0048). src/components also Money, DocumentStatus with
                                documentStatuses.ts, TotalsCard, Banner and Summary.module.css, and e2e/money.spec.ts
-                               (ADR 0049).
+                               (ADR 0049). src/components also ApplyMeter, src/approvals/Approvals.module.css, and
+                               e2e/cashier.spec.ts with e2e/stubbed.ts, the helper of the stubbed suites (ADR 0049, amended).
                                e2e/journey.spec.ts with playwright.config.ts and tsconfig.e2e.json: the browser journey
                                (ADR 0046).
 docs/                          Design documents and ADRs (see section 7)
@@ -866,7 +867,8 @@ over a radio group, the heading focused after a navigation, tables that scroll i
 skeletons, a specimen page in Development builds (Accepted on the owner's approval of the Prompt 9.2 plan, 2026-11-24),
 0049 the money screens: money as one component, one mapping of every status with its icon, the totals card, banners, the
 history as a timeline, fields with a unit and a required mark; 9.3 split by the owner into 9.3 and 9.3b, which amends it
-(Accepted on the owner's approval of the Prompt 9.3 plan, 2026-11-24).
+(Accepted on the owner's approval of the Prompt 9.3 plan, 2026-11-24; amended by 9.3b the same day: the meter, the
+statement's tiles, the inbox as cards).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -943,7 +945,7 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    `dotnet test` with Docker green on the personal machine; its output is not sent yet, so the rows stay until it is.
    Owed in particular: the full-size load test and the browser journey through nginx (row 8.2), the backup in the
    container (row 8.3), the first green run of the CI workflow on GitHub (row 1.5), the container checklist (row 1.3).
-2. **Everything else still open:** `docs/backlog.md`, 34 rows (B1 to B34): owner questions, recorded deviations,
+2. **Everything else still open:** `docs/backlog.md`, 35 rows (B1 to B35): owner questions, recorded deviations,
    accepted limitations, follow-ups and small fixes, each with its origin and when it is due. Five are marked
    *R1 review*, for the owner: B3 (three credit-note choices), B18 (no screens for users and settings), B19 (adjustments
    by kind), B24 (passwords in the generated `ToString` of four records), B33 (the stale `0002_Payers` in two ADRs).
@@ -966,5 +968,6 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    392 component tests and 16 browser tests in Edge against the built app; some components are left for 9.3 (ADR 0048,
    built note); owed: the shell through nginx (row 9.2). **9.3 is written (ADR 0049), split by the owner:** the shared
    components of the money screens with bills, credit notes and adjustments; 422 component tests and 31 browser tests in Edge,
-   the 8.2 journey through the new screens; owed: through nginx (row 9.3). Next: 9.3b (payments, refunds, the statement and
-   the inbox), then 9.4.
+   the 8.2 journey through the new screens; owed: through nginx (row 9.3). **9.3b is written too (ADR 0049, amended):** the meter, the
+   statement's tiles, the inbox as cards; 53 browser tests in Edge and the 8.2 journey; owed: through nginx (row 9.3b) and
+   backlog B35 (a LocalDB fault to look for on SQL Server 2022). Next: 9.4.

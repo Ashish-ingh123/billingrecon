@@ -59,6 +59,7 @@ function RefundFields({ form, facts }: { form: UseFormReturn<RefundValues>; fact
       <TextField
         id="refund-date"
         label="Refund date"
+        requiredMark
         type="date"
         min={facts.date}
         max={todayInIndia()}
@@ -69,6 +70,8 @@ function RefundFields({ form, facts }: { form: UseFormReturn<RefundValues>; fact
       <TextField
         id="refund-amount"
         label="Amount (₹)"
+        leading="₹"
+        requiredMark
         inputMode="decimal"
         hint={`At most ₹${formatDecimal(facts.available)}, what the source holds now.`}
         error={errors.amount?.message}
@@ -79,6 +82,7 @@ function RefundFields({ form, facts }: { form: UseFormReturn<RefundValues>; fact
       <SelectField
         id="refund-method"
         label="Method"
+        requiredMark
         error={errors.method?.message}
         {...register('method', { validate: (value) => value !== '' || 'Choose the method.' })}
       >

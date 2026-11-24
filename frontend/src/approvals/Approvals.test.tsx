@@ -172,8 +172,11 @@ describe("the checker's inbox (BR-603 to BR-606)", () => {
     const api = routedApi({ [inbox]: waiting(theirs, mine) });
     renderApp('/approvals', { session: supervisor, fetch: api.fetch });
 
-    const rows = await screen.findAllByRole('row');
-    const [, first, second] = rows;
+    // Since Prompt 9.3b (ADR 0049) each request is a card of the list, not a row of a table; what it says is unchanged.
+    const cards = within(await screen.findByRole('list', { name: 'Requests that wait, oldest first' })).getAllByRole(
+      'listitem',
+    );
+    const [first, second] = cards;
     expect(within(first!).getByText(/^Reverse a payment/)).toBeInTheDocument();
     expect(within(first!).getByRole('link', { name: 'The payment' })).toHaveAttribute(
       'href',
@@ -187,6 +190,9 @@ describe("the checker's inbox (BR-603 to BR-606)", () => {
 
     expect(within(second!).getByText('You')).toBeInTheDocument();
     expect(within(second!).getByText('Yours: waits for another checker')).toBeInTheDocument();
+    // The maker's own card offers no review (BR-603); the other's does, once (ADR 0049).
+    expect(within(second!).queryByRole('button', { name: 'Review' })).not.toBeInTheDocument();
+    expect(within(first!).getAllByRole('button', { name: 'Review' })).toHaveLength(1);
     expect(within(second!).queryByRole('button', { name: 'Review' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Review' })).toHaveLength(1);
   });

@@ -87,3 +87,45 @@ change of what any screen sends or computes.
   LocalDB answered an allocation with "a severe error occurred" while the disk was almost full; it did not recur.
 - **For 9.3b:** the meter of what is left to apply, the payments, refunds, the statement's four figures and the inbox's
   cards, with `Money` and the status mapping, which those screens already read for their labels.
+
+## Amended 2026-11-24 (Prompt 9.3b): the cashier's screens and the inbox
+
+Approved by the owner with its one changed expectation (the inbox's test finds cards, not rows).
+
+1. **The meter**, `ApplyMeter`, in the shared `ApplyToBills` (allocating a payment, applying a credit note's credit):
+   a native `<meter>` of the applied amount against the cap, the same sentence of figures as before ("Unapplied cash:
+   ₹1,500.00 · Allocated here: … · Left: …", read aloud as it changes), and, before anything is sent, a warning in words
+   with the amount it is over by. It reads the paise the form already held; `money.ts` is not touched. It sits under the
+   bills and stays in view while they scroll.
+2. **The payment's and the refund's pages**: their facts beside a figures card (the amount, and the payment's unapplied
+   cash under a rule); waiting for a reversal, waiting for approval, reversed and voided are banners with the sentences
+   they had.
+3. **The payer statement**: four tiles (owed on bills, unapplied cash, available credit, net outstanding, the net with
+   an accent edge), two by two on a phone. The tiles stand from the first paint with a placeholder, and the three lists
+   are drawn together once all three have arrived, so that nothing moves as they come (each list arriving on its own
+   pushed the ones below it down: a layout shift of 0.03 to 0.14).
+4. **The inbox**: each request a card in a list named "Requests that wait, oldest first": the kind with its icon and the
+   document, when it was asked and how long it has waited (two days or more in the warning colour), the payer, the
+   amount, the maker and the reason; Review opens inside the card. The maker's own request is a quieter card that says
+   "Yours: waits for another checker" and offers no review. A decision is announced in a success banner.
+5. **Fields and lists**: the amount of a payment and of a refund carries ₹ and the required mark, and so do their dates
+   and methods; the payments and refunds lists and the statement's three sections have empty states of their own.
+
+**Changed expectation:** `Approvals.test.tsx` finds the requests as the list's items instead of the table's rows; every
+assertion on a request is the same, and two are added (the maker's card has no Review, the other's one).
+
+**Built and verified (office machine, installed Edge):** 422 component tests, twice; the payment's figures, the
+statement's four figures against the API's, and the meter's warning and value are asserted in the existing tests. In the
+browser, `e2e/cashier.spec.ts`: the payment, allocating, a refund, the statement and the inbox, in both themes at 1440
+and 390 px under nginx's policy, with nothing refused, no console error, no request the test did not expect and no layout
+shift; the meter in view and warning; nothing animated with reduced motion (22 tests). With the other suites, 53 browser
+tests. The shared helper of the stubbed suites is now `e2e/stubbed.ts`. The three steps of the 8.2 journey passed against
+the API on LocalDB 2019. Screenshots: `docs/ui/allocating*.png`, `statement*.png`, `inbox*.png`.
+
+**Seen and not fixed (backlog B35):** during the journey LocalDB 2019 answered two dashboard queries (summary and drift)
+with "a severe error occurred on the current command" (500); the dashboard read them again and the step passed. The same
+fault answered one allocation in 9.3's run. It is the database engine, not the screens; it is to be watched on SQL Server
+2022.
+
+**Left as it is:** on a phone the allocation table scrolls sideways to its amount column, as every table does since 9.2.
+**Not verified:** through nginx on the personal machine (runbook section 8, row 9.3b).

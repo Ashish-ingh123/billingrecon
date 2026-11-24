@@ -1,20 +1,23 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useId, useRef, useState, type ReactNode } from 'react';
+import { useId, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApiClient } from '../api/ApiClientContext';
 import { useSession } from '../auth/AuthContext';
+import { Icon, type IconName } from '../brand/Icon';
+import { Banner } from '../components/Banner';
 import buttons from '../components/buttons.module.css';
 import type { ComparedField } from '../components/conflict';
-import table from '../components/DataTable.module.css';
 import { Details } from '../components/Details';
 import forms from '../components/forms.module.css';
 import { Pagination } from '../components/ListControls';
 import listStyles from '../components/ListControls.module.css';
+import { EmptyState } from '../components/EmptyState';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
 import { ReasonForm } from '../components/ReasonForm';
 import { useDocumentAction } from '../components/useDocumentAction';
 import { formatDecimal, formatInstant } from '../format';
+import styles from './Approvals.module.css';
 import {
   approvalDocumentTypes,
   approvalKeys,
@@ -29,6 +32,18 @@ import {
   type Decidable,
   type PendingApproval,
 } from './api';
+
+/** The icon of each kind of request on its card (ADR 0049): the kind is always written beside it. */
+const kindIcons: Record<ApprovalDocumentType, IconName> = {
+  Bill: 'receipt',
+  CreditNote: 'receipt-minus',
+  CreditNoteAllocation: 'undo',
+  Adjustment: 'sliders',
+  Payment: 'undo',
+  PaymentAllocation: 'undo',
+  Refund: 'wallet',
+  PrefixChange: 'gear',
+};
 
 /**
  * The checker's inbox (BR-603 to BR-606, ADR 0042 point 3): every request that waits for a second person, the oldest
@@ -72,9 +87,9 @@ export function ApprovalsPage() {
         subtitle="What waits for a second person: approving posts the document or makes the reversal; rejecting returns it to its maker."
       />
       {decided !== null && (
-        <p className={forms.note} role="status">
+        <Banner tone="success" title="Decided" live>
           {decided}
-        </p>
+        </Banner>
       )}
       <div className={listStyles.filters}>
         <div className={listStyles.field}>
@@ -99,7 +114,7 @@ export function ApprovalsPage() {
       {pending.data === undefined ? (
         <LoadState error={pending.error} what="the requests that wait" />
       ) : pending.data.items.length === 0 ? (
-        <p className={table.empty}>Nothing waits for a decision.</p>
+        <EmptyState icon="inbox">Nothing waits for a decision.</EmptyState>
       ) : (
         <>
           <p className={forms.note}>
@@ -108,102 +123,99 @@ export function ApprovalsPage() {
               `, the oldest since ${formatInstant(pending.data.totals.oldestRequestedAtUtc)}`}
             .
           </p>
-          <div className={table.wrap}>
-            <table className={table.table}>
-              <thead>
-                <tr>
-                  <th scope="col">Asked</th>
-                  <th scope="col">Request</th>
-                  <th scope="col">Payer</th>
-                  <th scope="col" className={table.number}>
-                    Amount (₹)
-                  </th>
-                  <th scope="col">By</th>
-                  <th scope="col">Reason given</th>
-                  <th scope="col">
-                    <span className={forms.note}>Decision</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {pending.data.items.map((request) => {
-                  const own = request.makerUserId === session.userId;
-                  const link = documentLink(request);
-                  return (
-                    <Row
-                      key={request.approvalRequestId}
-                      request={request}
-                      cells={
-                        <>
-                          <td>
-                            {formatInstant(request.requestedAtUtc)}
-                            <span className={forms.note}>
-                              {' '}
-                              ·{' '}
-                              {request.waitingDays === 0
-                                ? 'today'
-                                : request.waitingDays === 1
-                                  ? '1 day'
-                                  : `${String(request.waitingDays)} days`}
-                            </span>
-                          </td>
-                          <td>
-                            {requestLabels[request.documentType]}
-                            {link !== null && (
-                              <>
-                                {' '}
-                                · <Link to={link.to}>{link.label}</Link>
-                              </>
-                            )}
-                          </td>
-                          <td>
-                            {request.payerId === null ? (
-                              '—'
-                            ) : (
-                              <Link to={`/payers/${request.payerId}`}>{request.payerName ?? 'The payer'}</Link>
-                            )}
-                          </td>
-                          <td className={table.number}>
-                            {request.amount === null ? '—' : formatDecimal(request.amount)}
-                          </td>
-                          <td>{own ? 'You' : request.makerUserId.slice(0, 8)}</td>
-                          <td>{request.makerComment ?? '—'}</td>
-                          <td>
-                            {own ? (
-                              <span className={forms.note}>Yours: waits for another checker</span>
-                            ) : reviewing === request.approvalRequestId ? null : (
-                              <button
-                                type="button"
-                                className={buttons.secondary}
-                                onClick={() => {
-                                  setDecided(null);
-                                  setReviewing(request.approvalRequestId);
-                                }}
-                              >
-                                Review
-                              </button>
-                            )}
-                          </td>
-                        </>
-                      }
-                      review={
-                        !own && reviewing === request.approvalRequestId ? (
-                          <ReviewPanel
-                            request={request}
-                            onClose={() => setReviewing(null)}
-                            onDecided={(message) => {
-                              setReviewing(null);
-                              setDecided(message);
-                            }}
-                          />
-                        ) : null
-                      }
-                    />
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <ul className={styles.cards} aria-label="Requests that wait, oldest first">
+            {pending.data.items.map((request) => {
+              const own = request.makerUserId === session.userId;
+              const link = documentLink(request);
+              const open = !own && reviewing === request.approvalRequestId;
+              return (
+                <li key={request.approvalRequestId} className={`${styles.card} ${own ? styles.own : ''}`}>
+                  <div className={styles.head}>
+                    <span className={styles.kind} aria-hidden="true">
+                      <Icon name={kindIcons[request.documentType]} />
+                    </span>
+                    <div className={styles.title}>
+                      <p className={styles.what}>
+                        {requestLabels[request.documentType]}
+                        {link !== null && (
+                          <>
+                            {' '}
+                            · <Link to={link.to}>{link.label}</Link>
+                          </>
+                        )}
+                      </p>
+                      <p className={styles.when}>
+                        <Icon name="clock" /> Asked {formatInstant(request.requestedAtUtc)} ·{' '}
+                        <span className={Number(request.waitingDays) >= 2 ? styles.late : undefined}>
+                          {request.waitingDays === 0
+                            ? 'today'
+                            : request.waitingDays === 1
+                              ? '1 day'
+                              : `${String(request.waitingDays)} days`}
+                        </span>
+                      </p>
+                    </div>
+                    <div className={styles.decision}>
+                      {own ? (
+                        <span className={styles.yours}>Yours: waits for another checker</span>
+                      ) : open ? null : (
+                        <button
+                          type="button"
+                          className={buttons.secondary}
+                          onClick={() => {
+                            setDecided(null);
+                            setReviewing(request.approvalRequestId);
+                          }}
+                        >
+                          Review
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <dl className={styles.facts}>
+                    <div>
+                      <dt>Payer</dt>
+                      <dd>
+                        {request.payerId === null ? (
+                          '—'
+                        ) : (
+                          <Link to={`/payers/${request.payerId}`}>{request.payerName ?? 'The payer'}</Link>
+                        )}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Amount (₹)</dt>
+                      <dd className={styles.amount}>{request.amount === null ? '—' : formatDecimal(request.amount)}</dd>
+                    </div>
+                    <div>
+                      <dt>By</dt>
+                      <dd>{own ? 'You' : request.makerUserId.slice(0, 8)}</dd>
+                    </div>
+                    <div className={styles.reason}>
+                      <dt>Reason given</dt>
+                      <dd>{request.makerComment ?? '—'}</dd>
+                    </div>
+                  </dl>
+                  {open && (
+                    <div
+                      className={styles.review}
+                      aria-label={`Review: ${requestLabels[request.documentType]}`}
+                      role="group"
+                    >
+                      <ReviewPanel
+                        request={request}
+                        onClose={() => setReviewing(null)}
+                        onDecided={(message) => {
+                          setReviewing(null);
+                          setDecided(message);
+                        }}
+                      />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
           <Pagination
             page={params.page}
             totalCount={Number(pending.data.totalCount)}
@@ -212,21 +224,6 @@ export function ApprovalsPage() {
         </>
       )}
     </section>
-  );
-}
-
-function Row({ request, cells, review }: { request: PendingApproval; cells: ReactNode; review: ReactNode }) {
-  return (
-    <>
-      <tr>{cells}</tr>
-      {review !== null && (
-        <tr>
-          <td colSpan={7} aria-label={`Review: ${requestLabels[request.documentType]}`}>
-            {review}
-          </td>
-        </tr>
-      )}
-    </>
   );
 }
 

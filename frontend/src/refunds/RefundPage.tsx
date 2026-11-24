@@ -7,13 +7,16 @@ import { AuditTrail } from '../components/AuditTrail';
 import { Badge } from '../components/Badge';
 import buttons from '../components/buttons.module.css';
 import { ConfirmAction } from '../components/ConfirmAction';
+import { Banner } from '../components/Banner';
 import { Details } from '../components/Details';
+import summary from '../components/Summary.module.css';
+import { TotalsCard } from '../components/TotalsCard';
 import forms from '../components/forms.module.css';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
 import { ReasonForm } from '../components/ReasonForm';
 import { useDocumentAction } from '../components/useDocumentAction';
-import { formatDate, formatDecimal, formatInstant } from '../format';
+import { formatDate, formatInstant } from '../format';
 import { methodLabels } from '../payments/api';
 import { usePayer } from '../payers/api';
 import {
@@ -144,28 +147,32 @@ function RefundView({ refund }: { refund: Refund }) {
         />
       )}
       {refund.status === 'PendingApproval' && (
-        <p className={forms.note} role="status">
+        <Banner tone="warning" title="Waiting for approval" live>
           This refund waits for approval: a Supervisor or an administrator other than the one who submitted it posts it
           or returns it to draft.
-        </p>
+        </Banner>
       )}
       {refund.status === 'Voided' && (
-        <p className={forms.note}>
+        <Banner tone="danger" title="Voided">
           Voided {formatInstant(refund.voidedAtUtc)}: {refund.voidReason}
-        </p>
+        </Banner>
       )}
-      <Details
-        items={[
-          ['Payer', payer.data === undefined ? '…' : <Link to={`/payers/${refund.payerId}`}>{payer.data.name}</Link>],
-          ['From', source],
-          ['Refund date', formatDate(refund.refundDate)],
-          ['Amount', `₹${formatDecimal(refund.amount)}`],
-          ['Method', methodLabels[refund.method]],
-          ['Reference', refund.reference],
-          ['Reason', refund.reason],
-          ['Posted', formatInstant(refund.postedAtUtc)],
-        ]}
-      />
+      <div className={summary.split}>
+        <Details
+          items={[
+            ['Payer', payer.data === undefined ? '…' : <Link to={`/payers/${refund.payerId}`}>{payer.data.name}</Link>],
+            ['From', source],
+            ['Refund date', formatDate(refund.refundDate)],
+            ['Method', methodLabels[refund.method]],
+            ['Reference', refund.reference],
+            ['Reason', refund.reason],
+            ['Posted', formatInstant(refund.postedAtUtc)],
+          ]}
+        />
+        <div>
+          <TotalsCard label="Figures of the refund" rows={[{ label: 'Amount', value: refund.amount, strong: true }]} />
+        </div>
+      </div>
       <section className={forms.section} aria-labelledby="trail-title">
         <h2 id="trail-title">Audit trail</h2>
         <AuditTrail entityType="Refund" entityId={refund.id} />

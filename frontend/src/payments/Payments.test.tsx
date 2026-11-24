@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { todayInIndia } from '../format';
+import { formatDecimal, todayInIndia } from '../format';
 import { inTurn, json, renderApp, routedApi, sessionFor, type Handler } from '../test/app';
 import { allocation, billSummary, page, payer, payment, problem } from '../test/records';
 
@@ -87,6 +87,9 @@ describe('a payment (US-30 to US-33)', () => {
 
     expect(await screen.findByRole('heading', { name: 'PAY/26-27/000001' })).toBeInTheDocument();
     expect(screen.getByText('₹1,000.00')).toBeInTheDocument();
+    expect(screen.getByLabelText('Figures of the payment')).toHaveTextContent(
+      `Amount₹${formatDecimal(cash.amount)}Unapplied cash₹1,000.00`,
+    );
     const allocations = within(screen.getByRole('region', { name: 'Allocations' }));
     expect(await allocations.findByRole('link', { name: 'BIL/26-27/000011' })).toBeInTheDocument();
     expect(allocations.getByText('You')).toBeInTheDocument();
@@ -231,6 +234,14 @@ describe('allocating a payment (US-31, BR-303, ADR 0041 point 1)', () => {
     await user.clear(screen.getByLabelText('Amount to apply to BIL/26-27/000011'));
     await user.type(screen.getByLabelText('Amount to apply to BIL/26-27/000011'), '1000');
     await user.type(screen.getByLabelText('Amount to apply to BIL/26-27/000012'), '500.01');
+    // The meter says so in words as soon as the amounts pass the cap, before anything is sent (ADR 0049).
+    expect(
+      screen.getByText('More than the unapplied cash by ₹0.01: lower an amount before sending.', { exact: false }),
+    ).toHaveAttribute('role', 'alert');
+    expect(screen.getByRole('meter', { name: 'Allocated here of the unapplied cash' })).toHaveAttribute(
+      'value',
+      '150000',
+    );
     await user.click(screen.getByRole('button', { name: 'Allocate' }));
     expect(
       await screen.findByText('The amounts come to ₹1,500.01, more than the ₹1,500.00 unapplied.'),
@@ -340,6 +351,9 @@ describe('the payer statement (US-40, ADR 0041 point 3)', () => {
     expect(await screen.findByRole('heading', { name: 'Statement of Asha Verma' })).toBeInTheDocument();
     expect(await screen.findByText('₹1,940.55')).toBeInTheDocument();
     expect(screen.getByText('₹3,560.55')).toBeInTheDocument();
+    expect(screen.getByLabelText("The payer's figures")).toHaveTextContent(
+      'Owed on bills₹3,560.55Unapplied cash₹1,500.00Available credit₹120.00Net outstanding₹1,940.55',
+    );
     const bills = within(screen.getByRole('region', { name: 'Outstanding bills' }));
     expect(await bills.findByRole('link', { name: 'BIL/26-27/000011' })).toBeInTheDocument();
     const payments = within(screen.getByRole('region', { name: 'Payments with unapplied cash' }));

@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import { isConflict, problemOf } from '../api/call';
 import type { ApiProblem } from '../api/problem';
 import { isRetryable, useIdempotentRequest } from '../api/useIdempotentRequest';
+import { ApplyMeter } from '../components/ApplyMeter';
 import buttons from '../components/buttons.module.css';
 import table from '../components/DataTable.module.css';
 import fieldStyles from '../components/Field.module.css';
@@ -66,7 +67,6 @@ export function ApplyToBills<T>(props: ApplyToBillsProps<T>) {
   const cap = paiseOfServer(available);
   const bills = open.data?.bills ?? [];
   const total = bills.reduce((sum, bill) => sum + (paiseOf(amounts[bill.id] ?? '') ?? 0n), 0n);
-  const left = cap - total;
 
   const applying = useMutation({
     mutationFn: (lines: ApplyLine[]) =>
@@ -166,10 +166,6 @@ export function ApplyToBills<T>(props: ApplyToBillsProps<T>) {
           {formError}
         </p>
       )}
-      <p className={forms.note} aria-live="polite">
-        {availableLabel}: ₹{formatDecimal(available)} · {words.applied}: ₹{formatDecimal(asRupees(total))} · Left:{' '}
-        <strong>₹{formatDecimal(asRupees(left))}</strong>
-      </p>
 
       {open.data === undefined ? (
         <LoadState error={open.error} what="the payer's bills" />
@@ -227,6 +223,7 @@ export function ApplyToBills<T>(props: ApplyToBillsProps<T>) {
               </tbody>
             </table>
           </div>
+          <ApplyMeter label={availableLabel} appliedLabel={words.applied} cap={cap} applied={total} />
           <div className={forms.actions}>
             <button
               type="button"

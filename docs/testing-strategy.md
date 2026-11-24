@@ -193,6 +193,9 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   expect; in both themes at 1440 and 390 px under nginx's policy, with nothing refused, no console error, no sideways
   scroll and no layout shift (the elements that moved are named when it fails); the totals card in view while the lines
   scroll; nothing animated with reduced motion.
+- **The cashier's screens in the browser** (Prompt 9.3b, ADR 0049 amended), `frontend/e2e/cashier.spec.ts`, on the helper
+  `e2e/stubbed.ts` it shares with `money.spec.ts`: the payment, allocating, a refund, the statement and the inbox, the same
+  checks as the money screens, the meter in view and warning before the cap, nothing animated with reduced motion.
 - **The browser journey**, `frontend/e2e/journey.spec.ts` (Playwright, Chromium or an installed Edge or Chrome): a
   clerk registers a patient and their payer, drafts a bill with a catalogue line and a free-text line and posts it; a
   cashier records the payment and applies it oldest first, which settles the bill and empties the statement; a
