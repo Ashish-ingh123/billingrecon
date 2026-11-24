@@ -5,6 +5,11 @@ modular monolith with a React front end. The core promise is ledger-grade financ
 numbering, immutable postings, a double-entry receivables subledger with cached balances that a reconciliation holds to
 it, maker-checker approval and an append-only audit trail.
 
+**BillingRecon by ashline**, a product of [ashline](https://ashish-singh-ai-studio.vercel.app/).
+
+![The dashboard of BillingRecon: six figure cards, billing against collections, the ageing of what is owed, and the
+recent payments, top payers, pending approvals and reconciliation panels](docs/ui/dashboard-built.png)
+
 > **Status: Release 1 (`v1.0.0`, 2026-11-24).** Every user story of R1 is built and proven by tests
 > ([docs/traceability.md](docs/traceability.md)): patients and self-pay payers, the service catalogue, bills and credit
 > notes, payments and their allocation, reversals, refunds and adjustments under maker-checker, the receivables ledger
@@ -12,6 +17,11 @@ it, maker-checker approval and an append-only audit trail.
 > Built and tested on .NET 10 with SQL Server LocalDB 2019 on the development machine; the whole test suite was reported
 > green with SQL Server 2022 in Docker on 2026-11-24. What is still to be run on a machine with Docker is listed in
 > [docs/runbook.md](docs/runbook.md), section 8; what comes after R1 is in [docs/backlog.md](docs/backlog.md).
+> **Phase 9, the interface (`v1.1.0` proposed, 2026-11-24):** every screen redrawn to the level of the sign-in page in
+> a light and a dark theme, with no change of behaviour: the brand and the design tokens, the shell, the money screens,
+> the cashier's screens and the inbox, the dashboard with a tooltip on every figure and chart, the reports, print on A4,
+> and a browser suite over every route with axe's WCAG 2.2 AA checks ([docs/build-prompts.md](docs/build-prompts.md),
+> ADRs 0047 to 0050; screenshots in [docs/ui](docs/ui)).
 > Start with [CLAUDE.md](CLAUDE.md) (stack, architecture, the twelve financial rules, the working agreement).
 
 ## Release plan

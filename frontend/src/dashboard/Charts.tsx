@@ -283,7 +283,8 @@ export function AgeingChart({ ageing }: { ageing: Ageing }) {
         )}
       </div>
       <div>
-        <div className={table.wrap}>
+        {/* A frame that may scroll is reachable by the keyboard, and named (axe: scrollable-region-focusable). */}
+        <div className={table.wrap} tabIndex={0} role="region" aria-label="Outstanding dues ageing, the table">
           <table className={table.table} aria-label="Outstanding dues ageing">
             <thead>
               <tr>

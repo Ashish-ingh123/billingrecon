@@ -229,6 +229,11 @@ jobs:
       - name: Types and build
         run: npm run build
 
+      - name: The budgets of the build
+        # A first visit to the sign-in page and each route's chunk, compressed, against their budgets (Prompt 9.4b,
+        # ADR 0050 amended; backlog B21).
+        run: npm run budgets
+
       - name: Test
         run: npm test
 

@@ -12,18 +12,23 @@ export const policy = /set \$csp "([^"]+)";/.exec(
 export const screenshots = process.env.E2E_SCREENSHOTS === '1';
 
 const base64 = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
-const roles = ['BillingClerk', 'Supervisor'];
 export const userId = 'd0000000-0000-4000-8000-000000000002';
-const token = `${base64({ alg: 'HS256', typ: 'JWT' })}.${base64({ sub: userId, tenant_id: 't1', role: roles, exp: Math.floor(Date.now() / 1000) + 3600 })}.signature`;
-export const session = {
-  accessToken: token,
-  expiresAtUtc: new Date(Date.now() + 3_600_000).toISOString(),
-  userId,
-  tenantId: 'd0000000-0000-4000-8000-000000000001',
-  roles,
-  email: 'asha@cityhospital.org',
-  hospital: 'city-hospital',
-};
+
+/** A session of the given roles, as the sign-in keeps it in the tab (the token is not checked: there is no API). */
+export function sessionOf(roles: readonly string[]) {
+  const token = `${base64({ alg: 'HS256', typ: 'JWT' })}.${base64({ sub: userId, tenant_id: 't1', role: roles, exp: Math.floor(Date.now() / 1000) + 3600 })}.signature`;
+  return {
+    accessToken: token,
+    expiresAtUtc: new Date(Date.now() + 3_600_000).toISOString(),
+    userId,
+    tenantId: 'd0000000-0000-4000-8000-000000000001',
+    roles,
+    email: 'asha@cityhospital.org',
+    hospital: 'city-hospital',
+  };
+}
+
+export const session = sessionOf(['BillingClerk', 'Supervisor']);
 
 export const patient = {
   id: 'a1000000-0000-4000-8000-000000000001',
@@ -201,6 +206,7 @@ export async function open(
   theme: 'light' | 'dark',
   size: { width: number; height: number },
   answers: Answers,
+  signedIn: ReturnType<typeof sessionOf> = session,
 ) {
   expect(policy, 'the policy of frontend/deploy/nginx.conf').toBeTruthy();
   const unexpected: string[] = [];
@@ -252,7 +258,7 @@ export async function open(
         }
       }).observe({ type: 'layout-shift', buffered: true });
     },
-    [JSON.stringify(session), theme] as const,
+    [JSON.stringify(signedIn), theme] as const,
   );
 
   const errors: string[] = [];

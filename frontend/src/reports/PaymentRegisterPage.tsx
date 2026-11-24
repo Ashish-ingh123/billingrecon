@@ -60,10 +60,11 @@ export function PaymentRegisterPage() {
         <PeriodFilter from={filter.from} to={filter.to} answered={period} onChange={(next) => change(next)} />
         <ExportButton
           fileName={`payment-register-${period?.from ?? 'month'}-to-${period?.to ?? 'month'}.csv`}
-          build={async () => {
+          build={async (progress) => {
             const whole = await readWholeReport({
               read: (number, size) => readPaymentRegister(client, filter, number, size),
               isWhole: paymentRegisterIsWhole,
+              onPage: progress,
             });
             return {
               rows: whole.rows.length,

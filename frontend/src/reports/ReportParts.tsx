@@ -42,7 +42,7 @@ export function ReportTable<T>({
 
   return (
     <>
-      <div className={table.wrap}>
+      <div className={`${table.wrap} ${styles.frame}`}>
         <table className={table.table} aria-label={label}>
           <thead>
             <tr>
@@ -105,12 +105,19 @@ export function ExportButton({
   build,
 }: {
   fileName: string;
-  build: () => Promise<{ text: string; rows: number }>;
+  /** Reads the report and writes its CSV, telling `progress` after each page it reads. */
+  build: (progress: (page: number, pages: number) => void) => Promise<{ text: string; rows: number }>;
 }) {
   const [outcome, setOutcome] = useState<{ ok: boolean; message: string } | null>(null);
+  // How far the reading has come: shown while the export runs (Prompt 9.4b).
+  const [reading, setReading] = useState<{ page: number; pages: number } | null>(null);
   const exporting = useMutation({
-    mutationFn: build,
-    onMutate: () => setOutcome(null),
+    mutationFn: () => build((page, pages) => setReading({ page, pages })),
+    onMutate: () => {
+      setOutcome(null);
+      setReading(null);
+    },
+    onSettled: () => setReading(null),
     onSuccess: ({ text, rows }) => {
       saveCsv(fileName, text);
       setOutcome({ ok: true, message: `Exported ${String(rows)} ${rows === 1 ? 'row' : 'rows'} to ${fileName}.` });
@@ -136,6 +143,14 @@ export function ExportButton({
       >
         {exporting.isPending ? 'Exporting…' : 'Export CSV'}
       </button>
+      {exporting.isPending && (
+        <p className={styles.progress} role="status">
+          {reading === null
+            ? 'Reading the report…'
+            : `Reading page ${String(reading.page)} of ${String(reading.pages)}…`}
+          <progress className={styles.progressBar} max={reading?.pages ?? 1} value={reading?.page} aria-hidden="true" />
+        </p>
+      )}
       {outcome !== null && (
         <p className={outcome.ok ? forms.note : fieldStyles.error} role={outcome.ok ? 'status' : 'alert'}>
           {outcome.message}
@@ -207,12 +222,15 @@ export function PeriodFilter({
           {error}
         </p>
       )}
-      {answered !== null && answered !== undefined && (
-        <p className={styles.period}>
-          {formatDate(answered.from)} to {formatDate(answered.to)}
-          {from === '' && ', this month in India'}
-        </p>
-      )}
+      {/* The period the report answered: its line stands from the first paint, so nothing moves when it is filled. */}
+      <p className={styles.period}>
+        {answered !== null && answered !== undefined && (
+          <>
+            {formatDate(answered.from)} to {formatDate(answered.to)}
+            {from === '' && ', this month in India'}
+          </>
+        )}
+      </p>
     </form>
   );
 }

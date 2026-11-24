@@ -35,6 +35,9 @@ export default defineConfig([
           message: 'Raw HTML is not rendered (ADR 0038, docs/security.md row S5).',
         },
       ],
+      // A frame that scrolls is a named region the keyboard can reach (axe's scrollable-region-focusable, WCAG 2.1.1);
+      // the rule's default allows only tab panels (Prompt 9.4b, ADR 0050 amended).
+      'jsx-a11y/no-noninteractive-tabindex': ['error', { tags: [], roles: ['tabpanel', 'region'] }],
     },
   },
   {

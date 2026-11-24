@@ -78,3 +78,43 @@ keyboard and tap, with nothing shown only in a tooltip.
 - **Seen again (backlog B35):** LocalDB answered the dashboard's summary and drift queries with "a severe error occurred"
   during the journey; the page read them again and the step passed.
 - **Not verified:** through nginx on the personal machine (runbook section 8, row 9.4).
+
+## Amended 2026-11-24 (Prompt 9.4b): the reports, print, the finishing pass and the budgets
+
+Approved by the owner with `@axe-core/playwright` 4.14.0 (MPL-2.0, a development package of the browser suite; its
+`axe-core` 4.14.0 was already installed through the lint's accessibility plugin).
+
+1. **Routes on demand** (backlog B21 closed). Every page of `routes.tsx` is a React Router `lazy` route behind its
+   policy, and so is the shell: a first visit to the sign-in page reads none of the screens. **Budgets**, compressed,
+   held by `npm run budgets` (`frontend/scripts/budgets.test.mjs`, Node's own test runner, run in CI after the build):
+   the first visit's JavaScript at most 145 kB (138 kB built; 186 kB before), its CSS at most 15 kB (5.5 kB), any route's
+   chunk at most 20 kB (the largest 4 kB), the dashboard's at most 130 kB (114 kB). The plan had proposed 130 kB for the
+   first visit: React DOM, React Router, TanStack Query and React Hook Form, which the sign-in page uses, make about
+   135 kB, so the budget was set just above what the split reached.
+2. **The reports.** The index is cards in their groups (an icon, the name as the link, a line; the card takes the
+   click). A report's filters and export sit on one bar; its table scrolls inside a frame no taller than the window, with
+   its header stuck to the top and its totals row to the bottom, so both stay in view. Export CSV says which page it is
+   reading ("Reading page 3 of 12…") through a callback of `readWholeReport`, and how many rows it wrote at the end; the
+   CSV's bytes and checks are unchanged.
+3. **Print on A4.** `@media print`: the tokens of the light theme on white whatever the theme, no shadow; no sidebar,
+   top bar, button, filter, tooltip, meter or closed table; links as text; a row never cut in two and the table's head
+   repeated on each page; at the top, printed only, the hospital, "BillingRecon" and the day in India.
+4. **The finishing pass**, `e2e/routes.spec.ts`: the 48 routes of the shell in both themes at 1440 and 390 px, each with
+   nothing refused by nginx's policy, no console error, no request the test did not expect, no layout shift and one h1;
+   at 1440 px, axe's WCAG 2.2 A and AA rules with no serious or critical finding, and no sideways scroll at 1,920, 720
+   (200% zoom of a 1440 px screen) and 360 px. Every route's screenshot is kept in the run's `test-results`, not in git.
+   `e2e/print.spec.ts`: a bill, a statement and a report printed to A4 PDF in both themes; forced colours and
+   prefers-contrast; the keyboard's first stop leading to the content.
+5. **What the pass found and fixed:** the ageing table's frame could not be reached by the keyboard (now a named region
+   that takes the focus; the lint's `no-noninteractive-tabindex` allows `region` for it); a drop-down was as wide as its
+   longest option and widened the page at 360 px (a field's control now keeps to the field's width); the typeface was
+   not preloaded, as the bar of Phase 9 asks, so text reflowed when Inter replaced its fallback (the build now adds a
+   preload of its Latin face to index.html); a report's filters wrapped differently once the typeface arrived on a
+   phone (each now takes its own row there); the line of a report's answered period appeared with the data (it now
+   stands from the first paint).
+
+**Built and verified (office machine, installed Edge):** 449 component tests, twice; the budgets; lint, format,
+types, audit and the build clean; 261 browser tests against the built app (the routes suite, print, and the suites of
+9.1 to 9.4); the three steps of the 8.2 journey against the API on LocalDB 2019. Screenshots: `docs/ui/reports*.png`,
+`docs/ui/report-bills*.png` and the printed bill `docs/ui/bill-printed.png`.
+**Not verified:** through nginx on the personal machine (runbook section 8, row 9.4b); the tag `v1.1.0` is the owner's.

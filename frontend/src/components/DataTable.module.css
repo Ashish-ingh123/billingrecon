@@ -97,3 +97,15 @@
     transition: none;
   }
 }
+
+@media print {
+  .wrap {
+    overflow: visible;
+    box-shadow: none;
+  }
+
+  .table th:first-child,
+  .table td:first-child {
+    position: static;
+  }
+}

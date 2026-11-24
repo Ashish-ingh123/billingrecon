@@ -1,66 +1,47 @@
 import type { ReactNode } from 'react';
 import type { RouteObject } from 'react-router';
-import { AdjustmentPage } from './adjustments/AdjustmentPage';
-import { EditAdjustmentPage, NewAdjustmentPage } from './adjustments/AdjustmentFormPage';
-import { AdjustmentsPage } from './adjustments/AdjustmentsPage';
-import { ApprovalsPage } from './approvals/ApprovalsPage';
 import { RequireAuth } from './auth/RequireAuth';
-import { EditBillPage, NewBillPage } from './bills/BillFormPage';
-import { BillPage } from './bills/BillPage';
-import { BillsPage } from './bills/BillsPage';
 import type { Policy } from './auth/permissions';
 import { SignInPage } from './auth/SignInPage';
-import { ApplyCreditPage } from './creditNotes/ApplyCreditPage';
-import { EditCreditNotePage, NewCreditNotePage } from './creditNotes/CreditNoteFormPage';
-import { CreditNotePage } from './creditNotes/CreditNotePage';
-import { CreditNotesPage } from './creditNotes/CreditNotesPage';
-import { EditPatientPage, NewPatientPage } from './patients/PatientFormPage';
-import { PatientPage } from './patients/PatientPage';
-import { PatientsPage } from './patients/PatientsPage';
-import { EditPayerPage, NewPayerPage } from './payers/PayerFormPage';
-import { PayerPage } from './payers/PayerPage';
-import { PayersPage } from './payers/PayersPage';
-import { StatementPage } from './payers/StatementPage';
-import { AllocatePage } from './payments/AllocatePage';
-import { PaymentPage } from './payments/PaymentPage';
-import { PaymentsPage } from './payments/PaymentsPage';
-import { RecordPaymentPage } from './payments/RecordPaymentPage';
-import { EditRefundPage, NewRefundPage } from './refunds/RefundFormPage';
-import { AvailableCreditPage } from './reports/AvailableCreditPage';
-import { BillRegisterPage } from './reports/BillRegisterPage';
-import { DailyCollectionPage } from './reports/DailyCollectionPage';
-import { OutstandingPage } from './reports/OutstandingPage';
-import { PaymentRegisterPage } from './reports/PaymentRegisterPage';
-import { PendingApprovalsReportPage } from './reports/PendingApprovalsReportPage';
-import { ReconciliationPage } from './reports/ReconciliationPage';
-import { ReportsIndex } from './reports/ReportsIndex';
-import { UnappliedCashPage } from './reports/UnappliedCashPage';
-import { RefundPage } from './refunds/RefundPage';
-import { RefundsPage } from './refunds/RefundsPage';
-import { EditServiceItemPage, NewServiceItemPage } from './serviceItems/ServiceItemFormPage';
-import { ServiceItemPage } from './serviceItems/ServiceItemPage';
-import { ServiceItemsPage } from './serviceItems/ServiceItemsPage';
-import { AppShell } from './shell/AppShell';
 import { sections } from './shell/navigation';
 import { HomeRedirect, NoAccessPage, NotFoundPage, RequirePolicy, SectionPage } from './shell/pages';
+
+/** A page's component, loaded when its route is first visited (Prompt 9.4b, backlog B21). */
+type Load = () => Promise<() => ReactNode>;
+
+/**
+ * A route whose page is loaded on demand and shown to the roles of a policy (ADR 0039 point 3): the module is read the
+ * first time the route is visited, so a first visit to the sign-in page reads none of the screens (ADR 0050, amended).
+ */
+function guarded(path: string, policy: Policy, load: Load): RouteObject {
+  return {
+    path,
+    lazy: async () => {
+      const Page = await load();
+      return {
+        element: (
+          <RequirePolicy policy={policy}>
+            <Page />
+          </RequirePolicy>
+        ),
+      };
+    },
+  };
+}
 
 /** The screens of a resource: list and record for the readers, create and correct for the writers (ADR 0039 point 3). */
 function screens(
   path: string,
   policies: { read: Policy; write: Policy },
-  pages: { List: () => ReactNode; One: () => ReactNode; New: () => ReactNode; Edit: () => ReactNode },
+  pages: { List: Load; One: Load; New: Load; Edit: Load },
   /** The last part of the path of the change of a record: "edit", or "allocate" for a payment. */
   change = 'edit',
 ): RouteObject[] {
-  const { List, One, New, Edit } = pages;
-  const read = (page: ReactNode) => <RequirePolicy policy={policies.read}>{page}</RequirePolicy>;
-  const write = (page: ReactNode) => <RequirePolicy policy={policies.write}>{page}</RequirePolicy>;
-
   return [
-    { path, element: read(<List />) },
-    { path: `${path}/new`, element: write(<New />) },
-    { path: `${path}/:id`, element: read(<One />) },
-    { path: `${path}/:id/${change}`, element: write(<Edit />) },
+    guarded(path, policies.read, pages.List),
+    guarded(`${path}/new`, policies.write, pages.New),
+    guarded(`${path}/:id`, policies.read, pages.One),
+    guarded(`${path}/:id/${change}`, policies.write, pages.Edit),
   ];
 }
 
@@ -88,111 +69,136 @@ export const routes: RouteObject[] = [
     element: <RequireAuth />,
     children: [
       {
-        element: <AppShell />,
+        // The shell is read with the first page behind the sign-in, not by the sign-in page (Prompt 9.4b, backlog B21).
+        lazy: async () => {
+          const { AppShell } = await import('./shell/AppShell');
+          return { element: <AppShell /> };
+        },
         children: [
           { index: true, element: <HomeRedirect /> },
           ...screens('/patients', referenceData, {
-            List: PatientsPage,
-            One: PatientPage,
-            New: NewPatientPage,
-            Edit: EditPatientPage,
+            List: async () => (await import('./patients/PatientsPage')).PatientsPage,
+            One: async () => (await import('./patients/PatientPage')).PatientPage,
+            New: async () => (await import('./patients/PatientFormPage')).NewPatientPage,
+            Edit: async () => (await import('./patients/PatientFormPage')).EditPatientPage,
           }),
           ...screens('/payers', referenceData, {
-            List: PayersPage,
-            One: PayerPage,
-            New: NewPayerPage,
-            Edit: EditPayerPage,
+            List: async () => (await import('./payers/PayersPage')).PayersPage,
+            One: async () => (await import('./payers/PayerPage')).PayerPage,
+            New: async () => (await import('./payers/PayerFormPage')).NewPayerPage,
+            Edit: async () => (await import('./payers/PayerFormPage')).EditPayerPage,
           }),
           ...screens('/service-items', referenceData, {
-            List: ServiceItemsPage,
-            One: ServiceItemPage,
-            New: NewServiceItemPage,
-            Edit: EditServiceItemPage,
+            List: async () => (await import('./serviceItems/ServiceItemsPage')).ServiceItemsPage,
+            One: async () => (await import('./serviceItems/ServiceItemPage')).ServiceItemPage,
+            New: async () => (await import('./serviceItems/ServiceItemFormPage')).NewServiceItemPage,
+            Edit: async () => (await import('./serviceItems/ServiceItemFormPage')).EditServiceItemPage,
           }),
           ...screens(
             '/bills',
             { read: 'ReadBills', write: 'WriteBills' },
-            { List: BillsPage, One: BillPage, New: NewBillPage, Edit: EditBillPage },
+            {
+              List: async () => (await import('./bills/BillsPage')).BillsPage,
+              One: async () => (await import('./bills/BillPage')).BillPage,
+              New: async () => (await import('./bills/BillFormPage')).NewBillPage,
+              Edit: async () => (await import('./bills/BillFormPage')).EditBillPage,
+            },
           ),
-          {
-            path: '/payers/:id/statement',
-            element: (
-              <RequirePolicy policy="Reports">
-                <StatementPage />
-              </RequirePolicy>
-            ),
-          },
+          guarded(
+            '/payers/:id/statement',
+            'Reports',
+            async () => (await import('./payers/StatementPage')).StatementPage,
+          ),
           ...screens(
             '/payments',
             { read: 'ReadPayments', write: 'RecordPayments' },
-            { List: PaymentsPage, One: PaymentPage, New: RecordPaymentPage, Edit: AllocatePage },
+            {
+              List: async () => (await import('./payments/PaymentsPage')).PaymentsPage,
+              One: async () => (await import('./payments/PaymentPage')).PaymentPage,
+              New: async () => (await import('./payments/RecordPaymentPage')).RecordPaymentPage,
+              Edit: async () => (await import('./payments/AllocatePage')).AllocatePage,
+            },
             'allocate',
           ),
           ...screens(
             '/refunds',
             { read: 'ReadRefunds', write: 'DraftRefunds' },
-            { List: RefundsPage, One: RefundPage, New: NewRefundPage, Edit: EditRefundPage },
+            {
+              List: async () => (await import('./refunds/RefundsPage')).RefundsPage,
+              One: async () => (await import('./refunds/RefundPage')).RefundPage,
+              New: async () => (await import('./refunds/RefundFormPage')).NewRefundPage,
+              Edit: async () => (await import('./refunds/RefundFormPage')).EditRefundPage,
+            },
           ),
           ...screens(
             '/credit-notes',
             { read: 'ReadCreditNotes', write: 'DraftCreditNotesAndAdjustments' },
-            { List: CreditNotesPage, One: CreditNotePage, New: NewCreditNotePage, Edit: EditCreditNotePage },
+            {
+              List: async () => (await import('./creditNotes/CreditNotesPage')).CreditNotesPage,
+              One: async () => (await import('./creditNotes/CreditNotePage')).CreditNotePage,
+              New: async () => (await import('./creditNotes/CreditNoteFormPage')).NewCreditNotePage,
+              Edit: async () => (await import('./creditNotes/CreditNoteFormPage')).EditCreditNotePage,
+            },
           ),
-          {
-            path: '/credit-notes/:id/apply',
-            element: (
-              <RequirePolicy policy="DraftCreditNotesAndAdjustments">
-                <ApplyCreditPage />
-              </RequirePolicy>
-            ),
-          },
+          guarded(
+            '/credit-notes/:id/apply',
+            'DraftCreditNotesAndAdjustments',
+            async () => (await import('./creditNotes/ApplyCreditPage')).ApplyCreditPage,
+          ),
           ...screens(
             '/adjustments',
             { read: 'ReadAdjustments', write: 'DraftCreditNotesAndAdjustments' },
-            { List: AdjustmentsPage, One: AdjustmentPage, New: NewAdjustmentPage, Edit: EditAdjustmentPage },
-          ),
-          {
-            path: '/approvals',
-            element: (
-              <RequirePolicy policy="Decide">
-                <ApprovalsPage />
-              </RequirePolicy>
-            ),
-          },
-          {
-            // The dashboard and its chart library are read only when the dashboard is opened (ADR 0044 point 5).
-            path: '/dashboard',
-            lazy: async () => {
-              const { DashboardPage } = await import('./dashboard/DashboardPage');
-              return {
-                element: (
-                  <RequirePolicy policy="Dashboard">
-                    <DashboardPage />
-                  </RequirePolicy>
-                ),
-              };
+            {
+              List: async () => (await import('./adjustments/AdjustmentsPage')).AdjustmentsPage,
+              One: async () => (await import('./adjustments/AdjustmentPage')).AdjustmentPage,
+              New: async () => (await import('./adjustments/AdjustmentFormPage')).NewAdjustmentPage,
+              Edit: async () => (await import('./adjustments/AdjustmentFormPage')).EditAdjustmentPage,
             },
-          },
-          ...(
-            [
-              ['/reports', ReportsIndex],
-              ['/reports/bills', BillRegisterPage],
-              ['/reports/payments', PaymentRegisterPage],
-              ['/reports/collection', DailyCollectionPage],
-              ['/reports/outstanding', OutstandingPage],
-              ['/reports/unapplied-cash', UnappliedCashPage],
-              ['/reports/available-credit', AvailableCreditPage],
-              ['/reports/pending-approvals', PendingApprovalsReportPage],
-              ['/reports/reconciliation', ReconciliationPage],
-            ] as const
-          ).map(([path, Page]) => ({
-            path,
-            element: (
-              <RequirePolicy policy="Reports">
-                <Page />
-              </RequirePolicy>
-            ),
-          })),
+          ),
+          guarded('/approvals', 'Decide', async () => (await import('./approvals/ApprovalsPage')).ApprovalsPage),
+          // The dashboard and its chart library are read only when the dashboard is opened (ADR 0044 point 5).
+          guarded('/dashboard', 'Dashboard', async () => (await import('./dashboard/DashboardPage')).DashboardPage),
+          guarded('/reports', 'Reports', async () => (await import('./reports/ReportsIndex')).ReportsIndex),
+          guarded(
+            '/reports/bills',
+            'Reports',
+            async () => (await import('./reports/BillRegisterPage')).BillRegisterPage,
+          ),
+          guarded(
+            '/reports/payments',
+            'Reports',
+            async () => (await import('./reports/PaymentRegisterPage')).PaymentRegisterPage,
+          ),
+          guarded(
+            '/reports/collection',
+            'Reports',
+            async () => (await import('./reports/DailyCollectionPage')).DailyCollectionPage,
+          ),
+          guarded(
+            '/reports/outstanding',
+            'Reports',
+            async () => (await import('./reports/OutstandingPage')).OutstandingPage,
+          ),
+          guarded(
+            '/reports/unapplied-cash',
+            'Reports',
+            async () => (await import('./reports/UnappliedCashPage')).UnappliedCashPage,
+          ),
+          guarded(
+            '/reports/available-credit',
+            'Reports',
+            async () => (await import('./reports/AvailableCreditPage')).AvailableCreditPage,
+          ),
+          guarded(
+            '/reports/pending-approvals',
+            'Reports',
+            async () => (await import('./reports/PendingApprovalsReportPage')).PendingApprovalsReportPage,
+          ),
+          guarded(
+            '/reports/reconciliation',
+            'Reports',
+            async () => (await import('./reports/ReconciliationPage')).ReconciliationPage,
+          ),
           ...sections
             .filter((section) => !built.has(section.path))
             .map((section) => ({ path: section.path, element: <SectionPage section={section} /> })),

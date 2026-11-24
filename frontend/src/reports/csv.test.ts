@@ -79,6 +79,16 @@ describe('reading every row for an export', () => {
     expect(pages).toEqual([1, 2, 3]);
   });
 
+  it('says how far it has read after each page, for the progress of the export (Prompt 9.4b)', async () => {
+    const { read, pages } = report(250);
+    const told: string[] = [];
+
+    await readWholeReport({ read, isWhole, onPage: (page, of) => told.push(`${String(page)}/${String(of)}`) });
+
+    expect(told).toEqual(['1/3', '2/3', '3/3']);
+    expect(pages).toEqual([1, 2, 3]);
+  });
+
   it('refuses more than ten thousand rows', async () => {
     await expect(readWholeReport({ read: report(10_001).read, isWhole })).rejects.toBeInstanceOf(ExportTooLargeError);
   });

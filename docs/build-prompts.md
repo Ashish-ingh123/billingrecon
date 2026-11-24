@@ -50,9 +50,10 @@ is left; their numbering is mine, not the blueprint's.
 | 9.3 The money screens: shared components, bills, credit notes, adjustments | Written on 2026-11-24 (ADR 0049), on `phase-9-interface`, after the owner split 9.3 in two: money as one component, one mapping of every status with its icon, the totals card, banners, the history as a timeline, units and a required mark in fields, pending buttons, the refused field focused; bills, credit notes and adjustments, the no-access and not-found pages. 422 component tests and 31 browser tests in the installed Edge, the 8.2 journey through the new screens. Not seen through nginx |
 | 9.3b The cashier's screens and the inbox | Written on 2026-11-24 (ADR 0049, amended), on `phase-9-interface`: the meter of what is left to apply, figures cards and banners on the payment's and refund's pages, the statement's four tiles drawn without a shift, the inbox as cards, units and required marks on the cashier's forms. 422 component tests and 53 browser tests in the installed Edge, the 8.2 journey. Not seen through nginx |
 | 9.4 The dashboard and its tooltips | Written on 2026-11-24 (ADR 0050), on `phase-9-interface`, after the owner split 9.4: one tooltip component on two new tokens, opened and closed by pointer, keyboard and tap, on the cards, sparklines, line chart (crosshair by the arrow keys), donut (drawn here) and the top payers' bars; a table for every chart; the period as a segmented control; no inline style; no layout shift. 448 component tests and 60 browser tests in the installed Edge, the 8.2 journey. Not seen through nginx |
-| 9.4b (the reports, print, the finishing pass, the budgets, v1.1.0) | Written as a prompt on 2026-11-24, not started |
+| 9.4b The reports, print, the finishing pass and the release | Written on 2026-11-24 (ADR 0050, amended), on `phase-9-interface`: every route on demand within budgets held in CI (backlog B21), the reports' cards, filter bar, framed table with its totals in view and the export's progress, print on A4, a browser suite over all 48 routes with axe (`@axe-core/playwright` 4.14.0, approved), the README. 449 component tests and 261 browser tests in the installed Edge, the 8.2 journey. Not seen through nginx; `v1.1.0` proposed |
+| 10.0 to 10.7 Go-live (the verification debt; users and settings screens; onboarding; the hospital's records and opening balances; printed documents; production; operations; readiness) | Written as prompts on 2026-11-24 from the owner's draft, not started; 10.3 and 10.4 wait for the client's export and formats |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. 5.3b (tenant settings and prefix changes) is written too, and `0019` is in the repository. ADR 0033 built note point 5 was decided on 2026-11-23 (the approval holds the series) and is built as its own commit. 5.4 was split with its plan: its first half, the database logins and grants, is written too, and `0020` is in the repository. 5.4b (HTTP hardening and `docs/security.md` in full) is written too, with no migration; Phase 5 is written to its end, and its merge to `main` is the owner's step. 6.1 (registers and balances), 6.2 (reconciliation and audit trail) and 6.3 (dashboard figures) are written too, with no migration, on `phase-2-billing` like the rest: the backend of R1 is written to its end, and its merge to `main` is the owner's step. 7.1 (the frontend's scaffold and sign-in) is written too, on the same branch, with Node 24 on the office machine. 7.2 (patients, payers and catalogue screens), 7.3 (bill screens), 7.4 (cashier screens) and 7.5 (the checker's inbox, credit notes and adjustments; split with its plan), 7.5b (reports) and 7.6 (dashboard) are written too: the frontend of R1 is written to its end. 8.1 (one-command local run) is written too, on `phase-8-delivery`, and so are 8.2 (performance and browser tests) and 8.3 (release R1, tagged `v1.0.0`): R1 is written to its end. On 2026-11-24 the owner reported the first run on the personal machine: `docker compose up --build` with the demo, and `dotnet test` with Docker, which passed; its output is still to be sent, so the rows of runbook section 8 stay until then. No prompt is left in R1. Phase 9, the interface, has begun: 9.1 (the brand, the tokens and the sign-in page) is written, without the photograph, which is still to come, and so are 9.2 (the shell and the shared components) and 9.3 (the money screens' shared components, bills, credit notes and adjustments); and 9.3b (payments, refunds, the statement and the inbox) is written too; and 9.4 (the dashboard and its tooltips) is written too; next is 9.4b (the reports, print, the finishing pass and the release); what else follows is in `docs/backlog.md` and the release plan of CLAUDE.md. What was decided for each built prompt is recorded under it below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. 5.3b (tenant settings and prefix changes) is written too, and `0019` is in the repository. ADR 0033 built note point 5 was decided on 2026-11-23 (the approval holds the series) and is built as its own commit. 5.4 was split with its plan: its first half, the database logins and grants, is written too, and `0020` is in the repository. 5.4b (HTTP hardening and `docs/security.md` in full) is written too, with no migration; Phase 5 is written to its end, and its merge to `main` is the owner's step. 6.1 (registers and balances), 6.2 (reconciliation and audit trail) and 6.3 (dashboard figures) are written too, with no migration, on `phase-2-billing` like the rest: the backend of R1 is written to its end, and its merge to `main` is the owner's step. 7.1 (the frontend's scaffold and sign-in) is written too, on the same branch, with Node 24 on the office machine. 7.2 (patients, payers and catalogue screens), 7.3 (bill screens), 7.4 (cashier screens) and 7.5 (the checker's inbox, credit notes and adjustments; split with its plan), 7.5b (reports) and 7.6 (dashboard) are written too: the frontend of R1 is written to its end. 8.1 (one-command local run) is written too, on `phase-8-delivery`, and so are 8.2 (performance and browser tests) and 8.3 (release R1, tagged `v1.0.0`): R1 is written to its end. On 2026-11-24 the owner reported the first run on the personal machine: `docker compose up --build` with the demo, and `dotnet test` with Docker, which passed; its output is still to be sent, so the rows of runbook section 8 stay until then. No prompt is left in R1. Phase 9, the interface, has begun: 9.1 (the brand, the tokens and the sign-in page) is written, without the photograph, which is still to come, and so are 9.2 (the shell and the shared components) and 9.3 (the money screens' shared components, bills, credit notes and adjustments); and 9.3b (payments, refunds, the statement and the inbox) is written too; and 9.4 (the dashboard and its tooltips) is written too; and so is 9.4b (the reports, print, the finishing pass and the release): Phase 9 is written, `v1.1.0` proposed; what else follows is in `docs/backlog.md` and the release plan of CLAUDE.md. What was decided for each built prompt is recorded under it below.**
 
 ## How to use these prompts
 
@@ -1419,4 +1420,209 @@ older than the sign-in page; the budgets hold; and the journey of 8.2 passes thr
 personal machine with no content security policy refusal.
 ```
 
+**Owner's decisions for 9.4b, recorded 2026-11-24 (ADR 0050, amendment):** the plan was approved with
+`@axe-core/playwright` 4.14.0. The first visit's budget was set at 145 kB, above the 130 kB the plan proposed, because
+the libraries the sign-in page uses come to about 135 kB (said in the result).
+
 Merge to `main`; the owner tags `v1.1.0`.
+
+### Phase 10. Go-live (branch `phase-10-golive`)
+
+R1 and the interface are written, but BillingRecon has only run as a demo on the owner's machines. Phase 10 takes it to a
+live hospital: it pays the verification debt, closes the gaps a real client meets on the first day (staff set-up, the
+hospital's own records and opening balances, printed documents, production hosting, operations), and ends with a go-live
+plan. Eight prompts, one per session, in order. Each begins with a plan and waits for approval. Written as prompts on
+2026-11-24 from the owner's draft, with the owner's leave to improve it.
+
+**Before 10.0, from the client** (10.3 and 10.4 stop without them; 10.1 and 10.2 use 5 and 6):
+
+1. An export, or a sample of one, from the client's current billing system: patients and their payers, unpaid bills,
+   advances, credit balances, and the trial balance at a date. **Not received yet.**
+2. The client's current bill, receipt and refund formats, and their chartered accountant's requirements for what a
+   hospital's bill must show (a tax invoice or a bill of supply, which is the accountant's call). **Not received yet.**
+3. Where production runs, the domain, and who holds the production secrets. **Not decided yet.**
+4. Confirmation that the client can go live with self-pay only (R1 has no insurer or TPA billing). **Not confirmed yet.**
+5. The list of staff who will use it, each with a role of the permission matrix. **Not received yet.**
+6. The letterhead: the hospital's legal name, address, GSTIN if any, logo and signatory. **Not received yet.**
+
+**The bar of Phase 10.** Every prompt of the phase is held to all of it:
+
+1. **The bar of Phase 9 still holds** for any screen this phase adds.
+2. **The twelve financial rules hold** for any new document: gapless numbering, balanced postings, maker-checker,
+   idempotency, zero drift after every database test.
+3. **No secret in git.** A key, a password or a connection string with credentials appears only in the host's secret
+   store or in a file that is ignored.
+4. **Verified where it runs.** From 10.0 on, a prompt is done only when its tests pass on SQL Server 2022 and CI is green,
+   not on LocalDB alone.
+5. **What is outside the code is written down** in `docs/go-live.md` with an owner and a date. The DPDP review, the data
+   processing agreement, the penetration test, the client's tax sign-off and their acceptance are not decided by Claude.
+6. **No real patient's data outside production.** The client's export lives outside git; staging and tests use the
+   synthetic records of `TestData` or an export with names, phones and addresses replaced.
+
+#### 10.0 Pay the verification debt
+
+```
+Read docs/runbook.md section 8 in full, CLAUDE.md section 9 and docs/backlog.md (B31 and B35 in particular).
+Build nothing new. Give me, in order, every command section 8 owes for my personal machine: SQL Server
+2022 in Docker, dotnet tool restore, dotnet build, dotnet format --verify-no-changes, dotnet test (the
+Database collection included), the frontend's npm ci, format, lint, types, tests, build and budgets, the
+10,000-bill load run of 8.2, the 8.2 journey through nginx, and the 9.1 to 9.4b checks through nginx,
+with what to look for in Seq (backlog B35). Keep them exact and few: I copy the project there and send
+the output back. Wait for my output.
+From my output: fix real defects only, one commit each, and never weaken a test to make it pass. Then
+give me the merge order of phase-2-billing, phase-8-delivery and phase-9-interface into main (say which
+are ancestors of which), with the commands, and the tags v1.0.0 and v1.1.0 kept on their commits. I push
+and watch the first CI run; we fix it until it is green, including the image smoke run and the frontend
+job, neither of which has run.
+Decide with me what is left of 9.1 (the photograph): ship without it, or a date for it.
+Update runbook section 8, CLAUDE.md sections 2 and 9, the status table at the top of
+docs/build-prompts.md, and backlog rows B31 and B35.
+Done when: runbook section 8 is empty, every test has passed on SQL Server 2022, CI is green on main, and
+nothing is left unmerged.
+```
+
+#### 10.1 Users and settings screens
+
+```
+Read docs/backlog.md rows B18 and B24, ADRs 0030 to 0033, ADRs 0047 to 0050 and "The bar of Phase 9".
+Show me the plan first: each screen at 1440 and 390 px, what the eye meets first, and any change of the API.
+Build for the TenantAdmin, through the API that exists, in the Phase 9 design:
+- users: the list (paged, searchable, by status and role), create a user with roles, edit roles, enable
+  and disable (the last active administrator and oneself refused, as the API refuses them today), and
+  reset a password;
+- settings: the approval threshold, the back-date window and the default due days with If-Match; the
+  prefix change as a maker-checker request, shown in the checker's inbox.
+Then propose, before coding, a forced password change at the first sign-in and after an administrator's
+reset. This amends ADR 0030's point on "no forced change": state the flag, the migration if any, what the
+token carries while a change is due, and which endpoints stay open until the password is changed.
+Close backlog B24 on the way: no request record that carries a password prints it.
+Tests: every form, every refusal through the ProblemDetails component, the matrix test naming any new
+endpoint, access by role in the browser, both themes, the routes suite of 9.4b with the new routes.
+Close backlog rows B18 and B24. Write ADR 0051.
+Done when: a new hospital's administrator sets up every member of staff of the client's list without
+touching the API, and a user with a reset password must change it before reaching any screen.
+```
+
+#### 10.2 Tenant onboarding
+
+```
+Read ADR 0045 (the demo bootstrap), ADR 0030, ADR 0033, ADR 0051 and docs/runbook.md section 10.
+Propose first how a real hospital is created in production. Recommend a command run by the operator
+on the server (not an endpoint reachable from the internet) that creates the tenant, its first
+TenantAdmin with a one-time password and a forced change (10.1), its prefixes, threshold, back-date
+window and due days, all audited. Say how it is kept apart from the demo bootstrap, which must refuse to
+run outside the demo. Propose with it a second command that suspends a hospital (no one signs in, nothing
+is deleted) and lifts the suspension.
+Tests: the command on a migrated database as the application login; a second run with the same code
+refused; the first admin signs in and must change the password; a suspended hospital's users are refused
+and nothing of it is deleted; the demo bootstrap refused in Production.
+Add both procedures to the runbook. Write ADR 0052.
+Done when: the operator onboards a hospital in one command and its administrator signs in.
+```
+
+#### 10.3 The hospital's records and opening balances
+
+```
+Read ADR 0005, ADR 0008, docs/database.md sections 4 and 5, docs/requirements.md BR-101 to BR-106 and
+BR-401 to BR-406, and the client's export in <path the owner gives, outside git>. If the export is not
+there, stop and tell me.
+Raise with me first, before any design: the cut-over date; what the export holds and what it lacks; how
+its patients map to MRNs and payers (duplicates, guarantors, missing fields); and whether opening
+balances are kept per bill (each unpaid bill of the old system becomes one opening receivable with its
+old number and date) or per payer (one figure each). Recommend one.
+Then propose, in this order: the import of patients and their payers (matched by MRN, duplicates
+reported, never merged silently); then opening-balance documents (an opening receivable, opening unapplied
+cash, opening credit) with their own number series, ledger postings against a new OpeningBalances account
+(an ADR amending docs/database.md section 5 and the reconciliation identities), maker-checker approval of
+the import as one batch, and an import from CSV with a dry run that reports every rejected row and why. The
+opening documents can be allocated, credited, adjusted and refunded like the documents they stand for.
+The import runs on staging with the whole export first, then on production at cut-over.
+Tests: the dry run changes nothing; a rejected row names its line and reason; a duplicate patient is
+reported; an import reconciles to zero drift; the imported totals equal the export's trial balance; a
+payment allocated to an opening receivable settles it; a second import of the same batch is refused.
+Write the import procedure in the runbook and ADR 0053.
+Done when: the client's sample export imports, reconciles to zero drift, and each payer's statement
+matches the old system's balance for that payer.
+```
+
+#### 10.4 Printed bills, receipts, refund vouchers and the tax document
+
+```
+Read the print styles of 9.4b, ADR 0040, ADR 0041, and the client's formats and their chartered
+accountant's requirements in <path the owner gives>. If they are not there, stop and tell me.
+Show me first, as a list, every field the formats and the requirements ask for and whether the model has it
+(the hospital's legal name, address and GSTIN, the SAC code of a service, the tax split into CGST, SGST or
+IGST, the place of supply, the exempt-service wording, whether the document is a tax invoice or a bill of
+supply, amounts in words in the Indian system of lakh and crore, the signatory). Propose each missing one
+with its home (tenant settings, the service item, the bill) and its migration, as an ADR, before coding. No
+figure is computed differently from BR-202 and BR-203; a split of tax is derived from the stored line tax.
+Then build, on A4 with the hospital's letterhead from tenant settings: the printed bill, the payment receipt
+and the refund voucher, each reachable from its document's page, each showing a reprint as a duplicate.
+Tests: each printed document's fields against its document; amounts in words for awkward values (0.50,
+1,00,000.01, 12,34,56,789.99); the duplicate mark; print in both themes yields dark text on white; no shell
+is printed; the routes suite of 9.4b with the new routes.
+Write ADR 0054.
+Done when: the client's accountant signs off a printed sample of each, recorded in docs/go-live.md.
+```
+
+#### 10.5 Production deployment
+
+```
+Read ADR 0017, ADR 0035, ADR 0045, docs/security.md and docs/runbook.md. Ask me first where it runs, the
+domain, and who holds the secrets; do not assume a cloud. Say where the data is held (in India, for the
+DPDP review) and how it is encrypted at rest (TDE where the edition has it, the disk otherwise).
+Propose, then build: the production compose file or manifests; a real certificate and its renewal; the
+JWT signing key, the database logins and every connection string injected from the host's secret store,
+never from git, and refused at startup when missing; SQL Server 2022 (the edition and its licence named),
+with READ_COMMITTED_SNAPSHOT ON checked at startup; migrations run by the release pipeline as the migrator
+login, from a tagged image; scheduled, encrypted backups with their retention and an off-site copy, and a
+restore drill each month; a staging environment identical to production.
+Write in the runbook: deploy, roll back a release, roll back a migration, restore a backup, and rotate each
+secret.
+Tests: the startup refusals; the pipeline deploys a tagged image to staging; a backup of staging is restored
+to a new database and reconciles to zero drift.
+Write ADR 0055.
+Done when: staging is deployed by the pipeline from a tag, a backup is restored from it, and I have walked
+the deploy and rollback procedures myself.
+```
+
+#### 10.6 Operations
+
+```
+Read ADR 0006, ADR 0035, docs/security.md section 10 and the reconciliation of 6.2.
+Build: the scheduled clean-up of idempotency keys older than 30 days; the reconciliation of every tenant
+every night, with an alert on any drift row; uptime and error alerting on the health endpoints and the
+error rate; alerts on a database or disk near full and a certificate near expiry; the production log store
+with its retention and the PII masking of 1.2 checked in it; the retention of the audit trail written down.
+Record the limits of a single instance (the sign-in limiter in memory, the clean-up running once) as
+accepted risks in docs/security.md, or propose how to lift them.
+Write an on-call page in the runbook: who is called, for what, and the first steps for drift, a failed
+deploy, a database that is full and a certificate that is about to expire.
+Tests: an expired key removed and a fresh one kept; a seeded drift on staging sends an alert; the
+alerts named in the runbook each fire once on staging.
+Write ADR 0056.
+Done when: a drift seeded on staging reaches me as an alert, and the clean-up has run on its schedule.
+```
+
+#### 10.7 Go-live readiness
+
+```
+Read every ADR of Phase 10, docs/runbook.md and docs/security.md.
+Write docs/go-live.md:
+- the user acceptance script: the Phase 4 scenario and a day of the client's own front desk, cash counter
+  and supervisor, each step with its expected result and a column for the client's tester;
+- training notes for each role, one page each, with screenshots from docs/ui/;
+- the cut-over plan: freeze the old system, export, import (10.3), reconcile, sign-off, switch, with times;
+- the go/no-go criteria (acceptance signed, zero drift after the import, backups restored, alerts firing,
+  the accountant's sign-off) and the rollback decision point, with who makes each call;
+- two weeks of hypercare: who answers, how fast, how a defect is reported, and what is watched each day
+  (drift, errors, sign-in refusals);
+- a checklist of what is outside the code: the penetration test, the DPDP Act review with consent wording,
+  retention and a breach procedure, the data processing agreement, the accountant's sign-off of 10.4, the
+  client's acceptance, the support contract. Each item with an owner and a date; none is marked done by
+  Claude.
+Update the README, CLAUDE.md and the status table of docs/build-prompts.md. Propose the tag v1.2.0.
+Done when: every checklist item has an owner and a date, and the client has a date for acceptance testing.
+```
+
+Merge to `main`; the owner tags `v1.2.0`; go-live follows the plan in `docs/go-live.md`.

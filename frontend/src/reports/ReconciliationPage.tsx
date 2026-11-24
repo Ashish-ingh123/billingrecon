@@ -34,10 +34,11 @@ export function ReconciliationPage() {
         <span />
         <ExportButton
           fileName="reconciliation.csv"
-          build={async () => {
+          build={async (progress) => {
             const whole = await readWholeReport({
               read: (number, size) => readReconciliation(client, number, size),
               isWhole: driftIsWhole,
+              onPage: progress,
               sameTotals: sameFindings,
             });
             return {

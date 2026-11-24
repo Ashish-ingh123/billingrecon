@@ -38,10 +38,11 @@ export function UnappliedCashPage() {
         </div>
         <ExportButton
           fileName="unapplied-cash.csv"
-          build={async () => {
+          build={async (progress) => {
             const whole = await readWholeReport({
               read: (number, size) => readUnappliedCash(client, values.payerId, number, size),
               isWhole: unappliedIsWhole,
+              onPage: progress,
             });
             return {
               rows: whole.rows.length,

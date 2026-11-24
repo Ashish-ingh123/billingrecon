@@ -5,6 +5,7 @@ import { roleLabels } from '../auth/roles';
 import { BrandMark } from '../brand/BrandMark';
 import { CompanyCredit } from '../brand/CompanyCredit';
 import { Icon } from '../brand/Icon';
+import { formatDate, todayInIndia } from '../format';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import styles from './AppShell.module.css';
 import { sectionsFor } from './navigation';
@@ -197,6 +198,10 @@ export function AppShell() {
       </header>
 
       <main id="content" className={styles.content} tabIndex={-1}>
+        {/* On paper only: the hospital and the day it was printed, in India (Prompt 9.4b). */}
+        <p className={styles.printHead}>
+          {session.hospital} · BillingRecon · printed {formatDate(todayInIndia())}
+        </p>
         <div key={location.pathname} className={styles.page}>
           <Outlet />
         </div>

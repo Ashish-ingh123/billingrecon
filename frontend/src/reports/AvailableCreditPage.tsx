@@ -38,10 +38,11 @@ export function AvailableCreditPage() {
         </div>
         <ExportButton
           fileName="available-credit.csv"
-          build={async () => {
+          build={async (progress) => {
             const whole = await readWholeReport({
               read: (number, size) => readAvailableCredit(client, values.payerId, number, size),
               isWhole: availableCreditIsWhole,
+              onPage: progress,
             });
             return {
               rows: whole.rows.length,

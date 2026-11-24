@@ -448,3 +448,38 @@
     transition: none;
   }
 }
+
+/* On paper (Prompt 9.4b, ADR 0050 amended): the page alone under the hospital's name and the day, no shell. */
+.printHead {
+  display: none;
+}
+
+@media print {
+  .sidebar,
+  .topBar,
+  .backdrop,
+  .skip {
+    display: none !important;
+  }
+
+  .shell,
+  .shell[data-rail] {
+    display: block;
+  }
+
+  .content {
+    padding: 0;
+  }
+
+  .printHead {
+    display: block;
+    margin: 0 0 var(--space-4);
+    padding-bottom: var(--space-2);
+    font-size: var(--text-sm);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .page {
+    animation: none;
+  }
+}

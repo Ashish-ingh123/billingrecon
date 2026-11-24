@@ -46,3 +46,59 @@ h2,
 h3 {
   line-height: 1.25;
 }
+
+/* On paper (Prompt 9.4b, ADR 0050 amended): A4, what is read and not what is done; a row of a table is never cut in two,
+   and a table's head is repeated on every page. The shell, the page header's actions and the report's filters say what
+   they leave out in their own styles. */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+
+  body {
+    min-height: 0;
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  button,
+  [role='tooltip'],
+  [role='radiogroup'],
+  details:not([open]),
+  progress,
+  meter {
+    display: none !important;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  table {
+    break-inside: auto;
+  }
+
+  tr,
+  li,
+  dl > div {
+    break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  h1,
+  h2 {
+    break-after: avoid;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

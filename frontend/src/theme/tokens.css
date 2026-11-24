@@ -212,3 +212,44 @@
 
   --theme-color: #00122e;
 }
+
+/*
+ * On paper (Prompt 9.4b, ADR 0050 amended): dark text on white in either theme, no shadow, the series and the meanings
+ * of the light theme. The contrast of these pairs is the light theme's or higher.
+ */
+@media print {
+  :root,
+  :root[data-theme] {
+    color-scheme: light;
+    --surface: #ffffff;
+    --surface-raised: #ffffff;
+    --surface-sunken: #f2f4f7;
+    --surface-popover: #ffffff;
+    --text: #000000;
+    --text-muted: #333a47;
+    --placeholder: #5a6b8c;
+    --border: #6b7a99;
+    --border-soft: #c9d1df;
+    --border-strong: #3f4f70;
+    --accent: #0b4fd0;
+    --accent-strong: #083fa8;
+    --on-accent: #ffffff;
+    --accent-soft: #e3ecfd;
+    --success: #17683a;
+    --success-soft: #e3f4ea;
+    --warning: #7f4c00;
+    --warning-soft: #fff1da;
+    --danger: #b3261e;
+    --danger-soft: #fde7e5;
+    --focus: #0b4fd0;
+    --series-1: #1d5bb8;
+    --series-2: #b85c00;
+    --series-3: #1a7f74;
+    --series-4: #7d3c98;
+    --series-5: #b0261d;
+    --series-6: #5c6470;
+    --shadow-card: none;
+    --shadow-raised: none;
+    --shadow-button: none;
+  }
+}

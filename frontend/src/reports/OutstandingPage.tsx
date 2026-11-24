@@ -59,10 +59,11 @@ export function OutstandingPage() {
         </form>
         <ExportButton
           fileName="outstanding-by-payer.csv"
-          build={async () => {
+          build={async (progress) => {
             const whole = await readWholeReport({
               read: (number, size) => readOutstanding(client, values.search, number, size),
               isWhole: outstandingIsWhole,
+              onPage: progress,
             });
             return {
               rows: whole.rows.length,

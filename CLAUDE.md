@@ -94,8 +94,8 @@ React + TypeScript + Vite in `frontend/` (ADR 0038, Prompt 7.1). Node 22.22 or l
 | Tests | **Vitest**, jsdom, React Testing Library | The API faked by a `fetch` given to the client (`src/test/app.tsx`); no mocking package. Vitest reads `src/` only. |
 | Browser journey (ADR 0046) | **Playwright** 1.65.1 | `e2e/journey.spec.ts`, its own `tsconfig.e2e.json`, `npm run e2e`; against https://localhost by default (`E2E_BASE_URL`), Chromium or an installed browser (`E2E_BROWSER_CHANNEL`); a console error on any page fails the step, the browser's `/favicon.ico` excepted. |
 | Lint and format | **ESLint 9** (type-aware TypeScript, hooks, `jsx-a11y`, no `dangerouslySetInnerHTML`), **Prettier** | ESLint stays on 9 until `jsx-a11y` supports 10. Warnings are errors. One `eslint-disable`, in a test, with its reason. |
-| Brand and tokens (ADR 0047) | Inter, self-hosted; our own icons; the sign-in page | Since Prompt 9.1 `tokens.css` holds, for both themes, the brand's blues, the sign-in page's ground, shadows, radii, spacing, type sizes and durations; a token's name holds no CSS colour word (the scan reads it as one). Inter comes from `@fontsource-variable/inter`, bundled and served from our origin, with a metric-matched fallback. Icons are `src/brand/Icon.tsx` (inline SVG, `currentColor`); `BrandMark` is the product's mark, `CompanyCredit` the ashline logo and name. The sign-in page is laid out in the pixels of `docs/ui/sign-in.png` (`--u`), animates only transform and opacity, and nothing with reduced motion. `VITE_SUPPORT_EMAIL` (from `SUPPORT_EMAIL` in `.env`) is the sign-in page's "Contact support". Since 9.2 (ADR 0048): the shell has a sidebar with an icon per section, a rail (kept in `localStorage`) and a drawer under 900 px; the theme is a pill of three (`ThemeToggle`, a radio group named "Theme"); a page change names the tab and focuses the heading; badges carry an icon from `components/tones.ts`; loading is a skeleton (`LoadState`), an empty list an `EmptyState`; `/design`, the specimen of the shared components, exists in Development builds only. Since 9.3 (ADR 0049): money is `formatMoney` and `<Money>` (a sign and a word for a credit or a negative amount); every status of every document is one mapping, `components/documentStatuses.ts`, with its word, tone and icon; a document's totals are `TotalsCard` (an estimate says so; a changed figure is marked); a document's state is a `Banner`; the audit trail is a timeline; a field may carry its unit and a required mark. Since 9.3b: allocating and applying credit show `ApplyMeter`; the statement's four figures are tiles; the inbox is a list of cards. Since 9.4 (ADR 0050): one tooltip (`dashboard/Tooltip.tsx`: `TipBox`, `Tip`; `useChartTip` for Recharts) on `--surface-popover` and `--border-strong`, opened by hover, focus and tap, closed by Escape, blur and a second tap; the donut is drawn here; every chart has its table; the period is a segmented control; no inline style on the dashboard. |
-| Packages | 30, pinned exactly (Recharts added by 7.6, `@playwright/test` by 8.2, `@fontsource-variable/inter` by 9.1), `package-lock.json` committed | `npm ci` in CI; `npm audit` fails on any advisory; Dependabot a week after a release. A new package needs approval (section 6). |
+| Brand and tokens (ADR 0047) | Inter, self-hosted; our own icons; the sign-in page | Since Prompt 9.1 `tokens.css` holds, for both themes, the brand's blues, the sign-in page's ground, shadows, radii, spacing, type sizes and durations; a token's name holds no CSS colour word (the scan reads it as one). Inter comes from `@fontsource-variable/inter`, bundled and served from our origin, with a metric-matched fallback. Icons are `src/brand/Icon.tsx` (inline SVG, `currentColor`); `BrandMark` is the product's mark, `CompanyCredit` the ashline logo and name. The sign-in page is laid out in the pixels of `docs/ui/sign-in.png` (`--u`), animates only transform and opacity, and nothing with reduced motion. `VITE_SUPPORT_EMAIL` (from `SUPPORT_EMAIL` in `.env`) is the sign-in page's "Contact support". Since 9.2 (ADR 0048): the shell has a sidebar with an icon per section, a rail (kept in `localStorage`) and a drawer under 900 px; the theme is a pill of three (`ThemeToggle`, a radio group named "Theme"); a page change names the tab and focuses the heading; badges carry an icon from `components/tones.ts`; loading is a skeleton (`LoadState`), an empty list an `EmptyState`; `/design`, the specimen of the shared components, exists in Development builds only. Since 9.3 (ADR 0049): money is `formatMoney` and `<Money>` (a sign and a word for a credit or a negative amount); every status of every document is one mapping, `components/documentStatuses.ts`, with its word, tone and icon; a document's totals are `TotalsCard` (an estimate says so; a changed figure is marked); a document's state is a `Banner`; the audit trail is a timeline; a field may carry its unit and a required mark. Since 9.3b: allocating and applying credit show `ApplyMeter`; the statement's four figures are tiles; the inbox is a list of cards. Since 9.4 (ADR 0050): one tooltip (`dashboard/Tooltip.tsx`: `TipBox`, `Tip`; `useChartTip` for Recharts) on `--surface-popover` and `--border-strong`, opened by hover, focus and tap, closed by Escape, blur and a second tap; the donut is drawn here; every chart has its table; the period is a segmented control; no inline style on the dashboard. Since 9.4b: every route (and the shell) loads on demand within budgets that `npm run budgets` holds in CI; a report's table keeps its header and totals in view; print on A4 (`@media print` in `tokens.css`, `base.css` and the modules); `e2e/routes.spec.ts` runs every route with axe. |
+| Packages | 31, pinned exactly (Recharts added by 7.6, `@playwright/test` by 8.2, `@fontsource-variable/inter` by 9.1, `@axe-core/playwright` by 9.4b), `package-lock.json` committed | `npm ci` in CI; `npm audit` fails on any advisory; Dependabot a week after a release. A new package needs approval (section 6). |
 
 ### Delivery
 
@@ -463,7 +463,8 @@ frontend/                      React + TypeScript + Vite (ADR 0038): index.html 
                                (ADR 0049). src/components also ApplyMeter, src/approvals/Approvals.module.css, and
                                e2e/cashier.spec.ts with e2e/stubbed.ts, the helper of the stubbed suites (ADR 0049, amended).
                                src/dashboard also Tooltip.tsx with Tooltip.module.css and useChartTip.ts, and
-                               e2e/dashboard.spec.ts (ADR 0050).
+                               e2e/dashboard.spec.ts (ADR 0050). scripts/budgets.test.mjs, e2e/routes.spec.ts and
+                               e2e/print.spec.ts (ADR 0050, amended).
                                e2e/journey.spec.ts with playwright.config.ts and tsconfig.e2e.json: the browser journey
                                (ADR 0046).
 docs/                          Design documents and ADRs (see section 7)
@@ -931,6 +932,7 @@ npm run lint               # ESLint, warnings are errors
 npm run format:check       # the format gate; npm run format writes the fixes
 npm run build              # types, then dist/
 npm run api:types          # src/api/schema.d.ts from src/api/openapi.json
+npm run budgets            # after a build: the first visit's and each route's compressed size against their budgets
 npm run e2e                # Playwright: the browser journey against a running stack (E2E_PASSWORD; runbook section 14)
 ```
 
@@ -950,7 +952,7 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    `dotnet test` with Docker green on the personal machine; its output is not sent yet, so the rows stay until it is.
    Owed in particular: the full-size load test and the browser journey through nginx (row 8.2), the backup in the
    container (row 8.3), the first green run of the CI workflow on GitHub (row 1.5), the container checklist (row 1.3).
-2. **Everything else still open:** `docs/backlog.md`, 35 rows (B1 to B35): owner questions, recorded deviations,
+2. **Everything else still open:** `docs/backlog.md`, 34 rows (B1 to B35 but B21): owner questions, recorded deviations,
    accepted limitations, follow-ups and small fixes, each with its origin and when it is due. Five are marked
    *R1 review*, for the owner: B3 (three credit-note choices), B18 (no screens for users and settings), B19 (adjustments
    by kind), B24 (passwords in the generated `ToString` of four records), B33 (the stale `0002_Payers` in two ADRs).
@@ -976,5 +978,11 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    the 8.2 journey through the new screens; owed: through nginx (row 9.3). **9.3b is written too (ADR 0049, amended):** the meter, the
    statement's tiles, the inbox as cards; 53 browser tests in Edge and the 8.2 journey; owed: through nginx (row 9.3b) and
    backlog B35 (a LocalDB fault to look for on SQL Server 2022). **9.4 is written (ADR 0050), split by the owner:** the
-   dashboard with its tooltips; 60 browser tests in Edge and the 8.2 journey; owed: through nginx (row 9.4). Next: 9.4b (the
-   reports, print, the finishing pass, the budgets and v1.1.0).
+   dashboard with its tooltips; 60 browser tests in Edge and the 8.2 journey; owed: through nginx (row 9.4). **9.4b is written (ADR 0050, amended):** routes on demand
+   within budgets (B21 closed), the reports, print, every route with axe; owed: through nginx (row 9.4b). Phase 9 is
+   written; `v1.1.0` is proposed, the owner's to tag after the merge.
+6. **After Phase 9: Phase 10, go-live** (`docs/build-prompts.md`, written 2026-11-24 from the owner's draft, not started):
+   10.0 the verification debt and the merge to `main`; 10.1 the users and settings screens with a forced password change;
+   10.2 onboarding a hospital by an operator's command; 10.3 the hospital's records and opening balances; 10.4 printed
+   documents; 10.5 production; 10.6 operations; 10.7 readiness. Six inputs from the client come first (the list is at the
+   top of Phase 10); 10.3 and 10.4 stop without them. ADR numbers 0051 to 0056 are theirs.

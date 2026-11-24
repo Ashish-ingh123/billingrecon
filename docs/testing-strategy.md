@@ -200,6 +200,14 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   themes at 1440 and 390 px with the same checks as the other screens; the crosshair moved by the arrow keys with a dot
   on each line, closed by Escape; the tooltips of a card, a sparkline, the donut and a bar inside the window and off the
   pointer; nothing animated with reduced motion. A failing layout-shift check names what moved, by how much and when.
+- **Every route** (Prompt 9.4b, ADR 0050 amended), `frontend/e2e/routes.spec.ts`: the 48 routes of the shell in both themes
+  at 1440 and 390 px with the checks of the other screens and one h1; axe's WCAG 2.2 A and AA rules
+  (`@axe-core/playwright`) with no serious or critical finding; no sideways scroll at 1,920, 720 (200% zoom) and 360 px;
+  every screenshot kept in `test-results`. `frontend/e2e/print.spec.ts`: a bill, a statement and a report printed to A4
+  in both themes (no shell, dark on white, the hospital and the day, no row cut in two); forced colours and
+  prefers-contrast; the keyboard's first stop.
+- **The budgets of the build** (Prompt 9.4b), `npm run budgets` after `npm run build`, in CI: the first visit to the
+  sign-in page and every route's chunk, compressed, against their budgets.
 - **The browser journey**, `frontend/e2e/journey.spec.ts` (Playwright, Chromium or an installed Edge or Chrome): a
   clerk registers a patient and their payer, drafts a bill with a catalogue line and a free-text line and posts it; a
   cashier records the payment and applies it oldest first, which settles the bill and empties the statement; a

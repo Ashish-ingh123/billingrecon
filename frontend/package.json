@@ -18,7 +18,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "api:types": "openapi-typescript src/api/openapi.json --output src/api/schema.d.ts"
+    "api:types": "openapi-typescript src/api/openapi.json --output src/api/schema.d.ts",
+    "budgets": "node --test scripts/budgets.test.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.3.0",
@@ -31,6 +32,7 @@
     "recharts": "3.10.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@eslint/js": "9.39.5",
     "@playwright/test": "1.65.1",
     "@testing-library/dom": "10.4.2",

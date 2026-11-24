@@ -52,10 +52,13 @@ export async function readWholeReport<T, U>({
   read,
   isWhole,
   sameTotals = (a, b) => JSON.stringify(a) === JSON.stringify(b),
+  onPage,
 }: {
   read: (page: number, pageSize: number) => Promise<ReportPageOf<T, U>>;
   isWhole: (rows: readonly T[], totals: U) => boolean;
   sameTotals?: (first: U, last: U) => boolean;
+  /** Told after each page is read, for the progress of an export (Prompt 9.4b); reads nothing itself. */
+  onPage?: (page: number, pages: number) => void;
 }): Promise<WholeReport<T, U>> {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const first = await read(1, exportPageSize);
@@ -66,10 +69,12 @@ export async function readWholeReport<T, U>({
 
     const rows = [...first.items];
     let last = first;
-    const pages = Math.ceil(count / exportPageSize);
+    const pages = Math.max(Math.ceil(count / exportPageSize), 1);
+    onPage?.(1, pages);
     for (let page = 2; page <= pages; page += 1) {
       last = await read(page, exportPageSize);
       rows.push(...last.items);
+      onPage?.(page, pages);
     }
 
     const before = first.totals;

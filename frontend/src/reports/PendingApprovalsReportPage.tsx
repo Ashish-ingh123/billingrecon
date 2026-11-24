@@ -72,10 +72,11 @@ export function PendingApprovalsReportPage() {
         </div>
         <ExportButton
           fileName="pending-approvals.csv"
-          build={async () => {
+          build={async (progress) => {
             const whole = await readWholeReport({
               read: (number, size) => readPendingApprovals(client, documentType, number, size),
               isWhole: pendingIsWhole,
+              onPage: progress,
             });
             return {
               rows: whole.rows.length,

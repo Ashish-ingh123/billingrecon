@@ -42,10 +42,11 @@ export function BillRegisterPage() {
         <PeriodFilter from={filter.from} to={filter.to} answered={period} onChange={(next) => change(next)} />
         <ExportButton
           fileName={`bill-register-${period?.from ?? 'month'}-to-${period?.to ?? 'month'}.csv`}
-          build={async () => {
+          build={async (progress) => {
             const whole = await readWholeReport({
               read: (number, size) => readBillRegister(client, filter, number, size),
               isWhole: billRegisterIsWhole,
+              onPage: progress,
             });
             return {
               rows: whole.rows.length,
