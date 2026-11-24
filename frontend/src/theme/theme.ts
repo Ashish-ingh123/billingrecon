@@ -38,8 +38,23 @@ export function resolveTheme(setting: ThemeSetting, systemPrefersDark: boolean):
   return setting === 'system' ? (systemPrefersDark ? 'dark' : 'light') : setting;
 }
 
-/** Sets the theme on <html>, where the tokens read it. */
+/**
+ * Sets the theme on <html>, where the tokens read it, and gives the browser's own chrome the theme's colour: the token
+ * --theme-color as <meta name="theme-color">, since index.html holds no raw colour and its script is pinned (ADR 0047).
+ */
 export function applyTheme(setting: ThemeSetting, theme: Theme): void {
   document.documentElement.setAttribute('data-theme', theme);
   document.documentElement.setAttribute('data-theme-setting', setting);
+
+  const colour = window.getComputedStyle(document.documentElement).getPropertyValue('--theme-color').trim();
+  if (colour !== '') {
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (meta === null) {
+      meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      document.head.append(meta);
+    }
+
+    meta.content = colour;
+  }
 }

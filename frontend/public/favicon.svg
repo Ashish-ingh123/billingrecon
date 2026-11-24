@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <!-- The BillingRecon mark (ADR 0047): the same drawing as src/brand/BrandMark.tsx, with the light theme's colours. -->
+  <g fill="#288ffd"><rect x="15" y="2" width="18" height="44" rx="8"/><rect x="2" y="15" width="44" height="18" rx="8"/></g>
+  <g fill="#0a3a8a"><rect x="21" y="12.5" width="6" height="23" rx="2.5"/><rect x="12.5" y="21" width="23" height="6" rx="2.5"/></g>
+</svg>

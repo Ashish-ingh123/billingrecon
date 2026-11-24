@@ -1,36 +1,93 @@
 /*
- * The design tokens (ADR 0038, point 7): the only file of the frontend that holds colour values. Every component takes
- * its colours from these variables; a test fails on a colour anywhere else, and another holds the text of both themes
- * to WCAG AA against the surfaces. The theme is chosen by data-theme on <html>, which the inline script of index.html
- * sets before React mounts.
+ * The design tokens (ADR 0038, point 7; ADR 0047): the only file of the frontend that holds colour values. Every
+ * component takes its colours, gradients, shadows, radii, type sizes and durations from these variables; a test fails on
+ * a colour anywhere else, and another holds the text of both themes to WCAG AA against the surfaces. The theme is chosen
+ * by data-theme on <html>, which the inline script of index.html sets before React mounts.
  *
  * surface          the page
  * surface-raised   what stands on it: the top bar, panels, cards, inputs
  * surface-sunken   what sits below it: the navigation, a table's header
- * text, text-muted the text, and the quieter text of labels and hints
- * border           the edge of a control or a panel
- * accent           links, the primary action, the selected item; on-accent is text on it
+ * text, text-muted the text, and the quieter text of labels and hints; placeholder is the hint inside an empty field
+ * border           the edge of a control or a panel (3:1 against every surface); border-soft is a hairline that carries
+ *                  no meaning (a divider, a card's edge)
+ * accent           links, the primary action, the selected item; on-accent is text on it; accent-strong is it pressed
  * success, warning, danger   meaning, as text or as a mark
  * focus            the focus ring
  * series-1 to -6   the chart palette, in a fixed order: a series keeps its colour in both themes
+ *
+ * Since Prompt 9.1, measured on docs/ui/sign-in.png:
+ * brand-*          the BillingRecon mark and what stands on the brand's blue
+ * signin-*         the sign-in page's ground: the blue that runs from navy to the page, the tint over the photograph,
+ *                  the photograph's mask, the waves and the curve
+ * company-*        ashline's own colours, as on the company's site; its plate stays light in both themes, because the
+ *                  mark's file is drawn for a light ground
+ * shadow-*, radius-*, space-*, text-*, duration-*, ease-*   one scale each, for every screen
+ * theme-color      what the browser's own chrome takes, read by the theme provider
  */
+
+:root {
+  --font-sans:
+    'Inter Variable', 'Inter Fallback', system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 28px;
+  --radius-pill: 999px;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  --text-xs: 0.8125rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --duration-draw: 900ms;
+  --duration-drift-1: 38s;
+  --duration-drift-2: 56s;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.25, 1);
+
+  --breakpoint-fold: 900px;
+
+  /* ashline, as on the company's site (light ground). */
+  --company-accent: #7c3aed;
+  --company-ink: #1a1033;
+  --company-plate: #f5f7fc;
+  --company-plate-shadow: 0 6px 18px -8px rgba(0, 20, 60, 0.45);
+}
 
 :root,
 :root[data-theme='light'] {
   color-scheme: light;
 
-  --surface: #f5f6f8;
+  --surface: #eef3fc;
   --surface-raised: #ffffff;
-  --surface-sunken: #e9ecf0;
-  --text: #1a1d23;
-  --text-muted: #4f5663;
-  --border: #767e8a;
-  --accent: #1d5bb8;
+  --surface-sunken: #e2eaf7;
+  --text: #0d1b3e;
+  --text-muted: #44557a;
+  --placeholder: #5a6b8c;
+  --border: #6b7a99;
+  --border-soft: #d3dcec;
+  --accent: #0b4fd0;
+  --accent-strong: #083fa8;
   --on-accent: #ffffff;
-  --success: #1b7136;
-  --warning: #8a5300;
-  --danger: #b0261d;
-  --focus: #1d5bb8;
+  --success: #17683a;
+  --warning: #7f4c00;
+  --danger: #b3261e;
+  --focus: #0b4fd0;
+  --focus-halo: rgba(11, 79, 208, 0.22);
 
   --series-1: #1d5bb8;
   --series-2: #b85c00;
@@ -38,23 +95,56 @@
   --series-4: #7d3c98;
   --series-5: #b0261d;
   --series-6: #5c6470;
+
+  --brand-cross: #288ffd;
+  --brand-cross-inner: #0a3a8a;
+  --brand-on-tint: #ffffff;
+  --brand-icon-on-tint: #9fd3fe;
+  --brand-pulse: #0b4fd0;
+  --brand-label-icon: #0b4fd0;
+
+  --signin-ground: linear-gradient(90deg, #002353 0%, #063a80 30%, #2a63b6 50%, #9db9e6 62%, #e4edfd 74%, #f6f8fe 100%);
+  --signin-tint: linear-gradient(
+    90deg,
+    rgba(0, 35, 83, 0.94) 0%,
+    rgba(4, 48, 106, 0.86) 24%,
+    rgba(20, 78, 160, 0.55) 42%,
+    rgba(120, 160, 220, 0.2) 56%,
+    rgba(228, 237, 253, 0) 68%
+  );
+  --signin-photo-mask: linear-gradient(90deg, #000000 0%, #000000 44%, rgba(0, 0, 0, 0.5) 56%, rgba(0, 0, 0, 0) 68%);
+  --signin-ground-narrow: linear-gradient(180deg, #002353 0%, #0a3f8c 55%, #0e50a5 100%);
+  --signin-wave-back: #2d65b1;
+  --signin-wave-front: #0e50a5;
+  --signin-curve: rgba(255, 255, 255, 0.55);
+  --signin-wave-mask: linear-gradient(90deg, #000000 0%, #000000 46%, rgba(0, 0, 0, 0.22) 66%, rgba(0, 0, 0, 0.1) 100%);
+
+  --shadow-card: 0 30px 70px -28px rgba(8, 32, 84, 0.45), 0 2px 8px rgba(8, 32, 84, 0.08);
+  --shadow-raised: 0 1px 2px rgba(8, 32, 84, 0.06), 0 8px 20px -14px rgba(8, 32, 84, 0.3);
+  --shadow-button: 0 8px 18px -10px rgba(11, 79, 208, 0.7);
+
+  --theme-color: #002353;
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --surface: #111418;
-  --surface-raised: #1a1e24;
-  --surface-sunken: #0b0d10;
-  --text: #e8eaed;
-  --text-muted: #aab1bc;
-  --border: #7a8390;
+  --surface: #0a1428;
+  --surface-raised: #121f3a;
+  --surface-sunken: #060d1c;
+  --text: #e8eefc;
+  --text-muted: #a9b6d3;
+  --placeholder: #93a2c2;
+  --border: #7f8fb0;
+  --border-soft: #26365a;
   --accent: #78aeff;
-  --on-accent: #0b1a33;
+  --accent-strong: #9cc4ff;
+  --on-accent: #06142e;
   --success: #5cc98a;
   --warning: #f0b44c;
   --danger: #ff8a80;
   --focus: #78aeff;
+  --focus-halo: rgba(120, 174, 255, 0.3);
 
   --series-1: #78aeff;
   --series-2: #f0a35e;
@@ -62,4 +152,33 @@
   --series-4: #c39bd3;
   --series-5: #ff8a80;
   --series-6: #adb5bd;
+
+  --brand-cross: #3d9bff;
+  --brand-cross-inner: #0a2f70;
+  --brand-on-tint: #ffffff;
+  --brand-icon-on-tint: #9fd3fe;
+  --brand-pulse: #78aeff;
+  --brand-label-icon: #78aeff;
+
+  --signin-ground: linear-gradient(90deg, #00122e 0%, #03234f 30%, #0b3a7a 50%, #0d2a57 62%, #0a1a36 74%, #0a1428 100%);
+  --signin-tint: linear-gradient(
+    90deg,
+    rgba(0, 18, 46, 0.95) 0%,
+    rgba(3, 30, 70, 0.9) 24%,
+    rgba(8, 46, 104, 0.68) 42%,
+    rgba(10, 30, 66, 0.4) 56%,
+    rgba(10, 20, 40, 0) 68%
+  );
+  --signin-photo-mask: linear-gradient(90deg, #000000 0%, #000000 44%, rgba(0, 0, 0, 0.5) 56%, rgba(0, 0, 0, 0) 68%);
+  --signin-ground-narrow: linear-gradient(180deg, #00122e 0%, #03234f 60%, #0a2f6b 100%);
+  --signin-wave-back: #123f84;
+  --signin-wave-front: #0a2f6b;
+  --signin-curve: rgba(120, 174, 255, 0.07);
+  --signin-wave-mask: linear-gradient(90deg, #000000 0%, #000000 46%, rgba(0, 0, 0, 0.35) 66%, rgba(0, 0, 0, 0.2) 100%);
+
+  --shadow-card: 0 30px 70px -28px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 20px -14px rgba(0, 0, 0, 0.6);
+  --shadow-button: 0 8px 18px -10px rgba(120, 174, 255, 0.5);
+
+  --theme-color: #00122e;
 }

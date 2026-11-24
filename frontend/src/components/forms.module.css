@@ -10,8 +10,9 @@
   gap: 1rem 1.5rem;
   padding: 1.25rem;
   background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
 }
 
 .wide {

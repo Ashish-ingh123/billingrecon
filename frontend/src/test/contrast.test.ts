@@ -68,6 +68,44 @@ describe.each(Object.entries(themes))('the %s theme', (_, tokens) => {
   });
 });
 
+// Since Prompt 9.1 (ADR 0047): the pairs the sign-in page and the restyled controls added.
+describe.each(Object.entries(themes))('the %s theme, since the sign-in page of 9.1', (_, tokens) => {
+  const ratio = (foreground: string, background: string) =>
+    contrast(tokens[foreground] ?? '', tokens[background] ?? '');
+
+  it('the placeholder of a field is at least 4.5:1 on the field', () => {
+    expect(ratio('placeholder', 'surface-raised')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('text on the pressed accent is at least 4.5:1', () => {
+    expect(ratio('on-accent', 'accent-strong')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // The tint is darker than its waves wherever text stands on it, so the waves are the lightest ground under white text.
+  it.each(['signin-wave-front', 'signin-wave-back'])(
+    'white text on the blue of the brand (%s) is at least 4.5:1',
+    (ground) => {
+      expect(ratio('brand-on-tint', ground)).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  it('the outline icons on the blue of the brand are at least 3:1', () => {
+    expect(ratio('brand-icon-on-tint', 'signin-wave-back')).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(['brand-pulse', 'brand-label-icon', 'brand-cross'])('%s on the card is at least 3:1', (mark) => {
+    expect(ratio(mark, 'surface-raised')).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('the plate of the company, the same in both themes', () => {
+  const company = tokensOf(':root {');
+
+  it.each(['company-ink', 'company-accent'])('%s on the plate is at least 4.5:1', (text) => {
+    expect(contrast(company[text] ?? '', company['company-plate'] ?? '')).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
 describe('the contrast formula', () => {
   it('gives the known ratios', () => {
     expect(contrast('#000000', '#ffffff')).toBeCloseTo(21, 5);

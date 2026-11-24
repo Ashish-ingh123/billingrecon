@@ -659,6 +659,7 @@ were not part of it.
 | 8.1 | Run on 2026-11-24 (above): the images built, `migrate` and `demo-seed` ran to their end, `api` and `frontend` up, https://localhost signed in as `supervisor@demo.local` and showed the dashboard, `DemoTenantSeederTests` in the suite. **Still owed:** the page's headers carry the policy, `frame-ancestors 'none'` and `nosniff`; http://localhost redirects to https. |
 | 8.2 | The load test of section 14 at full size (10,000 bills) through nginx on SQL Server 2022, with `SERVER_TIMING=true` and at least 2 GB free: every target met, no drift (send the whole output); the stress figure with no pause. The browser journey of section 14 against https://localhost, which is also the first check in a browser of nginx's content security policy (no console error); the frontend job of CI with `@playwright/test` in the lock file and the step that runs `deploy/load/stats.test.mjs`; `ServerTimingApiTests` and the new test of `IdempotencyKeysOnSqlServerTests` on SQL Server 2022. The office machine ran the load on LocalDB at 2,000 bills only (ADR 0046, built note). |
 | 8.3 | The backup and its check of section 15 in the `sql` container (`docker compose cp`, the two scripts, the `.bak` copied out), and the recovery model of the compose database (`FULL` expected). The scripts ran on LocalDB 2019 only. `TraceabilityTests` in the suite. |
+| 9.1 | The sign-in page through nginx at https://localhost in both themes: nothing refused by the content security policy in the console (the office machine applied the policy in a test, without nginx), the typeface served from `/assets/`, the favicon, and the whole browser suite of section 14 there (`signin.spec.ts` and the journey). The frontend image built with `SUPPORT_EMAIL` set and unset. The frontend job of CI with `@fontsource-variable/inter` in the lock file. |
 
 A red result is reported as it is, with its output; the fix is its own commit on top, never an edit of history.
 
@@ -857,6 +858,12 @@ npm --prefix frontend run api:types
 
 The frontend's CI job fails while `schema.d.ts` differs from what `npm run api:types` writes.
 
+**What the build is given** (ADR 0047). The frontend is static files, so its one setting is fixed when it is built:
+`VITE_SUPPORT_EMAIL`, the address "Contact support" on the sign-in page writes to. With the one-command run it is
+`SUPPORT_EMAIL` in `.env`, passed to the frontend image as a build argument (`docker compose up --build` after a change);
+locally, set it in the shell before `npm run dev` or `npm run build`. Empty, or not an e-mail address, leaves the divider
+and the link out.
+
 **When `npm audit` fails** in CI or locally: update the package that brings the advisory in to a version that fixes it
 (`npm install --save-dev <package>@<version>` for a tool, without `--save-dev` for the app), and say so in the commit,
 as for NuGet (section 5). The audit stays on.
@@ -950,6 +957,12 @@ Without Docker, against an API on this machine reached without the proxy, the sc
 for one that came over HTTPS (the API believes the loopback, section 11); that is how the office machine ran it.
 
 ### The browser journey (`frontend/e2e/journey.spec.ts`)
+
+Two files: `journey.spec.ts`, the main journey, which needs the API and the demo; and, since Prompt 9.1, `signin.spec.ts`,
+the sign-in page alone (its layout against `docs/ui/sign-in.png`, nginx's content security policy applied in the test,
+reduced motion, the keyboard, narrow windows), which needs no API but does need the **built** app: the one-command run,
+or `npm run build` and `npm run preview` with `E2E_BASE_URL=http://localhost:4173` (the Vite dev server's own inline
+scripts are rightly refused by the policy). `E2E_SCREENSHOTS=1` also writes the page's screenshots into `docs/ui/`.
 
 Node 22.22 or later on the machine, the stack up with the demo, then from `frontend/`:
 

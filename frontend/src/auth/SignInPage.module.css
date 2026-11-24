@@ -1,82 +1,577 @@
+/*
+ * The sign-in page, laid out as docs/ui/sign-in.png (ADR 0047). The reference is a 1672 x 941 frame; --u is one of its
+ * pixels at the size of the window, so every measure below is the reference's own number and the page scales with the
+ * window, wide or tall. Under the fold the three lines and the photograph go and the card stays.
+ * Colours, gradients, shadows and durations are tokens; only transform and opacity are animated.
+ */
+
 .page {
+  --u: max(0.62px, min(calc(100vw / 1672), calc(100vh / 941)));
+
+  position: relative;
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr calc(688 * var(--u));
+  grid-template-rows: 1fr auto;
+  column-gap: calc(60 * var(--u));
+  padding: calc(84 * var(--u)) calc(120 * var(--u)) calc(40 * var(--u)) calc(91 * var(--u));
+  overflow: hidden;
+  isolation: isolate;
 }
 
-.header {
-  display: flex;
-  justify-content: flex-end;
-  padding: 0.75rem 1rem;
+/* The ground: decoration, behind everything. */
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--signin-ground);
 }
+
+.photo,
+.photoShown {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 68%;
+  height: 100%;
+  object-fit: cover;
+  mask-image: var(--signin-photo-mask);
+  opacity: 0;
+  transition: opacity var(--duration-slow) var(--ease-out);
+}
+
+.photoShown {
+  opacity: 1;
+}
+
+.tint {
+  position: absolute;
+  inset: 0;
+  background: var(--signin-tint);
+}
+
+.curve {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 24%;
+  height: 100%;
+  fill: var(--signin-curve);
+}
+
+.waves {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: calc(150 * var(--u));
+  mask-image: var(--signin-wave-mask);
+}
+
+.waveBack,
+.waveFront {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 200%;
+  height: 100%;
+}
+
+.waveBack {
+  fill: var(--signin-wave-back);
+  opacity: 0.75;
+  animation: drift var(--duration-drift-2) linear infinite reverse;
+}
+
+.waveFront {
+  fill: var(--signin-wave-front);
+  animation: drift var(--duration-drift-1) linear infinite;
+}
+
+/* The theme choice, small, over the pale side. */
+
+.theme {
+  position: absolute;
+  top: calc(22 * var(--u));
+  right: calc(40 * var(--u));
+  z-index: 1;
+}
+
+/* Left, on the tint. */
+
+.brand {
+  grid-column: 1;
+  grid-row: 1;
+  padding-top: calc(57 * var(--u));
+  color: var(--brand-on-tint);
+}
+
+.brandRow {
+  display: flex;
+  align-items: center;
+  gap: calc(16 * var(--u));
+}
+
+.brandMark {
+  flex: none;
+  font-size: calc(123 * var(--u));
+}
+
+.brandName {
+  margin: calc(30 * var(--u)) 0 0;
+  font-size: calc(62 * var(--u));
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  margin: calc(6 * var(--u)) 0 0;
+  font-size: calc(24 * var(--u));
+  line-height: 1.3;
+}
+
+.promises {
+  display: grid;
+  gap: calc(32 * var(--u));
+  margin: calc(103 * var(--u)) 0 0;
+  padding: 0 0 0 calc(4 * var(--u));
+  list-style: none;
+  max-width: calc(440 * var(--u));
+}
+
+.promise {
+  display: flex;
+  align-items: center;
+  gap: calc(36 * var(--u));
+  font-size: calc(26 * var(--u));
+  line-height: 1.38;
+  animation: rise var(--duration-slow) var(--ease-out) both;
+}
+
+.promise:nth-child(1) {
+  animation-delay: 120ms;
+}
+
+.promise:nth-child(2) {
+  animation-delay: 200ms;
+}
+
+.promise:nth-child(3) {
+  animation-delay: 280ms;
+}
+
+.promiseIcon {
+  flex: none;
+  font-size: calc(66 * var(--u));
+  color: var(--brand-icon-on-tint);
+  stroke-width: 1.25;
+}
+
+/* Right: the card. */
 
 .main {
-  flex: 1;
+  grid-column: 2;
+  grid-row: 1 / span 2;
   display: flex;
   align-items: flex-start;
-  justify-content: center;
-  padding: 2rem 1rem;
 }
 
 .card {
   width: 100%;
-  max-width: 24rem;
+  min-height: calc(791 * var(--u));
   display: flex;
   flex-direction: column;
-  padding: 1.5rem;
+  padding: calc(30 * var(--u)) calc(54 * var(--u)) calc(21 * var(--u)) calc(59 * var(--u));
+  color: var(--text);
   background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: calc(28 * var(--u));
+  box-shadow: var(--shadow-card);
+  animation: rise var(--duration-slow) var(--ease-out) both;
+}
+
+.pulse {
+  align-self: center;
+  width: calc(104 * var(--u));
+  height: calc(82 * var(--u));
+  overflow: hidden;
+}
+
+.pulseWipe {
+  display: block;
+  height: 100%;
+  overflow: hidden;
+  animation: wipe var(--duration-draw) var(--ease-in-out) both;
+}
+
+.pulseLine {
+  display: block;
+  width: calc(104 * var(--u));
+  height: 100%;
+  fill: none;
+  stroke: var(--brand-pulse);
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: unwipe var(--duration-draw) var(--ease-in-out) both;
 }
 
 .title {
-  margin: 0 0 1rem;
-  font-size: 1.375rem;
+  margin: calc(14 * var(--u)) 0 0;
+  font-size: calc(42 * var(--u));
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  text-align: center;
 }
 
-.notice {
-  margin: 0 0 1rem;
+.subtitle {
+  margin: calc(11 * var(--u)) 0 calc(26.5 * var(--u));
+  font-size: calc(22.5 * var(--u));
+  line-height: 1.35;
+  text-align: center;
   color: var(--text-muted);
 }
 
+.notice {
+  margin: 0;
+  font-size: calc(18 * var(--u));
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.refusal {
+  font-size: calc(18 * var(--u));
+  animation: rise var(--duration-base) var(--ease-out) both;
+}
+
 .label {
-  margin-top: 0.75rem;
-  margin-bottom: 0.25rem;
-  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: calc(16 * var(--u));
+  margin-top: calc(25.5 * var(--u));
+  margin-bottom: calc(11 * var(--u));
+  font-size: calc(20.5 * var(--u));
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.labelIcon {
+  flex: none;
+  font-size: calc(27 * var(--u));
+  color: var(--brand-label-icon);
+}
+
+.control {
+  position: relative;
+}
+
+/* The ring of a focused field: there from the start, shown by opacity, so that it can ease in. */
+.control::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: calc(12 * var(--u) + 4px);
+  box-shadow: 0 0 0 4px var(--focus-halo);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+
+.control:focus-within::after {
+  opacity: 1;
 }
 
 .input {
+  width: 100%;
+  height: calc(56 * var(--u));
+  min-height: 2.25rem;
+  padding: 0 calc(52 * var(--u)) 0 calc(20 * var(--u));
   font: inherit;
-  padding: 0.5rem 0.625rem;
+  font-size: calc(22 * var(--u));
   color: var(--text);
   background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  border: 1.5px solid var(--border);
+  border-radius: calc(12 * var(--u));
+}
+
+.input::placeholder {
+  color: var(--placeholder);
+  opacity: 1;
+}
+
+.input:focus-visible {
+  outline: none;
+  border-color: var(--focus);
 }
 
 .input[aria-invalid='true'] {
   border-color: var(--danger);
 }
 
+.adornment,
+.reveal {
+  position: absolute;
+  top: 50%;
+  right: calc(18 * var(--u));
+  font-size: calc(27 * var(--u));
+  color: var(--text-muted);
+  transform: translateY(-50%);
+}
+
+.adornment {
+  pointer-events: none;
+}
+
+.reveal {
+  display: grid;
+  place-items: center;
+  right: calc(8 * var(--u));
+  width: calc(44 * var(--u));
+  height: calc(44 * var(--u));
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.swap {
+  display: grid;
+  animation: fade var(--duration-base) var(--ease-out) both;
+}
+
 .fieldError {
-  margin: 0.25rem 0 0;
-  font-size: 0.875rem;
+  margin: calc(6 * var(--u)) 0 0;
+  font-size: calc(17 * var(--u));
   color: var(--danger);
 }
 
 .submit {
-  margin-top: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(14 * var(--u));
+  height: calc(57 * var(--u));
+  min-height: 2.5rem;
+  margin-top: calc(21 * var(--u));
   font: inherit;
+  font-size: calc(24 * var(--u));
   font-weight: 600;
-  padding: 0.625rem 1rem;
   color: var(--on-accent);
   background: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: 4px;
+  border: none;
+  border-radius: calc(14 * var(--u));
+  box-shadow: var(--shadow-button);
   cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--accent-strong);
+  transform: translateY(-1px);
+}
+
+.submit:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .submit:disabled {
-  opacity: 0.7;
+  opacity: 0.8;
   cursor: progress;
+}
+
+.submit svg {
+  font-size: calc(30 * var(--u));
+}
+
+.spinner {
+  animation: spin 800ms linear infinite;
+}
+
+.help {
+  margin-top: calc(20 * var(--u));
+  text-align: center;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: calc(14 * var(--u));
+  margin: 0;
+  font-size: calc(18.5 * var(--u));
+  line-height: 1.25;
+  color: var(--text-muted);
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--border-soft);
+}
+
+.support {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(12 * var(--u));
+  margin-top: calc(13 * var(--u));
+  font-size: calc(20 * var(--u));
+  line-height: 1.25;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.support:hover {
+  text-decoration: underline;
+}
+
+.support svg {
+  font-size: calc(27 * var(--u));
+}
+
+/* The company, bottom left over the wave. */
+
+.company {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: end;
+  font-size: calc(16 * var(--u));
+}
+
+/* Under the fold: one column, the card first; the three lines and the photograph are gone. */
+
+@media (max-width: 899.98px) {
+  .page {
+    --u: 0.74px;
+
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    row-gap: 1.25rem;
+    justify-items: center;
+    padding: 3.25rem 1rem 1.5rem;
+  }
+
+  /* One blue from top to bottom: the pale side has no room here, and white text must keep its ground. */
+  .backdrop {
+    background: var(--signin-ground-narrow);
+  }
+
+  .tint,
+  .curve {
+    display: none;
+  }
+
+  .waves {
+    mask-image: none;
+  }
+
+  .brand {
+    grid-row: 1;
+    padding-top: 0;
+  }
+
+  .brandMark {
+    font-size: 3rem;
+  }
+
+  .brandName {
+    font-size: 1.75rem;
+  }
+
+  .tagline {
+    font-size: 0.9375rem;
+  }
+
+  .promises {
+    display: none;
+  }
+
+  .main {
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    max-width: 30rem;
+  }
+
+  .card {
+    min-height: 0;
+    padding: 1.25rem 1.25rem 1.5rem;
+  }
+
+  .company {
+    grid-row: 3;
+    justify-self: center;
+    font-size: 0.8125rem;
+  }
+
+  .theme {
+    top: 0.5rem;
+    right: 0.75rem;
+    padding: 0.125rem 0.5rem;
+    background: var(--surface-raised);
+    border-radius: var(--radius-md);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes wipe {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes unwipe {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes drift {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* With reduced motion nothing moves: states change at once. */
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .promise,
+  .refusal,
+  .pulseWipe,
+  .pulseLine,
+  .waveBack,
+  .waveFront,
+  .swap,
+  .spinner {
+    animation: none;
+  }
+
+  .photo,
+  .photoShown,
+  .submit,
+  .control::after {
+    transition: none;
+  }
 }

@@ -1,0 +1,49 @@
+/* The BillingRecon mark and the company's credit (ADR 0047), from the tokens. */
+
+.markOuter {
+  fill: var(--brand-cross);
+}
+
+.markInner {
+  fill: var(--brand-cross-inner);
+}
+
+.credit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.creditLead {
+  color: var(--brand-on-tint);
+}
+
+.plate {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  padding: 0.4em 0.85em 0.4em 0.6em;
+  font-size: var(--text-lg);
+  line-height: 1;
+  background: var(--company-plate);
+  border-radius: var(--radius-md);
+  box-shadow: var(--company-plate-shadow);
+}
+
+.companyLogo {
+  height: 1.7em;
+  width: auto;
+}
+
+.companyName {
+  font-weight: 500;
+  color: var(--company-ink);
+  letter-spacing: -0.01em;
+}
+
+.companyAccent {
+  font-weight: 400;
+  color: var(--company-accent);
+}

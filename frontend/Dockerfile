@@ -10,6 +10,9 @@ COPY package.json package-lock.json ./
 # The optional packages are the platform's native bindings.
 RUN npm ci --include=optional --no-audit --no-fund
 COPY . .
+# What the build is given (ADR 0047): the address "Contact support" writes to on the sign-in page; empty leaves the link out.
+ARG VITE_SUPPORT_EMAIL=""
+ENV VITE_SUPPORT_EMAIL=$VITE_SUPPORT_EMAIL
 RUN npm run build
 
 FROM nginx:1.29-alpine

@@ -110,6 +110,9 @@ services:
   frontend:
     build:
       context: frontend
+      args:
+        # "Contact support" on the sign-in page (ADR 0047); empty leaves the link out.
+        VITE_SUPPORT_EMAIL: "${SUPPORT_EMAIL:-}"
     container_name: billingrecon-frontend
     restart: unless-stopped
     ports:

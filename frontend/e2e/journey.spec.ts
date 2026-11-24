@@ -5,7 +5,8 @@ import { expect, test as base, type Page } from '@playwright/test';
 // then drafts and posts a bill; a cashier records the payer's payment and applies it oldest first, and the bill is
 // settled; a supervisor sees the dashboard and a reconciliation without drift. Each step is a test; they run in order
 // and share what the earlier ones made. No page of the journey may log an error to the console: a script the content
-// security policy refuses, or a page that throws, fails the step it happened in.
+// security policy refuses, or a page that throws, fails the step it happened in. (Until Prompt 9.1 gave the app its
+// favicon, the browser's own request for /favicon.ico was the one exception.)
 //
 // E2E_PASSWORD is the demo users' password (DEMO_PASSWORD of .env); E2E_HOSPITAL the hospital's code, "demo" by default.
 
@@ -18,16 +19,13 @@ const fullName = `Journey Patient ${run}`;
 type Journey = { payerPath: string; billPath: string; billNumber: string; billTotal: string };
 const journey: Journey = { payerPath: '', billPath: '', billNumber: '', billTotal: '' };
 
-// Every step fails when a page of it wrote an error to the console or threw. One error is the browser's, not the app's:
-// the app has no icon, and the browser asks for /favicon.ico on its own, which a server may answer 404.
+// Every step fails when a page of it wrote an error to the console or threw.
 const test = base.extend<{ consoleErrors: string[] }>({
   consoleErrors: [
     async ({ page }, provide) => {
       const errors: string[] = [];
       page.on('console', (message) => {
-        if (message.type() !== 'error') return;
-        if (new URL(message.location().url || 'about:blank').pathname === '/favicon.ico') return;
-        errors.push(message.text());
+        if (message.type() === 'error') errors.push(message.text());
       });
       page.on('pageerror', (error) => errors.push(error.message));
       await provide(errors);
@@ -47,7 +45,8 @@ async function signIn(page: Page, email: string) {
   await page.goto('/sign-in');
   await page.getByLabel('Hospital code').fill(hospital);
   await page.getByLabel('E-mail address').fill(email);
-  await page.getByLabel('Password').fill(password);
+  // Exact since Prompt 9.1: the show/hide button beside the field is named "Show password".
+  await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).not.toHaveURL(/\/sign-in/);
 }

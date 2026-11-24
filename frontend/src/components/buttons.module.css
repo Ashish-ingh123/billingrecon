@@ -1,29 +1,57 @@
-/* The buttons of every screen: the main action, the others, and the one that takes something away. */
+/*
+ * The buttons of every screen (ADR 0047): the main action, the others, and the one that takes something away. Shapes,
+ * colours and timings are tokens; a button answers the pointer and the press by moving a pixel, and only that moves.
+ */
 
 .primary,
 .secondary,
 .danger {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 2.5rem;
   font: inherit;
   font-weight: 600;
-  padding: 0.4375rem 0.875rem;
-  border-radius: 4px;
-  border: 1px solid var(--border);
+  padding: 0.5rem 1.125rem;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border);
   cursor: pointer;
   text-decoration: none;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.primary:hover:not(:disabled),
+.secondary:hover:not(:disabled),
+.danger:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.primary:active:not(:disabled),
+.secondary:active:not(:disabled),
+.danger:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .primary {
   color: var(--on-accent);
   background: var(--accent);
   border-color: var(--accent);
+  box-shadow: var(--shadow-button);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
 }
 
 .secondary {
   color: var(--text);
   background: var(--surface-raised);
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: var(--accent);
 }
 
 .danger {
@@ -47,4 +75,12 @@
   border: none;
   text-decoration: underline;
   cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primary,
+  .secondary,
+  .danger {
+    transition: none;
+  }
 }

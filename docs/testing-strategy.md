@@ -179,6 +179,11 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   API's `Server-Timing`, switched on for the run (`Diagnostics:ServerTiming`). The exit code is the verdict.
   `deploy/load/stats.test.mjs` holds its arithmetic (nearest-rank percentiles, the header, the verdict) to known figures
   with Node's own test runner, in CI.
+- **The sign-in page in the browser** (Prompt 9.1, ADR 0047), `frontend/e2e/signin.spec.ts`: the built page at
+  1672 x 941 held within 4 px to what was measured on `docs/ui/sign-in.png`, in both themes; nginx's content security
+  policy, read from `frontend/deploy/nginx.conf` and put on the page's response by the test, with no
+  `securitypolicyviolation`, no console error and no layout shift; no animation at all with reduced motion; the order
+  of the keyboard; 390 and 360 px without a sideways scroll. It needs the built app, not the dev server.
 - **The browser journey**, `frontend/e2e/journey.spec.ts` (Playwright, Chromium or an installed Edge or Chrome): a
   clerk registers a patient and their payer, drafts a bill with a catalogue line and a free-text line and posts it; a
   cashier records the payment and applies it oldest first, which settles the bill and empties the statement; a
