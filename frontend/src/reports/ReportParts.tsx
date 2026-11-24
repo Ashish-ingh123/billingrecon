@@ -131,6 +131,7 @@ export function ExportButton({
         type="button"
         className={buttons.secondary}
         disabled={exporting.isPending}
+        aria-busy={exporting.isPending}
         onClick={() => exporting.mutate()}
       >
         {exporting.isPending ? 'Exporting…' : 'Export CSV'}

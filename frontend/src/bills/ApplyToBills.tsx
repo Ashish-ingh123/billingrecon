@@ -228,7 +228,13 @@ export function ApplyToBills<T>(props: ApplyToBillsProps<T>) {
             </table>
           </div>
           <div className={forms.actions}>
-            <button type="button" className={buttons.primary} disabled={applying.isPending} onClick={submit}>
+            <button
+              type="button"
+              className={buttons.primary}
+              disabled={applying.isPending}
+              aria-busy={applying.isPending}
+              onClick={submit}
+            >
               {applying.isPending ? words.submitting : words.submit}
             </button>
             <Link to={props.cancelTo}>Cancel</Link>

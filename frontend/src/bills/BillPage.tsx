@@ -6,7 +6,10 @@ import { Badge } from '../components/Badge';
 import { AuditTrail } from '../components/AuditTrail';
 import buttons from '../components/buttons.module.css';
 import table from '../components/DataTable.module.css';
+import { Banner } from '../components/Banner';
 import { Details } from '../components/Details';
+import { Money } from '../components/Money';
+import { TotalsCard } from '../components/TotalsCard';
 import forms from '../components/forms.module.css';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
@@ -95,15 +98,15 @@ function BillView({ bill }: { bill: Bill }) {
       />
       {draftActions.notices}
       {bill.status === 'PendingApproval' && (
-        <p className={forms.note} role="status">
+        <Banner tone="warning" title="Waiting for approval" live>
           This bill waits for approval: a Supervisor or an administrator other than the one who sent it posts it or
           returns it to draft. Until then it cannot change. <ReviewLink documentType="Bill" />
-        </p>
+        </Banner>
       )}
       {bill.status === 'Voided' && (
-        <p className={forms.note}>
+        <Banner tone="danger" title="Voided">
           Voided {formatInstant(bill.voidedAtUtc)}: {bill.voidReason}
-        </p>
+        </Banner>
       )}
       <Details
         items={[
@@ -181,28 +184,16 @@ function BillView({ bill }: { bill: Bill }) {
             </table>
           </div>
         )}
-        <dl className={styles.totals}>
-          <div>
-            <dt>Subtotal</dt>
-            <dd>₹{formatDecimal(bill.subTotal)}</dd>
-          </div>
-          <div>
-            <dt>Discounts</dt>
-            <dd>₹{formatDecimal(bill.discountTotal)}</dd>
-          </div>
-          <div>
-            <dt>Tax</dt>
-            <dd>₹{formatDecimal(bill.taxTotal)}</dd>
-          </div>
-          <div className={styles.grand}>
-            <dt>Total</dt>
-            <dd>₹{formatDecimal(bill.total)}</dd>
-          </div>
-          <div className={styles.grand}>
-            <dt>Balance due</dt>
-            <dd>₹{formatDecimal(bill.balanceDue)}</dd>
-          </div>
-        </dl>
+        <TotalsCard
+          label="Totals of the bill"
+          rows={[
+            { label: 'Subtotal', value: bill.subTotal },
+            { label: 'Discounts', value: bill.discountTotal },
+            { label: 'Tax', value: bill.taxTotal },
+            { label: 'Total', value: bill.total, strong: true },
+            { label: 'Balance due', value: bill.balanceDue, strong: true, apart: true },
+          ]}
+        />
       </section>
 
       {isPosted && <BillCorrections bill={bill} />}
@@ -231,9 +222,12 @@ function BillCorrections({ bill }: { bill: Bill }) {
         <ul className={styles.corrections} aria-label="Credit notes of the bill">
           {creditNotes.data.items.map((creditNote) => (
             <li key={creditNote.id}>
-              <Link to={`/credit-notes/${creditNote.id}`}>{creditNote.number ?? 'Credit note without a number'}</Link> ·
-              ₹{formatDecimal(creditNote.total)}{' '}
-              <Badge tone={creditNoteStatusLabels[creditNote.status].tone}>
+              <Link to={`/credit-notes/${creditNote.id}`}>{creditNote.number ?? 'Credit note without a number'}</Link> ·{' '}
+              <Money value={creditNote.total} />{' '}
+              <Badge
+                tone={creditNoteStatusLabels[creditNote.status].tone}
+                icon={creditNoteStatusLabels[creditNote.status].icon}
+              >
                 {creditNoteStatusLabels[creditNote.status].label}
               </Badge>
             </li>
@@ -257,8 +251,11 @@ function BillAdjustments({ billId }: { billId: string }) {
       {adjustments.data.items.map((adjustment) => (
         <li key={adjustment.id}>
           <Link to={`/adjustments/${adjustment.id}`}>{adjustment.number ?? 'Adjustment without a number'}</Link> ·{' '}
-          {kindLabels[adjustment.kind]} of ₹{formatDecimal(adjustment.amount)}{' '}
-          <Badge tone={adjustmentStatusLabels[adjustment.status].tone}>
+          {kindLabels[adjustment.kind]} of <Money value={adjustment.amount} />{' '}
+          <Badge
+            tone={adjustmentStatusLabels[adjustment.status].tone}
+            icon={adjustmentStatusLabels[adjustment.status].icon}
+          >
             {adjustmentStatusLabels[adjustment.status].label}
           </Badge>
         </li>

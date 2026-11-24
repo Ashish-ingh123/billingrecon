@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useApiClient } from '../api/ApiClientContext';
 import { answer } from '../api/call';
 import { useSession } from '../auth/AuthContext';
+import { Icon, type IconName } from '../brand/Icon';
 import { formatInstant } from '../format';
 import styles from './AuditTrail.module.css';
 import table from './DataTable.module.css';
@@ -14,6 +15,17 @@ import { LoadState } from './Loading';
 function actionLabel(action: string): string {
   const words = action.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
   return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** The icon of an audit action on the timeline (ADR 0049): what it did, at a glance; the word is always beside it. */
+function actionIcon(action: string): IconName {
+  if (/Voided|Rejected|Disabled|Deactivated/.test(action)) return 'ban';
+  if (/Revers/.test(action) && !/Requested/.test(action)) return 'undo';
+  if (/Requested|Submitted|Pending/.test(action)) return 'clock';
+  if (/Approved|Settled|Enabled|Activated|Allocated|Applied/.test(action)) return 'check-circle';
+  if (/Posted|Recorded/.test(action)) return 'stamp';
+  if (/Drafted|Created|Updated|Replaced|Changed/.test(action)) return 'pencil';
+  return 'dot';
 }
 
 /**
@@ -45,55 +57,50 @@ export function AuditTrail({ entityType, entityId }: { entityType: string; entit
 
   return (
     <>
-      <div className={table.wrap}>
-        <table className={table.table}>
-          <thead>
-            <tr>
-              <th scope="col">When</th>
-              <th scope="col">What</th>
-              <th scope="col">By</th>
-              <th scope="col">Number</th>
-              <th scope="col">Reason</th>
-              <th scope="col">Record</th>
-            </tr>
-          </thead>
-          <tbody>
-            {trail.data.items.map((record) => (
-              <tr key={String(record.id)}>
-                <td>{formatInstant(record.occurredAtUtc)}</td>
-                <td>{actionLabel(record.action)}</td>
-                <td>
-                  {record.userId === null ? (
-                    'The system'
-                  ) : record.userId === session.userId ? (
-                    'You'
-                  ) : (
-                    <code title={record.userId}>{record.userId.slice(0, 8)}</code>
-                  )}
-                </td>
-                <td>{record.documentNumber}</td>
-                <td>{record.reason}</td>
-                <td>
-                  <details className={styles.record}>
-                    <summary>Before and after</summary>
-                    <p className={styles.reference}>
-                      Reference: <code>{record.correlationId}</code>
-                    </p>
-                    {record.before !== null && record.before !== undefined && (
-                      <>
-                        <p className={styles.caption}>Before</p>
-                        <pre className={styles.json}>{JSON.stringify(record.before, null, 2)}</pre>
-                      </>
-                    )}
-                    <p className={styles.caption}>After</p>
-                    <pre className={styles.json}>{JSON.stringify(record.after, null, 2)}</pre>
-                  </details>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ol className={styles.timeline} aria-label="Changes, oldest first">
+        {trail.data.items.map((record) => (
+          <li key={String(record.id)} className={styles.entry}>
+            <span className={styles.marker}>
+              <Icon name={actionIcon(record.action)} />
+            </span>
+            <div className={styles.body}>
+              <p className={styles.headline}>
+                <span className={styles.action}>{actionLabel(record.action)}</span>
+                {record.documentNumber !== null && record.documentNumber !== undefined && (
+                  <span className={styles.number}>{record.documentNumber}</span>
+                )}
+              </p>
+              <p className={styles.meta}>
+                <time dateTime={record.occurredAtUtc}>{formatInstant(record.occurredAtUtc)}</time> · by{' '}
+                {record.userId === null ? (
+                  <span>The system</span>
+                ) : record.userId === session.userId ? (
+                  <span>You</span>
+                ) : (
+                  <code title={record.userId}>{record.userId.slice(0, 8)}</code>
+                )}
+              </p>
+              {record.reason !== null && record.reason !== undefined && record.reason !== '' && (
+                <p className={styles.reason}>{record.reason}</p>
+              )}
+              <details className={styles.record}>
+                <summary>Before and after</summary>
+                <p className={styles.reference}>
+                  Reference: <code>{record.correlationId}</code>
+                </p>
+                {record.before !== null && record.before !== undefined && (
+                  <>
+                    <p className={styles.caption}>Before</p>
+                    <pre className={styles.json}>{JSON.stringify(record.before, null, 2)}</pre>
+                  </>
+                )}
+                <p className={styles.caption}>After</p>
+                <pre className={styles.json}>{JSON.stringify(record.after, null, 2)}</pre>
+              </details>
+            </div>
+          </li>
+        ))}
+      </ol>
       <Pagination page={page} totalCount={Number(trail.data.totalCount)} onChange={setPage} />
     </>
   );

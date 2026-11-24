@@ -7,14 +7,23 @@ interface FieldFrame {
   /** The message of the field's error: the form's own, or the API's for this field. */
   error?: string | undefined;
   hint?: string;
+  /** The field must be filled: a mark beside the label, and aria-required on the control (ADR 0049). The form still checks. */
+  requiredMark?: boolean;
 }
 
-function Frame({ id, label, error, hint, children }: FieldFrame & { children: ReactNode }) {
+function Frame({ id, label, error, hint, requiredMark, children }: FieldFrame & { children: ReactNode }) {
   return (
     <div className={styles.field}>
-      <label className={styles.label} htmlFor={id}>
-        {label}
-      </label>
+      <span className={styles.labelRow}>
+        <label className={styles.label} htmlFor={id}>
+          {label}
+        </label>
+        {requiredMark === true && (
+          <span className={styles.required} aria-hidden="true">
+            Required
+          </span>
+        )}
+      </span>
       {children}
       {hint !== undefined && (
         <p id={`${id}-hint`} className={styles.hint}>
@@ -35,25 +44,62 @@ function describedBy(id: string, error: string | undefined, hint: string | undef
   return ids.length === 0 ? undefined : ids.join(' ');
 }
 
-/** A text input with its label, a hint and its error, wired for assistive technology. */
+/**
+ * A text input with its label, a hint and its error, wired for assistive technology. A unit may stand inside the field,
+ * before its value (₹) or after it (%): drawn, not read, because the label already names it (ADR 0049).
+ */
 export function TextField({
   id,
   label,
   error,
   hint,
+  requiredMark,
+  leading,
+  trailing,
   ref,
   ...input
-}: FieldFrame & ComponentProps<'input'> & { ref?: Ref<HTMLInputElement> }) {
+}: FieldFrame & ComponentProps<'input'> & { leading?: string; trailing?: string; ref?: Ref<HTMLInputElement> }) {
+  const control = (
+    <input
+      id={id}
+      ref={ref}
+      className={[
+        styles.input,
+        leading === undefined ? '' : styles.withLeading,
+        trailing === undefined ? '' : styles.withTrailing,
+      ].join(' ')}
+      aria-invalid={error !== undefined}
+      aria-describedby={describedBy(id, error, hint)}
+      aria-required={requiredMark === true ? true : undefined}
+      {...input}
+    />
+  );
+
   return (
-    <Frame id={id} label={label} error={error} {...(hint === undefined ? {} : { hint })}>
-      <input
-        id={id}
-        ref={ref}
-        className={styles.input}
-        aria-invalid={error !== undefined}
-        aria-describedby={describedBy(id, error, hint)}
-        {...input}
-      />
+    <Frame
+      id={id}
+      label={label}
+      error={error}
+      {...(hint === undefined ? {} : { hint })}
+      {...(requiredMark === undefined ? {} : { requiredMark })}
+    >
+      {leading === undefined && trailing === undefined ? (
+        control
+      ) : (
+        <span className={styles.adorned}>
+          {leading !== undefined && (
+            <span className={styles.leading} aria-hidden="true">
+              {leading}
+            </span>
+          )}
+          {control}
+          {trailing !== undefined && (
+            <span className={styles.trailing} aria-hidden="true">
+              {trailing}
+            </span>
+          )}
+        </span>
+      )}
     </Frame>
   );
 }
@@ -64,16 +110,24 @@ export function SelectField({
   label,
   error,
   hint,
+  requiredMark,
   ref,
   children,
   ...select
 }: FieldFrame & ComponentProps<'select'> & { ref?: Ref<HTMLSelectElement> }) {
   return (
-    <Frame id={id} label={label} error={error} {...(hint === undefined ? {} : { hint })}>
+    <Frame
+      id={id}
+      label={label}
+      error={error}
+      {...(hint === undefined ? {} : { hint })}
+      {...(requiredMark === undefined ? {} : { requiredMark })}
+    >
       <select
         id={id}
         ref={ref}
         className={styles.input}
+        aria-required={requiredMark === true ? true : undefined}
         aria-invalid={error !== undefined}
         aria-describedby={describedBy(id, error, hint)}
         {...select}

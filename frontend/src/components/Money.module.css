@@ -1,0 +1,16 @@
+.money {
+  font-variant-numeric: tabular-nums lining-nums;
+  white-space: nowrap;
+}
+
+.strong {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.word {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}

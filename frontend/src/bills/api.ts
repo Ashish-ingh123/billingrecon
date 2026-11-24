@@ -4,6 +4,7 @@ import type { ApiClient } from '../api/client';
 import { useApiClient } from '../api/ApiClientContext';
 import type { components } from '../api/schema';
 import type { ComparedField } from '../components/conflict';
+import { documentStatuses } from '../components/documentStatuses';
 import { pageSize } from '../components/listParams';
 import { toNumber } from '../decimals';
 import { formatDate, formatDecimal } from '../format';
@@ -24,14 +25,9 @@ export const billStatuses: readonly BillStatus[] = [
   'Voided',
 ];
 
-export const billStatusLabels: Record<BillStatus, string> = {
-  Draft: 'Draft',
-  PendingApproval: 'Waiting for approval',
-  Posted: 'Posted',
-  PartiallyPaid: 'Partly paid',
-  Settled: 'Settled',
-  Voided: 'Voided',
-};
+export const billStatusLabels = Object.fromEntries(
+  Object.entries(documentStatuses.bill).map(([status, look]) => [status, look.label]),
+) as Record<BillStatus, string>;
 
 /** A line as the editor holds it: the numbers as text, checked as text and sent as numbers (ADR 0039 point 5). */
 export interface BillLineValues {

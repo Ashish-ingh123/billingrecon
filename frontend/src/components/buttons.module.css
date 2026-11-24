@@ -84,3 +84,31 @@
     transition: none;
   }
 }
+
+/* Since Prompt 9.3 (ADR 0049): an action that is being sent says so, by its words and by a turning mark; with reduced
+   motion the mark stands still. */
+.primary[aria-busy='true']::before,
+.secondary[aria-busy='true']::before,
+.danger[aria-busy='true']::before {
+  content: '';
+  width: 0.875em;
+  height: 0.875em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--radius-pill);
+  animation: turn 0.8s linear infinite;
+}
+
+@keyframes turn {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primary[aria-busy='true']::before,
+  .secondary[aria-busy='true']::before,
+  .danger[aria-busy='true']::before {
+    animation: none;
+  }
+}

@@ -128,6 +128,9 @@ test('a cashier records the payer’s payment and applies it oldest first, which
   await page.getByRole('button', { name: 'Apply oldest first' }).click();
   await expect(page.getByLabel(`Amount to apply to ${journey.billNumber}`)).not.toHaveValue('');
   await page.getByRole('button', { name: 'Allocate', exact: true }).click();
+  // Back on the payment's page once the allocation is answered (Prompt 9.3: on the allocate page itself the link is
+  // absent too, so without this the step went on while the allocation was still on its way, and cut it off).
+  await expect(page).toHaveURL(/\/payments\/[0-9a-f-]+$/);
   await expect(page.getByRole('link', { name: 'Allocate to bills' })).toBeHidden();
 
   await page.goto(`${journey.payerPath}/statement`);

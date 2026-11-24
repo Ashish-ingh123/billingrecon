@@ -4,7 +4,7 @@ import type { ApiClient } from '../api/client';
 import { useApiClient } from '../api/ApiClientContext';
 import type { components } from '../api/schema';
 import type { BillLine } from '../bills/api';
-import type { Tone } from '../components/Badge';
+import { documentStatuses, type StatusLook } from '../components/documentStatuses';
 import type { ComparedField } from '../components/conflict';
 import { pageSize } from '../components/listParams';
 import { toNumber } from '../decimals';
@@ -19,18 +19,10 @@ export type CreditApplication = components['schemas']['CreditNoteApplicationDto'
 
 export const creditNoteStatuses: readonly CreditNoteStatus[] = ['Draft', 'PendingApproval', 'Posted', 'Voided'];
 
-export const creditNoteStatusLabels: Record<CreditNoteStatus, { label: string; tone: Tone }> = {
-  Draft: { label: 'Draft', tone: 'muted' },
-  PendingApproval: { label: 'Waiting for approval', tone: 'warning' },
-  Posted: { label: 'Posted', tone: 'accent' },
-  Voided: { label: 'Voided', tone: 'danger' },
-};
+export const creditNoteStatusLabels: Record<CreditNoteStatus, StatusLook> = documentStatuses.creditNote;
 
-export const applicationStatusLabels: Record<CreditApplication['status'], { label: string; tone: Tone }> = {
-  Active: { label: 'Applied', tone: 'success' },
-  PendingReversal: { label: 'Waiting for reversal', tone: 'warning' },
-  Reversed: { label: 'Reversed', tone: 'danger' },
-};
+export const applicationStatusLabels: Record<CreditApplication['status'], StatusLook> =
+  documentStatuses.creditApplication;
 
 /**
  * A line as the editor holds it (ADR 0042 point 4): one that names a line of the bill takes its description, price and

@@ -75,6 +75,7 @@ function HeaderFields({ form, bill }: { form: UseFormReturn<CreditNoteValues>; b
       <TextField
         id="credit-note-date"
         label="Credit note date"
+        requiredMark
         type="date"
         min={bill.billDate}
         max={todayInIndia()}
@@ -207,7 +208,12 @@ function NewCreditNoteForm({ bill }: { bill: Bill }) {
           it.
         </p>
         <div className={forms.actions}>
-          <button type="submit" className={buttons.primary} disabled={creating.isPending}>
+          <button
+            type="submit"
+            className={buttons.primary}
+            disabled={creating.isPending}
+            aria-busy={creating.isPending}
+          >
             {creating.isPending ? 'Saving…' : 'Save draft'}
           </button>
           <Link to={`/bills/${bill.id}`}>Cancel</Link>
@@ -344,7 +350,7 @@ function EditCreditNoteForm({ initial, bill }: { initial: CreditNote; bill: Bill
         </div>
         <CreditLinesEditor form={form} bill={bill} />
         <div className={forms.actions}>
-          <button type="submit" className={buttons.primary} disabled={saving.isPending}>
+          <button type="submit" className={buttons.primary} disabled={saving.isPending} aria-busy={saving.isPending}>
             {saving.isPending ? 'Saving…' : 'Save'}
           </button>
           <Link to={`/credit-notes/${initial.id}`}>Cancel</Link>

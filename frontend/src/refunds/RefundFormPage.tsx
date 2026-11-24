@@ -260,7 +260,12 @@ function NewRefundForm({ facts }: { facts: SourceFacts }) {
           A refund needs a second person: once drafted, it is submitted, and a Supervisor or an administrator posts it.
         </p>
         <div className={forms.actions}>
-          <button type="submit" className={buttons.primary} disabled={drafting.isPending}>
+          <button
+            type="submit"
+            className={buttons.primary}
+            disabled={drafting.isPending}
+            aria-busy={drafting.isPending}
+          >
             {drafting.isPending ? 'Saving…' : 'Save draft'}
           </button>
           <Link to={facts.link}>Cancel</Link>
@@ -379,7 +384,12 @@ function EditRefundForm({ initial, facts }: { initial: Refund; facts: SourceFact
           <RefundFields form={form} facts={facts} />
         </div>
         <div className={forms.actions}>
-          <button type="submit" className={buttons.primary} disabled={correcting.isPending}>
+          <button
+            type="submit"
+            className={buttons.primary}
+            disabled={correcting.isPending}
+            aria-busy={correcting.isPending}
+          >
             {correcting.isPending ? 'Saving…' : 'Save'}
           </button>
           <Link to={`/refunds/${initial.id}`}>Cancel</Link>

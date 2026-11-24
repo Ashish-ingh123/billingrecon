@@ -47,9 +47,10 @@ is left; their numbering is mine, not the blueprint's.
 | 8.3 Release R1 | Written on 2026-11-24 with the owner's decisions, in the session of 8.2: the runbook finished (rolling back a migration, backup and restore with `deploy/backup`, run on LocalDB, and the incident procedures); `docs/traceability.md` with every user story and its tests, held by `TraceabilityTests`; every item of CLAUDE.md section 9 closed or re-filed to `docs/backlog.md` or runbook section 8; the README for R1; every ADR Accepted; the tag `v1.0.0`, annotated and local |
 | 9.1 Brand, design tokens and the sign-in page | Written on 2026-11-24 with the owner's decisions (ADR 0047), on `phase-9-interface`. The tokens of both themes, Inter self-hosted (`@fontsource-variable/inter` 5.3.0), our own icons, the BillingRecon mark, the ashline credit and the sign-in page laid out in the reference's own pixels, with its motion; the shared buttons and fields restyled. In the installed Edge: within 4 px of `docs/ui/sign-in.png` in both themes, nothing refused by nginx's policy (applied in the test), the journey of 8.2 passing through it. **Built without the photograph**, which the owner does not have yet; not seen through nginx |
 | 9.2 The shell and the shared components | Written on 2026-11-24 with the owner's decisions (ADR 0048), on `phase-9-interface`: the sidebar with icons, its rail and its drawer, the top bar, the ashline credit, a three-way theme pill in place of the drop-down, the tab's title and the heading's focus after a navigation, the shared components restyled from the tokens, skeletons and empty states, a specimen page in Development builds. 392 component tests and 16 browser tests in the installed Edge, the 8.2 journey through the new shell. Some components were left for 9.3 (ADR 0048, built note); not seen through nginx |
-| 9.3 and 9.4 (the money screens; the dashboard, reports and finishing pass) | Written as prompts on 2026-11-24, not started |
+| 9.3 The money screens: shared components, bills, credit notes, adjustments | Written on 2026-11-24 (ADR 0049), on `phase-9-interface`, after the owner split 9.3 in two: money as one component, one mapping of every status with its icon, the totals card, banners, the history as a timeline, units and a required mark in fields, pending buttons, the refused field focused; bills, credit notes and adjustments, the no-access and not-found pages. 422 component tests and 31 browser tests in the installed Edge, the 8.2 journey through the new screens. Not seen through nginx |
+| 9.3b, 9.4 (payments, refunds, the statement and the inbox; the dashboard, reports and finishing pass) | Written as prompts on 2026-11-24, not started |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. 5.3b (tenant settings and prefix changes) is written too, and `0019` is in the repository. ADR 0033 built note point 5 was decided on 2026-11-23 (the approval holds the series) and is built as its own commit. 5.4 was split with its plan: its first half, the database logins and grants, is written too, and `0020` is in the repository. 5.4b (HTTP hardening and `docs/security.md` in full) is written too, with no migration; Phase 5 is written to its end, and its merge to `main` is the owner's step. 6.1 (registers and balances), 6.2 (reconciliation and audit trail) and 6.3 (dashboard figures) are written too, with no migration, on `phase-2-billing` like the rest: the backend of R1 is written to its end, and its merge to `main` is the owner's step. 7.1 (the frontend's scaffold and sign-in) is written too, on the same branch, with Node 24 on the office machine. 7.2 (patients, payers and catalogue screens), 7.3 (bill screens), 7.4 (cashier screens) and 7.5 (the checker's inbox, credit notes and adjustments; split with its plan), 7.5b (reports) and 7.6 (dashboard) are written too: the frontend of R1 is written to its end. 8.1 (one-command local run) is written too, on `phase-8-delivery`, and so are 8.2 (performance and browser tests) and 8.3 (release R1, tagged `v1.0.0`): R1 is written to its end. On 2026-11-24 the owner reported the first run on the personal machine: `docker compose up --build` with the demo, and `dotnet test` with Docker, which passed; its output is still to be sent, so the rows of runbook section 8 stay until then. No prompt is left in R1. Phase 9, the interface, has begun: 9.1 (the brand, the tokens and the sign-in page) is written, without the photograph, which is still to come, and so is 9.2 (the shell and the shared components); next is 9.3 (the money screens); what else follows is in `docs/backlog.md` and the release plan of CLAUDE.md. What was decided for each built prompt is recorded under it below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. 5.3b (tenant settings and prefix changes) is written too, and `0019` is in the repository. ADR 0033 built note point 5 was decided on 2026-11-23 (the approval holds the series) and is built as its own commit. 5.4 was split with its plan: its first half, the database logins and grants, is written too, and `0020` is in the repository. 5.4b (HTTP hardening and `docs/security.md` in full) is written too, with no migration; Phase 5 is written to its end, and its merge to `main` is the owner's step. 6.1 (registers and balances), 6.2 (reconciliation and audit trail) and 6.3 (dashboard figures) are written too, with no migration, on `phase-2-billing` like the rest: the backend of R1 is written to its end, and its merge to `main` is the owner's step. 7.1 (the frontend's scaffold and sign-in) is written too, on the same branch, with Node 24 on the office machine. 7.2 (patients, payers and catalogue screens), 7.3 (bill screens), 7.4 (cashier screens) and 7.5 (the checker's inbox, credit notes and adjustments; split with its plan), 7.5b (reports) and 7.6 (dashboard) are written too: the frontend of R1 is written to its end. 8.1 (one-command local run) is written too, on `phase-8-delivery`, and so are 8.2 (performance and browser tests) and 8.3 (release R1, tagged `v1.0.0`): R1 is written to its end. On 2026-11-24 the owner reported the first run on the personal machine: `docker compose up --build` with the demo, and `dotnet test` with Docker, which passed; its output is still to be sent, so the rows of runbook section 8 stay until then. No prompt is left in R1. Phase 9, the interface, has begun: 9.1 (the brand, the tokens and the sign-in page) is written, without the photograph, which is still to come, and so are 9.2 (the shell and the shared components) and 9.3 (the money screens' shared components, bills, credit notes and adjustments); next is 9.3b (payments, refunds, the statement and the inbox); what else follows is in `docs/backlog.md` and the release plan of CLAUDE.md. What was decided for each built prompt is recorded under it below.**
 
 ## How to use these prompts
 
@@ -1203,7 +1204,11 @@ frame with the first column pinned (rows folding into cards was offered); and, a
 theme becomes a modern toggle, a pill of three with Light, Dark and System (a two-way switch was offered, which would have
 lost System). Built as decided; fields with ₹ and %, the audit timeline and the one status mapping move to 9.3.
 
-#### 9.3 The money screens
+#### 9.3 The money screens (shared components, bills, credit notes and adjustments)
+
+As approved on 2026-11-24 and then split by the owner: this prompt builds the shared components and the screens of bills,
+credit notes and adjustments; 9.3b, below, the payments, refunds, the payer statement and the inbox. The wording below is
+the prompt as given; its "screens" list is shared by the two.
 
 ```
 Read ADRs 0047 and 0048 and "The bar of Phase 9" in docs/build-prompts.md; ADRs 0040 to 0042 for
@@ -1246,6 +1251,47 @@ in both themes at 1440 and 390 px with no sideways scroll, no console error and 
 security policy refusal; nothing animates with reduced motion; the journey of 8.2 passes.
 Add screenshots (the bill editor, a posted bill, allocating, the statement, the inbox; both
 themes) to docs/ui/. Write ADR 0049.
+Done when: the scenario of Phase 4, by a clerk, a cashier and a supervisor in the browser, reads
+as one product from the sign-in to the approved refund, in both themes.
+```
+
+**Owner's decisions for 9.3, recorded 2026-11-24 (ADR 0049):** the plan (seven shared components, no new package) was
+approved as one prompt and then split, at the owner's word, into 9.3 (the shared components, bills, credit notes and
+adjustments) and 9.3b (payments, refunds, the statement and the inbox). 9.3b amends ADR 0049; 9.4 keeps ADR 0050.
+
+#### 9.3b The cashier's screens and the inbox
+
+```
+Read ADRs 0047 to 0049 and "The bar of Phase 9" in docs/build-prompts.md; ADRs 0041 and 0042 for
+what the payment, allocation, refund, statement and inbox screens do today.
+
+Show me the plan first: for each screen below, its layout at 1440 and 390 px and what the eye
+meets first; anything new beyond the components of 9.3 (Money, the status mapping, TotalsCard,
+Banner, the timeline, fields with a unit and a required mark); any package (ask).
+
+The screens, with the components of 9.3:
+- payments and refunds: the lists; recording a payment (the amount with its unit, the payer
+  beside it); the payment's page with its amount and unapplied cash as figures, its allocations
+  and its reversal requests as banners; a refund from its source with the source's available
+  amount as a figure;
+- allocating, and applying a credit note's credit (the shared ApplyToBills): the payer's open
+  bills oldest first, "Apply oldest first", and a meter of what is left to apply that warns in
+  words before a cap is passed, reading the figures money.ts already computes;
+- the payer statement: what is owed, the unapplied cash, the credit and the net as four figures
+  at the top (the net the strongest), then the bills, payments and credit notes with their
+  actions;
+- the checker's inbox: each request a card (its kind with an icon, the document, the maker, the
+  amount, how long it has waited), Review opening in place with the document's facts and the
+  decision; the maker's own request shown as not theirs to decide; a decided request leaves.
+
+No change of behaviour: no change of the API, of a route, of a policy or of what a screen sends,
+and money.ts and lineMath.ts are not touched. If the inbox's test must find cards as list items
+instead of rows, the assertions stay the same and the change is called out.
+Tests: every existing test unweakened; the meter's figures and warning; the statement's four
+figures against the API's. In the browser: each of these screens in both themes at 1440 and
+390 px under nginx's policy, with no sideways scroll, no console error, no layout shift and
+nothing animated with reduced motion; the journey of 8.2 passes.
+Add screenshots (allocating, the statement, the inbox; both themes) to docs/ui/. Amend ADR 0049.
 Done when: the scenario of Phase 4, by a clerk, a cashier and a supervisor in the browser, reads
 as one product from the sign-in to the approved refund, in both themes.
 ```

@@ -124,7 +124,12 @@ export function NewPatientPage() {
         {outcome.problem !== null && <ProblemAlert problem={outcome.problem} placedFields={patientFields} />}
         <PatientFields form={form} />
         <div className={forms.actions}>
-          <button type="submit" className={buttons.primary} disabled={registering.isPending}>
+          <button
+            type="submit"
+            className={buttons.primary}
+            disabled={registering.isPending}
+            aria-busy={registering.isPending}
+          >
             {registering.isPending ? 'Registering…' : 'Register patient'}
           </button>
           <Link to="/patients">Cancel</Link>
@@ -205,7 +210,12 @@ function EditPatientForm({ initial }: { initial: Patient }) {
         )}
         <PatientFields form={form} fixedMrn={initial.mrn} />
         <div className={forms.actions}>
-          <button type="submit" className={buttons.primary} disabled={correcting.isPending}>
+          <button
+            type="submit"
+            className={buttons.primary}
+            disabled={correcting.isPending}
+            aria-busy={correcting.isPending}
+          >
             {correcting.isPending ? 'Saving…' : 'Save'}
           </button>
           <Link to={`/patients/${initial.id}`}>Cancel</Link>

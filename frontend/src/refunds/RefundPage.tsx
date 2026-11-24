@@ -107,7 +107,9 @@ function RefundView({ refund }: { refund: Refund }) {
         subtitle={
           <>
             {refund.fiscalYear !== null && <>Fiscal year {refund.fiscalYear} · </>}
-            <Badge tone={refundStatusLabels[refund.status].tone}>{refundStatusLabels[refund.status].label}</Badge>
+            <Badge tone={refundStatusLabels[refund.status].tone} icon={refundStatusLabels[refund.status].icon}>
+              {refundStatusLabels[refund.status].label}
+            </Badge>
           </>
         }
         actions={

@@ -176,7 +176,12 @@ function RecordPaymentForm({ initialPayer }: { initialPayer: Payer | null }) {
           </div>
         </div>
         <div className={forms.actions}>
-          <button type="submit" className={buttons.primary} disabled={recording.isPending}>
+          <button
+            type="submit"
+            className={buttons.primary}
+            disabled={recording.isPending}
+            aria-busy={recording.isPending}
+          >
             {recording.isPending ? 'Recording…' : 'Record payment'}
           </button>
           <Link to="/payments">Cancel</Link>

@@ -53,6 +53,7 @@ function HeaderFields({ form, dueDateRequired }: { form: UseFormReturn<BillValue
       <TextField
         id="bill-date"
         label="Bill date"
+        requiredMark
         type="date"
         max={today}
         hint="Today in India, or a few days back within the hospital's limit."
@@ -197,7 +198,12 @@ export function NewBillPage() {
         </div>
         <LinesEditor form={form} />
         <div className={forms.actions}>
-          <button type="submit" className={buttons.primary} disabled={creating.isPending}>
+          <button
+            type="submit"
+            className={buttons.primary}
+            disabled={creating.isPending}
+            aria-busy={creating.isPending}
+          >
             {creating.isPending ? 'Saving…' : 'Save draft'}
           </button>
           <Link to="/bills">Cancel</Link>
@@ -328,7 +334,7 @@ function EditBillForm({ initial }: { initial: Bill }) {
         </div>
         <LinesEditor form={form} />
         <div className={forms.actions}>
-          <button type="submit" className={buttons.primary} disabled={saving.isPending}>
+          <button type="submit" className={buttons.primary} disabled={saving.isPending} aria-busy={saving.isPending}>
             {saving.isPending ? 'Saving…' : 'Save'}
           </button>
           <Link to={`/bills/${initial.id}`}>Cancel</Link>

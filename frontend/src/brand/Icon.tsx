@@ -40,7 +40,13 @@ export type IconName =
   | 'alert'
   | 'inbox'
   | 'dot'
-  | 'arrow-left';
+  | 'arrow-left'
+  | 'clock'
+  | 'pencil'
+  | 'ban'
+  | 'plus'
+  | 'half'
+  | 'stamp';
 
 const outline = {
   fill: 'none',
@@ -259,6 +265,41 @@ const shapes: Record<IconName, ReactNode> = {
   'arrow-left': (
     <g {...outline}>
       <path d="M19 12H5M11 6l-6 6 6 6" />
+    </g>
+  ),
+  clock: (
+    <g {...outline}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3.5 2" />
+    </g>
+  ),
+  pencil: (
+    <g {...outline}>
+      <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z" />
+      <path d="m13.5 6.5 4 4" />
+    </g>
+  ),
+  ban: (
+    <g {...outline}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m5.7 5.7 12.6 12.6" />
+    </g>
+  ),
+  plus: (
+    <g {...outline}>
+      <path d="M12 5v14M5 12h14" />
+    </g>
+  ),
+  half: (
+    <g>
+      <circle {...outline} cx="12" cy="12" r="9" />
+      <path {...solid} d="M12 3a9 9 0 0 1 0 18V3Z" />
+    </g>
+  ),
+  stamp: (
+    <g {...outline}>
+      <path d="M9.5 13 9 8.5a3 3 0 1 1 6 0l-.5 4.5" />
+      <path d="M5 13h14v4H5zM6.5 20h11" />
     </g>
   ),
   spinner: (

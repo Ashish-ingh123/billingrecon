@@ -1,6 +1,6 @@
-import { Badge } from './Badge';
+import { DocumentStatus } from './DocumentStatus';
 
-/** The status of a patient, a payer or a service item: Active in the colour of success, Inactive muted (ADR 0048). */
+/** The status of a patient, a payer or a service item, from the one mapping of statuses (ADR 0049). */
 export function StatusBadge({ status }: { status: 'Active' | 'Inactive' }) {
-  return <Badge tone={status === 'Active' ? 'success' : 'muted'}>{status}</Badge>;
+  return <DocumentStatus kind="record" status={status} />;
 }

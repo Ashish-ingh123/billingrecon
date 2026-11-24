@@ -71,6 +71,7 @@ export function useStatusActions<T extends { status: 'Active' | 'Inactive' }>({
         type="button"
         className={buttons.secondary}
         disabled={change.isPending}
+        aria-busy={change.isPending}
         onClick={() => change.mutate('reactivate')}
       >
         Reactivate {what}

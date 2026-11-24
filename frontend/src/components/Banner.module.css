@@ -1,0 +1,64 @@
+.banner {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  margin: 0 0 var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid currentColor;
+  border-left-width: 4px;
+  border-radius: var(--radius-md);
+  animation: arrive var(--duration-slow) var(--ease-out);
+}
+
+.accent {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.success {
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+.warning {
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.danger {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.icon {
+  flex: none;
+  margin-top: 0.125rem;
+  font-size: 1.25rem;
+}
+
+.body {
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.text {
+  margin: var(--space-1) 0 0;
+  color: var(--text);
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .banner {
+    animation: none;
+  }
+}

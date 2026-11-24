@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { Icon } from '../brand/Icon';
 import { Badge } from '../components/Badge';
+import { Banner } from '../components/Banner';
+import { DocumentStatus } from '../components/DocumentStatus';
+import { documentStatuses, type DocumentKind } from '../components/documentStatuses';
+import { Money } from '../components/Money';
+import { TotalsCard } from '../components/TotalsCard';
 import buttons from '../components/buttons.module.css';
 import { ConflictNotice } from '../components/ConflictNotice';
 import { Details } from '../components/Details';
@@ -57,7 +62,13 @@ export function DesignPage() {
           <button type="button" className={buttons.primary} disabled>
             Disabled
           </button>
-          <button type="button" className={buttons.primary} disabled={pending} onClick={() => setPending(true)}>
+          <button
+            type="button"
+            className={buttons.primary}
+            disabled={pending}
+            aria-busy={pending}
+            onClick={() => setPending(true)}
+          >
             {pending ? 'Saving…' : 'Press to pend'}
           </button>
         </div>
@@ -89,6 +100,60 @@ export function DesignPage() {
           <StatusBadge status="Active" />
           <StatusBadge status="Inactive" />
         </div>
+      </section>
+
+      <section className={styles.block} aria-labelledby="every-status-title">
+        <h2 id="every-status-title">Every status of every document</h2>
+        {(Object.keys(documentStatuses) as DocumentKind[]).map((kind) => (
+          <p key={kind} className={styles.row}>
+            <strong>{kind}</strong>
+            {Object.keys(documentStatuses[kind]).map((status) => (
+              <DocumentStatus
+                key={status}
+                kind={kind}
+                status={status as keyof (typeof documentStatuses)[typeof kind]}
+              />
+            ))}
+          </p>
+        ))}
+      </section>
+
+      <section className={styles.block} aria-labelledby="money-title">
+        <h2 id="money-title">Money</h2>
+        <p className={styles.row}>
+          <Money value={1234567} /> <Money value={49.98} /> <Money value={500} credit /> <Money value={-12.5} />{' '}
+          <Money value={1049.48} strong />
+        </p>
+        <TotalsCard
+          label="Specimen totals"
+          rows={[
+            { label: 'Subtotal', value: 1000 },
+            { label: 'Discounts', value: 0.5 },
+            { label: 'Tax', value: 49.98 },
+            { label: 'Total', value: 1049.48, strong: true },
+            { label: 'Balance due', value: 549.48, strong: true, apart: true },
+          ]}
+        />
+        <TotalsCard
+          label="Specimen estimate"
+          rows={[{ label: 'Total', value: 731.12, strong: true }]}
+          estimate="An estimate until the draft is saved; the bill then shows the server's figures."
+        />
+        <TextField id="specimen-amount" label="Amount (₹)" leading="₹" requiredMark inputMode="decimal" />
+        <TextField id="specimen-rate" label="Tax rate (%)" trailing="%" inputMode="decimal" />
+      </section>
+
+      <section className={styles.block} aria-labelledby="banners-title">
+        <h2 id="banners-title">Banners</h2>
+        <Banner tone="warning" title="Waiting for approval">
+          This bill waits for approval: a Supervisor or an administrator other than the one who sent it posts it.
+        </Banner>
+        <Banner tone="danger" title="Voided">
+          Voided 20 Nov 2026, 10:30 am: entered twice.
+        </Banner>
+        <Banner tone="success" title="Posted">
+          The bill is posted as BIL/26-27/000123.
+        </Banner>
       </section>
 
       <section className={styles.block} aria-labelledby="table-title">

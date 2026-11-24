@@ -1,10 +1,40 @@
+/* The pages that say where the user is not (ADR 0049): centred, a drawing of our own, the words and the way back. */
 .page {
-  max-width: 48rem;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  max-width: 34rem;
+  margin: clamp(var(--space-5), 8vh, var(--space-7)) auto;
+  padding: var(--space-6) var(--space-5);
+  text-align: center;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
 }
 
 .page h1 {
-  margin-top: 0;
-  font-size: 1.5rem;
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-2xl);
+}
+
+.page p {
+  margin: 0;
+}
+
+.page a {
+  margin-top: var(--space-3);
+}
+
+.drawing {
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  font-size: 1.75rem;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: var(--radius-pill);
 }
 
 .note {

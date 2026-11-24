@@ -1,7 +1,7 @@
-import { billStatusLabels, type BillStatus } from './api';
-import styles from './BillStatusBadge.module.css';
+import { DocumentStatus } from '../components/DocumentStatus';
+import type { BillStatus } from './api';
 
-/** The status of a bill, each in its own colour of the tokens. */
+/** The status of a bill, from the one mapping of statuses (ADR 0049). */
 export function BillStatusBadge({ status }: { status: BillStatus }) {
-  return <span className={`${styles.badge} ${styles[status]}`}>{billStatusLabels[status]}</span>;
+  return <DocumentStatus kind="bill" status={status} />;
 }

@@ -3,7 +3,7 @@ import { answer, answerWithStatus, ifMatch } from '../api/call';
 import type { ApiClient } from '../api/client';
 import { useApiClient } from '../api/ApiClientContext';
 import type { components } from '../api/schema';
-import type { Tone } from '../components/Badge';
+import { documentStatuses, type StatusLook } from '../components/documentStatuses';
 import type { ComparedField } from '../components/conflict';
 import { pageSize } from '../components/listParams';
 import { formatDate, formatDecimal } from '../format';
@@ -15,12 +15,7 @@ export type RefundStatus = components['schemas']['RefundStatus'];
 
 export const refundStatuses: readonly RefundStatus[] = ['Draft', 'PendingApproval', 'Posted', 'Voided'];
 
-export const refundStatusLabels: Record<RefundStatus, { label: string; tone: Tone }> = {
-  Draft: { label: 'Draft', tone: 'muted' },
-  PendingApproval: { label: 'Waiting for approval', tone: 'warning' },
-  Posted: { label: 'Posted', tone: 'accent' },
-  Voided: { label: 'Voided', tone: 'danger' },
-};
+export const refundStatusLabels: Record<RefundStatus, StatusLook> = documentStatuses.refund;
 
 /** What a refund form holds, as text: the source is fixed once the draft exists. */
 export interface RefundValues {

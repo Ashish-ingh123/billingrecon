@@ -7,6 +7,7 @@ import buttons from '../components/buttons.module.css';
 import { TextField } from '../components/Field';
 import fieldStyles from '../components/Field.module.css';
 import forms from '../components/forms.module.css';
+import { TotalsCard } from '../components/TotalsCard';
 import { checkDecimal } from '../decimals';
 import { formatDecimal } from '../format';
 import { paiseOfServer } from '../money';
@@ -132,6 +133,7 @@ export function CreditLinesEditor({ form, bill }: { form: UseFormReturn<CreditNo
                     <TextField
                       id={`line-${index}-discount`}
                       label="Discount (₹)"
+                      leading="₹"
                       inputMode="decimal"
                       error={lineErrors?.discountAmount?.message}
                       {...register(`lines.${index}.discountAmount`, { validate: discount(index) })}
@@ -165,6 +167,7 @@ export function CreditLinesEditor({ form, bill }: { form: UseFormReturn<CreditNo
                     <TextField
                       id={`line-${index}-unit-price`}
                       label="Unit price (₹)"
+                      leading="₹"
                       inputMode="decimal"
                       error={lineErrors?.unitPrice?.message}
                       {...register(`lines.${index}.unitPrice`, {
@@ -174,6 +177,7 @@ export function CreditLinesEditor({ form, bill }: { form: UseFormReturn<CreditNo
                     <TextField
                       id={`line-${index}-discount`}
                       label="Discount (₹)"
+                      leading="₹"
                       inputMode="decimal"
                       error={lineErrors?.discountAmount?.message}
                       {...register(`lines.${index}.discountAmount`, { validate: discount(index) })}
@@ -181,6 +185,7 @@ export function CreditLinesEditor({ form, bill }: { form: UseFormReturn<CreditNo
                     <TextField
                       id={`line-${index}-tax-rate`}
                       label="Tax rate (%)"
+                      trailing="%"
                       inputMode="decimal"
                       error={lineErrors?.taxRatePercent?.message}
                       {...register(`lines.${index}.taxRatePercent`, { validate: taxRate })}
@@ -242,29 +247,23 @@ export function CreditLinesEditor({ form, bill }: { form: UseFormReturn<CreditNo
         </div>
       )}
 
-      <dl className={styles.totals} aria-label="Estimated totals">
-        <div>
-          <dt>Subtotal</dt>
-          <dd>₹{formatDecimal(rupees(totals.subTotal))}</dd>
-        </div>
-        <div>
-          <dt>Discounts</dt>
-          <dd>₹{formatDecimal(rupees(totals.discountTotal))}</dd>
-        </div>
-        <div>
-          <dt>Tax</dt>
-          <dd>₹{formatDecimal(rupees(totals.taxTotal))}</dd>
-        </div>
-        <div className={styles.grand}>
-          <dt>Total</dt>
-          <dd>₹{formatDecimal(rupees(totals.total))}</dd>
-        </div>
-      </dl>
-      <p className={styles.estimate}>
-        An estimate until the draft is saved; the credit note then shows the server&apos;s figures. The bill came to ₹
-        {formatDecimal(bill.total)}.
-        {complete.length < amounts.length && ' Lines whose numbers are not complete are left out.'}
-      </p>
+      <TotalsCard
+        sticky
+        label="Estimated totals"
+        rows={[
+          { label: 'Subtotal', value: rupees(totals.subTotal) },
+          { label: 'Discounts', value: rupees(totals.discountTotal) },
+          { label: 'Tax', value: rupees(totals.taxTotal) },
+          { label: 'Total', value: rupees(totals.total), strong: true },
+        ]}
+        estimate={
+          <>
+            An estimate until the draft is saved; the credit note then shows the server&apos;s figures. The bill came to
+            ₹{formatDecimal(bill.total)}.
+            {complete.length < amounts.length && ' Lines whose numbers are not complete are left out.'}
+          </>
+        }
+      />
     </section>
   );
 }

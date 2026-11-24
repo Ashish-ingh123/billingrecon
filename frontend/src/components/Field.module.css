@@ -61,3 +61,56 @@
   font-size: var(--text-sm);
   color: var(--danger);
 }
+
+/* Since Prompt 9.3 (ADR 0049): the required mark, and a unit inside the field (₹ before an amount, % after a rate). */
+.labelRow {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.required {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.adorned {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.adorned .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.leading,
+.trailing {
+  position: absolute;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.leading {
+  left: 0.75rem;
+}
+
+.trailing {
+  right: 0.75rem;
+}
+
+.withLeading {
+  padding-left: 1.75rem;
+}
+
+.withTrailing {
+  padding-right: 2rem;
+}
+
+.input:where([inputmode='decimal'], [inputmode='numeric']) {
+  font-variant-numeric: tabular-nums;
+}

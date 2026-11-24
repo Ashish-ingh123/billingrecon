@@ -11,7 +11,10 @@ import { Badge } from '../components/Badge';
 import buttons from '../components/buttons.module.css';
 import { ConfirmAction } from '../components/ConfirmAction';
 import table from '../components/DataTable.module.css';
+import { Banner } from '../components/Banner';
 import { Details } from '../components/Details';
+import summary from '../components/Summary.module.css';
+import { TotalsCard } from '../components/TotalsCard';
 import forms from '../components/forms.module.css';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
@@ -125,7 +128,10 @@ function CreditNoteView({ creditNote }: { creditNote: CreditNote }) {
         subtitle={
           <>
             {creditNote.fiscalYear !== null && <>Fiscal year {creditNote.fiscalYear} · </>}
-            <Badge tone={creditNoteStatusLabels[creditNote.status].tone}>
+            <Badge
+              tone={creditNoteStatusLabels[creditNote.status].tone}
+              icon={creditNoteStatusLabels[creditNote.status].icon}
+            >
               {creditNoteStatusLabels[creditNote.status].label}
             </Badge>
           </>
@@ -180,24 +186,33 @@ function CreditNoteView({ creditNote }: { creditNote: CreditNote }) {
         </p>
       )}
       {creditNote.status === 'Voided' && (
-        <p className={forms.note}>
+        <Banner tone="danger" title="Voided">
           Voided {formatInstant(creditNote.voidedAtUtc)}: {creditNote.voidReason}
-        </p>
+        </Banner>
       )}
-      <Details
-        items={[
-          ['Bill', <BillNumber key="bill" id={creditNote.billId} />],
-          [
-            'Payer',
-            payer.data === undefined ? '…' : <Link to={`/payers/${creditNote.payerId}`}>{payer.data.name}</Link>,
-          ],
-          ['Credit note date', formatDate(creditNote.creditNoteDate)],
-          ['Reason', creditNote.reason],
-          ['Total', `₹${formatDecimal(creditNote.total)}`],
-          ['Available credit', posted ? `₹${formatDecimal(creditNote.availableAmount)}` : null],
-          ['Posted', formatInstant(creditNote.postedAtUtc)],
-        ]}
-      />
+      <div className={summary.split}>
+        <Details
+          items={[
+            ['Bill', <BillNumber key="bill" id={creditNote.billId} />],
+            [
+              'Payer',
+              payer.data === undefined ? '…' : <Link to={`/payers/${creditNote.payerId}`}>{payer.data.name}</Link>,
+            ],
+            ['Credit note date', formatDate(creditNote.creditNoteDate)],
+            ['Reason', creditNote.reason],
+            ['Posted', formatInstant(creditNote.postedAtUtc)],
+          ]}
+        />
+        <div>
+          <TotalsCard
+            label="Figures of the credit note"
+            rows={[
+              { label: 'Total', value: creditNote.total, strong: true },
+              ...(posted ? [{ label: 'Available credit', value: creditNote.availableAmount, apart: true }] : []),
+            ]}
+          />
+        </div>
+      </div>
 
       <section className={forms.section} aria-labelledby="lines-title">
         <h2 id="lines-title">Lines</h2>
@@ -297,7 +312,10 @@ function CreditNoteView({ creditNote }: { creditNote: CreditNote }) {
                             : application.allocatedByUserId.slice(0, 8)}
                       </td>
                       <td>
-                        <Badge tone={applicationStatusLabels[application.status].tone}>
+                        <Badge
+                          tone={applicationStatusLabels[application.status].tone}
+                          icon={applicationStatusLabels[application.status].icon}
+                        >
                           {applicationStatusLabels[application.status].label}
                         </Badge>
                       </td>

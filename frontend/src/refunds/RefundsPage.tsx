@@ -121,7 +121,10 @@ export function RefundsPage() {
                     <td>{methodLabels[refund.method]}</td>
                     <td className={table.number}>{formatDecimal(refund.amount)}</td>
                     <td>
-                      <Badge tone={refundStatusLabels[refund.status].tone}>
+                      <Badge
+                        tone={refundStatusLabels[refund.status].tone}
+                        icon={refundStatusLabels[refund.status].icon}
+                      >
                         {refundStatusLabels[refund.status].label}
                       </Badge>
                     </td>

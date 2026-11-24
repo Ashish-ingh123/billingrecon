@@ -117,7 +117,12 @@ export function NewServiceItemPage() {
         {outcome.problem !== null && <ProblemAlert problem={outcome.problem} placedFields={serviceItemFields} />}
         <ServiceItemFields form={form} />
         <div className={forms.actions}>
-          <button type="submit" className={buttons.primary} disabled={creating.isPending}>
+          <button
+            type="submit"
+            className={buttons.primary}
+            disabled={creating.isPending}
+            aria-busy={creating.isPending}
+          >
             {creating.isPending ? 'Creating…' : 'Create service item'}
           </button>
           <Link to="/service-items">Cancel</Link>
@@ -198,7 +203,12 @@ function EditServiceItemForm({ initial }: { initial: ServiceItem }) {
           A changed price or tax rate applies to new bill lines; lines already written keep theirs.
         </p>
         <div className={forms.actions}>
-          <button type="submit" className={buttons.primary} disabled={correcting.isPending}>
+          <button
+            type="submit"
+            className={buttons.primary}
+            disabled={correcting.isPending}
+            aria-busy={correcting.isPending}
+          >
             {correcting.isPending ? 'Saving…' : 'Save'}
           </button>
           <Link to={`/service-items/${initial.id}`}>Cancel</Link>

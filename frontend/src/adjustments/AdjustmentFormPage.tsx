@@ -58,6 +58,7 @@ function AdjustmentFields({ form, bill }: { form: UseFormReturn<AdjustmentValues
       <SelectField
         id="adjustment-kind"
         label="Kind"
+        requiredMark
         hint="A rounding is under one rupee; every kind needs a second person."
         error={errors.kind?.message}
         {...register('kind', { validate: (value) => value !== '' || 'Choose the kind.' })}
@@ -72,6 +73,7 @@ function AdjustmentFields({ form, bill }: { form: UseFormReturn<AdjustmentValues
       <TextField
         id="adjustment-date"
         label="Adjustment date"
+        requiredMark
         type="date"
         min={bill.billDate}
         max={todayInIndia()}
@@ -82,6 +84,8 @@ function AdjustmentFields({ form, bill }: { form: UseFormReturn<AdjustmentValues
       <TextField
         id="adjustment-amount"
         label="Amount (₹)"
+        leading="₹"
+        requiredMark
         inputMode="decimal"
         hint={`At most ₹${formatDecimal(bill.balanceDue)}, what the bill still owes.`}
         error={errors.amount?.message}
@@ -203,7 +207,12 @@ function NewAdjustmentForm({ bill }: { bill: Bill }) {
           or an administrator posts it.
         </p>
         <div className={forms.actions}>
-          <button type="submit" className={buttons.primary} disabled={drafting.isPending}>
+          <button
+            type="submit"
+            className={buttons.primary}
+            disabled={drafting.isPending}
+            aria-busy={drafting.isPending}
+          >
             {drafting.isPending ? 'Saving…' : 'Save draft'}
           </button>
           <Link to={`/bills/${bill.id}`}>Cancel</Link>
@@ -293,7 +302,12 @@ function EditAdjustmentForm({ initial, bill }: { initial: Adjustment; bill: Bill
           <AdjustmentFields form={form} bill={bill} />
         </div>
         <div className={forms.actions}>
-          <button type="submit" className={buttons.primary} disabled={correcting.isPending}>
+          <button
+            type="submit"
+            className={buttons.primary}
+            disabled={correcting.isPending}
+            aria-busy={correcting.isPending}
+          >
             {correcting.isPending ? 'Saving…' : 'Save'}
           </button>
           <Link to={`/adjustments/${initial.id}`}>Cancel</Link>

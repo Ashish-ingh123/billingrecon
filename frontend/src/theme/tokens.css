@@ -86,6 +86,11 @@
   --success: #17683a;
   --warning: #7f4c00;
   --danger: #b3261e;
+  /* Since Prompt 9.3 (ADR 0049): soft grounds of meaning, for a banner, a meter, a total that just changed. */
+  --accent-soft: #e3ecfd;
+  --success-soft: #e3f4ea;
+  --warning-soft: #fff1da;
+  --danger-soft: #fde7e5;
   --focus: #0b4fd0;
   --focus-halo: rgba(11, 79, 208, 0.22);
 
@@ -151,6 +156,10 @@
   --success: #5cc98a;
   --warning: #f0b44c;
   --danger: #ff8a80;
+  --accent-soft: #13284f;
+  --success-soft: #0f2a1c;
+  --warning-soft: #2b200b;
+  --danger-soft: #331414;
   --focus: #78aeff;
   --focus-halo: rgba(120, 174, 255, 0.3);
 

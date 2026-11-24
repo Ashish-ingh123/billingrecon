@@ -1,0 +1,21 @@
+/* A record's facts beside its figures (ADR 0049): two columns on a wide window, the figures first on a narrow one. */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.split > :last-child > * {
+  margin-top: 0;
+}
+
+@media (max-width: 899px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .split > :last-child {
+    order: -1;
+  }
+}

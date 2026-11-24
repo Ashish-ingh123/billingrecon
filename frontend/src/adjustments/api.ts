@@ -3,7 +3,7 @@ import { answer, answerWithStatus, ifMatch } from '../api/call';
 import type { ApiClient } from '../api/client';
 import { useApiClient } from '../api/ApiClientContext';
 import type { components } from '../api/schema';
-import type { Tone } from '../components/Badge';
+import { documentStatuses, type StatusLook } from '../components/documentStatuses';
 import type { ComparedField } from '../components/conflict';
 import { pageSize } from '../components/listParams';
 import { formatDate, formatDecimal } from '../format';
@@ -25,12 +25,7 @@ export const kindLabels: Record<AdjustmentKind, string> = {
 
 export const adjustmentStatuses: readonly AdjustmentStatus[] = ['Draft', 'PendingApproval', 'Posted', 'Voided'];
 
-export const adjustmentStatusLabels: Record<AdjustmentStatus, { label: string; tone: Tone }> = {
-  Draft: { label: 'Draft', tone: 'muted' },
-  PendingApproval: { label: 'Waiting for approval', tone: 'warning' },
-  Posted: { label: 'Posted', tone: 'accent' },
-  Voided: { label: 'Voided', tone: 'danger' },
-};
+export const adjustmentStatusLabels: Record<AdjustmentStatus, StatusLook> = documentStatuses.adjustment;
 
 /** What an adjustment form holds, as text; the bill is fixed once the draft exists. */
 export interface AdjustmentValues {

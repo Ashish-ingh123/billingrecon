@@ -108,7 +108,13 @@ export function useBillActions(bill: Bill): { actions: ReactNode; notices: React
           busy={act.isPending}
           onConfirm={() => act.mutate({ kind: 'post' })}
         />
-        <button type="button" className={buttons.danger} disabled={act.isPending} onClick={() => setVoiding(true)}>
+        <button
+          type="button"
+          className={buttons.danger}
+          disabled={act.isPending}
+          aria-busy={act.isPending}
+          onClick={() => setVoiding(true)}
+        >
           Void draft
         </button>
       </>
@@ -166,7 +172,13 @@ export function useBillActions(bill: Bill): { actions: ReactNode; notices: React
             )}
           </div>
           <div className={forms.actions}>
-            <button type="button" className={buttons.danger} disabled={act.isPending} onClick={confirmVoid}>
+            <button
+              type="button"
+              className={buttons.danger}
+              disabled={act.isPending}
+              aria-busy={act.isPending}
+              onClick={confirmVoid}
+            >
               Confirm: void the draft
             </button>
             <button type="button" className={buttons.secondary} onClick={() => setVoiding(false)}>

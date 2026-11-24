@@ -97,6 +97,17 @@ describe('a bill (US-20, US-21)', () => {
     expect(query.get('EntityId')).toBe(draft.id);
   });
 
+  it("shows the server's figures in the totals card, the balance under the total, and the history as a timeline (ADR 0049)", async () => {
+    const api = routedApi(billRoutes());
+    renderApp(`/bills/${draft.id}`, { session: clerk, fetch: api.fetch });
+
+    const totals = await screen.findByLabelText('Totals of the bill');
+    expect(totals).toHaveTextContent('Subtotal₹1,000.00Discounts₹0.50Tax₹49.98Total₹1,049.48Balance due₹1,049.48');
+    const trail = within(screen.getByRole('region', { name: 'Audit trail' }));
+    expect(await trail.findByRole('list', { name: 'Changes, oldest first' })).toBeInTheDocument();
+    expect(trail.getByRole('listitem')).toHaveTextContent('Drafted');
+  });
+
   it('offers nothing to a reader, and nothing on a posted bill', async () => {
     const posted = bill({ status: 'Posted', number: 'BIL/26-27/000001', fiscalYear: '2026-27' });
     const api = routedApi(billRoutes(() => json(200, posted)));
@@ -373,6 +384,8 @@ describe('a new bill (US-20, BR-201 to BR-203)', () => {
     expect(await screen.findByText('The unit price has at most 4 decimals.')).toBeInTheDocument();
     expect(screen.getAllByLabelText('Unit price (₹)')[1]).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getAllByLabelText('Unit price (₹)')[0]).toHaveAttribute('aria-invalid', 'false');
+    // The first field the API refused takes the focus, and so comes into view (ADR 0049).
+    expect(screen.getAllByLabelText('Unit price (₹)')[1]).toHaveFocus();
   });
 
   it('asks for the patient and the payer, and refuses a discount above the line or a quantity of nothing', async () => {

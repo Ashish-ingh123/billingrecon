@@ -109,7 +109,9 @@ function PaymentView({ record }: { record: PaymentWithAllocations }) {
         subtitle={
           <>
             Fiscal year {payment.fiscalYear} ·{' '}
-            <Badge tone={paymentStatusLabels[payment.status].tone}>{paymentStatusLabels[payment.status].label}</Badge>
+            <Badge tone={paymentStatusLabels[payment.status].tone} icon={paymentStatusLabels[payment.status].icon}>
+              {paymentStatusLabels[payment.status].label}
+            </Badge>
           </>
         }
         actions={
@@ -210,7 +212,10 @@ function PaymentView({ record }: { record: PaymentWithAllocations }) {
                           : allocation.allocatedByUserId.slice(0, 8)}
                     </td>
                     <td>
-                      <Badge tone={allocationStatusLabels[allocation.status].tone}>
+                      <Badge
+                        tone={allocationStatusLabels[allocation.status].tone}
+                        icon={allocationStatusLabels[allocation.status].icon}
+                      >
                         {allocationStatusLabels[allocation.status].label}
                       </Badge>
                     </td>

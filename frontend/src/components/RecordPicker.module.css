@@ -34,9 +34,11 @@
 }
 
 .chosen {
+  /* As tall as the search it replaces, so nothing moves when a chosen record arrives (ADR 0049). */
+  min-height: 2.5rem;
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 0.75rem;
   padding: 0.4375rem 0;
 }

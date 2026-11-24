@@ -61,7 +61,8 @@ export function useRecordForm<T, V extends FieldValues>({
       const field = mapField?.(apiField) ?? (known.has(apiField) ? (apiField as Path<V>) : null);
       const message = messages[0];
       if (field !== null && message !== undefined) {
-        form.setError(field, { type: 'server', message });
+        // The first field the API refused comes into view and takes the focus (ADR 0049).
+        form.setError(field, { type: 'server', message }, { shouldFocus: placedNow.length === 0 });
         placedNow.push(apiField);
       }
     }

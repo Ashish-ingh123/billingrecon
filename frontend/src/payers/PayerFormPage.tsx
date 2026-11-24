@@ -120,7 +120,12 @@ function NewPayerForm({ patient }: { patient: Patient | null }) {
           <PayerFields form={form} />
         </div>
         <div className={forms.actions}>
-          <button type="submit" className={buttons.primary} disabled={creating.isPending}>
+          <button
+            type="submit"
+            className={buttons.primary}
+            disabled={creating.isPending}
+            aria-busy={creating.isPending}
+          >
             {creating.isPending ? 'Creating…' : 'Create payer'}
           </button>
           <Link to={back.to}>Cancel</Link>
@@ -201,7 +206,12 @@ function EditPayerForm({ initial }: { initial: Payer }) {
           <PayerFields form={form} />
         </div>
         <div className={forms.actions}>
-          <button type="submit" className={buttons.primary} disabled={correcting.isPending}>
+          <button
+            type="submit"
+            className={buttons.primary}
+            disabled={correcting.isPending}
+            aria-busy={correcting.isPending}
+          >
             {correcting.isPending ? 'Saving…' : 'Save'}
           </button>
           <Link to={`/payers/${initial.id}`}>Cancel</Link>

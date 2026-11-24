@@ -6,6 +6,7 @@ import buttons from '../components/buttons.module.css';
 import table from '../components/DataTable.module.css';
 import { Pagination } from '../components/ListControls';
 import listStyles from '../components/ListControls.module.css';
+import { EmptyState } from '../components/EmptyState';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
 import { formatDate, formatDecimal } from '../format';
@@ -113,7 +114,7 @@ export function CreditNotesPage() {
       {creditNotes.data === undefined ? (
         <LoadState error={creditNotes.error} what="credit notes" />
       ) : creditNotes.data.items.length === 0 ? (
-        <p className={table.empty}>No credit note matches.</p>
+        <EmptyState icon="receipt-minus">No credit note matches.</EmptyState>
       ) : (
         <>
           <div className={table.wrap}>
@@ -151,7 +152,10 @@ export function CreditNotesPage() {
                       {creditNote.status === 'Posted' ? formatDecimal(creditNote.availableAmount) : '—'}
                     </td>
                     <td>
-                      <Badge tone={creditNoteStatusLabels[creditNote.status].tone}>
+                      <Badge
+                        tone={creditNoteStatusLabels[creditNote.status].tone}
+                        icon={creditNoteStatusLabels[creditNote.status].icon}
+                      >
                         {creditNoteStatusLabels[creditNote.status].label}
                       </Badge>
                     </td>

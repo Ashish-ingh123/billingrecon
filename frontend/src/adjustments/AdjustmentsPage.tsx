@@ -6,6 +6,7 @@ import buttons from '../components/buttons.module.css';
 import table from '../components/DataTable.module.css';
 import { Pagination } from '../components/ListControls';
 import listStyles from '../components/ListControls.module.css';
+import { EmptyState } from '../components/EmptyState';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
 import { formatDate, formatDecimal } from '../format';
@@ -134,7 +135,7 @@ export function AdjustmentsPage() {
       {adjustments.data === undefined ? (
         <LoadState error={adjustments.error} what="adjustments" />
       ) : adjustments.data.items.length === 0 ? (
-        <p className={table.empty}>No adjustment matches.</p>
+        <EmptyState icon="sliders">No adjustment matches.</EmptyState>
       ) : (
         <>
           <div className={table.wrap}>
@@ -168,7 +169,10 @@ export function AdjustmentsPage() {
                     </td>
                     <td className={table.number}>{formatDecimal(adjustment.amount)}</td>
                     <td>
-                      <Badge tone={adjustmentStatusLabels[adjustment.status].tone}>
+                      <Badge
+                        tone={adjustmentStatusLabels[adjustment.status].tone}
+                        icon={adjustmentStatusLabels[adjustment.status].icon}
+                      >
                         {adjustmentStatusLabels[adjustment.status].label}
                       </Badge>
                     </td>

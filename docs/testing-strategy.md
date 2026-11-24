@@ -188,6 +188,11 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   answers given by the test; the patients list in both themes at 1440 and 390 px under nginx's policy, with nothing
   refused, no console error, no sideways scroll and no layout shift; the drawer by keyboard (it holds the focus, Escape
   gives it back); nothing animated with reduced motion; the specimen page absent from a production build.
+- **The money screens in the browser** (Prompt 9.3, ADR 0049), `frontend/e2e/money.spec.ts`: the bill editor, a posted
+  bill, a credit note and an adjustment with the API's answers given by the test, which fails on a request it did not
+  expect; in both themes at 1440 and 390 px under nginx's policy, with nothing refused, no console error, no sideways
+  scroll and no layout shift (the elements that moved are named when it fails); the totals card in view while the lines
+  scroll; nothing animated with reduced motion.
 - **The browser journey**, `frontend/e2e/journey.spec.ts` (Playwright, Chromium or an installed Edge or Chrome): a
   clerk registers a patient and their payer, drafts a bill with a catalogue line and a free-text line and posts it; a
   cashier records the payment and applies it oldest first, which settles the bill and empties the statement; a

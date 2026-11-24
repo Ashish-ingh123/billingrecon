@@ -41,6 +41,16 @@ export function formatDecimal(value: number | string, maxDecimals = 2): string {
   }).format(Number(value));
 }
 
+/**
+ * An amount of money as it is shown everywhere (ADR 0049): the rupee sign, Indian grouping, two decimals: 1180 as
+ * "₹1,180.00". A negative amount carries its sign before the rupee: -500 as "−₹500.00". The value is the server's or
+ * the editor's own estimate; nothing is computed here.
+ */
+export function formatMoney(value: number | string): string {
+  const amount = Number(value);
+  return amount < 0 ? `−₹${formatDecimal(-amount)}` : `₹${formatDecimal(amount)}`;
+}
+
 /** A rate as "18%" or "12.5%". */
 export function formatPercent(value: number | string): string {
   return `${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(Number(value))}%`;

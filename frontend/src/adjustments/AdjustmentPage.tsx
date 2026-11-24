@@ -9,13 +9,16 @@ import { AuditTrail } from '../components/AuditTrail';
 import { Badge } from '../components/Badge';
 import buttons from '../components/buttons.module.css';
 import { ConfirmAction } from '../components/ConfirmAction';
+import { Banner } from '../components/Banner';
 import { Details } from '../components/Details';
+import summary from '../components/Summary.module.css';
+import { TotalsCard } from '../components/TotalsCard';
 import forms from '../components/forms.module.css';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
 import { ReasonForm } from '../components/ReasonForm';
 import { useDocumentAction } from '../components/useDocumentAction';
-import { formatDate, formatDecimal, formatInstant } from '../format';
+import { formatDate, formatInstant } from '../format';
 import { usePayer } from '../payers/api';
 import {
   adjustmentKeys,
@@ -101,7 +104,10 @@ function AdjustmentView({ adjustment }: { adjustment: Adjustment }) {
         subtitle={
           <>
             {adjustment.fiscalYear !== null && <>Fiscal year {adjustment.fiscalYear} · </>}
-            <Badge tone={adjustmentStatusLabels[adjustment.status].tone}>
+            <Badge
+              tone={adjustmentStatusLabels[adjustment.status].tone}
+              icon={adjustmentStatusLabels[adjustment.status].icon}
+            >
               {adjustmentStatusLabels[adjustment.status].label}
             </Badge>
           </>
@@ -144,29 +150,36 @@ function AdjustmentView({ adjustment }: { adjustment: Adjustment }) {
         </p>
       )}
       {adjustment.status === 'Voided' && (
-        <p className={forms.note}>
+        <Banner tone="danger" title="Voided">
           Voided {formatInstant(adjustment.voidedAtUtc)}: {adjustment.voidReason}
-        </p>
+        </Banner>
       )}
-      <Details
-        items={[
-          [
-            'Bill',
-            <Link key="bill" to={`/bills/${adjustment.billId}`}>
-              {bill.data?.number ?? 'the bill'}
-            </Link>,
-          ],
-          [
-            'Payer',
-            payer.data === undefined ? '…' : <Link to={`/payers/${adjustment.payerId}`}>{payer.data.name}</Link>,
-          ],
-          ['Kind', kindLabels[adjustment.kind]],
-          ['Adjustment date', formatDate(adjustment.adjustmentDate)],
-          ['Amount', `₹${formatDecimal(adjustment.amount)}`],
-          ['Reason', adjustment.reason],
-          ['Posted', formatInstant(adjustment.postedAtUtc)],
-        ]}
-      />
+      <div className={summary.split}>
+        <Details
+          items={[
+            [
+              'Bill',
+              <Link key="bill" to={`/bills/${adjustment.billId}`}>
+                {bill.data?.number ?? 'the bill'}
+              </Link>,
+            ],
+            [
+              'Payer',
+              payer.data === undefined ? '…' : <Link to={`/payers/${adjustment.payerId}`}>{payer.data.name}</Link>,
+            ],
+            ['Kind', kindLabels[adjustment.kind]],
+            ['Adjustment date', formatDate(adjustment.adjustmentDate)],
+            ['Reason', adjustment.reason],
+            ['Posted', formatInstant(adjustment.postedAtUtc)],
+          ]}
+        />
+        <div>
+          <TotalsCard
+            label="Figures of the adjustment"
+            rows={[{ label: 'Amount', value: adjustment.amount, strong: true }]}
+          />
+        </div>
+      </div>
       <section className={forms.section} aria-labelledby="trail-title">
         <h2 id="trail-title">Audit trail</h2>
         <AuditTrail entityType="Adjustment" entityId={adjustment.id} />

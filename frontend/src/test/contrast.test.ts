@@ -63,6 +63,22 @@ describe.each(Object.entries(themes))('the %s theme', (_, tokens) => {
     expect(contrast(tokens[foreground] ?? '', tokens[background] ?? '')).toBeGreaterThanOrEqual(3);
   });
 
+  // Since Prompt 9.3 (ADR 0049): text and its meaning on the soft grounds of a banner, a meter and a changed total.
+  it.each([
+    ['text', 'accent-soft'],
+    ['text-muted', 'accent-soft'],
+    ['accent', 'accent-soft'],
+    ['text', 'success-soft'],
+    ['success', 'success-soft'],
+    ['text', 'warning-soft'],
+    ['warning', 'warning-soft'],
+    ['text', 'danger-soft'],
+    ['danger', 'danger-soft'],
+  ])('%s text on %s is at least 4.5:1', (foreground, background) => {
+    expect(tokens[background], `--${background}`).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(contrast(tokens[foreground] ?? '', tokens[background] ?? '')).toBeGreaterThanOrEqual(4.5);
+  });
+
   it.each(pairs(series, ['surface', 'surface-raised']))('%s against %s is at least 3:1', (foreground, background) => {
     expect(contrast(tokens[foreground] ?? '', tokens[background] ?? '')).toBeGreaterThanOrEqual(3);
   });

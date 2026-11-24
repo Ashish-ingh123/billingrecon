@@ -213,7 +213,10 @@ export function PaymentsPage() {
                     <td className={table.number}>{formatDecimal(payment.amount)}</td>
                     <td className={table.number}>{formatDecimal(payment.unappliedAmount)}</td>
                     <td>
-                      <Badge tone={paymentStatusLabels[payment.status].tone}>
+                      <Badge
+                        tone={paymentStatusLabels[payment.status].tone}
+                        icon={paymentStatusLabels[payment.status].icon}
+                      >
                         {paymentStatusLabels[payment.status].label}
                       </Badge>
                     </td>

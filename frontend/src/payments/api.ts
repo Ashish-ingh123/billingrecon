@@ -3,7 +3,7 @@ import { answer, answerWithStatus, ifMatch } from '../api/call';
 import type { ApiClient } from '../api/client';
 import { useApiClient } from '../api/ApiClientContext';
 import type { components } from '../api/schema';
-import type { Tone } from '../components/Badge';
+import { documentStatuses, type StatusLook } from '../components/documentStatuses';
 import type { ComparedField } from '../components/conflict';
 import { pageSize } from '../components/listParams';
 import { formatDecimal } from '../format';
@@ -27,17 +27,9 @@ export const methodLabels: Record<PaymentMethod, string> = {
 
 export const paymentStatuses: readonly PaymentStatus[] = ['Posted', 'PendingReversal', 'Reversed'];
 
-export const paymentStatusLabels: Record<PaymentStatus, { label: string; tone: Tone }> = {
-  Posted: { label: 'Posted', tone: 'accent' },
-  PendingReversal: { label: 'Waiting for reversal', tone: 'warning' },
-  Reversed: { label: 'Reversed', tone: 'danger' },
-};
+export const paymentStatusLabels: Record<PaymentStatus, StatusLook> = documentStatuses.payment;
 
-export const allocationStatusLabels: Record<Allocation['status'], { label: string; tone: Tone }> = {
-  Active: { label: 'Applied', tone: 'success' },
-  PendingReversal: { label: 'Waiting for reversal', tone: 'warning' },
-  Reversed: { label: 'Reversed', tone: 'danger' },
-};
+export const allocationStatusLabels: Record<Allocation['status'], StatusLook> = documentStatuses.allocation;
 
 /** The message for a reference: required for every method but cash (BR-301), at most 100 characters. */
 export function checkReference(reference: string, method: PaymentMethod | ''): true | string {

@@ -67,7 +67,7 @@ export function ReasonForm({
         )}
       </div>
       <div className={forms.actions}>
-        <button type="button" className={buttons[tone]} disabled={busy} onClick={confirm}>
+        <button type="button" className={buttons[tone]} disabled={busy} aria-busy={busy} onClick={confirm}>
           {confirmLabel}
         </button>
         <button type="button" className={buttons.secondary} onClick={onCancel}>

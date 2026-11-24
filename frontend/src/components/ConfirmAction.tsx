@@ -23,7 +23,7 @@ export function ConfirmAction({
 
   if (!asking) {
     return (
-      <button type="button" className={style} onClick={() => setAsking(true)} disabled={busy}>
+      <button type="button" className={style} onClick={() => setAsking(true)} disabled={busy} aria-busy={busy}>
         {label}
       </button>
     );
@@ -35,6 +35,7 @@ export function ConfirmAction({
         type="button"
         className={style}
         disabled={busy}
+        aria-busy={busy}
         onClick={() => {
           setAsking(false);
           onConfirm();
