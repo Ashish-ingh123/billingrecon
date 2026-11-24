@@ -31,6 +31,11 @@ Prompt 6.2, since when `ApiDocumentationTests` fails for an endpoint or an error
 - **What every answer of `/api` carries:** `Cache-Control: no-store` (nothing is kept by a browser or a cache) unless
   the endpoint sets its own, `X-Content-Type-Options: nosniff` and `Content-Security-Policy: default-src 'none';
   frame-ancestors 'none'`. No answer has a `Server` header.
+- **`Server-Timing`, for a load test only** (ADR 0046). When the deployment sets `Diagnostics:ServerTiming=true`, the
+  answer to a request that took a document number carries `Server-Timing: number-wait;dur=1.25, number-hold;dur=6.8`
+  (milliseconds): how long the request waited for the number series of its document, and how long it then held it,
+  until its transaction ended (`docs/requirements.md` section 5). A request that took no number has none. Off by
+  default; never on in a deployment (`docs/security.md` section 10).
 
 ## 2. Authentication and tenancy
 

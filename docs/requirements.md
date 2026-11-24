@@ -260,7 +260,7 @@ Acceptance criteria cite the rules they verify. "Given/when/then" is abbreviated
 | Area | Requirement |
 |---|---|
 | Correctness | The twelve rules in `CLAUDE.md` §4 and the BR catalogue above are enforced by tests; a failing invariant blocks release. |
-| Performance | Posting a bill or recording a payment: p95 < 500 ms at 50 concurrent users, 10 000 bills per tenant per month, on a single SQL Server instance. Number allocation serialises per (tenant, type, FY) and must stay under 20 ms inside the transaction. |
+| Performance | Posting a bill or recording a payment: p95 < 500 ms at 50 concurrent users, 10 000 bills per tenant per month, on a single SQL Server instance. Number allocation serialises per (tenant, type, FY) and must stay under 20 ms inside the transaction. Measured by `deploy/load` (ADR 0046): the 50 users pause one second between their requests; the 20 ms is the time a posting holds its series, from its number to its commit; a run with no pause at all, where every user queues on the series of bills, is reported as a stress figure and not judged. |
 | Availability | Single-region deployment; planned downtime windows acceptable in R1. Backup and restore drills are R5. |
 | Security | TLS only; JWT lifetime 60 minutes; passwords hashed with a slow, salted algorithm from the BCL; secrets from environment or user secrets; no tenant data in logs beyond ids. |
 | Retention | Financial documents, ledger and audit are retained for at least 8 years (Companies Act 2013 books of account). Idempotency keys 30 days. |

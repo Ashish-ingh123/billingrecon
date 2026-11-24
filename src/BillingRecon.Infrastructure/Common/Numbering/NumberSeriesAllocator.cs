@@ -28,8 +28,16 @@ namespace BillingRecon.Infrastructure.Common.Numbering;
 /// WHERE clause, taken from the current scope, and the instants from the clock. Every value is a parameter; the texts
 /// are constants.
 /// </para>
+/// <para>
+/// Each statement is timed (<see cref="NumberSeriesTimer"/>, ADR 0046): how long it waited for the series, and from its
+/// answer on, how long the series is held, until whoever ends the transaction says so.
+/// </para>
 /// </summary>
-public sealed class NumberSeriesAllocator(BillingReconDbContext context, ITenantContext tenantContext, IClock clock) : INumberSeries
+public sealed class NumberSeriesAllocator(
+    BillingReconDbContext context,
+    ITenantContext tenantContext,
+    IClock clock,
+    NumberSeriesTimer? timer = null) : INumberSeries
 {
     // The read of TakeNext alone: the row of the series, or the gap in the index where it will go, locked until the
     // transaction ends. COUNT(*) only gives the statement a result; nobody reads it.
@@ -89,9 +97,11 @@ public sealed class NumberSeriesAllocator(BillingReconDbContext context, ITenant
 
         object[] parameters = [.. SeriesKey(tenantId, type, fiscalYear)];
 
+        var askedAt = NumberSeriesTimer.Start();
 #pragma warning disable RS0030 // Sanctioned raw SQL: the locked read of a number series, held for a prefix change (ADR 0033, built note point 5).
         _ = await context.Database.SqlQueryRaw<int>(HoldSeries, parameters).ToListAsync(ct);
 #pragma warning restore RS0030
+        timer?.Taken(askedAt);
     }
 
     /// <inheritdoc />
@@ -106,9 +116,11 @@ public sealed class NumberSeriesAllocator(BillingReconDbContext context, ITenant
             new SqlParameter("@now", System.Data.SqlDbType.DateTimeOffset) { Value = clock.UtcNow },
         ];
 
+        var askedAt = NumberSeriesTimer.Start();
 #pragma warning disable RS0030 // Sanctioned raw SQL: the locked read-and-increment of a number series (ADR 0008, ADR 0015).
         var taken = await context.Database.SqlQueryRaw<TakenNumber>(TakeNext, parameters).ToListAsync(ct);
 #pragma warning restore RS0030
+        timer?.Taken(askedAt);
 
         if (taken is not [{ SequenceNumber: { } sequence, Prefix: { } prefix }])
         {

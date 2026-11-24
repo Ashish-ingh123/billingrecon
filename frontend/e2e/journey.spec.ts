@@ -1,0 +1,153 @@
+import { expect, test as base, type Page } from '@playwright/test';
+
+// The main journey of R1 in a real browser against the whole running stack (Prompt 8.2, ADR 0046), in the demo hospital
+// of the one-command local run (ADR 0045), by three of its users in turn: a clerk registers a patient and their payer,
+// then drafts and posts a bill; a cashier records the payer's payment and applies it oldest first, and the bill is
+// settled; a supervisor sees the dashboard and a reconciliation without drift. Each step is a test; they run in order
+// and share what the earlier ones made. No page of the journey may log an error to the console: a script the content
+// security policy refuses, or a page that throws, fails the step it happened in.
+//
+// E2E_PASSWORD is the demo users' password (DEMO_PASSWORD of .env); E2E_HOSPITAL the hospital's code, "demo" by default.
+
+const password = process.env.E2E_PASSWORD ?? '';
+const hospital = process.env.E2E_HOSPITAL ?? 'demo';
+const run = Date.now().toString(36).toUpperCase();
+const mrn = `E2E-${run}`;
+const fullName = `Journey Patient ${run}`;
+
+type Journey = { payerPath: string; billPath: string; billNumber: string; billTotal: string };
+const journey: Journey = { payerPath: '', billPath: '', billNumber: '', billTotal: '' };
+
+// Every step fails when a page of it wrote an error to the console or threw. One error is the browser's, not the app's:
+// the app has no icon, and the browser asks for /favicon.ico on its own, which a server may answer 404.
+const test = base.extend<{ consoleErrors: string[] }>({
+  consoleErrors: [
+    async ({ page }, provide) => {
+      const errors: string[] = [];
+      page.on('console', (message) => {
+        if (message.type() !== 'error') return;
+        if (new URL(message.location().url || 'about:blank').pathname === '/favicon.ico') return;
+        errors.push(message.text());
+      });
+      page.on('pageerror', (error) => errors.push(error.message));
+      await provide(errors);
+      expect(errors, 'no page of the step logs an error').toEqual([]);
+    },
+    { auto: true },
+  ],
+});
+
+test.describe.configure({ mode: 'serial' });
+
+test.beforeAll(() => {
+  expect(password, 'E2E_PASSWORD is the demo users’ password (DEMO_PASSWORD of .env)').not.toBe('');
+});
+
+async function signIn(page: Page, email: string) {
+  await page.goto('/sign-in');
+  await page.getByLabel('Hospital code').fill(hospital);
+  await page.getByLabel('E-mail address').fill(email);
+  await page.getByLabel('Password').fill(password);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page).not.toHaveURL(/\/sign-in/);
+}
+
+async function signOut(page: Page) {
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page.getByRole('heading', { name: 'Sign in to BillingRecon' })).toBeVisible();
+}
+
+/** Chooses the first record a picker finds for `text`. */
+async function pick(page: Page, label: string, kind: string, text: string) {
+  await page.getByLabel(label).fill(text);
+  await page.getByLabel(label).press('Enter');
+  await page
+    .getByRole('list', { name: `${kind} found` })
+    .getByRole('button')
+    .first()
+    .click();
+}
+
+test('a clerk registers a patient and their payer, then drafts a bill and posts it', async ({ page }) => {
+  await signIn(page, 'clerk@demo.local');
+
+  await page.goto('/patients/new');
+  await page.getByLabel('MRN').fill(mrn);
+  await page.getByLabel('Full name').fill(fullName);
+  await page.getByLabel('Date of birth').fill('1985-06-15');
+  await page.getByLabel('Sex').selectOption('Female');
+  await page.getByRole('button', { name: 'Register patient' }).click();
+  await expect(page.getByRole('heading', { name: fullName })).toBeVisible();
+
+  await page.getByRole('link', { name: "Create the patient's payer" }).click();
+  await expect(page.getByRole('heading', { name: `Payer for ${fullName}` })).toBeVisible();
+  await page.getByLabel('Name').fill(fullName);
+  await page.getByRole('button', { name: 'Create payer' }).click();
+  await expect(page.getByRole('link', { name: 'Record a payment from them' })).toBeVisible();
+  journey.payerPath = new URL(page.url()).pathname;
+
+  // A line from the catalogue, the demo's OPD consultation, and a free-text line; the patient's payer comes with them.
+  await page.goto('/bills/new');
+  await pick(page, 'Patient', 'patient', mrn);
+  await pick(page, 'Add a line from the catalogue', 'service item', 'OPD');
+  await page.getByRole('button', { name: 'Add a free-text line' }).click();
+  const second = page.getByRole('list', { name: 'Lines of the bill' }).getByRole('listitem').nth(1);
+  await second.getByLabel('Line 2: description').fill('Dressing');
+  await second.getByLabel('Quantity').fill('2');
+  await second.getByLabel('Unit price (₹)').fill('60');
+  await second.getByLabel('Tax rate (%)').fill('5');
+  await page.getByRole('button', { name: 'Save draft' }).click();
+  await expect(page.getByRole('heading', { name: 'Draft bill' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Post bill' }).click();
+  const answer = page.waitForResponse(
+    (response) => response.request().method() === 'POST' && /\/api\/v1\/bills\/[^/]+\/post$/.test(response.url()),
+  );
+  await page.getByRole('button', { name: 'Confirm: post the bill' }).click();
+  const posted = (await (await answer).json()) as { number: string; total: number };
+  expect(posted.number).toMatch(/^BIL\/\d{2}-\d{2}\/\d{6}$/);
+  await expect(page.getByRole('heading', { name: posted.number })).toBeVisible();
+  journey.billPath = new URL(page.url()).pathname;
+  journey.billNumber = posted.number;
+  journey.billTotal = posted.total.toFixed(2);
+
+  await signOut(page);
+});
+
+test('a cashier records the payer’s payment and applies it oldest first, which settles the bill', async ({ page }) => {
+  expect(journey.billPath, 'the clerk’s step posted the bill').not.toBe('');
+  await signIn(page, 'cashier@demo.local');
+
+  await page.goto(journey.payerPath);
+  await page.getByRole('link', { name: 'Record a payment from them' }).click();
+  await page.getByLabel('Method').selectOption('Cash');
+  await page.getByLabel('Amount (₹)').fill(journey.billTotal);
+  await page.getByRole('button', { name: 'Record payment' }).click();
+  await expect(page.getByRole('heading', { name: /^PAY\/\d{2}-\d{2}\/\d{6}$/ })).toBeVisible();
+
+  await page.getByRole('link', { name: 'Allocate to bills' }).click();
+  await page.getByRole('button', { name: 'Apply oldest first' }).click();
+  await expect(page.getByLabel(`Amount to apply to ${journey.billNumber}`)).not.toHaveValue('');
+  await page.getByRole('button', { name: 'Allocate', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Allocate to bills' })).toBeHidden();
+
+  await page.goto(`${journey.payerPath}/statement`);
+  await expect(page.getByText('Nothing is owed on a posted bill.')).toBeVisible();
+  await page.goto(journey.billPath);
+  await expect(page.getByText('Settled', { exact: true })).toBeVisible();
+
+  await signOut(page);
+});
+
+test('a supervisor sees the dashboard, and the reconciliation finds no drift', async ({ page }) => {
+  await signIn(page, 'supervisor@demo.local');
+
+  await page.goto('/dashboard');
+  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Billing against collections' })).toBeVisible();
+
+  await page.goto('/reports/reconciliation');
+  await expect(page.getByText(/No drift: every cached balance equals the ledger/)).toBeVisible();
+
+  await signOut(page);
+});

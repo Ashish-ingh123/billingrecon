@@ -1,6 +1,7 @@
 using System.Text.Json;
 using BillingRecon.Application.Common;
 using BillingRecon.Domain.Common;
+using BillingRecon.Infrastructure.Common.Numbering;
 using BillingRecon.Infrastructure.Common.Persistence;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,10 @@ namespace BillingRecon.Infrastructure.Common.Idempotency;
 /// <para>
 /// Concurrent requests with one key are decided by the primary key: one INSERT wins, the others find the row.
 /// </para>
+/// <para>
+/// When it ends a transaction that holds a number series, it tells the <see cref="NumberSeriesTimer"/>, which measures
+/// how long the series was held (ADR 0046).
+/// </para>
 /// </summary>
 public sealed class IdempotencyStore(
     BillingReconDbContext context,
@@ -28,11 +33,15 @@ public sealed class IdempotencyStore(
     ITenantContext tenantContext,
     ICurrentUser currentUser,
     IClock clock,
-    RequestTransaction requestTransaction) : IIdempotencyStore
+    RequestTransaction requestTransaction,
+    NumberSeriesTimer? numberSeriesTimer = null) : IIdempotencyStore
 {
     // SQL Server: 2627 is a duplicate in a primary key or unique constraint, 2601 in a unique index.
     private const int DuplicateInUniqueConstraint = 2627;
     private const int DuplicateInUniqueIndex = 2601;
+
+    // The row of the key this request reserved, tracked by the request's context since the reservation.
+    private IdempotencyKey? _reserved;
 
     /// <inheritdoc />
     public async Task<IdempotencyReservation> ReserveAsync(Guid key, string method, string path, byte[] requestHash, CancellationToken ct)
@@ -59,6 +68,10 @@ public sealed class IdempotencyStore(
             }
         }
 
+        // The row is read into the request's context now, before the use case can take a number: completing it then
+        // sends no read while a number series is held, which every other posting of the series waits for (ADR 0046).
+        _reserved = await context.Set<IdempotencyKey>().SingleAsync(candidate => candidate.Key == key, ct);
+
         // The key is ours. Everything the use case saves from here on, and the answer, commit together or not at all.
         await context.Database.BeginTransactionAsync(ct);
         requestTransaction.Hold();
@@ -74,11 +87,14 @@ public sealed class IdempotencyStore(
         var transaction = context.Database.CurrentTransaction
             ?? throw new InvalidOperationException("There is no business transaction to complete the idempotency key in; reserve the key first.");
 
-        var row = await context.Set<IdempotencyKey>().SingleAsync(candidate => candidate.Key == key, ct);
+        var row = _reserved is { } reserved && reserved.Key == key
+            ? reserved
+            : await context.Set<IdempotencyKey>().SingleAsync(candidate => candidate.Key == key, ct);
         Store(row, response);
 
         await context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+        numberSeriesTimer?.TransactionEnded();
         await EndTransactionAsync();
     }
 
@@ -158,6 +174,7 @@ public sealed class IdempotencyStore(
         if (context.Database.CurrentTransaction is { } transaction)
         {
             await transaction.RollbackAsync(CancellationToken.None);
+            numberSeriesTimer?.TransactionEnded();
         }
 
         await EndTransactionAsync();

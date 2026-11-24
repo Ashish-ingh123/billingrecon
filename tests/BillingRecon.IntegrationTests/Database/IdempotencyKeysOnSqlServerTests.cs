@@ -70,6 +70,28 @@ public sealed class IdempotencyKeysOnSqlServerTests(SqlServerFixture sqlServer) 
     }
 
     [Fact]
+    public async Task The_reserved_row_is_read_before_the_use_case_runs_so_completing_it_reads_nothing_while_a_series_is_held()
+    {
+        // ADR 0046: a posting holds its number series from its number to the commit; the read of the key's row is not
+        // part of that, because the reservation has it in the request's context already.
+        var tenant = await NewApiTenantAsync();
+        var key = Guid.NewGuid();
+        await using var context = ApiContext(tenant);
+        var store = Store(context, tenant, new RequestTransaction());
+
+        await store.ReserveAsync(key, "POST", "/api/v1/payments", Hash, CancellationToken.None);
+
+        var tracked = context.ChangeTracker.Entries<IdempotencyKey>().ShouldHaveSingleItem();
+        tracked.Entity.Key.ShouldBe(key);
+        tracked.State.ShouldBe(EntityState.Unchanged);
+
+        await store.CompleteAsync(key, Created, CancellationToken.None);
+
+        await using var reader = ApiContext(tenant);
+        (await reader.Set<IdempotencyKey>().SingleAsync()).Status.ShouldBe(IdempotencyStatus.Completed);
+    }
+
+    [Fact]
     public async Task A_second_reservation_of_the_key_is_told_in_progress_reuse_or_given_the_stored_answer()
     {
         var tenant = await NewApiTenantAsync();

@@ -1,5 +1,6 @@
 using BillingRecon.Application.Common;
 using BillingRecon.Domain.Common;
+using BillingRecon.Infrastructure.Common.Numbering;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -31,11 +32,16 @@ namespace BillingRecon.Infrastructure.Common.Persistence;
 /// What a subscriber adds, the audit record of the change, is saved by the same save and rolled back with it. An
 /// aggregate's events are cleared as they are collected, so a commit dispatches each event once.
 /// </para>
+/// <para>
+/// When it ends a transaction that holds a number series, it tells the <see cref="NumberSeriesTimer"/>, which measures
+/// how long the series was held (ADR 0046).
+/// </para>
 /// </summary>
 public sealed class UnitOfWork(
     BillingReconDbContext context,
     RequestTransaction? requestTransaction = null,
-    IEnumerable<IDomainEventSubscriber>? subscribers = null) : IUnitOfWork
+    IEnumerable<IDomainEventSubscriber>? subscribers = null,
+    NumberSeriesTimer? numberSeriesTimer = null) : IUnitOfWork
 {
     // SQL Server: 2601 is a duplicate in a unique index, 2627 in a unique constraint or primary key.
     private const int DuplicateInUniqueIndex = 2601;
@@ -66,6 +72,7 @@ public sealed class UnitOfWork(
             if (transaction is not null)
             {
                 await transaction.CommitAsync(ct);
+                numberSeriesTimer?.TransactionEnded();
             }
         }
         catch (DbUpdateConcurrencyException)
@@ -101,11 +108,12 @@ public sealed class UnitOfWork(
     }
 
     // Not cancellable: once the use case has failed, the locks it holds are released whatever the caller does next.
-    private static async Task RollBackAsync(IDbContextTransaction? transaction)
+    private async Task RollBackAsync(IDbContextTransaction? transaction)
     {
         if (transaction is not null)
         {
             await transaction.RollbackAsync(CancellationToken.None);
+            numberSeriesTimer?.TransactionEnded();
         }
     }
 

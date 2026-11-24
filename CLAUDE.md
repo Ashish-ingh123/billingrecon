@@ -42,7 +42,7 @@ the domain model, the schema and the tests.
 | Concern | Choice | Notes |
 |---|---|---|
 | Runtime | **.NET 10 (LTS)** | `Directory.Build.props` holds the single `TargetFramework` (`net10.0`); `global.json` pins the SDK to the **10.0.400** feature band with `latestPatch` (the personal machine's band, read from its build outputs on 2026-10-17). Supported to November 2028. Framework-bound packages (ASP.NET Core, EF Core, `Serilog.AspNetCore`) stay on the same major version. **The office machine has no .NET 10 SDK and cannot build the repository** (dev machine notes below). See ADR 0014, which supersedes ADR 0001. |
-| Web API | **ASP.NET Core Web API with controllers** | No minimal APIs. Controllers derive from `ApiControllerBase`, are `sealed`, end in `Controller` (architecture test). Every route is under `/api/v1` (ADR 0013). Every error is an RFC 9457 ProblemDetails (ADR 0011). Health checks at `/health/live` (process is up) and `/health/ready` (the application database is reachable and has no pending migration), both anonymous. **Transport (ADR 0035):** TLS ends at a reverse proxy; forwarded headers are believed from the loopback addresses and `ReverseProxy:KnownProxies` only; outside Development a request that did not arrive over HTTPS gets 400 `https_required` (no redirect) and an answer over HTTPS carries HSTS for one year; a host `AllowedHosts` does not list gets 400 `host_not_allowed`; the health endpoints answer probes over plain HTTP for any host; CORS from `Cors:Origins` only, without credentials; no `Server` header; `nosniff` on every response, `no-store` and a content security policy on the answers of `/api`. |
+| Web API | **ASP.NET Core Web API with controllers** | No minimal APIs. Controllers derive from `ApiControllerBase`, are `sealed`, end in `Controller` (architecture test). Every route is under `/api/v1` (ADR 0013). Every error is an RFC 9457 ProblemDetails (ADR 0011). Health checks at `/health/live` (process is up) and `/health/ready` (the application database is reachable and has no pending migration), both anonymous. **Transport (ADR 0035):** TLS ends at a reverse proxy; forwarded headers are believed from the loopback addresses and `ReverseProxy:KnownProxies` only; outside Development a request that did not arrive over HTTPS gets 400 `https_required` (no redirect) and an answer over HTTPS carries HSTS for one year; a host `AllowedHosts` does not list gets 400 `host_not_allowed`; the health endpoints answer probes over plain HTTP for any host; CORS from `Cors:Origins` only, without credentials; no `Server` header; `nosniff` on every response, `no-store` and a content security policy on the answers of `/api`. **Diagnostics (ADR 0046):** `Diagnostics:ServerTiming`, off by default and for a load test only, writes how long a request waited for its number series and held it into `Server-Timing`. |
 | Authentication | **JWT bearer** (`Microsoft.AspNetCore.Authentication.JwtBearer` 10.0.12) | The API issues its own tokens at `POST /api/v1/auth/login` and checks them on every request: HS256 with `Jwt:SigningKey`, issuer `BillingRecon`, audience `BillingRecon.Api`, 60 minutes by the application's clock, claims `sub`, `tenant_id`, `role`. The tenant and user of a request come from its token only (`RequestPrincipalIdentity`). Deny by default: a fallback policy needs a user on every endpoint but the sign-in, the health checks and, in Development, OpenAPI and Scalar (an architecture test lists them). In Development a request without a token acts as the development user. ADR 0031. **Roles:** every action names exactly one policy of `Policies`, one per capability of the permission matrix (`docs/requirements.md` section 1); a role the policy does not admit gets 403 `forbidden`; a table-driven test walks every endpoint with every role. The checker's role (BR-603) is also checked by `ApprovalRequest` itself. ADR 0032. **Sign-in limits (ADR 0035):** 30 sign-ins a minute per client address (the rate limiter's policy `sign-in`) and an account held 15 minutes after 10 refusals (`SignInThrottleFilter`), both 429 `too_many_sign_ins` with `Retry-After`; fixed in code, in memory per instance. |
 | OpenAPI | **Built-in OpenAPI + Scalar UI**, Development only | `AddOpenApi`/`MapOpenApi` (document at `/openapi/v1.json`) and `MapScalarApiReference` (`/scalar`), mapped only when the environment is Development. |
 | Data | **EF Core 10 + SQL Server** | One context, `BillingReconDbContext`, whose conventions do the repetitive work (ADR 0015, section 5 below). Migrations live in `Infrastructure/Common/Migrations`, are applied at startup in Development only, and are a deployment step elsewhere. `dotnet-ef` is a local tool (`.config/dotnet-tools.json`, `dotnet tool restore`) at the same version as the EF Core packages; it uses the Infrastructure project and its design-time factory, never the API. SQL Server 2022 in Docker for dev and tests. **Logins (ADR 0034):** outside Development the API connects as `billingrecon_app`, a member of the database role `billingrecon_application` alone, which migration `0020_DatabaseRoles` creates with its grants (`docs/database.md` section 7); the migrations run as `billingrecon_migrator` (`db_ddladmin`, `db_datareader`, `db_datawriter`, `db_securityadmin`); the logins are made per environment (`docs/runbook.md` section 10). The database has `READ_COMMITTED_SNAPSHOT ON`, as EF Core creates one: the application relies on readers not waiting for writers. |
@@ -62,6 +62,8 @@ the domain model, the schema and the tests.
 | **Respawn** | Empties the test databases between tests; schema and migrations history stay (ADR 0016) |
 | **NetArchTest** | Enforce the dependency and module rules in `tests/BillingRecon.ArchitectureTests` |
 | **Bogus** | Realistic test data from one seeded generator (`TestData`) |
+| **`deploy/load`** (Node, no package) | The load test of `docs/requirements.md` section 5 against a running stack: 50 users, p95 of posting and recording, the number series' wait and hold from `Server-Timing`, zero drift after; run by hand, not in CI (ADR 0046, runbook section 14) |
+| **Playwright** (`@playwright/test` 1.65.1) | The browser journey (`frontend/e2e`): clerk, cashier, supervisor, against a running stack; run by hand, not in CI (ADR 0046) |
 
 ### Frontend
 
@@ -84,9 +86,10 @@ React + TypeScript + Vite in `frontend/` (ADR 0038, Prompt 7.1). Node 22.22 or l
 | Session | **`sessionStorage`** | The token, its expiry and the roles read from it; gone with the tab, at expiry and on a 401 (row S5). The roles choose the navigation only; the API is the authority. |
 | Charts (7.6) | **Recharts 3.10.1** | SVG, so a series drawn with `var(--series-n)` follows the theme without a re-render. Loaded with the dashboard's route only (ADR 0044). |
 | Dashboard (ADR 0044) | One card, one colour token | Six cards from one component, each one `--series-n` token mixed into the surface (stronger in dark), the change coloured by meaning, money compact (₹12.8L) with the exact amount in the tooltip and for screen readers (`src/dashboard/compact.ts`); billing against collections with a table of its figures; the ageing donut; four panels with "View all", each with its own skeleton, empty state and error. Layout reference `docs/ui/dashboard.png`. |
-| Tests | **Vitest**, jsdom, React Testing Library | The API faked by a `fetch` given to the client (`src/test/app.tsx`); no mocking package. |
+| Tests | **Vitest**, jsdom, React Testing Library | The API faked by a `fetch` given to the client (`src/test/app.tsx`); no mocking package. Vitest reads `src/` only. |
+| Browser journey (ADR 0046) | **Playwright** 1.65.1 | `e2e/journey.spec.ts`, its own `tsconfig.e2e.json`, `npm run e2e`; against https://localhost by default (`E2E_BASE_URL`), Chromium or an installed browser (`E2E_BROWSER_CHANNEL`); a console error on any page fails the step, the browser's `/favicon.ico` excepted. |
 | Lint and format | **ESLint 9** (type-aware TypeScript, hooks, `jsx-a11y`, no `dangerouslySetInnerHTML`), **Prettier** | ESLint stays on 9 until `jsx-a11y` supports 10. Warnings are errors. One `eslint-disable`, in a test, with its reason. |
-| Packages | 28, pinned exactly (Recharts added by 7.6), `package-lock.json` committed | `npm ci` in CI; `npm audit` fails on any advisory; Dependabot a week after a release. A new package needs approval (section 6). |
+| Packages | 29, pinned exactly (Recharts added by 7.6, `@playwright/test` by 8.2), `package-lock.json` committed | `npm ci` in CI; `npm audit` fails on any advisory; Dependabot a week after a release. A new package needs approval (section 6). |
 
 ### Delivery
 
@@ -96,14 +99,15 @@ Docker Compose runs it all (ADR 0045, Prompt 8.1, runbook section 13): `sql` (SQ
 TLS with a self-signed certificate made on its first start, the app's own headers (CSP with the theme script's hash,
 `frame-ancestors 'none'`, nosniff, HSTS), `/api` passed to the API as its one known proxy; and `demo-seed`, which with
 `DEMO_ENABLED=true` fills the hospital `demo` through the API (`deploy/demo/seed.mjs`) after the API's opt-in bootstrap of
-that hospital and its administrator (`DemoTenantSeeder`). Licence acceptances, passwords and the signing key come from
+that hospital and its administrator (`DemoTenantSeeder`); and, only with `--profile load`, `load`, the load test of Prompt 8.2
+(`deploy/load/load.mjs`, ADR 0046, runbook section 14). Licence acceptances, passwords and the signing key come from
 `.env` (copy `.env.example`), which git ignores. The API has a multi-stage image, `src/BillingRecon.Api/Dockerfile` (Debian-based runtime with
 time zone data, non-root user, health check; ADR 0017). GitHub Actions, `.github/workflows/ci.yml`, runs on every
 push to `main` and every pull request: restore with the NuGet audit, `dotnet format --verify-no-changes`, build
 with warnings as errors, every test including the database tests (the runners have Docker), coverage and a
 vulnerability report as artifacts, the idempotent migration script, and the image built and smoke-run; and since
 Prompt 7.1 a third job, the frontend: `npm ci`, `npm audit`, format, lint, the generated API types against the committed
-document, types and build, tests. Dependabot keeps NuGet, npm and the actions current (`.github/dependabot.yml`). Line endings are LF everywhere
+document, types and build, tests, and since Prompt 8.2 the load test's arithmetic (`node --test`). Dependabot keeps NuGet, npm and the actions current (`.github/dependabot.yml`). Line endings are LF everywhere
 (`.gitattributes`, `.editorconfig`), CRLF only for `.sln`, `.ps1`, `.cmd` and `.bat`. Commands and the gates are
 in `docs/runbook.md` sections 5 and 6.
 
@@ -136,6 +140,8 @@ Office machine:
 - `node --version`: **v24.22.2**, npm 11.19.1 (recorded 2026-11-23; it was v6.10.1 on 2026-09-26). The frontend builds
   and tests here, and the npm registry is reachable.
 - Git 2.54.0.windows.1. Default branch `main`.
+- **Disk: about 1 GB free on C: (recorded 2026-11-24)**, the only drive. A full load run (Prompt 8.2) filled it; keep
+  throwaway databases and copies small and drop them when done, and run the full-size load on the personal machine.
 - **No Docker on this machine (the owner's office machine), and none will be installed** (recorded 2026-10-03).
   Anything that needs containers is run and verified on the owner's personal machine, which has Docker Desktop:
   `docker-compose.yml` (checklist in `docs/runbook.md`) and the `Database` collection of the integration tests
@@ -189,10 +195,12 @@ Directory.Packages.props       Central package management: every package version
 global.json                    Pins the .NET 10 SDK feature band (10.0.400, latestPatch; ADR 0014).
 .config/dotnet-tools.json      Local tools: dotnet-ef, same version as the EF Core packages. Restore with dotnet tool restore.
 .editorconfig                  Code style and naming, enforced in the build (EnforceCodeStyleInBuild).
-docker-compose.yml             The one-command run (ADR 0045): SQL Server, Seq, migrate, api, frontend (nginx) and demo-seed. First run
+docker-compose.yml             The one-command run (ADR 0045): SQL Server, Seq, migrate, api, frontend (nginx) and demo-seed; load behind
+                               a profile (ADR 0046). First run
                                with Docker on the owner's machine on 2026-11-24 (runbook section 8, row 8.1).
 .env.example                   Template for .env (licence acceptances, passwords, the signing key, the demo, ports). .env itself is git-ignored.
-deploy/                        migrate/ (the migration image and its SQL steps) and demo/seed.mjs (the demo through the API).
+deploy/                        migrate/ (the migration image and its SQL steps), demo/seed.mjs (the demo through the API), and
+                               load/ (load.mjs, the load test; stats.mjs, its arithmetic, held by stats.test.mjs; ADR 0046).
 .dockerignore                  What the API image build never sees: build output, tests, docs, .env, the git history.
 .github/workflows/ci.yml       GitHub Actions: format, build, tests with Docker, coverage, vulnerability report,
                                migration script, API image built and smoke-run (ADR 0017).
@@ -311,7 +319,8 @@ src/
                                 validators and DTOs, DashboardPeriods, DashboardFigures, DashboardSeries, the port
                                 IDashboardReports, the recent payments over the payment register, and ReportOrder,
                                 the register's order (Reporting); ILedgerMovements with LedgerBalances and LedgerDay,
-                                the ledger by business date (Receivables).
+                                the ledger by business date (Receivables). IRequestTimings with RequestTiming, the
+                                durations measured while a request ran (Common), ADR 0046.
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -346,6 +355,9 @@ src/
                                 (Reporting; the one folder that may name every business module's entities, ADR 0036).
                                 DashboardReports, the open bills and the approval requests' instants (Reporting), and
                                 LedgerMovementsQuery, the sixth file with raw SQL (Receivables), ADR 0037.
+                                NumberSeriesTimer, the wait and hold of a number series, marked by the allocator and by
+                                whoever ends the transaction; the idempotency store reads its key's row at the
+                                reservation (Common), ADR 0046.
   BillingRecon.Api/             Controllers, middleware and filters (correlation id, idempotency, tenant resolution),
                                 the error contract (Common/Errors: exception handler, Error to ProblemDetails mapper),
                                 authentication/authorisation, OpenAPI + Scalar, Program.cs (composition root),
@@ -374,7 +386,8 @@ src/
                                 request records (Reporting), ADR 0036. DashboardController, seven GET panels under
                                 /api/v1/dashboard, and the policy Dashboard (Reporting), ADR 0037. Program.cs gives
                                 the JSON options the OpenAPI document reads the controllers' enum converter, so the
-                                document says what the wire carries (ADR 0038, built note).
+                                document says what the wire carries (ADR 0038, built note). Common/Diagnostics
+                                (ADR 0046): DiagnosticsOptions, ServerTimingMiddleware and AddDiagnostics.
 tests/
   Directory.Build.props         Test defaults: xUnit, Shouldly, test SDK/runner, global usings.
   BillingRecon.Domain.Tests/  BillingRecon.Application.Tests/
@@ -398,7 +411,8 @@ tests/
                                    frontend origin; KestrelTransportTests host the API on real Kestrel (ADR 0035).
                                    After every test of the Database collection, DatabaseTest runs the reconciliation of
                                    every tenant and fails on drift, except the identities a test names with ExpectDrift
-                                   or its class with DriftLeftOnPurpose (ADR 0036, Prompt 6.2).
+                                   or its class with DriftLeftOnPurpose (ADR 0036, Prompt 6.2). Diagnostics/: the
+                                   Server-Timing without a database (ADR 0046).
   BillingRecon.ArchitectureTests/  NetArchTest and file scans: layer rule, module rule with its listed exceptions,
                                    every type in a known module, banned packages in every project file, controller
                                    conventions, no minimal APIs; the guard of the banned-API list
@@ -433,6 +447,8 @@ frontend/                      React + TypeScript + Vite (ADR 0038): index.html 
                                API's policies), format.ts and decimals.ts, routes.tsx, Providers.tsx; src/test (the app
                                renderer, routedApi, the records, the colour scan, the contrast and theme-script tests).
                                The OpenAPI document is kept equal to the API's by OpenApiSnapshotTests (IntegrationTests).
+                               e2e/journey.spec.ts with playwright.config.ts and tsconfig.e2e.json: the browser journey
+                               (ADR 0046).
 docs/                          Design documents and ADRs (see section 7)
 ```
 
@@ -728,8 +744,8 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 | `docs/api.md` | REST conventions, auth, idempotency, error-code catalogue, endpoints. Written so far: the conventions, the patient and payer endpoints (Prompt 2.2), the service item endpoints (Prompt 2.3), the bill draft endpoints (Prompt 2.4), the audit trail endpoint (Prompt 3.4), posting and approvals (Prompts 3.5 and 3.6), the payment endpoints with allocation (Prompts 4.1 and 4.2), the credit note endpoints (Prompt 4.3), the adjustment endpoints (Prompt 4.4), the reversal endpoints of payments and allocations (Prompt 4.5), the refunds (Prompt 4.6), the users (Prompt 5.1), authentication with the sign-in (Prompt 5.2), the permissions of each role (Prompt 5.3), the tenant settings with the prefix changes (Prompt 5.3b), HTTPS only, hosts, CORS, the headers of an answer and the sign-in limits (Prompt 5.4b), the reports (Prompts 6.1 and 6.2), and the dashboard (Prompt 6.3). Complete since Prompt 6.2: every endpoint, the actions of the audit trail, and the error-code catalogue (section 9), which `ApiDocumentationTests` keeps complete |
 | `docs/build-prompts.md` | The build prompts from zero to R1, reconstructed on 2026-11-20: what each finished prompt built, and the wording and order of the prompts still to give. Its phase numbers are the ones this file uses |
 | `docs/security.md` | Authentication and the sign-in limits, authorisation, tenancy, maker-checker, transport (TLS, hosts, CORS, headers), secrets, data protection, the database logins, and the threat model of R1 (section 10: every threat done, accepted with its reason, or named with its prompt). Written in full with Prompt 5.4b |
-| `docs/testing-strategy.md` | Test pyramid, tooling, database tests, architecture tests, the frontend's tests (section 5a), CI gates |
-| `docs/runbook.md` | Written so far: local infrastructure, the "Verify on a Docker machine" checklist, migrations, tests, CI, the container image, idempotency keys, the deferred verification list, sign-in with the signing key (section 9), the database logins with the migrations outside Development (section 10), the proxy in front of the API with its hosts and origins (section 11), the frontend with its commands, a local sign-in and the OpenAPI snapshot (section 12), and the one-command local run with the demo (section 13). Still to come: backups, incident procedures |
+| `docs/testing-strategy.md` | Test pyramid, tooling, database tests, architecture tests, the frontend's tests (section 5a), the load test and the browser journey (section 5b), CI gates |
+| `docs/runbook.md` | Written so far: local infrastructure, the "Verify on a Docker machine" checklist, migrations, tests, CI, the container image, idempotency keys, the deferred verification list, sign-in with the signing key (section 9), the database logins with the migrations outside Development (section 10), the proxy in front of the API with its hosts and origins (section 11), the frontend with its commands, a local sign-in and the OpenAPI snapshot (section 12), the one-command local run with the demo (section 13), and the load test and the browser journey (section 14). Still to come: backups, incident procedures |
 | `docs/adr/` | Architecture Decision Records. ADR 0000 defines the format. |
 
 ADRs so far: 0000 record decisions, 0001 target framework (.NET 8; superseded by 0014),
@@ -821,7 +837,11 @@ exact amount kept, panels that fail alone, Recharts 3.10.1 loaded with its route
 Prompt 7.6 plan, 2026-11-23),
 0045 the one-command local run: nginx with a local certificate as the API's known proxy, the migrations as in runbook
 section 10 by a `migrate` service, a demo hospital bootstrapped by the API and filled through it (Accepted on the owner's
-approval of the Prompt 8.1 plan, 2026-11-23).
+approval of the Prompt 8.1 plan, 2026-11-23),
+0046 the load test, the timing of the number series and the browser journey: a Node script with no package, 50 users judged
+with a one-second pause and a no-pause stress figure, the 20 ms read as the hold, `Server-Timing` off by default, the
+idempotency key's row read before the number, Playwright 1.65.1, neither suite in CI (Accepted on the owner's approval of
+the Prompt 8.2 plan and decisions, 2026-11-24).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -864,7 +884,9 @@ them needs the API's configuration, and only "apply" needs a database.
 
 Useful URLs while running: `/health/live`, `/health/ready`, `/api/v1/system/info`, the Seq UI at
 `http://localhost:5341`, and in Development `/openapi/v1.json` and `/scalar`.
-The whole application with the demo: `docker compose up --build`, then https://localhost (runbook section 13).
+The whole application with the demo: `docker compose up --build`, then https://localhost (runbook section 13). The load
+test against it: `$env:SERVER_TIMING = 'true'; docker compose up -d --build`, then
+`docker compose --profile load run --rm load` (runbook section 14; at least 2 GB free).
 
 The frontend, from `frontend/` (Node 22.22 or later; every command and how to sign in locally: `docs/runbook.md`
 section 12):
@@ -877,6 +899,7 @@ npm run lint               # ESLint, warnings are errors
 npm run format:check       # the format gate; npm run format writes the fixes
 npm run build              # types, then dist/
 npm run api:types          # src/api/schema.d.ts from src/api/openapi.json
+npm run e2e                # Playwright: the browser journey against a running stack (E2E_PASSWORD; runbook section 14)
 ```
 
 When an endpoint changes, `OpenApiSnapshotTests` fails until the committed document is rewritten
@@ -2130,4 +2153,37 @@ Kept here so they survive between sessions. Remove an item when it is done.
       `dotnet ef` writes the script; the frontend image builds on `node:24-bookworm-slim` (on Alpine the native bindings of
       Vite 8 and Rolldown failed) and its healthcheck names `127.0.0.1` (nginx listens on IPv4 only). `dotnet test` with
       Docker ran there too (item 16). **Still owed from row 8.1:** the page's headers and the redirect of http://localhost.
-    - Next: Prompt 8.2 (performance and browser tests).
+    - Next: Prompt 8.2 (performance and browser tests). Done: item 45.
+45. **Prompt 8.2, performance and browser tests (ADR 0046), written 2026-11-24, on `phase-8-delivery`.** The plan was
+    approved "as recommended"; after the first full run the owner made two more decisions (below). One package
+    (`@playwright/test` 1.65.1, three in the lock file); no NuGet package, no migration, no new raw SQL.
+    - Built: the load test `deploy/load/load.mjs` (Node, no package) with `stats.mjs` and `stats.test.mjs` (in CI), and the
+      compose service `load` behind the profile `load`; `NumberSeriesTimer`, `IRequestTimings` and `ServerTimingMiddleware`,
+      which tell the number series' wait and hold in `Server-Timing` when `Diagnostics:ServerTiming` is on (off by default;
+      `SERVER_TIMING` in compose; threat model row I14); the idempotency store reads its key's row at the reservation, so
+      completing it is one round trip fewer inside the hold; the browser journey `frontend/e2e/journey.spec.ts` with
+      `playwright.config.ts`, `tsconfig.e2e.json` and `npm run e2e`; runbook section 14 and row 8.2; testing strategy 5b.
+    - **Decided by the owner after the first full run:** 50 users are judged with a pause of one second between their
+      requests; the run with no pause is reported as a stress figure, not judged. With no pause, every user queued on the
+      bill series and posting a bill missed (p95 1,130 ms, the hold p95 17.2 ms); `docs/requirements.md` section 5 says how it
+      is measured now. And a smaller run on the office machine.
+    - **Found:** the office machine's C: drive filled up during that first run (the load database reached 980 MB); the API
+      answered 500 for every request after, and every failed posting rolled back whole: the reconciliation found no drift.
+      The database was dropped. About 1 GB is free there; a full run needs at least 2 GB. And the room a bill takes: about
+      50 kB of data, more than half of it the audit trail's images (ADR 0046, built note; item 14).
+    - **Changed in existing code and tests, none weakened:** `NumberSeriesAllocator`, `UnitOfWork` and `IdempotencyStore`
+      take the timer as an optional last parameter (the hand-built ones in tests are unchanged); Vitest reads `src/` only,
+      so it does not collect the Playwright suite; the CI frontend job runs `node --test` on the load test's arithmetic. No
+      existing expectation changed.
+    - **Tests:** `ServerTimingTests` (5, without a database), `ServerTimingApiTests` (3, database), one new test in
+      `IdempotencyKeysOnSqlServerTests`, `stats.test.mjs` (5), the journey (3 steps).
+    - **Verified on the office machine:** the Release build and `dotnet format --verify-no-changes` clean; Domain 644,
+      Application 423, Architecture 129 and the 752 integration tests without a database pass; in a throwaway copy on
+      LocalDB 2019 the `Database` collection passes in full (497); the frontend's audit, format, lint, types, 357 tests and
+      build. **The load, on LocalDB at 2,000 bills** (the published API outside Development, Server-Timing on): judged, 50
+      users with a one-second pause, posting p95 107.6 ms, recording p95 102.9 ms, the series held p95 7.9 and 8.9 ms, no
+      error, no drift; every target met. **The journey** against the Vite dev server and the API in Development with the
+      demo seeded, in the installed Edge: 3 steps passed; with a button of the app renamed, its step failed.
+    - **Not verified:** SQL Server 2022, nginx, the compose service `load`, the full 10,000 bills, the journey against
+      https://localhost and its content security policy, Chromium itself, the CI job (runbook section 8, row 8.2).
+    - Next: Prompt 8.3 (release R1).

@@ -647,6 +647,7 @@ were not part of it.
 | 7.5b | The frontend job of CI with the report screens; a CSV of each report opened in a spreadsheet by the owner. |
 | 7.6 | The frontend job of CI with the dashboard and Recharts 3.10.1; the dashboard at a phone width. |
 | 8.1 | Run on 2026-11-24 (above): the images built, `migrate` and `demo-seed` ran to their end, `api` and `frontend` up, https://localhost signed in as `supervisor@demo.local` and showed the dashboard, `DemoTenantSeederTests` in the suite. **Still owed:** the page's headers carry the policy, `frame-ancestors 'none'` and `nosniff`; http://localhost redirects to https. |
+| 8.2 | The load test of section 14 at full size (10,000 bills) through nginx on SQL Server 2022, with `SERVER_TIMING=true` and at least 2 GB free: every target met, no drift (send the whole output); the stress figure with no pause. The browser journey of section 14 against https://localhost, which is also the first check in a browser of nginx's content security policy (no console error); the frontend job of CI with `@playwright/test` in the lock file and the step that runs `deploy/load/stats.test.mjs`; `ServerTimingApiTests` and the new test of `IdempotencyKeysOnSqlServerTests` on SQL Server 2022. The office machine ran the load on LocalDB at 2,000 bills only (ADR 0046, built note). |
 
 A red result is reported as it is, with its output; the fix is its own commit on top, never an edit of history.
 
@@ -893,3 +894,68 @@ nginx; Seq stays at http://localhost:5341.
 
 **When `migrate` fails:** `docker compose logs migrate` shows sqlcmd's message. The migration script needs
 `QUOTED_IDENTIFIER` on (`sqlcmd -I`, as section 10 has it): without it the filtered indexes are refused.
+
+## 14. The load test and the browser journey (ADR 0046)
+
+Both run against the one-command local run of section 13 **with the demo** (`DEMO_ENABLED=true` and `DEMO_PASSWORD` in
+`.env`), and both leave what they enter in the demo hospital: `docker compose down -v` gives a fresh demo afterwards
+(it deletes the database, Seq's data and the certificate).
+
+### The load test (`deploy/load/load.mjs`)
+
+What it does and judges: `docs/testing-strategy.md` section 5b. It needs room: about **50 kB of data per bill** (more
+than half of it the audit trail's images), and the transaction log grows with it, so leave **at least 2 GB free** on the
+disk that holds Docker's data for the default run (10,000 bills of the fill, two minutes judged, one minute of stress).
+On the office machine a full run filled the disk on 2026-11-24 (ADR 0046, built note).
+
+1. Start the stack with the timings of the number series switched on (**for a load test only**: `SERVER_TIMING` tells a
+   signed-in user how busy their hospital's series is, `docs/security.md` row I14):
+
+   ```powershell
+   $env:SERVER_TIMING = 'true'; docker compose up -d --build
+   ```
+
+2. Run the load (about ten minutes; it waits out the sign-in limit of section 9 once, about a minute):
+
+   ```powershell
+   docker compose --profile load run --rm load
+   ```
+
+   The last lines are the verdict, one row per target, and the exit code is 0 when every target is met, 1 when one is
+   missed, 2 when the run could not be made. Send the whole output back.
+
+3. Switch the timings off again:
+
+   ```powershell
+   Remove-Item Env:SERVER_TIMING; docker compose up -d
+   ```
+
+Settings, in `.env` or the shell: `LOAD_USERS` (50), `LOAD_FILL_BILLS` (10000), `LOAD_SECONDS` (120), `LOAD_THINK_MS`
+(1000, the pause between one user's requests while judged) and `LOAD_STRESS_SECONDS` (60, no pause, not judged; 0 leaves
+it out). A hospital whose approval threshold is 700 or less is refused: every bill of the load would wait for a checker.
+
+Without Docker, against an API on this machine reached without the proxy, the script runs with `node`, `BASE_URL`
+(for example `http://localhost:5090`) and `LOAD_FORWARDED_HTTPS=true`, which makes a plain-HTTP request on loopback stand
+for one that came over HTTPS (the API believes the loopback, section 11); that is how the office machine ran it.
+
+### The browser journey (`frontend/e2e/journey.spec.ts`)
+
+Node 22.22 or later on the machine, the stack up with the demo, then from `frontend/`:
+
+```powershell
+npm ci
+```
+
+```powershell
+npx playwright install chromium
+```
+
+```powershell
+$env:E2E_PASSWORD = '<DEMO_PASSWORD of .env>'; npm run e2e
+```
+
+`npx playwright install chromium` downloads Chromium (about 150 MB) once; `$env:E2E_BROWSER_CHANNEL = 'msedge'` (or
+`chrome`) uses the installed browser instead. `E2E_BASE_URL` points the suite elsewhere than https://localhost, for
+example the Vite dev server (`http://localhost:5173`) with the API in Development. A failure leaves its trace in
+`frontend/test-results` (`npx playwright show-trace <file>`) and a report in `frontend/playwright-report`; both are
+ignored by git.

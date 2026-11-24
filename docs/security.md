@@ -202,6 +202,7 @@ it.
 | I11 | A page on another site reading the API in a user's browser | No CORS permission but for `Cors:Origins`; no credentials; the token is never a cookie, so there is nothing for a forged request to carry | Done (ADR 0035) |
 | I12 | Secrets in the repository | User-secrets and the environment; the Development key refused elsewhere | Done (section 7) |
 | I13 | Stolen backups | Backups and their protection | Prompt 8.3 (backup and restore in `docs/runbook.md`) |
+| I14 | Timings of the server read from its answers (how long a hospital's number series is waited for tells how busy it is) | `Server-Timing` only when `Diagnostics:ServerTiming` is true, which is off by default and set for a load test alone; only on the answer to a request that took a number, so only to a signed-in user of that hospital | Done (ADR 0046). Turning it on in a deployment is operational: Accepted, `docs/runbook.md` section 14 says never to |
 
 ### Denial of service
 

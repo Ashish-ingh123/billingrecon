@@ -97,6 +97,8 @@ services:
       Seq__ServerUrl: "http://seq"
       Demo__Enabled: "${DEMO_ENABLED:-false}"
       Demo__AdminPassword: "${DEMO_PASSWORD:-}"
+      # For a load test only (ADR 0046): answers say how long their number series was waited for and held.
+      Diagnostics__ServerTiming: "${SERVER_TIMING:-false}"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -135,6 +137,30 @@ services:
       - ./deploy/demo:/demo:ro
       - certs:/certs:ro
     command: ["node", "/demo/seed.mjs"]
+    depends_on:
+      frontend:
+        condition: service_healthy
+    restart: "no"
+
+  # The load test of Prompt 8.2 (ADR 0046, docs/runbook.md section 14), never started by `up`: only by
+  # `docker compose --profile load run --rm load`. Signs in as the demo administrator, so DEMO_ENABLED=true; for the
+  # number-series timings start the API with SERVER_TIMING=true. It leaves its users, patients and bills in the demo.
+  load:
+    profiles: ["load"]
+    image: node:24-alpine
+    environment:
+      DEMO_PASSWORD: "${DEMO_PASSWORD:-}"
+      BASE_URL: "https://frontend"
+      NODE_EXTRA_CA_CERTS: "/certs/tls.crt"
+      LOAD_USERS: "${LOAD_USERS:-50}"
+      LOAD_FILL_BILLS: "${LOAD_FILL_BILLS:-10000}"
+      LOAD_SECONDS: "${LOAD_SECONDS:-120}"
+      LOAD_THINK_MS: "${LOAD_THINK_MS:-1000}"
+      LOAD_STRESS_SECONDS: "${LOAD_STRESS_SECONDS:-60}"
+    volumes:
+      - ./deploy/load:/load:ro
+      - certs:/certs:ro
+    command: ["node", "/load/load.mjs"]
     depends_on:
       frontend:
         condition: service_healthy

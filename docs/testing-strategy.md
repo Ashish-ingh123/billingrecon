@@ -164,6 +164,28 @@ Since Prompt 7.5b (ADR 0043):
 The jsdom environment has no `matchMedia`; `src/test/setup.ts` gives every test a system that prefers light, which a
 test changes with `stubColourScheme`, and clears both storages before each test.
 
+## 5b. The load test and the browser journey (Prompt 8.2, ADR 0046)
+
+Two suites that need the whole application running, so neither is part of `dotnet test` or `npm test`, and neither
+runs in CI: shared runners say nothing about latency, and the journey needs SQL Server, the API and nginx. Both run
+against the one-command local run with the demo hospital (`docs/runbook.md` sections 13 and 14).
+
+- **The load test**, `deploy/load/load.mjs` (Node, no package): 50 users of one hospital, each with a patient and a
+  payer of their own, draft a bill, post it, record a payment and allocate it, in a loop. The hospital is first filled
+  to 10,000 posted bills in the month; then two minutes with a pause of one second between one user's requests are
+  judged against `docs/requirements.md` section 5 (p95 of posting a bill and of recording a payment under 500 ms; each
+  number series held under 20 ms at p95; no error); then a minute with no pause is reported as a stress figure; then
+  the reconciliation must find no drift. How long each posting waited for its number series and held it comes from the
+  API's `Server-Timing`, switched on for the run (`Diagnostics:ServerTiming`). The exit code is the verdict.
+  `deploy/load/stats.test.mjs` holds its arithmetic (nearest-rank percentiles, the header, the verdict) to known figures
+  with Node's own test runner, in CI.
+- **The browser journey**, `frontend/e2e/journey.spec.ts` (Playwright, Chromium or an installed Edge or Chrome): a
+  clerk registers a patient and their payer, drafts a bill with a catalogue line and a free-text line and posts it; a
+  cashier records the payment and applies it oldest first, which settles the bill and empties the statement; a
+  supervisor sees the dashboard and a reconciliation without drift. Selectors are roles and labels, as in the component
+  tests; no fixed waits. Any error a page writes to the console fails the step, so a script the content security
+  policy of nginx refuses fails it too.
+
 ## 6. CI quality gates (Prompt 1.5, to come)
 
 Build with warnings as errors; `dotnet format --verify-no-changes`; every test including the

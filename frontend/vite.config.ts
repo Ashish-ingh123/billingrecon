@@ -13,6 +13,8 @@ export default defineConfig({
     },
   },
   test: {
+    // The component tests; the browser journey in e2e/ is Playwright's (ADR 0046).
+    include: ['src/**/*.test.{ts,tsx}'],
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     restoreMocks: true,

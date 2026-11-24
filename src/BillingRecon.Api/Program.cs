@@ -3,6 +3,7 @@ using BillingRecon.Api.Common;
 using BillingRecon.Api.Common.Authentication;
 using BillingRecon.Api.Common.Authorization;
 using BillingRecon.Api.Common.Correlation;
+using BillingRecon.Api.Common.Diagnostics;
 using BillingRecon.Api.Common.Errors;
 using BillingRecon.Api.Common.Idempotency;
 using BillingRecon.Api.Common.Logging;
@@ -41,6 +42,10 @@ builder.Services.AddPermissions();
 
 // How often anyone may try to sign in: per client address and per account (ADR 0035; ADR 0031, point 12).
 builder.Services.AddSignInLimits();
+
+// What the API may show of its own timings: the Server-Timing of the number series, off unless a load test turns it on
+// (ADR 0046).
+builder.Services.AddDiagnostics();
 
 // The ports of each business module, then every use case and validator of the Application layer (ADR 0018).
 builder.Services.AddPayers();
@@ -92,6 +97,7 @@ app.UseForwardedHeaders();
 // that keep a browser or a cache from misusing an answer, on every response.
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseMiddleware<ServerTimingMiddleware>();
 app.UseRequestLogging();
 app.UseExceptionHandler();
 app.UseStatusCodePages();

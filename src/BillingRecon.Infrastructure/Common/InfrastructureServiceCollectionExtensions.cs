@@ -108,8 +108,11 @@ public static class InfrastructureServiceCollectionExtensions
         // (BR-803, ADR 0006).
         services.AddScoped<IIdempotencyStore, IdempotencyStore>();
 
-        // Gapless document numbers, taken in the transaction this unit of work commits (BR-801, ADR 0008).
+        // Gapless document numbers, taken in the transaction this unit of work commits (BR-801, ADR 0008). How long the
+        // request waited for its series and held it is measured, and is the API's Server-Timing when that is on (ADR 0046).
         services.AddScoped<INumberSeries, NumberSeriesAllocator>();
+        services.AddScoped<NumberSeriesTimer>();
+        services.AddScoped<IRequestTimings>(provider => provider.GetRequiredService<NumberSeriesTimer>());
 
         // Approval requests: opened and decided by the use cases of their documents, listed for the checker (BR-604, BR-605).
         services.AddScoped<IApprovalRequestRepository, ApprovalRequestRepository>();

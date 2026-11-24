@@ -231,3 +231,8 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: The load test's arithmetic
+        # The percentiles and the verdict of deploy/load (ADR 0046), with Node's own test runner. The load itself is run
+        # by hand against a running stack, never here: shared runners say nothing about latency (docs/runbook.md section 14).
+        run: node --test ../deploy/load/stats.test.mjs
