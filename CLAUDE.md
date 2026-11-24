@@ -16,6 +16,11 @@ gapless numbering, immutable postings, maker-checker approval and a complete aud
 
 **Product name:** **BillingRecon**. Root namespace `BillingRecon`, solution `BillingRecon.sln`.
 
+**Company:** **ashline**, the owner's studio (https://ashish-singh-ai-studio.vercel.app/). The product is credited as
+"A product of ashline" and "BillingRecon by ashline"; the company's mark is `frontend/src/assets/brand/ashline-logo.svg`,
+copied path for path from its site on 2026-11-24 and never redrawn (`docs/build-prompts.md`, Phase 9, has its colours and
+how its name is set).
+
 **Domain and vocabulary (confirmed 2026-09-29, `docs/requirements.md`).** Hospital and clinic
 patient billing. A **bill** (never "invoice") is raised *for* a **patient** and *owed by* a
 **payer**; in R1 every payer is self-pay (the patient or a guarantor), insurers and corporate
@@ -448,6 +453,7 @@ frontend/                      React + TypeScript + Vite (ADR 0038): index.html 
                                API's policies), format.ts and decimals.ts, routes.tsx, Providers.tsx; src/test (the app
                                renderer, routedApi, the records, the colour scan, the contrast and theme-script tests).
                                The OpenAPI document is kept equal to the API's by OpenApiSnapshotTests (IntegrationTests).
+                               src/assets/brand: the company's mark, ashline-logo.svg (no screen uses it yet: Phase 9).
                                e2e/journey.spec.ts with playwright.config.ts and tsconfig.e2e.json: the browser journey
                                (ADR 0046).
 docs/                          Design documents and ADRs (see section 7)
@@ -931,3 +937,10 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
 4. **History:** the items 1 to 45 of this section (Prompts 1.4 to 8.2: what each built, decided and verified) are in
    CLAUDE.md at commit `4741c7f` (`git show 4741c7f:CLAUDE.md`); the ADRs and `docs/build-prompts.md` cite them by number.
    Every ADR is Accepted since 2026-11-24 (section 7). `docs/traceability.md` proves every user story (Prompt 8.3).
+5. **Next: Phase 9, the interface** (`docs/build-prompts.md`, written 2026-11-24 at the owner's request, not started):
+   every screen at the level of the owner's sign-in reference, with no change of behaviour, in four prompts: 9.1 the
+   brand, the tokens and the sign-in page; 9.2 the shell and the shared components; 9.3 the money screens; 9.4 the
+   dashboard, the reports and the finishing pass. "The bar of Phase 9" there holds every prompt. **9.1 cannot start
+   until the owner has put two files in the repository:** `docs/ui/sign-in.png` (the reference, 1672 x 941) and
+   `frontend/src/assets/brand/signin-hospital.webp` (its photograph alone, one the owner may use). ADR numbers 0047 to
+   0050 are theirs. The standing preamble's sentence about this machine was brought up to date the same day.

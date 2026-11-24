@@ -45,8 +45,9 @@ is left; their numbering is mine, not the blueprint's.
 | 8.1 One-command local run | Written on 2026-11-23 with the owner's decisions (ADR 0045; CLAUDE.md section 9, item 44), on `phase-8-delivery`. The SQL steps and the demo seed run here on LocalDB. On 2026-11-24 the owner ran `docker compose up --build` with the demo on the personal machine (signed in, the dashboard shown) and `dotnet test` with Docker; two fixes to the images came back from that run as their own commit (ADR 0045, "Run with Docker"). Still owed: the page's headers and the http redirect (runbook section 8, row 8.1) |
 | 8.2 Performance and browser tests | Written on 2026-11-24 with the owner's decisions (ADR 0046; CLAUDE.md section 9, item 45), on `phase-8-delivery`. A load test in Node with no package (`deploy/load`), the number series' wait and hold in `Server-Timing` (off by default), the idempotency key's row read before the number, and a Playwright journey (`@playwright/test` 1.65.1). On the office machine, on LocalDB at 2,000 bills: every target met with a one-second pause, no drift; the full 10,000 and the journey through nginx are owed by the personal machine |
 | 8.3 Release R1 | Written on 2026-11-24 with the owner's decisions, in the session of 8.2: the runbook finished (rolling back a migration, backup and restore with `deploy/backup`, run on LocalDB, and the incident procedures); `docs/traceability.md` with every user story and its tests, held by `TraceabilityTests`; every item of CLAUDE.md section 9 closed or re-filed to `docs/backlog.md` or runbook section 8; the README for R1; every ADR Accepted; the tag `v1.0.0`, annotated and local |
+| Phase 9, the interface (9.1 to 9.4) | Written as prompts on 2026-11-24 at the owner's request: every screen at the level of the sign-in reference, with the company (ashline) credited. **Not started.** 9.1 needs two files from the owner first: `docs/ui/sign-in.png` (the reference) and `frontend/src/assets/brand/signin-hospital.webp` (its photograph alone). The company's mark, `frontend/src/assets/brand/ashline-logo.svg`, is in the repository, copied from the company's site |
 
-**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. 5.3b (tenant settings and prefix changes) is written too, and `0019` is in the repository. ADR 0033 built note point 5 was decided on 2026-11-23 (the approval holds the series) and is built as its own commit. 5.4 was split with its plan: its first half, the database logins and grants, is written too, and `0020` is in the repository. 5.4b (HTTP hardening and `docs/security.md` in full) is written too, with no migration; Phase 5 is written to its end, and its merge to `main` is the owner's step. 6.1 (registers and balances), 6.2 (reconciliation and audit trail) and 6.3 (dashboard figures) are written too, with no migration, on `phase-2-billing` like the rest: the backend of R1 is written to its end, and its merge to `main` is the owner's step. 7.1 (the frontend's scaffold and sign-in) is written too, on the same branch, with Node 24 on the office machine. 7.2 (patients, payers and catalogue screens), 7.3 (bill screens), 7.4 (cashier screens) and 7.5 (the checker's inbox, credit notes and adjustments; split with its plan), 7.5b (reports) and 7.6 (dashboard) are written too: the frontend of R1 is written to its end. 8.1 (one-command local run) is written too, on `phase-8-delivery`, and so are 8.2 (performance and browser tests) and 8.3 (release R1, tagged `v1.0.0`): R1 is written to its end. On 2026-11-24 the owner reported the first run on the personal machine: `docker compose up --build` with the demo, and `dotnet test` with Docker, which passed; its output is still to be sent, so the rows of runbook section 8 stay until then. No prompt is left in R1; what follows is in `docs/backlog.md` and the release plan of CLAUDE.md. What was decided for each built prompt is recorded under it below.**
+**Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. 5.3b (tenant settings and prefix changes) is written too, and `0019` is in the repository. ADR 0033 built note point 5 was decided on 2026-11-23 (the approval holds the series) and is built as its own commit. 5.4 was split with its plan: its first half, the database logins and grants, is written too, and `0020` is in the repository. 5.4b (HTTP hardening and `docs/security.md` in full) is written too, with no migration; Phase 5 is written to its end, and its merge to `main` is the owner's step. 6.1 (registers and balances), 6.2 (reconciliation and audit trail) and 6.3 (dashboard figures) are written too, with no migration, on `phase-2-billing` like the rest: the backend of R1 is written to its end, and its merge to `main` is the owner's step. 7.1 (the frontend's scaffold and sign-in) is written too, on the same branch, with Node 24 on the office machine. 7.2 (patients, payers and catalogue screens), 7.3 (bill screens), 7.4 (cashier screens) and 7.5 (the checker's inbox, credit notes and adjustments; split with its plan), 7.5b (reports) and 7.6 (dashboard) are written too: the frontend of R1 is written to its end. 8.1 (one-command local run) is written too, on `phase-8-delivery`, and so are 8.2 (performance and browser tests) and 8.3 (release R1, tagged `v1.0.0`): R1 is written to its end. On 2026-11-24 the owner reported the first run on the personal machine: `docker compose up --build` with the demo, and `dotnet test` with Docker, which passed; its output is still to be sent, so the rows of runbook section 8 stay until then. No prompt is left in R1. Next: Phase 9, the interface (9.1 to 9.4, not started), once the reference image and its photograph are in the repository; what else follows is in `docs/backlog.md` and the release plan of CLAUDE.md. What was decided for each built prompt is recorded under it below.**
 
 ## How to use these prompts
 
@@ -63,9 +64,9 @@ Follow the working agreement in CLAUDE.md section 6: show me a short plan (files
 risks, any new package) and wait for my approval before you edit code.
 Obey the twelve financial rules of section 4 and the conventions of section 5. Do not weaken or
 skip a test. Ask before adding any package.
-This machine cannot build .NET 10 and has no Docker (CLAUDE.md section 2): pre-check in the .NET 9
-copy, tell me plainly what was and was not verified, and give me the exact commands to run on my
-personal machine.
+This machine builds and tests .NET 10 and the frontend but has no Docker and little free disk
+(CLAUDE.md section 2): run the database tests in a throwaway copy on LocalDB, tell me plainly what
+was and was not verified, and give me the exact commands to run on my personal machine.
 When the work is done: update CLAUDE.md (sections 3, 7, 9), the affected docs and ADRs, delete the
 README placeholder of any module folder that received code, and propose one commit message.
 ```
@@ -960,3 +961,326 @@ still awaiting review (ADR 0015's additions, ADR 0019 point 5, ADR 0027 point 9)
 `main` is an ancestor of `phase-8-delivery`, so a fast-forward merge keeps it on `main`. The traceability table covers
 US-01 to US-44 (US-44 was added by 6.3) and is held by an architecture test; what section 9 of CLAUDE.md left open is in
 `docs/backlog.md`.
+
+Merge to `main`; R1 is the tag `v1.0.0`.
+
+### Phase 9. The interface (branch `phase-9-interface`)
+
+R1 is released and every screen works, but the screens are plain. Phase 9 gives the whole application one designed
+interface, at the level of the owner's reference for the sign-in page, **without changing what any screen does**. Asked
+for by the owner on 2026-11-24: "make all the screens one of the best, like this", and the company's logo and name in the
+product. Four prompts, one per session, in order: the brand, the tokens and the sign-in page (9.1); the shell and the
+shared components (9.2); the money screens (9.3); the dashboard, the reports and the finishing pass (9.4). Each begins
+with a plan and ends with screenshots the owner can judge by eye.
+
+**Before 9.1, in the repository** (9.1 stops without the first two):
+
+1. `docs/ui/sign-in.png`: the reference, 1672 x 941, as the owner gave it on 2026-11-24. **Not in the repository yet.**
+2. `frontend/src/assets/brand/signin-hospital.webp`: the photograph of the reference on its own (the hospital building,
+   no tint, no text, no card), at least 2,400 px wide, a photograph the owner has the right to use. **Not in the
+   repository yet.** The page must stay legible without it: the tint, not the photograph, carries the text.
+3. `frontend/src/assets/brand/ashline-logo.svg`: the company's mark. **In the repository since 2026-11-24**, copied path
+   for path from the company's site.
+
+**The company** is **ashline**, the owner's studio (https://ashish-singh-ai-studio.vercel.app/). Its logo there is drawn
+inline: a violet hexagon (`#7c3aed`) holding a white A whose crossbar runs out to a dot (`#1a1033` on a light ground,
+`#c4a1ff` on a dark one), followed by the name in lower case, "ash" at medium weight in the text colour and "line" at
+regular weight in the violet (`#7c3aed` on light, `#b78cff` on dark). When the pointer is over it the dot travels in along
+the line (0.35 s, not with reduced motion). The file above is that mark with its light colours; the name is set as text
+beside it, as on the site. The product is credited as "A product of ashline" and "BillingRecon by ashline".
+
+**What the reference shows** (measured by eye on its 1672 x 941 frame; 9.1 measures it properly and says so in its plan):
+the card spans about 41% of the width, from about 52% to 93% across and from about 9% to 93% down, with corners of about
+28 px; its fields are about 575 px wide and 56 px high with corners of about 12 px; the button is about 58 px high; the
+left block starts about 5.5% in, with a mark of about 120 px. The type looks like Inter.
+
+**The bar of Phase 9.** Every prompt of the phase is held to all of it:
+
+1. **One system.** Every colour, gradient, shadow, radius, space, type size, duration and easing is a token of
+   `frontend/src/theme/tokens.css`, in a light and a dark set. No screen writes one of its own: the colour scan of ADR 0038
+   covers every new file, and gradients, shadows and masks are tokens too.
+2. **Both themes, WCAG 2.2 AA.** Text at 4.5:1; large text, controls and focus rings at 3:1; the contrast test holds every
+   pair in use. Nothing is said by colour alone: a status has an icon and a word. Every control works by keyboard, shows
+   its focus and is at least 24 px to hit. Windows forced colours stay usable.
+3. **Dynamic, with a purpose.** Motion says what happened: something arrived, changed, is pending, was refused. Durations
+   and easings are tokens (about 120, 200 and 320 ms). Only `transform` and `opacity` are animated. Nothing loops but the
+   brand's waves. With `prefers-reduced-motion: reduce` nothing moves and states change at once. Nothing shifts the layout
+   after the first paint.
+4. **Fluid.** From 360 to 1,920 px wide with no sideways scroll of the page; sizes scale with the window (`clamp`); layouts
+   change at breakpoints that are tokens; at 200% zoom nothing is clipped.
+5. **Fast and calm.** The first paint has the theme, the layout and the type's metrics: no flash, no jump. The typeface is
+   self-hosted and preloaded, images have their sizes, a route's code loads when the route is visited, and loading is a
+   skeleton of what is coming.
+6. **Nothing from elsewhere.** No font, script, style, image or request from another origin, and no inline style attribute
+   or script but the pinned theme script. nginx's content security policy (`frontend/deploy/nginx.conf`) stays as it is; a
+   browser test applies that exact policy to the built app and fails on any refusal, because the office machine has no
+   nginx.
+7. **No change of behaviour.** The API, the routes, the policies and what each screen sends stay as they are. So do the
+   labels, names and headings that the tests, the browser journey of 8.2 and `docs/traceability.md` use: a test title the
+   table names is not renamed.
+8. **Proven and shown.** Every existing test passes unweakened; what is new has tests; each prompt leaves screenshots of
+   its screens in both themes in `docs/ui/`, and an ADR.
+9. **No package without asking.** Our own components on CSS Modules stay (ADR 0038: no UI kit). A package the plan argues
+   for (icons, motion, an accessibility check) is asked for with its name, a version at least a week old, its licence and
+   its size.
+
+**Not in this phase** (each sends a request no screen sends today, or is a feature; ask for it as its own prompt): a count
+of waiting approvals in the navigation; a dashboard that refreshes itself; the screens for users and settings (backlog
+B18); a command palette; languages other than English.
+
+#### 9.1 Brand, design tokens and the sign-in page
+
+```
+Read ADR 0038 (stack, theming, the raw-colour rule, the pinned theme script), ADRs 0039 to 0046,
+docs/security.md section 10 (rows S5, E6 and I14), frontend/deploy/nginx.conf (the headers nginx
+sends since 8.1) and "The bar of Phase 9" in docs/build-prompts.md.
+
+The reference is docs/ui/sign-in.png, 1672 x 941: match it exactly, in layout, proportions,
+colours, type sizes, icons and wording. The photograph is
+frontend/src/assets/brand/signin-hospital.webp and the company's logo is
+frontend/src/assets/brand/ashline-logo.svg: use both files as they are, do not redraw the logo,
+and load nothing from another origin (the content security policy). If the reference or the
+photograph is not in the repository, stop and tell me: never substitute, fetch or generate one.
+
+Show me the plan first:
+- what you measured on the reference: each element's position and size on the 1672 x 941 frame
+  and as a share of it, the type sizes and weights, the radii, the colours;
+- the tokens for light and dark (the brand blues, surfaces, text, borders, states, the gradients,
+  the shadows, the photograph's mask, radii, spacing, the type scale, durations and easings) with
+  the contrast of every text and surface pair in use (WCAG 2.2 AA). White text over the
+  photograph is judged against the tint alone, at the lightest point any text sits on;
+- the typeface (the reference looks set in Inter: confirm it or name a closer open-licence face),
+  its licence and weights, how it is self-hosted (woff2 in the repository, subset, preloaded, a
+  fallback with matched metrics so that nothing moves when it arrives), that it has the rupee
+  sign and tabular figures, and what it weighs;
+- the icons as our own inline SVG on one grid, drawn with currentColor (ask before any package);
+- what changes in index.html and in nginx's headers, if anything. The inline theme script and its
+  pinned hash should stay as they are; if they cannot, the hash in nginx.conf and its test move
+  in the same change.
+
+Build the sign-in page as the reference shows it, measured on its frame and scaling with the
+window:
+- the background: the photograph over the left two thirds, fading out to the right, under a blue
+  tint that runs from deep navy at the left to the pale page colour at the right; two waves along
+  the bottom edge; a pale right side with one soft curved shape;
+- left, on the tint: the BillingRecon mark (a blue cross with rounded arms and a darker cross
+  inside it), "BillingRecon" in heavy white type, "Reconcile. Verify. Resolve." beneath it; then
+  three lines with outline icons: "Secure hospital billing reconciliation" (a shield with a
+  tick), "Trusted financial insights" (a bar chart), "Better care through accurate billing" (a
+  handshake);
+- right: a white card with large rounded corners and a soft shadow, about 41% of the width; a
+  blue pulse line at its top; "Sign in to BillingRecon"; "Access your hospital's billing
+  dashboard"; the fields Hospital code, E-mail address (placeholder you@hospital.org, an envelope
+  at its right) and Password (placeholder "Enter your password", a show/hide button at its right
+  with aria-pressed), each label with a solid blue icon (a building, an envelope, a padlock); a
+  full-width blue "Sign in" button with its icon and a pending state; a divider reading "Need
+  help?" and "Contact support" beneath it with its icon, a mailto from the build's configuration
+  (VITE_SUPPORT_EMAIL, passed to the frontend image from .env; no request is made for it), the
+  divider and the link absent when none is set;
+- the company: "A product of" and the ashline logo with its name ("ash" at medium weight, "line"
+  at regular weight in the company's violet), bottom left over the wave, on a plate that keeps
+  the logo legible on blue. This is one of two additions to the reference;
+- the theme choice of today, small, in the top right corner over the pale side: the other one.
+
+Make it move, with a purpose, from the motion tokens. The tint, the waves and the card are in the
+first paint, and the photograph fades in over the tint once it has decoded: no flash, no jump.
+The card rises a few pixels as it fades in, the three lines follow one after another, and the
+pulse line draws itself once and rests. The two waves drift slowly, the only thing that loops. A
+field's border and ring ease in on focus, the show/hide icon cross-fades, and the button answers
+the pointer and the press and, while the request runs, shows a spinner in place of its icon. A
+refusal eases in above the fields and is announced. Over the company's logo the dot travels in
+along its line, as on the company's site. Only transform and opacity are animated, and with
+prefers-reduced-motion nothing moves.
+
+Keep what sign-in does today: the same request; the refusals through the ProblemDetails component
+(429 too_many_sign_ins shows the wait from Retry-After); the two notices of a session that ended;
+the remembered hospital code; the return address; autocomplete attributes; labels tied to their
+fields; visible focus; the theme choice with its three settings. Under 900px the three lines and
+the photograph fold away (the photograph is not requested at all) and the card stays; at 360px
+the page has no sideways scroll. A dark set of the same tokens for the dark theme.
+
+Then the brand and the controls everywhere: the favicon (the BillingRecon mark), the page title
+("Sign in · BillingRecon"), theme-color following the theme from a token (index.html holds no raw
+colour), and the shared buttons and fields restyled from the same tokens, so that the screens of
+7.2 to 7.6 already wear the new palette and controls. Their layouts are 9.2 to 9.4.
+
+No change of behaviour: no change of the API, of a route, of a policy or of what a screen sends.
+Every existing frontend test passes unweakened, and the test that refuses a raw colour holds for
+the new files too (the gradients, the shadow and the photograph's mask are tokens). The journey
+of 8.2 fills the field labelled "Password": with a show/hide button beside it, make that selector
+exact in the same change and say so; its one exception, the browser's request for /favicon.ico,
+goes away with the favicon.
+Tests, in Vitest: the form (labels, show/hide, pending, a refusal, the 429 wait, the notices, the
+support link present and absent), the logo and the photograph rendered with their alternative
+text (the photograph decorative), every colour from a token in both themes, the token pairs'
+contrast.
+Tests, in the browser (frontend/e2e): the built page at 1672 x 941 held to your measurements of
+the reference within a stated tolerance; the built app under nginx's exact policy, read from
+nginx.conf and applied in the test, with no securitypolicyviolation and no console error, in
+both themes; no layout shift after the first paint; with reduced motion no animation runs; the
+tab order; 390 and 360 px wide without a sideways scroll.
+Add screenshots of the built page (both themes at 1672 x 941, and at 390 px) to docs/ui/. Write
+ADR 0047, and add the nginx check of this prompt to runbook section 8.
+Done when: beside docs/ui/sign-in.png in the browser at 1672 x 941 the built page differs only by
+the ashline credit and the theme control; I sign in through it in both themes without a flash;
+with reduced motion nothing moves; and the console shows no content security policy refusal.
+```
+
+#### 9.2 The shell and the shared components
+
+```
+Read ADR 0047 (the tokens, the typeface, the icons, the motion) and "The bar of Phase 9" in
+docs/build-prompts.md; ADRs 0038 to 0043 for what the shell and each shared component do today;
+docs/ui/sign-in.png and the screenshots 9.1 left in docs/ui/.
+
+Show me the plan first: the shell at 1440, 900 and 390 px wide (a drawing in words is enough);
+the shared components and the states each one gets; what a table does under 720 px (rows that
+fold into labelled cards, or a table that scrolls inside its own frame with its first column
+pinned: recommend one); the icon of each section of the navigation; any new token; any package
+you want (ask).
+
+The shell:
+- a sidebar: the BillingRecon mark and name at its top; the sections of the permission matrix,
+  each with its icon, the current one marked by more than colour. It collapses to a rail of
+  icons with tooltips (the choice remembered in this browser), and under 900 px it is a drawer
+  behind a menu button: focus stays inside it, Escape closes it, focus returns to the button;
+- a top bar: the hospital's name, the user's name and roles, the theme choice and "Sign out",
+  which stays a visible button;
+- a footer: the ashline logo with "BillingRecon by ashline";
+- a "Skip to content" link; every page sets the document title ("Bills · BillingRecon"), and
+  after a navigation its heading takes the focus;
+- where the browser has view transitions, the content cross-fades between pages and the shell
+  does not move.
+
+The shared components, each from the tokens and each with its states (rest, hover, focus,
+pressed, disabled, pending, invalid, read-only):
+- buttons: primary, secondary, danger, link, and icon-only with a name;
+- fields: a label with an optional icon, a hint, an error with an icon, a required mark, a prefix
+  or suffix such as the rupee sign or %, select, date, search, textarea;
+- the list controls (search, the status filter, pages) and the data table: a header that stays
+  in view, a row that answers the pointer, numbers right-aligned in tabular figures, a status
+  badge with an icon and a word as well as a colour;
+- the page header (title, subtitle, status, actions, the way back) and the details list;
+- ProblemAlert, the conflict notice, the inline confirmation, the reason form, the record picker,
+  and the audit trail drawn as a timeline;
+- loading as a skeleton of the layout that is coming (aria-busy), never a bare spinner; an empty
+  state with a small drawing of our own and the next action the role may take; the no-access and
+  not-found pages and the "Users and settings" placeholder.
+One mapping in one file gives every status of every document its colour token, its icon and its
+word; a test holds it complete against the statuses of the API's types.
+
+Then the screens of 7.2 as the proof of the pattern: patients, payers and service items, their
+lists, records and forms.
+
+A specimen page, in Development builds only (not in the production bundle, not in the
+navigation, the one new route): every shared component in every state, in both themes.
+
+No change of behaviour: no change of the API, of a policy or of what a screen sends, and no other
+change of a route. A list keeps its search, status and page in the address. The names and roles
+the tests and the journey of 8.2 use stay: the navigation's labels, "Sign out", the fields'
+labels, the headings.
+Tests: the navigation still follows the matrix for each role; the drawer by keyboard; the rail's
+choice remembered; the document title and the focus after a navigation; a skeleton is busy and
+then gone; a table at 390 px; the status mapping complete; every existing test unweakened. In the
+browser: each of these screens in both themes at 1440 and 390 px with no sideways scroll, no
+console error and no content security policy refusal; nothing animates with reduced motion.
+Add screenshots (the shell, a list, a record, a form, the specimen page; both themes) to
+docs/ui/. Write ADR 0048.
+Done when: I walk patients, payers and service items by keyboard alone in both themes, at a
+desktop and a phone width, and every list, record and form is of a piece with the sign-in page.
+```
+
+#### 9.3 The money screens
+
+```
+Read ADRs 0047 and 0048 and "The bar of Phase 9" in docs/build-prompts.md; ADRs 0040 to 0042 for
+what the bill, cashier, credit note, adjustment and inbox screens do today.
+
+Show me the plan first: for each screen below, its layout at 1440 and 390 px and what the eye
+meets first; how money is set; any new token or shared component; any package you want (ask).
+
+Money, on every screen: tabular figures, the rupee sign, Indian grouping, right-aligned in
+tables. A total stands out from its parts. A credit or a negative amount carries a sign and a
+word, never a colour alone. An estimate is marked as one until the server's figure replaces it.
+
+The screens:
+- bills: the list (number, patient, payer, date, total, balance, status); the bill's page (its
+  number and status at the top, the parties, the lines, the totals and the balance in a summary
+  card, the banner while it waits for approval, its credit notes and adjustments, its history as
+  the timeline); the draft editor (the pickers, the lines as a grid with each line's total, a
+  totals card that stays in view while the lines scroll, post and void with their
+  confirmations);
+- payments and refunds: the lists; recording a payment; the payment's page with its allocations
+  and reversal requests; allocating (the payer's open bills oldest first, "Apply oldest first",
+  a meter of what is left to apply that warns before a cap is passed); a refund from its source;
+- the payer statement: what is owed, the unapplied cash, the credit and the net as four figures
+  at the top, then the bills, payments and credit notes with their actions;
+- credit notes and adjustments: the lists, the pages, the editors;
+- the checker's inbox: each request a card (its kind with an icon, the document, the maker, the
+  amount, how long it has waited), Review opening in place with the document's facts and the
+  decision; the maker's own request shown as not theirs to decide.
+
+Motion: a line that is added or removed eases in or out; a total that changes is marked for a
+moment (a figure itself is never animated); every action button shows that it is pending; a
+decided request leaves the inbox; the first field the API refused comes into view.
+
+No change of behaviour: no change of the API, of a route, of a policy or of what a screen sends,
+and no figure is computed differently: lineMath.ts, money.ts and their shared cases are not
+touched.
+Tests: every existing test unweakened; the totals card and the meter read the figures the
+screens show today; every status through the one mapping. In the browser: each of these screens
+in both themes at 1440 and 390 px with no sideways scroll, no console error and no content
+security policy refusal; nothing animates with reduced motion; the journey of 8.2 passes.
+Add screenshots (the bill editor, a posted bill, allocating, the statement, the inbox; both
+themes) to docs/ui/. Write ADR 0049.
+Done when: the scenario of Phase 4, by a clerk, a cashier and a supervisor in the browser, reads
+as one product from the sign-in to the approved refund, in both themes.
+```
+
+#### 9.4 The dashboard, the reports and the finishing pass
+
+```
+Read ADRs 0043, 0044 and 0047 to 0049 and "The bar of Phase 9" in docs/build-prompts.md;
+docs/ui/dashboard.png (the dashboard's layout reference, ADR 0044); docs/backlog.md, row B21.
+
+Show me the plan first: the dashboard and the report screens at 1440 and 390 px; the budgets
+(the JavaScript and the CSS a first visit to the sign-in page loads, compressed) and how the
+routes are split; what a printed page looks like; the accessibility checks, and any package for
+them (ask).
+
+The dashboard, laid out as docs/ui/dashboard.png and set in the tokens of 9.1: the period picker
+as a segmented control; six cards (an icon, the label, the figure in compact money with the exact
+amount in the tooltip and for screen readers, the change with an arrow and a word); billing
+against collections with a themed grid, tooltip and legend, and the table of its figures; the
+ageing donut with its total at the centre; the four panels, each with its own skeleton, empty
+state and error. A chart draws itself once.
+
+The reports: the index as cards, an icon and a line each; on each report a filter bar, the table
+with its totals row always in view, and Export CSV showing its progress and its end.
+
+Print: a bill, a payer statement and each report print cleanly on A4: no shell, dark text on
+white, the hospital's name and the date at the top, no row cut in two.
+
+The finishing pass, over every screen:
+- from 360 to 1,920 px wide, and at 200% zoom: no sideways scroll, nothing clipped, nothing
+  overlapping;
+- by keyboard alone and by a screen reader's outline: one h1, headings in order, a name on every
+  control, focus never lost, a live region for what arrives later; Windows forced colours and
+  prefers-contrast still readable;
+- routes load on demand (backlog B21), within the budgets, which a test of the build holds;
+- a chosen set of screenshots in docs/ui/ (each kind of screen, both themes), and the full set,
+  every route in both themes at two widths, as an artifact of the browser suite, not in git.
+
+No change of behaviour: no change of the API, of a route, of a policy or of what a screen sends;
+the dashboard's figures and the bytes of a CSV stay as they are.
+Tests: every existing test unweakened; the budgets; print (the shell is not printed). In the
+browser: every route in both themes with no console error, no content security policy refusal
+and no layout shift, and nothing animated with reduced motion.
+Update the README (a screenshot, "a product of ashline"), docs/testing-strategy.md, the runbook
+and CLAUDE.md; close backlog row B21. Write ADR 0050 and propose the tag v1.1.0.
+Done when: I open every screen in both themes at a desktop and a phone width and none looks
+older than the sign-in page; the budgets hold; and the journey of 8.2 passes through nginx on my
+personal machine with no content security policy refusal.
+```
+
+Merge to `main`; the owner tags `v1.1.0`.
