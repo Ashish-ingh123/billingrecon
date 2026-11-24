@@ -1268,6 +1268,30 @@ against collections with a themed grid, tooltip and legend, and the table of its
 ageing donut with its total at the centre; the four panels, each with its own skeleton, empty
 state and error. A chart draws itself once.
 
+Tooltips on every figure and chart, one shared component from the tokens: two new ones,
+--surface-popover and --border-strong, in both themes and held by the contrast test (neither
+exists after 9.2), with the existing --shadow-raised and the motion tokens:
+- KPI card figure: the exact amount, the previous period's figure, and the change with its arrow
+  and word (the summary's value, previous and changePercent);
+- sparkline: the business date (or week) and that point's figure from the server's daily series
+  (the trend's daily);
+- billing against collections: a vertical crosshair with a dot on each line, the date, billed and
+  collected to date, and that day's or week's billed and collected (the trend's points: billed,
+  collected, cumulativeBilled, cumulativeCollected);
+- ageing donut: the hovered slice thickens and the centre shows that bucket's exact amount and
+  name; the tooltip shows the bucket, the amount and the share as the API answers it;
+- top payers bars: the payer's outstanding amount, their unapplied cash and their available
+  credit (the top-payers answer already carries receivable, unappliedCash, creditAvailable and
+  netOutstanding, checked 2026-11-24); never send a request for a tooltip.
+Every amount in a tooltip is exact, in Indian grouping with tabular figures; the client computes
+nothing. Tooltips open on hover, on keyboard focus and on tap, and close on Escape, on blur and
+on a second tap. On the line charts the arrow keys move the crosshair point by point. A tooltip
+stays inside the viewport and never covers the pointer. Recharts' Tooltip uses our own content
+component, not its default styling. Tooltips fade in on opacity only and appear at once under
+reduced motion. Nothing is shown only in a tooltip: each chart has a "Show the figures as a
+table" holding the same figures (billing against collections has one since 7.6; the sparklines,
+the donut and the top payers get theirs).
+
 The reports: the index as cards, an icon and a line each; on each report a filter bar, the table
 with its totals row always in view, and Export CSV showing its progress and its end.
 
@@ -1286,7 +1310,9 @@ The finishing pass, over every screen:
 
 No change of behaviour: no change of the API, of a route, of a policy or of what a screen sends;
 the dashboard's figures and the bytes of a CSV stay as they are.
-Tests: every existing test unweakened; the budgets; print (the shell is not printed). In the
+Tests: every existing test unweakened; the budgets; print (the shell is not printed); each
+tooltip's content against the API's figures, open and close by pointer, keyboard, tap and Escape,
+the arrow keys on the line chart, both themes, reduced motion. In the
 browser: every route in both themes with no console error, no content security policy refusal
 and no layout shift, and nothing animated with reduced motion.
 Update the README (a screenshot, "a product of ashline"), docs/testing-strategy.md, the runbook
