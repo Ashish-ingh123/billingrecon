@@ -2,10 +2,11 @@
 
 - **Status:** sections 1 and 2 written 2026-10-03 with the infrastructure step, section 3 with the
   DbContext step, section 4 with the test infrastructure and sections 5 and 6 with the CI step
-  (2026-10-17); later sections with the prompts that needed them, the last being section 11, the proxy in front of the
-  API (Prompt 5.4b, 2026-11-23), and section 12, the frontend (Prompt 7.1, 2026-11-23). Still to be written: rolling
-  back a migration, deploying migrations outside Development, backup and restore, and incident procedures (balance
-  drift versus the ledger, number-series recovery, stuck maker-checker approvals, idempotency store cleanup).
+  (2026-10-17); later sections with the prompts that needed them: section 11, the proxy in front of the
+  API (Prompt 5.4b, 2026-11-23), section 12, the frontend (Prompt 7.1), section 13, the one-command run (Prompt 8.1),
+  section 14, the load test and the browser journey (Prompt 8.2), and with the release (Prompt 8.3, 2026-11-24) rolling
+  back a migration (section 3), backup and restore (section 15) and the incident procedures (section 16). Migrations
+  outside Development are section 10. Complete for R1.
 
 ---
 
@@ -173,11 +174,8 @@ SDK from `global.json`, and ports 1433 and 5341 free.
     dotnet test
     ```
 
-12. **Record the result.** When steps 3, 7 and 10 pass, remove every "results still to be recorded" note.
-    There are five: the "Record the container checklist results" item of "Open items" in `CLAUDE.md` §9; the
-    words "(first run 2026-10-17; checklist results pending, see section 9)" in the project list of
-    `CLAUDE.md` §3; the note at the top of `docker-compose.yml`; the last sentence of "Getting started" in
-    `README.md`; and the first paragraph of this section. If something had
+12. **Record the result.** When steps 3, 7 and 10 pass, remove every "results still to be recorded" note: row 1.3
+    of section 8, the note at the top of `docker-compose.yml`, and the first paragraph of this section. If something had
     to change (an image tag, a healthcheck timing, a variable), change it in the compose file and
     say so in the commit.
 
@@ -275,6 +273,18 @@ dotnet ef migrations remove --project src/BillingRecon.Infrastructure
 A migration that has been applied to a shared database is never removed or edited; it is corrected
 by a new one.
 
+**Rolling back a migration that was applied** (Prompt 8.3). Migrations go forward only. Take a full backup before every
+deployment of migrations (section 15). Then, if a deployed migration is wrong:
+
+- it only added what nothing uses yet: write a new migration that takes it out again, scaffolded from the model with the
+  change reverted, and deploy it like any other (section 10);
+- it changed or lost data: stop the API, restore the backup taken before the deployment (section 15), and deploy the
+  corrected migrations onto it.
+
+`dotnet ef database update <earlier migration>` runs the `Down()` methods and is never used on a database with financial
+data: a `Down()` that drops a column drops what it held, and the ledger and the audit trail refuse the deletes some would
+need (ADR 0034).
+
 ## 4. Tests
 
 `dotnet test` runs the four test projects. The `Database` collection of the integration tests starts
@@ -332,8 +342,7 @@ the actions the workflow uses. Major versions of the framework-bound packages ar
 deliberate decision (ADR 0014). Since Prompt 7.1 it does the same for the frontend's npm packages, a week after a
 release is published, and leaves the major versions of ESLint and TypeScript to a decision (ADR 0038).
 
-**Acceptance of the CI step** (CLAUDE.md section 9): the first green run once the repository is on
-GitHub, and a pull request with one deliberately broken assertion that goes red and is closed unmerged.
+**Acceptance of the CI step** (section 8, row 1.5): the first green run on GitHub, and a pull request with one deliberately broken assertion that goes red and is closed unmerged.
 
 ## 6. The API container image
 
@@ -621,7 +630,9 @@ were not part of it.
 
 | Prompt | Not proven anywhere yet |
 |---|---|
-| 2.2 | The run itself; then 2.2-close (CLAUDE.md section 9, item 9). |
+| 1.3 | Steps 3, 7, 8 and 10 of section 2 ("Verify on a Docker machine"), recorded there: both containers healthy; `/health/ready` 200 against SQL Server 2022; readiness 503 while SQL Server is stopped and 200 again after; the request's event found in Seq by its correlation id. |
+| 1.5 | The first green run of `.github/workflows/ci.yml` on GitHub (the API job with the `Database` collection, the image built and smoke-run, the frontend job); then a pull request that breaks one assertion goes red and is closed unmerged (ADR 0017). The repository has a GitHub remote with `main` and `phase-2-billing` pushed; whether CI ran there is not recorded. |
+| 2.2 | The run itself, with the output of `dotnet --list-sdks` on that machine. |
 | 2.3 | The `LIKE` search on the service item code translates on EF Core 10. |
 | 2.4 | Ten simultaneous changes of the lines of one bill, on SQL Server 2022. |
 | 3.1 | Fifty parallel takers of a number series, on SQL Server 2022. |
@@ -633,13 +644,12 @@ were not part of it.
 | 4.1 | Twenty payments recorded at once for one payer, and a recording held open while its key is sent again, on SQL Server 2022. The failure injected at the number, the ledger, the audit record and the save, there. The 201 answer of an idempotent POST, replayed with its `Location` and `ETag`, on ASP.NET Core 10. |
 | 4.2 | That `PaymentConfiguration` can take the allocations out of the model and `PaymentWithAllocationsConfiguration` put them back, on EF Core 10 (the split of `0011` and `0012` depends on it). Two cashiers on the last rupee of one bill, with and without the gate, and ten payments allocated at once across overlapping bills of one payer, on SQL Server 2022. The refusal of the ledger under its lock, there. The failure injected at the ledger, the audit record and the save. |
 | 4.3 | Three aggregates (the credit note, its bill and the approval request) saved and audited by one commit on EF Core 10, and a credit note loaded with two collections by a split query there. Two credit notes approved at once against a paid bill that only one fits, on SQL Server 2022: this is the test that proves the caps are read again under the lock. The failure injected after the second ledger posting and after the audit record. |
-
 | 5.4 | The two test logins and the role on SQL Server 2022 on Linux: the fixture creates the logins with `CHECK_POLICY = OFF`, migrates as the migrator's four roles and runs every API test as the application's login; `DatabasePermissionsOnSqlServerTests` there, including `READ_COMMITTED_SNAPSHOT` on the database the fixture creates. |
 | 5.4b | The API image built from the Dockerfile and its smoke run in CI (`AllowedHosts=localhost`, no `Server` header, 400 `https_required` for an API request over plain HTTP); the per-account sign-in limit in `AuthApiTests` on SQL Server 2022. The smoke run's checks passed on the office machine against the published API on Kestrel, not in a container. |
 | 6.1 | `ReportsApiTests` on SQL Server 2022: the joins across modules, the comparisons of `Money` with zero and the order by a `Money` column, as Entity Framework 10 translates them there. |
 | 6.2 | The whole `Database` collection on SQL Server 2022 with the reconciliation after every test (`NumberSeriesGap` included): a test that passes on LocalDB but leaves drift there fails. `ReconciliationApiTests` and `BillAuditTrailApiTests`. |
 | 6.3 | `DashboardApiTests` on SQL Server 2022: the two statements of `LedgerMovementsQuery` (a `date` parameter, sums grouped by business date read back as `DateOnly`), the payment register ordered newest first, and the IST midnight boundary of a payment recorded at 23:59 and 00:01 in India. |
-| 7.1 | The frontend job of CI (it has not run: the repository is not on GitHub); `npm ci` and `npm test` in `frontend/` on the personal machine, whose Node version is not recorded (22.22 or later is needed); `OpenApiSnapshotTests` there, which also proves the document is the same on that machine's SDK. |
+| 7.1 | The frontend job of CI (not seen to run; see row 1.5); `npm ci` and `npm test` in `frontend/` on the personal machine, whose Node version is not recorded (22.22 or later is needed); `OpenApiSnapshotTests` there, which also proves the document is the same on that machine's SDK. |
 | 7.2 | The frontend job of CI on Linux, which is also the first proof that `OpenApiSnapshotTests` gives the same document there now that it writes every line break of a description as LF (ADR 0039, built note). |
 | 7.3 | The frontend job of CI with the bill screens; and `LineCalculatorSharedCasesTests` there, which reads `frontend/src/bills/lineCases.json` from the checkout. |
 | 7.4 | The frontend job of CI with the cashier screens. |
@@ -648,6 +658,7 @@ were not part of it.
 | 7.6 | The frontend job of CI with the dashboard and Recharts 3.10.1; the dashboard at a phone width. |
 | 8.1 | Run on 2026-11-24 (above): the images built, `migrate` and `demo-seed` ran to their end, `api` and `frontend` up, https://localhost signed in as `supervisor@demo.local` and showed the dashboard, `DemoTenantSeederTests` in the suite. **Still owed:** the page's headers carry the policy, `frame-ancestors 'none'` and `nosniff`; http://localhost redirects to https. |
 | 8.2 | The load test of section 14 at full size (10,000 bills) through nginx on SQL Server 2022, with `SERVER_TIMING=true` and at least 2 GB free: every target met, no drift (send the whole output); the stress figure with no pause. The browser journey of section 14 against https://localhost, which is also the first check in a browser of nginx's content security policy (no console error); the frontend job of CI with `@playwright/test` in the lock file and the step that runs `deploy/load/stats.test.mjs`; `ServerTimingApiTests` and the new test of `IdempotencyKeysOnSqlServerTests` on SQL Server 2022. The office machine ran the load on LocalDB at 2,000 bills only (ADR 0046, built note). |
+| 8.3 | The backup and its check of section 15 in the `sql` container (`docker compose cp`, the two scripts, the `.bak` copied out), and the recovery model of the compose database (`FULL` expected). The scripts ran on LocalDB 2019 only. `TraceabilityTests` in the suite. |
 
 A red result is reported as it is, with its output; the fix is its own commit on top, never an edit of history.
 
@@ -959,3 +970,117 @@ $env:E2E_PASSWORD = '<DEMO_PASSWORD of .env>'; npm run e2e
 example the Vite dev server (`http://localhost:5173`) with the API in Development. A failure leaves its trace in
 `frontend/test-results` (`npx playwright show-trace <file>`) and a report in `frontend/playwright-report`; both are
 ignored by git.
+
+## 15. Backup and restore (Prompt 8.3)
+
+The database is the record: every bill, payment, ledger entry and audit record is in it, and nothing can be rebuilt
+from elsewhere. Back it up before every deployment of migrations and on a schedule; regular restore drills are R5
+(`docs/requirements.md` section 5). Both scripts run as the administrator with sqlcmd and take their values as sqlcmd
+variables (`-v name=value`, or environment variables of the same names, which avoids sqlcmd's trouble with the colon of
+a Windows drive letter). Checked on LocalDB 2019 on 2026-11-24; the Docker forms below are not run yet (section 8,
+row 8.3).
+
+- `deploy/backup/backup.sql` (`Database`, `BackupFile`): a full backup `WITH CHECKSUM`, then `RESTORE VERIFYONLY`.
+- `deploy/backup/restore-check.sql` (`Database`, `BackupFile`, `Target`, `DataDir`): restores the backup **under another
+  name**, runs `DBCC CHECKDB`, and prints the migrations and the counts of bills, payments, postings and audit records.
+  The live database is not touched; drop the target afterwards.
+
+**The recovery model.** A database made with a plain `CREATE DATABASE` takes the model database's: `FULL` on SQL Server
+2022 (the compose image), `SIMPLE` on LocalDB. Check with
+`SELECT recovery_model_desc FROM sys.databases WHERE name = N'BillingRecon'`. In `FULL` the transaction log keeps
+everything until a log backup, so a deployment takes log backups too (`BACKUP LOG [BillingRecon] TO DISK = ...`, every
+15 minutes, say), which also allows a restore to a point in time (`RESTORE DATABASE ... WITH NORECOVERY`, then each
+`RESTORE LOG ... WITH NORECOVERY`, the last `WITH STOPAT = '<instant>', RECOVERY`). Without log backups the log grows
+until the disk is full (section 16.5).
+
+**With the one-command run** (section 13), from the repository root. The backup is written inside the `sql` container,
+in the `sql-data` volume, which `docker compose down -v` deletes, so it is copied out at once:
+
+```powershell
+docker compose cp deploy/backup/backup.sql sql:/tmp/backup.sql
+```
+
+```powershell
+docker compose exec sql bash -c 'mkdir -p /var/opt/mssql/backup && SQLCMDPASSWORD=$MSSQL_SA_PASSWORD /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -i /tmp/backup.sql -v Database=BillingRecon BackupFile=/var/opt/mssql/backup/BillingRecon.bak'
+```
+
+```powershell
+docker compose cp sql:/var/opt/mssql/backup/BillingRecon.bak ./BillingRecon.bak
+```
+
+The check of that backup, inside the container (then drop `BillingRecon_Restored`):
+
+```powershell
+docker compose cp deploy/backup/restore-check.sql sql:/tmp/restore-check.sql
+```
+
+```powershell
+docker compose exec sql bash -c 'SQLCMDPASSWORD=$MSSQL_SA_PASSWORD /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -W -i /tmp/restore-check.sql -v Database=BillingRecon BackupFile=/var/opt/mssql/backup/BillingRecon.bak Target=BillingRecon_Restored DataDir=/var/opt/mssql/data'
+```
+
+**A real restore** (the database is lost or wrong): stop the API (`docker compose stop api`), then as the administrator
+`RESTORE DATABASE [BillingRecon] FROM DISK = N'<file>' WITH CHECKSUM, REPLACE` (plus the log backups, as above). On the
+same server the users of the two logins still match them; on another server, map them again
+(`ALTER USER [billingrecon_app] WITH LOGIN = [billingrecon_app]`, and the same for the migrator). Start the API, and
+before anyone works: `/health/ready` answers 200 (no pending migration), and the reconciliation report
+(`GET /api/v1/reports/reconciliation`, any role) is empty. Everything after the backup is lost and must be entered
+again; a payment taken meanwhile is entered as new, with a new number.
+
+## 16. Incidents (Prompt 8.3)
+
+Each incident is written down: when it was seen, by whom, what was done, and the correlation ids involved. A correction
+of financial data is always a new document of the application (a reversal, a credit note, an adjustment), never a
+statement run by hand (CLAUDE.md section 4).
+
+### 16.1 Reconciliation drift (Sev-1)
+
+The reconciliation report has a row, or its error is in the log (`docs/database.md` section 5.6): a cached balance
+disagrees with the ledger, or the ledger or a series breaks an identity. That is a defect of the code, never a matter of
+data entry.
+
+1. **Stop postings for that hospital.** Suspend it, as the administrator (its `Code` is what users type at sign-in):
+
+   ```sql
+   UPDATE dbo.Tenants SET [Status] = 'Suspended' WHERE [Code] = N'<code>';
+   ```
+
+   A suspended hospital's sign-ins are refused (`AuthApiTests` proves it), but tokens already issued keep working until
+   they expire, 60 minutes at most (ADR 0031 point 8). To end them at once, change `Jwt:SigningKey` and restart the API:
+   every user of every hospital signs in again.
+2. **Capture**, before anything changes: the report's rows (`identity`, `subjectId`, `reference`, `cached`, `ledger`);
+   the document and its postings (`LedgerPostings` and `LedgerEntries` by `DocumentId`, `SubjectId` or `PayerId`); its
+   audit trail (`GET /api/v1/audit-records?entityType=...&entityId=...`), whose records carry the correlation ids; and the
+   log events of those correlation ids in Seq.
+3. **Never correct a cache by hand.** Find the code path that wrote the wrong figure from the captured requests, fix it,
+   and prove the fix with a test that reproduces the drift (`DatabaseTest` runs the reconciliation after every test).
+4. A cache is rebuilt from the ledger only by a migration with one hand-written, idempotent data step (ADR 0021),
+   approved by the owner, so that it is reviewed, versioned and run like any other change.
+5. When the report is empty again: `UPDATE dbo.Tenants SET [Status] = 'Active' WHERE [Code] = N'<code>';`.
+
+### 16.2 A gap in a number series
+
+The reconciliation reports `NumberSeriesGap`: a series gave more numbers than there are documents with them (BR-801).
+The design makes this impossible (the number is taken in the transaction of the posting and rolls back with it, ADR
+0008), so it is handled as 16.1. Never renumber a document, never fill a gap with a made-up document, and never move
+`NextNumber` back: a number given out stays given out. The incident record explains the gap to the auditor.
+
+### 16.3 A request that waits for a checker
+
+Every maker-checker document waits until a second person with Supervisor or TenantAdmin decides (BR-603, ADR 0032). The
+pending approvals report (`GET /api/v1/reports/pending-approvals`, with `waitingDays`) and the checker's inbox
+(`/approvals`) show them, the oldest first. A checker approves, or rejects with a comment, which returns the document to
+its maker; the maker can never decide their own request. If the hospital has no second user who may decide, its
+TenantAdmin gives one the role (`PUT /api/v1/users/{id}/roles`). Nothing is decided in the database by hand.
+
+### 16.4 Idempotency keys
+
+A key stuck in progress, and the clean-up of expired keys: section 7.
+
+### 16.5 The disk is full
+
+Seen on 2026-11-24 during a load run (ADR 0046, built note): SQL Server cannot grow a file, the log says "Could not
+allocate space for object", and every request that writes answers 500 `internal_error`. Each of them rolls back whole:
+nothing half-posted is left, and that run's reconciliation was empty. Free or add space (the transaction log of a `FULL`
+database is the usual culprit: take a log backup, section 15), check `/health/ready`, then run the reconciliation report
+before the hospital goes on. A client retries its requests with the same `Idempotency-Key`; a fault frees the key
+(ADR 0006).

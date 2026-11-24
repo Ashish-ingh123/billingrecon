@@ -2,7 +2,7 @@
 
 - **Status:** Accepted for the points the owner approved with the Prompt 2.4 plan on 2026-11-20 (points 1 to 4 and
   6 below), and for the amendment of ADR 0003 it links to, which the owner accepted the same day. Point 5 was
-  decided while building and awaits the owner's review. Written on the office machine and pre-checked on .NET 9, with the database tests run against SQL Server
+  decided while building; the owner accepted it as built on 2026-11-24, with the release of R1. Written on the office machine and pre-checked on .NET 9, with the database tests run against SQL Server
   LocalDB 2019; the first run on .NET 10 and SQL Server 2022 is still to come.
 - **Date:** 2026-11-20
 - **Deciders:** project owner, Claude Code

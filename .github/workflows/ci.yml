@@ -60,7 +60,7 @@ jobs:
       - name: Test
         # All four test projects, the Database collection included: Testcontainers starts SQL Server 2022 on the
         # runner's Docker. Not instrumented for coverage: the PII masker's regex-timeout test is sensitive to the
-        # slowdown instrumentation brings (CLAUDE.md section 9).
+        # slowdown instrumentation brings (docs/backlog.md, B4).
         run: >
           dotnet test --no-build --configuration Release
           --logger trx

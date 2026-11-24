@@ -1,7 +1,7 @@
 # ADR 0027: Reversals of allocations and payments, and a decision that comes late
 
 - **Status:** Accepted. The owner approved the plan of Prompt 4.5 on 2026-11-21 with the five recommended answers,
-  which are points 1 to 5 below; point 9 was found and fixed while building and is the owner's to confirm. Built and
+  which are points 1 to 5 below; point 9 was found and fixed while building, and the owner confirmed it on 2026-11-24 with the release of R1. Built and
   tested on .NET 10 (SDK 10.0.404, EF Core 10.0.12) in a throwaway copy on the office machine, with the database
   tests run against SQL Server LocalDB 2019; SQL Server 2022 in Docker is still to come.
 - **Date:** 2026-11-21

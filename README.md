@@ -1,133 +1,90 @@
 # BillingRecon
 
-A multi-tenant billing, payments and accounts-receivable platform for organisations in India,
-built as a .NET modular monolith with a React front end. The core promise is ledger-grade
-financial correctness: gapless document numbering, immutable postings, maker-checker approval
-and an append-only audit trail.
+A multi-tenant billing, payments and accounts-receivable platform for hospitals and clinics in India, built as a .NET
+modular monolith with a React front end. The core promise is ledger-grade financial correctness: gapless document
+numbering, immutable postings, a double-entry receivables subledger with cached balances that a reconciliation holds to
+it, maker-checker approval and an append-only audit trail.
 
-> **Status: skeleton, cross-cutting infrastructure, the persistence foundation and the test infrastructure.** Configuration,
-> structured logging, the error contract, health checks and API versioning are in place, and so is
-> the EF Core context with its conventions (typed ids, tenant isolation, audit columns) and the
-> first table, `Tenants`. There are no use cases yet.
-> The move to .NET 10 and the persistence code were built and tested on .NET 10 on 2026-10-17, and
-> the first migration, `0001_Tenants`, is in the repository. The test infrastructure of Prompt 1.4
-> (SQL Server 2022 in Testcontainers, Respawn, Bogus, the module rule with its exceptions) was written
-> the same day; its database tests await their first run on a machine with Docker
-> ([CLAUDE.md](CLAUDE.md), section 9).
-> Start with [CLAUDE.md](CLAUDE.md) (project memory: stack, architecture, financial rules, working
-> agreement) and the design documents in [docs/](docs/).
+> **Status: Release 1 (`v1.0.0`, 2026-11-24).** Every user story of R1 is built and proven by tests
+> ([docs/traceability.md](docs/traceability.md)): patients and self-pay payers, the service catalogue, bills and credit
+> notes, payments and their allocation, reversals, refunds and adjustments under maker-checker, the receivables ledger
+> and its reconciliation, users, roles and sign-in, the reports and the dashboard, and the screens for all of it.
+> Built and tested on .NET 10 with SQL Server LocalDB 2019 on the development machine; the whole test suite was reported
+> green with SQL Server 2022 in Docker on 2026-11-24. What is still to be run on a machine with Docker is listed in
+> [docs/runbook.md](docs/runbook.md), section 8; what comes after R1 is in [docs/backlog.md](docs/backlog.md).
+> Start with [CLAUDE.md](CLAUDE.md) (stack, architecture, the twelve financial rules, the working agreement).
 
 ## Release plan
 
 | Release | Theme |
 |---|---|
-| R1 | MVP |
-| R2 | Reconciliation |
-| R3 | Recovery |
-| R4 | Insurance / Corporate |
-| R5 | Maturity |
+| **R1** | MVP: done |
+| R2 | Reconciliation with bank and gateway statements |
+| R3 | Recovery: ageing, dunning, disputes, write-offs |
+| R4 | Insurance and corporate payers |
+| R5 | Maturity: hardening, observability, backup drills |
 
 ## Layout
 
 ```
-BillingRecon.sln
-Directory.Build.props         shared compiler and analyzer settings; the single TargetFramework
-Directory.Packages.props      central package management (every package version)
-global.json                   pins the .NET SDK
-.editorconfig                 code style, enforced at build time
-docker-compose.yml            local SQL Server 2022 and Seq
-.env.example                  template for .env (licence acceptance, database password, ports)
-.config/dotnet-tools.json     local tools (dotnet-ef)
+BillingRecon.sln, Directory.Build.props, Directory.Packages.props, global.json, .editorconfig
+docker-compose.yml            the whole application on one machine: SQL Server, Seq, migrate, api, frontend (nginx), demo-seed
+deploy/                       migrate/ (the migration step), demo/ (the demo hospital), load/ (the load test), backup/
 src/
-  BannedSymbols.txt             APIs production code must not call (a call is a build error)
   BillingRecon.Domain/          entities, value objects, Result and Error, invariants (no dependencies)
   BillingRecon.Application/     use cases, validators, ports, DTOs
-  BillingRecon.Infrastructure/  EF Core context and migrations, port implementations, options, logging, health checks
-  BillingRecon.Api/             controllers, error contract, correlation id, health, OpenAPI + Scalar (Development)
+  BillingRecon.Infrastructure/  EF Core context and migrations, the ledger, numbering, idempotency, audit, reports
+  BillingRecon.Api/             controllers, authentication and permissions, the error contract, transport security
 tests/
   BillingRecon.Domain.Tests/  BillingRecon.Application.Tests/
   BillingRecon.IntegrationTests/  BillingRecon.ArchitectureTests/
-frontend/                     React + TypeScript + Vite: sign-in and the shell (Prompt 7.1, ADR 0038)
-docs/                         requirements, domain model, database, API, security, testing, runbook, ADRs
+frontend/                     React + TypeScript + Vite; e2e/ is the browser journey (Playwright)
+docs/                         requirements, domain model, database, API, security, testing, runbook, traceability, ADRs
 ```
 
-Each source project contains one folder per module: Common, Payers, Billing, Payments, Receivables,
-Adjustments, Reporting, Identity, Audit.
+Each source project has one folder per module: Common, Payers, Billing, Payments, Receivables, Adjustments, Reporting,
+Identity, Audit.
 
-## Getting started
+## Run it
 
-Prerequisites: a .NET 10 SDK (`global.json` accepts any 10.0.x), Docker Desktop for the local SQL
-Server and Seq (and for the database tests to come), Node 22.22 or later for the frontend (docs/runbook.md section 12).
+With Docker: copy `.env.example` to `.env`, fill it in (the licence acceptances, the passwords, the signing key, and
+`DEMO_ENABLED=true` with `DEMO_PASSWORD` for the demo hospital), then
 
-Restore the local tools once per clone (`dotnet-ef`, at the version of the EF Core packages):
+```bash
+docker compose up --build
+```
+
+and open https://localhost: hospital code `demo`, `DEMO_PASSWORD`, and one of `admin@demo.local`,
+`supervisor@demo.local`, `clerk@demo.local`, `cashier@demo.local`, `viewer@demo.local`
+([docs/runbook.md](docs/runbook.md), section 13).
+
+## Build and test
+
+Prerequisites: a .NET 10 SDK (`global.json` accepts 10.0.4xx), Docker for the database tests (they start SQL Server
+2022 themselves), Node 22.22 or later for the frontend.
 
 ```bash
 dotnet tool restore
-```
-
-Build needs nothing else. The tests need a running Docker engine for the database tests, which start
-SQL Server 2022 themselves ([docs/runbook.md](docs/runbook.md), section 4):
-
-```bash
 dotnet build
-```
-
-```bash
 dotnet test
 ```
 
-To run the API you need a SQL Server and a connection string. Copy `.env.example` to `.env`, fill it
-in (you accept the SQL Server and Seq licences there and choose the database password), then start
-the containers:
-
 ```bash
-docker compose up -d
+cd frontend
+npm ci
+npm test
 ```
 
-Give the API its connection string once, with user-secrets, using the password from your `.env`:
-
-```bash
-dotnet user-secrets set "Database:ConnectionString" "Server=localhost,1433;Database=BillingRecon;User Id=sa;Password=<your-sa-password>;TrustServerCertificate=True" --project src/BillingRecon.Api
-```
-
-```bash
-dotnet run --project src/BillingRecon.Api
-```
-
-The API listens on http://localhost:5080 (see `Properties/launchSettings.json`) and refuses to
-start without the connection string. In Development it creates the database on first start, applies
-the migrations and adds the row of the development tenant; adding a migration and the other database
-commands are in
-[docs/runbook.md](docs/runbook.md), section 3.
-
-- Health: `/health/live` (the process is up) and `/health/ready` (the database is reachable and
-  every migration has been applied).
-- Service info: `/api/v1/system/info`. Every API route is under `/api/v1`.
-- Patients and payers: `/api/v1/patients` and `/api/v1/payers` (register or create, read, list, correct,
-  deactivate, reactivate). A change of an existing record sends its ETag in `If-Match`. The contract is
-  in [docs/api.md](docs/api.md).
-- Logs: JSON on the console and, in Development, in Seq at http://localhost:5341. Every request has
-  a correlation id: send `X-Correlation-Id` (a GUID) or let the API generate one; it comes back in
-  the response header and is on every log line of the request.
-- Errors: always `application/problem+json` with `errorCode`, `traceId` and `correlationId`.
-- The OpenAPI document (`/openapi/v1.json`) and the Scalar UI (`/scalar`) are available in
-  Development only.
-
-The compose file was first run on 2026-10-17; the checklist in [docs/runbook.md](docs/runbook.md)
-says what to verify, and its results are still to be recorded there.
-
-Continuous integration is a GitHub Actions workflow (`.github/workflows/ci.yml`): format, build, every
-test including the database tests, coverage, a vulnerability report, the migration script and the API
-container image. What each gate is and how to run it locally is in
-[docs/runbook.md](docs/runbook.md), section 5; the image itself is section 6.
+Every command, the CI gates and the procedures (migrations, logins, backup and restore, incidents, the load test and the
+browser journey) are in [docs/runbook.md](docs/runbook.md). Continuous integration is `.github/workflows/ci.yml`.
 
 ## Documentation
 
-- [docs/requirements.md](docs/requirements.md)
-- [docs/domain-model.md](docs/domain-model.md)
-- [docs/database.md](docs/database.md)
-- [docs/api.md](docs/api.md)
-- [docs/security.md](docs/security.md)
-- [docs/testing-strategy.md](docs/testing-strategy.md)
-- [docs/runbook.md](docs/runbook.md)
-- [docs/adr/](docs/adr/): Architecture Decision Records, starting with ADR 0000
+- [docs/requirements.md](docs/requirements.md): actors, scope, the business rules (BR-nnn), user stories, NFRs
+- [docs/traceability.md](docs/traceability.md): each user story and the tests that prove it
+- [docs/domain-model.md](docs/domain-model.md), [docs/database.md](docs/database.md), [docs/api.md](docs/api.md)
+- [docs/security.md](docs/security.md): authentication, permissions, tenancy, transport, the threat model
+- [docs/testing-strategy.md](docs/testing-strategy.md), [docs/runbook.md](docs/runbook.md)
+- [docs/backlog.md](docs/backlog.md): open questions and follow-ups after R1
+- [docs/build-prompts.md](docs/build-prompts.md): how R1 was built, prompt by prompt
+- [docs/adr/](docs/adr/): Architecture Decision Records, 0000 to 0046

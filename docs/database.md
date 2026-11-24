@@ -1037,7 +1037,7 @@ and `RefundPayerMismatch` (a refund whose payer is not the payer of its source).
 is the report `GET /api/v1/reports/reconciliation` (US-41, `docs/api.md` section 8.15), which writes an error to the log
 when it finds drift, and it runs after every test of the `Database` collection.
 
-A non-empty result is a **Sev-1 defect**: the runbook says stop postings for the tenant, capture the
+A non-empty result is a **Sev-1 defect**: the runbook (section 16.1) says stop postings for the tenant, capture the
 rows and the correlation ids from `AuditRecords`, and fix the code path. Caches are never
 "corrected" by hand; if a fix requires rebuilding a cache, it is rebuilt from the ledger by a
 migration that is itself audited.

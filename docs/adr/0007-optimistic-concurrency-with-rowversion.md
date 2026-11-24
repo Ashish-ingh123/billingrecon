@@ -1,6 +1,6 @@
 # ADR 0007: Optimistic concurrency with rowversion
 
-- **Status:** Proposed (accept on review of the R1 design documents)
+- **Status:** Accepted on 2026-11-24 with the release of R1, as built (the owner's decision with the Prompt 8.3 plan).
 - **Date:** 2026-09-29
 - **Deciders:** project owner, Claude Code
 

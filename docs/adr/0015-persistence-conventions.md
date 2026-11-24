@@ -2,7 +2,7 @@
 
 - **Status:** Accepted for the points the owner decided on 2026-10-03 (listed under Context). The points
   marked **(addition)** were decided while building the step, several of them after an independent
-  review of the first version, and wait for the owner's review.
+  review of the first version; the owner accepted them as built on 2026-11-24, with the release of R1.
   Built and tested on .NET 10 on 2026-10-17 (see "Verification" under Consequences). The tenant-row rule in
   section 3 was added on 2026-10-17 after a review and waits for the owner's review like the other additions.
 - **Date:** 2026-10-03

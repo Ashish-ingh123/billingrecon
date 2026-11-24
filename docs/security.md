@@ -197,7 +197,7 @@ it.
 | I6 | Internals in an error answer | ProblemDetails without exception details outside Development | Done (ADR 0011) |
 | I7 | Patient data or secrets in the logs | Phones and e-mail addresses masked; no query strings; no password, token or typed sign-in address | Done (ADR 0012, ADR 0031, ADR 0035). The sign-in limit's warning names the client's IP address, for security monitoring: Accepted |
 | I8 | Patient data kept by a browser or a proxy cache | `Cache-Control: no-store` on every answer of `/api` | Done (ADR 0035) |
-| I9 | Patient data kept for ever in the audit images | The audit trail is never changed or deleted | Accepted for R1: a retention or erasure rule is R5 (CLAUDE.md section 9, item 14) |
+| I9 | Patient data kept for ever in the audit images | The audit trail is never changed or deleted | Accepted for R1: a retention or erasure rule is R5 (`docs/backlog.md`, B10) |
 | I10 | Telling a scanner which server to attack | No `Server` header | Done (ADR 0035) |
 | I11 | A page on another site reading the API in a user's browser | No CORS permission but for `Cors:Origins`; no credentials; the token is never a cookie, so there is nothing for a forged request to carry | Done (ADR 0035) |
 | I12 | Secrets in the repository | User-secrets and the environment; the Development key refused elsewhere | Done (section 7) |

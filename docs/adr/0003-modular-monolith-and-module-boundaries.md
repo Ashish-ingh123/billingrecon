@@ -1,6 +1,7 @@
 # ADR 0003: Modular monolith and module boundaries
 
-- **Status:** Proposed (accept on review of the R1 design documents)
+- **Status:** Accepted on 2026-11-24 with the release of R1, as built (the owner's decision with the Prompt 8.3 plan),
+  with its amendments of 2026-10-17 and 2026-11-20 and the Reporting exception of 2026-11-23.
 - **Date:** 2026-09-29
 - **Deciders:** project owner, Claude Code
 

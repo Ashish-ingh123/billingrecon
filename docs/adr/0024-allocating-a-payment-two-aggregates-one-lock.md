@@ -1,8 +1,8 @@
 # ADR 0024: Allocating a payment: two aggregates, the order of work, and the one lock
 
-- **Status:** Proposed. Written on 2026-11-21 from the code of Prompt 4.2, which was written on 2026-11-20 and cites
-  this ADR; the points below describe what that code does. The owner confirms them, and the Status becomes Accepted
-  then. Pre-checked on .NET 9, with the database tests run against SQL Server LocalDB 2019; the first run on .NET 10
+- **Status:** Accepted on 2026-11-24 with the release of R1, as built (the owner's decision with the Prompt 8.3 plan).
+  Written on 2026-11-21 from the code of Prompt 4.2, which was written on 2026-11-20 and cites this ADR; the points below
+  describe what that code does. Pre-checked on .NET 9, with the database tests run against SQL Server LocalDB 2019; the first run on .NET 10
   and SQL Server 2022 is still to come.
 - **Date:** 2026-11-21
 - **Deciders:** project owner, Claude Code
