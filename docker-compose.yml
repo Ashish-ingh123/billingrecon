@@ -89,7 +89,9 @@ services:
     container_name: billingrecon-api
     restart: unless-stopped
     environment:
-      ASPNETCORE_ENVIRONMENT: "Production"
+      # Demo: Production in all but the name, the one environment besides Development where the demo may run (ADR 0052).
+      # Production for the operator's tenant commands, which the Demo environment refuses: API_ENVIRONMENT in .env.
+      ASPNETCORE_ENVIRONMENT: "${API_ENVIRONMENT:-Demo}"
       Database__ConnectionString: "Server=sql;Database=BillingRecon;User Id=billingrecon_app;Password=${BILLINGRECON_APP_PASSWORD};Encrypt=True;TrustServerCertificate=True"
       Jwt__SigningKey: "${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env, see .env.example}"
       AllowedHosts: "localhost;frontend"

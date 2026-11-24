@@ -101,6 +101,7 @@ with field errors lists the messages per field under `errors`, keyed by the JSON
 | 401 | No token, or one that is not valid: expired, not signed by this API, without a tenant or a user (section 2) | `unauthorized` |
 | 401 | A sign-in that is refused, whatever the reason (section 8.12) | `invalid_credentials` |
 | 403 | Any endpoint but the change of one's own password, while a password change is due (section 8.12) | `password_change_required` |
+| 403 | Any endpoint that needs a user, when the user's hospital is suspended by the operator, also with a token issued before (ADR 0052) | `tenant_suspended` |
 | 403 | The user's roles do not allow the endpoint (section 2), or a trail that is the TenantAdmin's (section 8.5) for anyone else | `forbidden` |
 | 403 | A decision by the maker, or by a user who is neither Supervisor nor TenantAdmin (BR-603) | `approval_checker_is_maker`, `approval_checker_role` |
 | 404 | The record does not exist for the tenant (another tenant's included), also when a request only refers to it | `patient_not_found`, `payer_not_found`, `service_item_not_found`, `bill_not_found`, `payment_not_found`, `credit_note_not_found`, `adjustment_not_found`; `not_found` for an unknown route |
@@ -443,7 +444,7 @@ The actions, by `entityType`, each one state change (every state change raises o
 | `Refund` | `Drafted`, `Updated`, `Voided`, `SubmittedForApproval`, `ReturnedToDraft`, `Posted` |
 | `ApprovalRequest` | `Opened`, `Approved`, `Rejected` |
 | `User` | `Created`, `Updated`, `RolesReplaced`, `Disabled`, `Enabled`, `PasswordReset`, `SignedIn` |
-| `Tenant` | `SettingsChanged`, `PrefixChanged` |
+| `Tenant` | `Onboarded`, `SettingsChanged`, `PrefixChanged`, `Suspended`, `Resumed` (the last three of the operator's command, ADR 0052, with no user) |
 | `PrefixChange` | `Requested`, `Approved`, `Rejected` |
 | `NumberSeries` | `PrefixChanged` |
 
@@ -1041,6 +1042,10 @@ For a failure no use case reported: routing, model binding, content negotiation,
 | `password_change_required` | 403 | Set a password of your own first: the one you were given must be changed. |
 | `password_current_wrong` | 422 | The current password is not right; nothing was changed. |
 | `tenant_invalid` | 400 | The tenant is not valid. |
+| `tenant_suspended` | 403 | This hospital is suspended; ask the operator of BillingRecon. |
+| `tenant_code_taken` | 409 | A hospital with this code exists already; nothing was created. |
+| `tenant_not_found` | 404 | No hospital has this code. |
+| `tenant_status_unchanged` | 422 | The hospital is suspended already (or active already); nothing was changed. |
 | `user_not_found` | 404 | The user does not exist. |
 | `user_email_taken` | 409 | Another user of this hospital already has this e-mail address (BR-601). |
 | `user_already_disabled` | 422 | The user is already disabled. |
@@ -1165,4 +1170,6 @@ For a failure no use case reported: routing, model binding, content negotiation,
 `ledger_balance_negative` is the ledger's own refusal under its lock (BR-405). No endpoint answers it as it is: every use
 case whose posting can lower a balance answers it as 409 `concurrency_conflict`, since a request that committed first
 changed what this one read; the others only raise balances and cannot meet it. `tenant_invalid` refuses a tenant row
-that onboarding would make wrongly; no endpoint of R1 creates a tenant, so it is listed for completeness.
+that onboarding would make wrongly. No endpoint creates, suspends or resumes a tenant: `tenant_invalid`,
+`tenant_code_taken`, `tenant_not_found` and `tenant_status_unchanged` are the refusals of the operator's command on the
+server (ADR 0052, `docs/runbook.md` section 17), which prints them; they are listed for completeness.

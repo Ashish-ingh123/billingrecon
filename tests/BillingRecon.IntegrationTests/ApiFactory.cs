@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using BillingRecon.Api.Common.Authentication;
+using BillingRecon.Application.Identity;
 using BillingRecon.IntegrationTests.Support;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -135,7 +136,16 @@ public class ApiFactory : WebApplicationFactory<Program>
         services.AddSingleton(IdempotencyProbe);
         services.AddTransient<IStartupFilter, RawTargetStartupFilter>();
         services.AddTransient<IStartupFilter, RemoteAddressStartupFilter>();
+
+        // No database answers whether the tenant is active; a host on a real one keeps the API's own reader (ADR 0052).
+        if (ReplacesTenantStatus)
+        {
+            services.AddScoped<ITenantStatusReader, ActiveTenants>();
+        }
     }
+
+    /// <summary>Whether every tenant is taken as active, as no database is there to say (ADR 0052).</summary>
+    protected virtual bool ReplacesTenantStatus => true;
 
     /// <summary>A client made by <see cref="WebApplicationFactory{TEntryPoint}.CreateDefaultClient(DelegatingHandler[])"/> calls <see cref="BaseAddress"/> too.</summary>
     protected override void ConfigureClient(HttpClient client)

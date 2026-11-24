@@ -89,6 +89,12 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
+// An operator's command on a hospital (ADR 0052): run on the server with this image and its configuration, then exit.
+if (TenantCommandLine.IsCommand(args))
+{
+    return await TenantCommandLine.RunAsync(app.Services, app.Environment, args, Console.Out, CancellationToken.None);
+}
+
 // First, so everything after it sees the client's address and the scheme it used as the proxy that ended TLS saw them,
 // believed from a known proxy only (ADR 0035).
 app.UseForwardedHeaders();
@@ -124,6 +130,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 // A token that only changes its password reaches that and nothing else (ADR 0051).
 app.UseMiddleware<PasswordChangeGateMiddleware>();
+// A suspended hospital reaches nothing, also with a token issued before its suspension (ADR 0052).
+app.UseMiddleware<SuspendedTenantGateMiddleware>();
 app.UseMiddleware<RequestIdentityLoggingMiddleware>();
 
 if (app.Environment.IsDevelopment())
@@ -144,4 +152,5 @@ app.MapHealthChecks(HealthEndpoints.Ready, new HealthCheckOptions
     Predicate = registration => registration.Tags.Contains(InfrastructureServiceCollectionExtensions.ReadinessTag),
 }).AllowAnonymous();
 
-app.Run();
+await app.RunAsync();
+return 0;

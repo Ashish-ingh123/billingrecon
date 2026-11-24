@@ -3,6 +3,8 @@
 - **Status:** Accepted. The owner approved the plan of Prompt 8.1 on 2026-11-23 "as recommended" (points 1 to 4 below).
   The built note records what the build found. First run with Docker on the owner's personal machine on 2026-11-24, with
   two fixes to the images (built note, "Run with Docker"); runbook section 8, row 8.1 keeps what is still owed.
+  **Amended by ADR 0052 (2026-11-24):** the API of the one-command run runs in the environment `Demo` (`API_ENVIRONMENT`),
+  and `Demo:Enabled` is refused in every environment but `Demo` and Development.
 - **Date:** 2026-11-23
 - **Deciders:** project owner, Claude Code
 - **Builds on:** ADR 0017 (the API image), ADR 0034 (logins and grants), ADR 0035 (TLS at the proxy), ADR 0038 (the

@@ -40,7 +40,8 @@ function AllocateForm({ record }: { record: PaymentWithAllocations }) {
       <PageHeader
         title={`Allocate ${payment.number}`}
         back={{ to: `/payments/${payment.id}`, label: payment.number }}
-        subtitle={payer.data === undefined ? undefined : `To the bills of ${payer.data.name}`}
+        // The line is there before the payer has loaded, so nothing moves when the name arrives (ADR 0050, no layout shift).
+        subtitle={payer.data === undefined ? 'To the bills of …' : `To the bills of ${payer.data.name}`}
       />
       <ApplyToBills
         payerId={payment.payerId}

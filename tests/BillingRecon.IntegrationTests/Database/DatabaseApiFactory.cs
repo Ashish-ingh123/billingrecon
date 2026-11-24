@@ -13,7 +13,7 @@ namespace BillingRecon.IntegrationTests.Database;
 /// both issues the clients' tokens and checks them. A test that needs a port to fail hands in <c>configure</c>, which
 /// runs last and may replace any registration.
 /// </summary>
-public sealed class DatabaseApiFactory(SqlServerFixture sqlServer, string database = SqlServerFixture.ApiDatabase, Action<IServiceCollection>? configure = null) : ApiFactory
+public sealed class DatabaseApiFactory(SqlServerFixture sqlServer, string database = SqlServerFixture.ApiDatabase, Action<IServiceCollection>? configure = null, string? environment = null) : ApiFactory
 {
     /// <summary>Where <see cref="Clock"/> starts.</summary>
     public static readonly DateTimeOffset InitialInstant = new(2026, 10, 17, 6, 30, 0, TimeSpan.Zero);
@@ -47,6 +47,12 @@ public sealed class DatabaseApiFactory(SqlServerFixture sqlServer, string databa
 
         return TestClientExtensions.CreateClientFor(this, identity, roles);
     }
+
+    /// <summary>Production unless the test names another environment (the demo runs in Demo, ADR 0052).</summary>
+    protected override string EnvironmentName => environment ?? base.EnvironmentName;
+
+    /// <summary>The tenant's own row says whether it is active (ADR 0052).</summary>
+    protected override bool ReplacesTenantStatus => false;
 
     /// <inheritdoc />
     protected override void ConfigureTestServices(IServiceCollection services)

@@ -6,7 +6,8 @@
   API (Prompt 5.4b, 2026-11-23), section 12, the frontend (Prompt 7.1), section 13, the one-command run (Prompt 8.1),
   section 14, the load test and the browser journey (Prompt 8.2), and with the release (Prompt 8.3, 2026-11-24) rolling
   back a migration (section 3), backup and restore (section 15) and the incident procedures (section 16). Migrations
-  outside Development are section 10. Complete for R1.
+  outside Development are section 10. Complete for R1. Section 17, onboarding and suspending a hospital, with Prompt 10.2
+  (ADR 0052).
 
 ---
 
@@ -666,6 +667,7 @@ were not part of it.
 | 8.1 | Run on 2026-11-24 (above): the images built, `migrate` and `demo-seed` ran to their end, `api` and `frontend` up, https://localhost signed in as `supervisor@demo.local` and showed the dashboard, `DemoTenantSeederTests` in the suite. **Still owed:** the page's headers carry the policy, `frame-ancestors 'none'` and `nosniff`; http://localhost redirects to https. |
 | 8.2 | The load test of section 14 at full size (10,000 bills) through nginx on SQL Server 2022, with `SERVER_TIMING=true` and at least 2 GB free: every target met, no drift (send the whole output); the stress figure with no pause. The browser journey of section 14 against https://localhost, which is also the first check in a browser of nginx's content security policy (no console error); the frontend job of CI with `@playwright/test` in the lock file and the step that runs `deploy/load/stats.test.mjs`; `ServerTimingApiTests` and the new test of `IdempotencyKeysOnSqlServerTests` on SQL Server 2022. The office machine ran the load on LocalDB at 2,000 bills only (ADR 0046, built note). |
 | 8.3 | The backup and its check of section 15 in the `sql` container (`docker compose cp`, the two scripts, the `.bak` copied out), and the recovery model of the compose database (`FULL` expected). The scripts ran on LocalDB 2019 only. `TraceabilityTests` in the suite. |
+| 10.2 | `TenantOnboardingOnSqlServerTests` and `DemoTenantSeederTests` on SQL Server 2022, and the whole `Database` collection through the new tenant gate; with Compose (`API_ENVIRONMENT=Production`, `DEMO_ENABLED=false`): `docker compose run --rm api tenant create ...` as in section 17.1, the administrator signs in at https://localhost and must change the password; `tenant suspend` refuses that user within 30 seconds, `tenant resume` lets them in; then `API_ENVIRONMENT=Demo` with the demo as before. |
 | 10.1 | The `Database` collection with migration `0021_PasswordChange` on SQL Server 2022 (`AuthApiTests`, `PermissionMatrixApiTests`, `MigrationsOnSqlServerTests`, `DatabasePermissionsOnSqlServerTests`); through nginx at https://localhost: the demo's administrator creates a user, that user signs in with the first password, is taken to "Set a password of your own" and reaches no screen before changing it; a reset does the same; the settings saved and a prefix change requested, then approved by a second administrator in the inbox; both themes on a desktop and a phone. |
 | 9.4b | Through nginx at https://localhost: the reports (the index, a report's filters, its totals in view, Export CSV with its progress), a bill, a statement and a report printed from the browser on A4 (no shell, the hospital and the day at the top), and `routes.spec.ts` and `print.spec.ts` there with the API's answers given by the test. |
 | 9.4 | The dashboard through nginx at https://localhost: the six cards, the two charts and the four panels in both themes on a desktop and a phone, the tooltips by mouse, keyboard and tap (a phone), no content security policy refusal in the console; `dashboard.spec.ts` there with the API's answers given by the test. |
@@ -1071,15 +1073,9 @@ The reconciliation report has a row, or its error is in the log (`docs/database.
 disagrees with the ledger, or the ledger or a series breaks an identity. That is a defect of the code, never a matter of
 data entry.
 
-1. **Stop postings for that hospital.** Suspend it, as the administrator (its `Code` is what users type at sign-in):
-
-   ```sql
-   UPDATE dbo.Tenants SET [Status] = 'Suspended' WHERE [Code] = N'<code>';
-   ```
-
-   A suspended hospital's sign-ins are refused (`AuthApiTests` proves it), but tokens already issued keep working until
-   they expire, 60 minutes at most (ADR 0031 point 8). To end them at once, change `Jwt:SigningKey` and restart the API:
-   every user of every hospital signs in again.
+1. **Stop postings for that hospital.** Suspend it with the operator's command (section 17.2; its `Code` is what users
+   type at sign-in), with the incident as the reason. Its sign-ins are refused at once, and a token issued before is
+   refused within 30 seconds (ADR 0052), so no key needs changing.
 2. **Capture**, before anything changes: the report's rows (`identity`, `subjectId`, `reference`, `cached`, `ledger`);
    the document and its postings (`LedgerPostings` and `LedgerEntries` by `DocumentId`, `SubjectId` or `PayerId`); its
    audit trail (`GET /api/v1/audit-records?entityType=...&entityId=...`), whose records carry the correlation ids; and the
@@ -1088,7 +1084,7 @@ data entry.
    and prove the fix with a test that reproduces the drift (`DatabaseTest` runs the reconciliation after every test).
 4. A cache is rebuilt from the ledger only by a migration with one hand-written, idempotent data step (ADR 0021),
    approved by the owner, so that it is reviewed, versioned and run like any other change.
-5. When the report is empty again: `UPDATE dbo.Tenants SET [Status] = 'Active' WHERE [Code] = N'<code>';`.
+5. When the report is empty again, lift the suspension (section 17.2).
 
 ### 16.2 A gap in a number series
 
@@ -1117,3 +1113,53 @@ nothing half-posted is left, and that run's reconciliation was empty. Free or ad
 database is the usual culprit: take a log backup, section 15), check `/health/ready`, then run the reconciliation report
 before the hospital goes on. A client retries its requests with the same `Idempotency-Key`; a fault frees the key
 (ADR 0006).
+
+## 17. Onboarding and suspending a hospital (ADR 0052)
+
+A hospital exists only when the operator makes it, on the server, with the API's own image and configuration: there is
+no endpoint for it, so nothing reachable from the internet can create a tenant. The commands connect as the API does
+(`billingrecon_app`, section 10), write one transaction each, and are audited with no user. They are refused in the
+`Demo` environment, where the demo makes its own hospital; and the demo is refused in every environment but `Demo` and
+`Development` (`Demo:Enabled` stops the API at startup elsewhere).
+
+With Docker Compose (section 13), set `API_ENVIRONMENT=Production` and `DEMO_ENABLED=false` in `.env` first
+(`docker compose up -d` again so the running API takes them). On a host without Compose, run the published API with the
+same arguments: `dotnet BillingRecon.Api.dll tenant ...`, with the production configuration of the API.
+
+### 17.1 Onboard a hospital
+
+1. Agree the code with the hospital: lower-case letters and digits with single hyphens, at most 20 characters, which every
+   user types at sign-in. Agree the settings (BR-607) and, if they differ from `BIL`, `CN`, `PAY`, `ADJ`, `REF`, the
+   prefixes (BR-802; 1 to 3 capital letters or digits, one per document type).
+2. Run:
+
+   ```powershell
+   docker compose run --rm api tenant create --code city-hospital --name "City Hospital" --admin-email admin@city.example --admin-name "A. Rao" --backdate-days 7 --due-days 15 --threshold 100000 --prefixes "Bill=INV,CreditNote=CRN"
+   ```
+
+   `--threshold none` (or leaving it out) means no bill needs approval. The command prints the hospital's id, its
+   administrator's id and a one-time password of 20 characters, once; it is stored nowhere and logged nowhere. A refusal
+   prints its code (`tenant_invalid` with the option at fault, `tenant_code_taken`) and exits with 1; nothing is written.
+3. Give the password to the administrator by a channel other than the e-mail address it signs in with (a call, in person).
+   At the first sign-in they must choose their own (ADR 0051) before any screen opens.
+4. Check: the administrator signs in at the hospital's code, and the audit trail of the tenant
+   (`GET /api/v1/audit-records?entityType=Tenant&entityId=<id>`, as that administrator) begins with `Onboarded`.
+5. If the administrator loses the one-time password before using it, a second administrator of the hospital resets it
+   (ADR 0051); for the first and only one, there is no command yet: record it as an incident.
+
+### 17.2 Suspend a hospital, and lift the suspension
+
+A suspended hospital keeps everything; nobody of it signs in, and every request with a token issued before is answered
+403 `tenant_suspended` within 30 seconds (each instance of the API keeps a hospital's status that long).
+
+```powershell
+docker compose run --rm api tenant suspend --code city-hospital --reason "Contract ended 2026-12-31"
+```
+
+```powershell
+docker compose run --rm api tenant resume --code city-hospital --reason "Contract renewed"
+```
+
+The reason is required and is kept in the audit record (`Suspended`, `Resumed`). Suspending a suspended hospital, or
+lifting the suspension of an active one, is refused with `tenant_status_unchanged` and changes nothing; an unknown code is
+`tenant_not_found`.

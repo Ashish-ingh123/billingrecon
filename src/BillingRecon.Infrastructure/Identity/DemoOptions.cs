@@ -33,6 +33,13 @@ public sealed class DemoOptions
     /// <summary>The fixed id of the demo administrator.</summary>
     public static readonly Guid AdminUserId = new("d3e40000-0000-4000-8000-000000000002");
 
+    /// <summary>The environment the one-command demo runs in: like Production in all else (ADR 0052).</summary>
+    public const string EnvironmentName = "Demo";
+
+    /// <summary>The message of a demo asked for in another environment than Demo or Development.</summary>
+    public const string EnvironmentMessage =
+        "Demo:Enabled is refused outside the Demo and Development environments: a hospital in production is onboarded by the operator's command (ADR 0052).";
+
     /// <summary>Whether the API makes sure the demo hospital and its administrator exist.</summary>
     public bool Enabled { get; set; }
 

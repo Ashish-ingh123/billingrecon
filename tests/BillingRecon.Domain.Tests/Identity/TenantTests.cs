@@ -195,4 +195,58 @@ public sealed class TenantTests
         tenant.RefundPrefix.ShouldBe("REF");
         tenant.DomainEvents.ShouldBeEmpty();
     }
+
+    [Fact]
+    public void ADR0052_an_onboarded_tenant_records_its_onboarding()
+    {
+        var tenant = Tenant.Onboard("city-hospital", " City Hospital ", CreatedAt).Value;
+
+        tenant.Status.ShouldBe(TenantStatus.Active);
+        tenant.DomainEvents.ShouldHaveSingleItem().ShouldBe(new TenantOnboarded("city-hospital", "City Hospital"));
+    }
+
+    [Fact]
+    public void ADR0052_an_onboarding_with_a_wrong_code_records_nothing_and_says_why()
+    {
+        var result = Tenant.Onboard("City Hospital", "City Hospital", CreatedAt);
+
+        result.Error.Code.ShouldBe(IdentityErrors.TenantInvalidCode);
+        result.Error.FieldErrors.Keys.ShouldBe(["code"]);
+    }
+
+    [Fact]
+    public void ADR0052_a_suspension_and_its_lifting_are_recorded_with_their_reasons()
+    {
+        var tenant = Tenant.Create("city-hospital", "City Hospital", CreatedAt).Value;
+
+        tenant.Suspend(" Contract ended ").ShouldBeTrue();
+        tenant.Status.ShouldBe(TenantStatus.Suspended);
+        tenant.Resume("Contract renewed").ShouldBeTrue();
+
+        tenant.Status.ShouldBe(TenantStatus.Active);
+        tenant.DomainEvents.ShouldBe([new TenantSuspended("Contract ended"), new TenantResumed("Contract renewed")]);
+    }
+
+    [Fact]
+    public void ADR0052_suspending_a_suspended_tenant_or_resuming_an_active_one_records_nothing()
+    {
+        var tenant = Tenant.Create("city-hospital", "City Hospital", CreatedAt).Value;
+
+        tenant.Resume("Nothing to lift").ShouldBeFalse();
+        tenant.Suspend("Contract ended").ShouldBeTrue();
+        tenant.Suspend("Again").ShouldBeFalse();
+
+        tenant.DomainEvents.ShouldHaveSingleItem().ShouldBe(new TenantSuspended("Contract ended"));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ADR0052_a_suspension_needs_a_reason(string reason)
+    {
+        var tenant = Tenant.Create("city-hospital", "City Hospital", CreatedAt).Value;
+
+        Should.Throw<ArgumentException>(() => tenant.Suspend(reason));
+        tenant.Status.ShouldBe(TenantStatus.Active);
+    }
 }

@@ -65,6 +65,33 @@ public static class IdentityErrors
     public static Error PasswordCurrentWrong()
         => Error.BusinessRule(PasswordCurrentWrongCode, "The current password is not right; nothing was changed.");
 
+    /// <summary>Code of <see cref="TenantSuspended"/>.</summary>
+    public const string TenantSuspendedCode = "tenant_suspended";
+
+    /// <summary>Code of <see cref="TenantCodeTaken"/>.</summary>
+    public const string TenantCodeTakenCode = "tenant_code_taken";
+
+    /// <summary>Code of <see cref="TenantNotFound"/>.</summary>
+    public const string TenantNotFoundCode = "tenant_not_found";
+
+    /// <summary>Code of <see cref="TenantStatusUnchanged"/>.</summary>
+    public const string TenantStatusUnchangedCode = "tenant_status_unchanged";
+
+    /// <summary>The hospital of the request is suspended (ADR 0052): nothing is answered until the operator lifts it.</summary>
+    public static Error TenantSuspended()
+        => Error.Forbidden(TenantSuspendedCode, "This hospital is suspended; ask the operator of BillingRecon.");
+
+    /// <summary>The onboarding command was given the code of a tenant that exists (ADR 0052).</summary>
+    public static Error TenantCodeTaken()
+        => Error.Conflict(TenantCodeTakenCode, "A hospital with this code exists already; nothing was created.");
+
+    /// <summary>No tenant has the code an operator's command was given (ADR 0052).</summary>
+    public static Error TenantNotFound() => Error.NotFound(TenantNotFoundCode, "No hospital has this code.");
+
+    /// <summary>The tenant is suspended already, or active already (ADR 0052).</summary>
+    public static Error TenantStatusUnchanged(TenantStatus status)
+        => Error.BusinessRule(TenantStatusUnchangedCode, $"The hospital is {status.ToString().ToLowerInvariant()} already; nothing was changed.");
+
     /// <summary>
     /// The user must set a password of their own before anything else (ADR 0051): every endpoint but the change of one's
     /// own password answers this while the change is due.

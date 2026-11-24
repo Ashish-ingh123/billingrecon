@@ -31,7 +31,8 @@ public sealed class DemoTenantSeederTests(SqlServerFixture sqlServer) : Database
                 {
                     options.Enabled = true;
                     options.AdminPassword = Password;
-                }));
+                }),
+                environment: DemoOptions.EnvironmentName);
             using var client = factory.CreateClient();
 
             using var response = await client.PostAsJsonAsync(Login, new LoginRequest { Tenant = DemoOptions.TenantCode, Email = DemoOptions.AdminEmail, Password = Password });

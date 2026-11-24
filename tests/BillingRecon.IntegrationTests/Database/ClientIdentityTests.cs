@@ -18,6 +18,9 @@ public sealed class ClientIdentityTests(SqlServerFixture sqlServer) : DatabaseTe
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         var identity = FixedIdentity.Random();
+
+        // A token names a hospital that exists: a tenant without a row is refused like a suspended one (ADR 0052).
+        await AddApiTenantRowsAsync(identity);
         using var client = factory.CreateClientFor(identity, "Supervisor", "Cashier");
 
         using var response = await client.GetAsync(Identity);

@@ -181,6 +181,54 @@ public sealed class Tenant : AggregateRoot<TenantId>, IHasRowVersion
         AddDomainEvent(new TenantPrefixChanged(documentType, from, prefix));
     }
 
+    /// <summary>Longest allowed reason for a suspension or its lifting.</summary>
+    public const int ReasonMaxLength = 500;
+
+    /// <summary>
+    /// An operator suspends the tenant (ADR 0052): nobody of it signs in, and a token issued before is refused. Nothing
+    /// of it is deleted. Returns false, and records nothing, when it is suspended already.
+    /// </summary>
+    /// <exception cref="ArgumentException">No reason, or one too long: a bug in the caller, which checks it first.</exception>
+    public bool Suspend(string reason) => ChangeStatus(TenantStatus.Suspended, reason);
+
+    /// <summary>An operator lifts the suspension (ADR 0052). Returns false, and records nothing, when the tenant is active.</summary>
+    /// <exception cref="ArgumentException">No reason, or one too long: a bug in the caller, which checks it first.</exception>
+    public bool Resume(string reason) => ChangeStatus(TenantStatus.Active, reason);
+
+    private bool ChangeStatus(TenantStatus status, string reason)
+    {
+        var given = reason?.Trim() ?? string.Empty;
+        if (given.Length is 0 or > ReasonMaxLength)
+        {
+            throw new ArgumentException($"A reason has 1 to {ReasonMaxLength} characters.", nameof(reason));
+        }
+
+        if (Status == status)
+        {
+            return false;
+        }
+
+        Status = status;
+        AddDomainEvent(status == TenantStatus.Suspended ? new TenantSuspended(given) : new TenantResumed(given));
+
+        return true;
+    }
+
+    /// <summary>
+    /// A tenant made by the operator's onboarding command (ADR 0052): as <see cref="Create"/>, and recorded as
+    /// <see cref="TenantOnboarded"/>, so that its audit trail begins with its creation.
+    /// </summary>
+    public static Result<Tenant> Onboard(string code, string name, DateTimeOffset createdAtUtc)
+    {
+        var created = Create(code, name, createdAtUtc);
+        if (created.IsSuccess)
+        {
+            created.Value.AddDomainEvent(new TenantOnboarded(created.Value.Code, created.Value.Name));
+        }
+
+        return created;
+    }
+
     /// <summary>
     /// Creates an active tenant with the initial settings: no approval threshold, seven days of back-dating, due on
     /// the bill date, and the standard number prefixes.
