@@ -131,6 +131,29 @@ public sealed class UserTests
     }
 
     [Fact]
+    public void ADR0051_a_user_an_administrator_creates_must_change_the_password_and_one_made_by_the_system_need_not()
+    {
+        User.Create("a@b.in", "A", "hash", [Role.Viewer], CreatedAt, Admin, passwordChangeDue: true).PasswordChangeDue.ShouldBeTrue();
+        Created().PasswordChangeDue.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void ADR0051_a_reset_makes_the_change_due_and_the_users_own_change_ends_it_without_carrying_a_password()
+    {
+        var user = Created();
+        user.ClearDomainEvents();
+
+        user.ResetPassword("pbkdf2-sha256$1$c2FsdA==$cmVzZXQ=");
+        user.PasswordChangeDue.ShouldBeTrue();
+
+        user.ChangePassword("pbkdf2-sha256$1$c2FsdA==$b3du");
+        user.PasswordChangeDue.ShouldBeFalse();
+        user.PasswordHash.ShouldBe("pbkdf2-sha256$1$c2FsdA==$b3du");
+        user.DomainEvents.ShouldBe([new UserPasswordReset(user.Id), new UserPasswordChanged(user.Id)]);
+        Should.Throw<ArgumentException>(() => user.ChangePassword(" "));
+    }
+
+    [Fact]
     public void The_roles_table_holds_the_five_roles_in_the_order_of_the_enum()
         => RoleDefinition.All.Select(definition => definition.Code).ShouldBe(Enum.GetValues<Role>());
 

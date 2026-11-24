@@ -18,5 +18,10 @@ export function RequireAuth() {
     return <Navigate to={`/sign-in?returnTo=${returnTo}`} replace />;
   }
 
+  // A password set by an administrator is changed before anything else (ADR 0051).
+  if (session.credentialsChangeDue && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />;
+  }
+
   return <Outlet />;
 }

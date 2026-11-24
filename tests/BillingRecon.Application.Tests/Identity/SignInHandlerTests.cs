@@ -42,7 +42,7 @@ public sealed class SignInHandlerTests
 
         // Read before the call is configured: the clock is a substitute too.
         var token = new AccessToken(Token, _clock.UtcNow.AddMinutes(60));
-        _tokens.Issue(Apollo, _user.Id, Arg.Any<IReadOnlyCollection<Role>>()).Returns(token);
+        _tokens.Issue(Apollo, _user.Id, Arg.Any<IReadOnlyCollection<Role>>(), false).Returns(token);
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class SignInHandlerTests
         result.IsSuccess.ShouldBeTrue();
         result.Value.Refusal.ShouldBeNull();
         result.Value.UserId.ShouldBe(_user.Id);
-        result.Value.SignedIn.ShouldBe(new SignedInDto(Token, "Bearer", _clock.UtcNow.AddMinutes(60), 3600));
+        result.Value.SignedIn.ShouldBe(new SignedInDto(Token, "Bearer", _clock.UtcNow.AddMinutes(60), 3600, false));
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public sealed class SignInHandlerTests
             _scope.Enter(Apollo, _user.Id, Arg.Is<IReadOnlyCollection<Role>>(roles => roles.SequenceEqual(new[] { Role.Supervisor, Role.Cashier })));
             _users.GetAsync(_user.Id, Arg.Any<CancellationToken>());
             unitOfWork.CommitAsync(Arg.Any<CancellationToken>());
-            _tokens.Issue(Apollo, _user.Id, Arg.Is<IReadOnlyCollection<Role>>(roles => roles.SequenceEqual(new[] { Role.Supervisor, Role.Cashier })));
+            _tokens.Issue(Apollo, _user.Id, Arg.Is<IReadOnlyCollection<Role>>(roles => roles.SequenceEqual(new[] { Role.Supervisor, Role.Cashier })), false);
         });
     }
 
@@ -105,7 +105,7 @@ public sealed class SignInHandlerTests
         _hasher.ReceivedCalls().Count(call => call.GetMethodInfo().Name is nameof(IPasswordHasher.Verify) or nameof(IPasswordHasher.VerifyWithoutHash)).ShouldBe(1);
         _scope.DidNotReceiveWithAnyArgs().Enter(default, default, default!);
         await unitOfWork.DidNotReceiveWithAnyArgs().CommitAsync(default);
-        _tokens.DidNotReceiveWithAnyArgs().Issue(default, default, default!);
+        _tokens.DidNotReceiveWithAnyArgs().Issue(default, default, default!, default);
         _user.LastSignInAtUtc.ShouldBeNull();
     }
 
@@ -173,20 +173,33 @@ public sealed class SignInHandlerTests
     }
 
     [Fact]
+    public async Task ADR0051_a_user_whose_password_an_administrator_set_gets_a_token_that_only_changes_it()
+    {
+        _user.ResetPassword(Hash);
+        _user.ClearDomainEvents();
+        var token = new AccessToken(Token, _clock.UtcNow.AddMinutes(15));
+        _tokens.Issue(Apollo, _user.Id, Arg.Any<IReadOnlyCollection<Role>>(), true).Returns(token);
+
+        var result = await Handler(TestDoubles.UnitOfWork()).HandleAsync(Command, CancellationToken.None);
+
+        result.Value.SignedIn.ShouldBe(new SignedInDto(Token, "Bearer", _clock.UtcNow.AddMinutes(15), 900, true));
+    }
+
+    [Fact]
     public async Task A_commit_that_fails_issues_no_token()
     {
         // An administrator changed the user in the same instant: the row version answers, and nobody gets a token.
         var result = await Handler(TestDoubles.UnitOfWork(CommonErrors.ConcurrencyConflict())).HandleAsync(Command, CancellationToken.None);
 
         result.Error.Code.ShouldBe(CommonErrors.ConcurrencyConflictCode);
-        _tokens.DidNotReceiveWithAnyArgs().Issue(default, default, default!);
+        _tokens.DidNotReceiveWithAnyArgs().Issue(default, default, default!, default);
     }
 
     [Fact]
     public void ADR0031_the_text_of_the_command_and_of_the_answer_carries_no_password_address_or_token()
     {
         var command = Command.ToString();
-        var answer = new SignedInDto(Token, "Bearer", _clock.UtcNow, 3600).ToString();
+        var answer = new SignedInDto(Token, "Bearer", _clock.UtcNow, 3600, false).ToString();
         var token = new AccessToken(Token, _clock.UtcNow).ToString();
 
         command.ShouldContain("Apollo-Delhi");

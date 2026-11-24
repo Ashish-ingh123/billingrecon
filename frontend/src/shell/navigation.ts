@@ -115,7 +115,7 @@ export const sections: readonly Section[] = [
     label: 'Users and settings',
     roles: ['TenantAdmin'],
     purpose: "The hospital's users and their roles, its settings and its document prefixes.",
-    builtBy: 'none yet',
+    builtBy: '10.1',
   },
 ];
 

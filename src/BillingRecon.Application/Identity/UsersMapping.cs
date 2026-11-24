@@ -17,6 +17,7 @@ public static class UsersMapping
             DisplayName: user.DisplayName,
             Status: user.Status,
             Roles: [.. user.Roles.Select(role => role.Role).Order()],
+            CredentialsChangeDue: user.PasswordChangeDue,
             LastSignInAtUtc: user.LastSignInAtUtc,
             CreatedAtUtc: user.CreatedAtUtc,
             UpdatedAtUtc: user.UpdatedAtUtc,

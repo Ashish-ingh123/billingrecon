@@ -122,6 +122,8 @@ app.UseRateLimiter();
 // scope, which needs the user.
 app.UseAuthentication();
 app.UseAuthorization();
+// A token that only changes its password reaches that and nothing else (ADR 0051).
+app.UseMiddleware<PasswordChangeGateMiddleware>();
 app.UseMiddleware<RequestIdentityLoggingMiddleware>();
 
 if (app.Environment.IsDevelopment())

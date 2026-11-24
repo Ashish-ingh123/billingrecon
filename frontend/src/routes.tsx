@@ -58,6 +58,7 @@ const built = new Set([
   '/approvals',
   '/reports',
   '/dashboard',
+  '/administration',
 ]);
 
 const referenceData = { read: 'ReadReferenceData', write: 'WriteReferenceData' } as const;
@@ -68,6 +69,14 @@ export const routes: RouteObject[] = [
   {
     element: <RequireAuth />,
     children: [
+      // A user whose password an administrator set changes it here first, outside the shell (ADR 0051).
+      {
+        path: '/change-password',
+        lazy: async () => {
+          const { ChangePasswordPage } = await import('./auth/ChangePasswordPage');
+          return { element: <ChangePasswordPage /> };
+        },
+      },
       {
         // The shell is read with the first page behind the sign-in, not by the sign-in page (Prompt 9.4b, backlog B21).
         lazy: async () => {
@@ -158,6 +167,32 @@ export const routes: RouteObject[] = [
           guarded('/approvals', 'Decide', async () => (await import('./approvals/ApprovalsPage')).ApprovalsPage),
           // The dashboard and its chart library are read only when the dashboard is opened (ADR 0044 point 5).
           guarded('/dashboard', 'Dashboard', async () => (await import('./dashboard/DashboardPage')).DashboardPage),
+          // Users and settings, for the hospital's administrator (Prompt 10.1, ADR 0051).
+          guarded(
+            '/administration',
+            'ManageTenant',
+            async () => (await import('./administration/UsersPage')).UsersPage,
+          ),
+          guarded(
+            '/administration/users/new',
+            'ManageTenant',
+            async () => (await import('./administration/UserFormPage')).NewUserPage,
+          ),
+          guarded(
+            '/administration/users/:id',
+            'ManageTenant',
+            async () => (await import('./administration/UserPage')).UserPage,
+          ),
+          guarded(
+            '/administration/users/:id/edit',
+            'ManageTenant',
+            async () => (await import('./administration/UserFormPage')).EditUserPage,
+          ),
+          guarded(
+            '/administration/settings',
+            'ManageTenant',
+            async () => (await import('./administration/SettingsPage')).SettingsPage,
+          ),
           guarded('/reports', 'Reports', async () => (await import('./reports/ReportsIndex')).ReportsIndex),
           guarded(
             '/reports/bills',

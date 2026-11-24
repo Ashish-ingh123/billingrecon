@@ -1,0 +1,112 @@
+/* Users and settings (ADR 0051): the two tabs, the role choices with what each may do, and the card of a user's roles. */
+.tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-5);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.tabs a {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 2.5rem;
+  padding: var(--space-2) var(--space-3);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tabs a:hover {
+  color: var(--text);
+}
+
+.tabs .active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.roles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: var(--space-3);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  border: none;
+}
+
+.roles legend {
+  margin-bottom: var(--space-2);
+}
+
+.role {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.role:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.role input {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0.2rem;
+  accent-color: var(--accent);
+}
+
+.role > span {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.duty {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.roleCard {
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.cardTitle {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-md);
+}
+
+.roleList {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.prefixForm {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

@@ -22,6 +22,7 @@ export function sessionOf(roles: readonly string[]) {
     expiresAtUtc: new Date(Date.now() + 3_600_000).toISOString(),
     userId,
     tenantId: 'd0000000-0000-4000-8000-000000000001',
+    credentialsChangeDue: false,
     roles,
     email: 'asha@cityhospital.org',
     hospital: 'city-hospital',

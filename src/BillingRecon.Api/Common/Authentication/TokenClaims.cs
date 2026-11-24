@@ -21,6 +21,22 @@ public static class TokenClaims
     /// <summary>The claim that carries a role, one claim per role (BR-602).</summary>
     public const string RoleClaim = "role";
 
+    /// <summary>
+    /// Present, with the value <see cref="PasswordChangeRequired"/>, on a token whose user must set a password of their
+    /// own first (ADR 0051): such a token reaches the change of one's own password and nothing else.
+    /// </summary>
+    public const string PasswordChangeClaim = "pwd_change";
+
+    /// <summary>The value of <see cref="PasswordChangeClaim"/>.</summary>
+    public const string PasswordChangeRequired = "required";
+
+    /// <summary>Whether the principal carries the mark of a due password change.</summary>
+    public static bool MustChangePassword(ClaimsPrincipal principal)
+    {
+        ArgumentNullException.ThrowIfNull(principal);
+        return principal.HasClaim(PasswordChangeClaim, PasswordChangeRequired);
+    }
+
     /// <summary>The claims for <paramref name="userId"/> of <paramref name="tenantId"/> holding <paramref name="roles"/>.</summary>
     public static IEnumerable<Claim> For(TenantId tenantId, UserId userId, IEnumerable<Role> roles)
     {

@@ -22,17 +22,21 @@ public sealed class JwtTokenIssuer(IOptions<JwtOptions> options, IClock clock) :
     private readonly SigningCredentials _credentials = new(new SymmetricSecurityKey(options.Value.ReadKey()), SecurityAlgorithms.HmacSha256);
 
     /// <inheritdoc />
-    public AccessToken Issue(TenantId tenantId, UserId userId, IReadOnlyCollection<Role> roles)
+    public AccessToken Issue(TenantId tenantId, UserId userId, IReadOnlyCollection<Role> roles, bool passwordChangeDue)
     {
         ArgumentNullException.ThrowIfNull(roles);
 
         // The times of a token are whole seconds; the instant is cut to the second, so the expiry answered is the token's.
         var now = clock.UtcNow;
         now = now.AddTicks(-(now.UtcTicks % TimeSpan.TicksPerSecond));
-        var expires = now + JwtOptions.Lifetime;
+        var expires = now + (passwordChangeDue ? JwtOptions.PasswordChangeLifetime : JwtOptions.Lifetime);
 
         var subject = new ClaimsIdentity(TokenClaims.For(tenantId, userId, roles));
         subject.AddClaim(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()));
+        if (passwordChangeDue)
+        {
+            subject.AddClaim(new Claim(TokenClaims.PasswordChangeClaim, TokenClaims.PasswordChangeRequired));
+        }
 
         var token = _handler.CreateToken(new SecurityTokenDescriptor
         {

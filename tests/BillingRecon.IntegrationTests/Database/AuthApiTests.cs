@@ -27,6 +27,7 @@ namespace BillingRecon.IntegrationTests.Database;
 public sealed class AuthApiTests(SqlServerFixture sqlServer) : DatabaseTest(sqlServer)
 {
     private const string Password = "correct horse battery staple";
+    private const string NewPassword = "a passphrase of my very own";
     private const string Email = "Asha.Rao@Example.IN";
     private const string ColleagueEmail = "ravi.iyer@example.in";
 
@@ -201,6 +202,7 @@ public sealed class AuthApiTests(SqlServerFixture sqlServer) : DatabaseTest(sqlS
         using var administrator = factory.CreateClientFor(admin, "TenantAdmin");
         using var colleague = await administrator.PostJsonAsync(new Uri("/api/v1/users", UriKind.Relative), new CreateUserRequest { Email = ColleagueEmail, DisplayName = "Ravi Iyer", Password = Password, Roles = [Role.Cashier] });
         colleague.StatusCode.ShouldBe(HttpStatusCode.Created, await colleague.Content.ReadAsStringAsync());
+        await ExecuteAsync($"UPDATE [Users] SET [PasswordChangeDue] = 0 WHERE [Id] = {(await colleague.ReadAsAsync<UserDto>()).Id}");
         using var anonymous = factory.CreateClient();
 
         for (var refusal = 0; refusal < SignInLimits.RefusalsPerAccount; refusal++)
@@ -286,7 +288,89 @@ public sealed class AuthApiTests(SqlServerFixture sqlServer) : DatabaseTest(sqlS
     }
 
     // A tenant with its administrator and a user with a password, as the administrator creates it; and the tenant's code.
-    private async Task<(FixedIdentity Admin, string Code, UserDto User)> TenantWithUserAsync(DatabaseApiFactory factory)
+    // The user an administrator created, who has already set a password of their own unless passwordChangeDue says not
+    // (ADR 0051): the tests of the sign-in itself start from a user who may do anything their roles allow.
+    [Fact]
+    public async Task ADR0051_a_user_an_administrator_created_must_set_a_password_of_their_own_before_anything_else()
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var (admin, code, user) = await TenantWithUserAsync(factory, passwordChangeDue: true);
+        using var anonymous = factory.CreateClient();
+
+        // The first sign-in: a token of 15 minutes that only changes the password.
+        var first = await SignInAsync(anonymous, code);
+        (first.CredentialsChangeDue, first.ExpiresInSeconds).ShouldBe((true, 900));
+        new JsonWebToken(first.AccessToken).GetClaim(TokenClaims.PasswordChangeClaim).Value.ShouldBe(TokenClaims.PasswordChangeRequired);
+        using (var stopped = await SendAsync(anonymous, first.AccessToken))
+        {
+            await stopped.ShouldBeProblemAsync(HttpStatusCode.Forbidden, IdentityErrors.PasswordChangeRequiredCode);
+        }
+
+        // A wrong current password changes nothing.
+        using (var wrong = await ChangePasswordAsync(anonymous, first.AccessToken, "not the password at all", NewPassword))
+        {
+            await wrong.ShouldBeProblemAsync(HttpStatusCode.UnprocessableEntity, IdentityErrors.PasswordCurrentWrongCode);
+        }
+
+        // The right one: a new token of the usual hour, which acts for the user.
+        using var changed = await ChangePasswordAsync(anonymous, first.AccessToken, Password, NewPassword);
+        changed.StatusCode.ShouldBe(HttpStatusCode.OK, await changed.Content.ReadAsStringAsync());
+        changed.Headers.CacheControl.ShouldNotBeNull().NoStore.ShouldBeTrue();
+        var after = await changed.ReadAsAsync<SignedInDto>();
+        (after.CredentialsChangeDue, after.ExpiresInSeconds).ShouldBe((false, 3600));
+        new JsonWebToken(after.AccessToken).TryGetClaim(TokenClaims.PasswordChangeClaim, out _).ShouldBeFalse();
+        (await IdentityAsync(anonymous, after.AccessToken)).UserId.ShouldBe(user.Id);
+
+        // The new password signs in with nothing due; the old one is refused.
+        using (var again = await anonymous.PostAsJsonAsync(Login, new LoginRequest { Tenant = code, Email = Email, Password = NewPassword }))
+        {
+            (await again.ReadAsAsync<SignedInDto>()).CredentialsChangeDue.ShouldBeFalse();
+        }
+
+        using (var old = await anonymous.PostAsJsonAsync(Login, new LoginRequest { Tenant = code, Email = Email, Password = Password }))
+        {
+            await old.ShouldBeProblemAsync(HttpStatusCode.Unauthorized, IdentityErrors.InvalidCredentialsCode);
+        }
+
+        using var administrator = factory.CreateClientFor(admin, "TenantAdmin");
+        var record = (await TrailAsync(administrator, user.Id)).Where(entry => entry.Action == "PasswordChanged").ShouldHaveSingleItem();
+        record.UserId.ShouldBe(user.Id);
+        record.After.GetRawText().ShouldNotContain("pbkdf2", Case.Insensitive);
+    }
+
+    [Fact]
+    public async Task ADR0051_a_reset_by_an_administrator_makes_the_change_due_again()
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var (admin, code, user) = await TenantWithUserAsync(factory);
+        using var administrator = factory.CreateClientFor(admin, "TenantAdmin");
+
+        using var reset = new HttpRequestMessage(HttpMethod.Post, new Uri($"/api/v1/users/{user.Id}/password", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new ResetUserPasswordRequest { Password = NewPassword }),
+        };
+        reset.Headers.IfMatch.Add(new EntityTagHeaderValue($"\"{user.Version}\""));
+        using var answered = await administrator.SendAsync(reset);
+        answered.StatusCode.ShouldBe(HttpStatusCode.OK, await answered.Content.ReadAsStringAsync());
+        (await answered.ReadAsAsync<UserDto>()).CredentialsChangeDue.ShouldBeTrue();
+
+        using var anonymous = factory.CreateClient();
+        using var signIn = await anonymous.PostAsJsonAsync(Login, new LoginRequest { Tenant = code, Email = Email, Password = NewPassword });
+        (await signIn.ReadAsAsync<SignedInDto>()).CredentialsChangeDue.ShouldBeTrue();
+    }
+
+    private static async Task<HttpResponseMessage> ChangePasswordAsync(HttpClient client, string token, string current, string chosen)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri("/api/v1/auth/password", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new ChangePasswordRequest { CurrentPassword = current, NewPassword = chosen }),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        return await client.SendAsync(request);
+    }
+
+    private async Task<(FixedIdentity Admin, string Code, UserDto User)> TenantWithUserAsync(DatabaseApiFactory factory, bool passwordChangeDue = false)
     {
         var admin = await NewApiTenantAsync();
         using var administrator = factory.CreateClientFor(admin, "TenantAdmin");
@@ -296,8 +380,17 @@ public sealed class AuthApiTests(SqlServerFixture sqlServer) : DatabaseTest(sqlS
 
         await using var context = ApiContext(admin);
         var code = (await context.Set<Tenant>().AsNoTracking().SingleAsync()).Code;
+        var user = await created.ReadAsAsync<UserDto>();
+        user.CredentialsChangeDue.ShouldBeTrue("a user an administrator creates changes the password at the first sign-in");
+        if (passwordChangeDue)
+        {
+            return (admin, code, user);
+        }
 
-        return (admin, code, await created.ReadAsAsync<UserDto>());
+        await ExecuteAsync($"UPDATE [Users] SET [PasswordChangeDue] = 0 WHERE [Id] = {user.Id}");
+        using var read = await administrator.GetAsync(new Uri($"/api/v1/users/{user.Id}", UriKind.Relative));
+
+        return (admin, code, await read.ReadAsAsync<UserDto>());
     }
 
     private static async Task<SignedInDto> SignInAsync(HttpClient client, string code, string email = Email)

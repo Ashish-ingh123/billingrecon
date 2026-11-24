@@ -138,6 +138,25 @@ const balance = {
   creditAvailable: 0,
   netOutstanding: -550.52,
 };
+const colleague = {
+  id: 'a7000000-0000-4000-8000-000000000001',
+  email: 'ravi.iyer@cityhospital.org',
+  displayName: 'Ravi Iyer',
+  status: 'Active',
+  roles: ['Supervisor', 'Cashier'],
+  credentialsChangeDue: true,
+  lastSignInAtUtc: null,
+  createdAtUtc: '2026-11-01T05:00:00+00:00',
+  updatedAtUtc: '2026-11-20T05:00:00+00:00',
+  version: 'AAAAAAAAB9E=',
+};
+const settings = {
+  postingApprovalThreshold: 100000,
+  maxBackdateDays: 7,
+  defaultDueDays: 15,
+  prefixes: { bill: 'BIL', creditNote: 'CRN', payment: 'PAY', adjustment: 'ADJ', refund: 'REF' },
+  version: 'AAAAAAAAC1E=',
+};
 const figure = (value: number, previous: number | null, changePercent: number | null) => ({
   value,
   previous,
@@ -191,6 +210,9 @@ const answers: Answers = {
   'GET /api/v1/reports/reconciliation': () =>
     report([], { rows: 0, byIdentity: [], checkedAtUtc: '2026-11-23T06:00:00+00:00' }),
   [`GET /api/v1/reports/payers/${payer.id}/balance`]: () => balance,
+  'GET /api/v1/users': () => pageOf([colleague]),
+  [`GET /api/v1/users/${colleague.id}`]: () => colleague,
+  'GET /api/v1/settings': () => settings,
   'GET /api/v1/dashboard/summary': () => ({
     period,
     previousPeriod: { from: '2026-10-01', to: '2026-10-31' },
@@ -271,6 +293,12 @@ const routes: readonly (readonly [string, string | RegExp])[] = [
   ['/reports/available-credit', 'Available credit'],
   ['/reports/pending-approvals', 'Pending approvals'],
   ['/reports/reconciliation', 'Reconciliation'],
+  ['/administration', 'Users and settings'],
+  ['/administration/users/new', 'New user'],
+  [`/administration/users/${colleague.id}`, colleague.displayName],
+  [`/administration/users/${colleague.id}/edit`, `Edit ${colleague.displayName}`],
+  ['/administration/settings', 'Users and settings'],
+  ['/change-password', 'Change your password'],
   ['/no-access', 'No access'],
   ['/no-such-page', 'Page not found'],
 ];

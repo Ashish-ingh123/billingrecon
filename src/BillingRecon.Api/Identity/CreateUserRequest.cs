@@ -20,6 +20,14 @@ public sealed record CreateUserRequest
     /// <summary>At least one of <c>TenantAdmin</c>, <c>Supervisor</c>, <c>BillingClerk</c>, <c>Cashier</c>, <c>Viewer</c>.</summary>
     public IReadOnlyList<Role>? Roles { get; init; }
 
+    // A text made of the request, in a log line or an exception, never carries the password (backlog B24).
+    private bool PrintMembers(System.Text.StringBuilder builder)
+    {
+        builder.Append("Email = ").Append(Email).Append(", DisplayName = ").Append(DisplayName)
+            .Append(", Roles = ").Append(Roles is null ? string.Empty : string.Join(", ", Roles));
+        return true;
+    }
+
     /// <summary>The command the request stands for.</summary>
     public CreateUserCommand ToCommand() => new()
     {

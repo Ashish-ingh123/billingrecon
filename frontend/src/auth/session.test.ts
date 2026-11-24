@@ -28,6 +28,7 @@ describe('the session of a sign-in', () => {
       userId: 'd0000000-0000-4000-8000-000000000002',
       tenantId: 'd0000000-0000-4000-8000-000000000001',
       roles: ['Cashier'],
+      credentialsChangeDue: false,
       email: 'asha@example.org',
       hospital: 'city-hospital',
     });
@@ -54,6 +55,25 @@ describe('the session of a sign-in', () => {
     expect(readClaims('a.%%%.c')).toBeNull();
     expect(readClaims(tokenWithPayload({ sub: 'x' }))).toBeNull();
     expect(sessionFromSignIn({ accessToken: 'nonsense', expiresAtUtc }, 'a@b.c', 'h')).toBeNull();
+  });
+});
+
+describe('a password to be changed (ADR 0051)', () => {
+  it('is kept from the answer of the sign-in, and read back from the tab', () => {
+    const due = sessionFromSignIn(
+      {
+        accessToken: tokenFor(['Cashier']),
+        expiresAtUtc: new Date(Date.now() + 900_000).toISOString(),
+        credentialsChangeDue: true,
+      },
+      'asha@example.org',
+      'city-hospital',
+    );
+    expect(due?.credentialsChangeDue).toBe(true);
+
+    storeSession(due!);
+    expect(readSession(new Date())?.credentialsChangeDue).toBe(true);
+    clearSession();
   });
 });
 

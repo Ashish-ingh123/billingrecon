@@ -16,4 +16,12 @@ public sealed record CreateUserCommand
 
     /// <summary>At least one role.</summary>
     public required IReadOnlyList<Role> Roles { get; init; }
+
+    // A text made of the command, in a log line or an exception, never carries the password (backlog B24).
+    private bool PrintMembers(System.Text.StringBuilder builder)
+    {
+        builder.Append("Email = ").Append(Email).Append(", DisplayName = ").Append(DisplayName)
+            .Append(", Roles = ").Append(string.Join(", ", Roles));
+        return true;
+    }
 }

@@ -140,6 +140,16 @@ export function AppShell() {
           </ul>
         </nav>
 
+        <NavLink
+          to="/change-password"
+          className={styles.railToggle}
+          title={rail ? 'Change password' : undefined}
+          onClick={() => closeDrawer(false)}
+        >
+          <Icon name="padlock" />
+          <span className={styles.linkLabel}>Change password</span>
+        </NavLink>
+
         <button
           type="button"
           className={styles.railToggle}

@@ -10,5 +10,5 @@ namespace BillingRecon.Application.Identity;
 public interface ITokenIssuer
 {
     /// <summary>A new token for user <paramref name="userId"/> of tenant <paramref name="tenantId"/>, holding <paramref name="roles"/>.</summary>
-    public AccessToken Issue(TenantId tenantId, UserId userId, IReadOnlyCollection<Role> roles);
+    public AccessToken Issue(TenantId tenantId, UserId userId, IReadOnlyCollection<Role> roles, bool passwordChangeDue);
 }

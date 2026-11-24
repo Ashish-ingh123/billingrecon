@@ -3288,6 +3288,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The signed-in user sets a password of their own, giving the current one (ADR 0051). The one action a user whose
+         *     password change is due may call; the answer is a new token without that mark.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ChangePasswordRequest"];
+                    "text/json": components["schemas"]["ChangePasswordRequest"];
+                    "application/*+json": components["schemas"]["ChangePasswordRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SignedInDto"];
+                        "application/json": components["schemas"]["SignedInDto"];
+                        "text/json": components["schemas"]["SignedInDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/prefix-changes": {
         parameters: {
             query?: never;
@@ -7942,6 +8022,13 @@ export interface components {
             updatedAtUtc: string;
             version: string;
         };
+        /** @description The body of `POST /api/v1/auth/password`: the current password and the new one (ADR 0051). */
+        ChangePasswordRequest: {
+            /** @description The password the user has now. */
+            currentPassword?: null | string;
+            /** @description The password the user chooses: 12 to 128 characters, not the current one. */
+            newPassword?: null | string;
+        };
         /**
          * @description One payment method on one business date: the payments received that day and what they came to, the payments of this
          *     method reversed that day, the refunds paid this way that day, and what is left. decimal CollectionByMethodDto.Net is
@@ -9194,6 +9281,7 @@ export interface components {
             expiresAtUtc: string;
             /** Format: int32 */
             expiresInSeconds: number | string;
+            credentialsChangeDue: boolean;
         };
         /**
          * @description One card of the dashboard: its figure for the period, the same figure for the previous period, and the change in
@@ -9443,6 +9531,7 @@ export interface components {
             displayName: string;
             status: components["schemas"]["UserStatus"];
             roles: components["schemas"]["Role"][];
+            credentialsChangeDue: boolean;
             /** Format: date-time */
             lastSignInAtUtc: null | string;
             /** Format: date-time */

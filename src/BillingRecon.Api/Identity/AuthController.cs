@@ -1,4 +1,6 @@
 using BillingRecon.Api.Common;
+using BillingRecon.Api.Common.Authentication;
+using BillingRecon.Api.Common.Authorization;
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Identity;
 using BillingRecon.Domain.Identity;
@@ -54,5 +56,27 @@ public sealed class AuthController(ILogger<AuthController> logger) : ApiControll
             result.Value.UserId);
 
         return Problem(IdentityErrors.InvalidCredentials());
+    }
+
+    /// <summary>
+    /// The signed-in user sets a password of their own, giving the current one (ADR 0051). The one action a user whose
+    /// password change is due may call; the answer is a new token without that mark.
+    /// </summary>
+    [Authorize(Policy = Policies.SignedIn)]
+    [AllowWhilePasswordChangeDue]
+    [HttpPost("password")]
+    [ProducesResponseType<SignedInDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ChangePasswordAsync(
+        ChangePasswordRequest request,
+        [FromServices] ICommandHandler<ChangeOwnPasswordCommand, SignedInDto> handler,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        Response.Headers.CacheControl = "no-store";
+        var result = await handler.HandleAsync(request.ToCommand(), ct);
+        return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
     }
 }

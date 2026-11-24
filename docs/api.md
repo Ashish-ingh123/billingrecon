@@ -100,6 +100,7 @@ with field errors lists the messages per field under `errors`, keyed by the JSON
 | 400 | A host name the API does not answer for (section 1) | `host_not_allowed` |
 | 401 | No token, or one that is not valid: expired, not signed by this API, without a tenant or a user (section 2) | `unauthorized` |
 | 401 | A sign-in that is refused, whatever the reason (section 8.12) | `invalid_credentials` |
+| 403 | Any endpoint but the change of one's own password, while a password change is due (section 8.12) | `password_change_required` |
 | 403 | The user's roles do not allow the endpoint (section 2), or a trail that is the TenantAdmin's (section 8.5) for anyone else | `forbidden` |
 | 403 | A decision by the maker, or by a user who is neither Supervisor nor TenantAdmin (BR-603) | `approval_checker_is_maker`, `approval_checker_role` |
 | 404 | The record does not exist for the tenant (another tenant's included), also when a request only refers to it | `patient_not_found`, `payer_not_found`, `service_item_not_found`, `bill_not_found`, `payment_not_found`, `credit_note_not_found`, `adjustment_not_found`; `not_found` for an unknown route |
@@ -789,10 +790,21 @@ password, and the key store keeps a fingerprint of the body), and no answer of i
 | Method and path | Success | Failures |
 |---|---|---|
 | `POST /api/v1/auth/login` | 200, the token | 400; 401 `invalid_credentials`; 429 `too_many_sign_ins` |
+| `POST /api/v1/auth/password` (any signed-in user, policy `SignedIn`) | 200, a new token | 400; 401; 422 `password_current_wrong` |
 
 The body (unknown members are refused): `tenant`, the code of the hospital; `email`; `password`. The code and the
 address are compared without regard to case or the spaces around them. The answer: `accessToken`, `tokenType`
-(`Bearer`), `expiresAtUtc`, `expiresInSeconds` (3600).
+(`Bearer`), `expiresAtUtc`, `expiresInSeconds` (3600), and `credentialsChangeDue`.
+
+**A password set by an administrator is changed at the first sign-in** (ADR 0051, amending ADR 0030). A user an
+administrator created, or whose password an administrator reset, signs in with `credentialsChangeDue: true` and gets a token
+that lives 15 minutes and carries the claim `pwd_change: required`. With that token every endpoint but
+`POST /api/v1/auth/password` answers 403 `password_change_required`. That endpoint takes `currentPassword` and
+`newPassword` (12 to 128 characters, not the current one; unknown members refused; `Cache-Control: no-store`), answers
+422 `password_current_wrong` when the current one is not right, and on success answers a new token of the usual hour
+without the claim, with `credentialsChangeDue: false`. Any signed-in user may change their own password the same way at
+any time. The change is in the audit trail (`PasswordChanged`, by the user); neither password is written anywhere. A
+user's answer (`GET /api/v1/users/{id}`) says `credentialsChangeDue` too.
 
 **Every refusal is the same 401 `invalid_credentials`**, with the same message: an unknown or suspended hospital, an
 unknown address, a wrong password, a disabled user (BR-601). So the answer never tells which hospitals or addresses
@@ -1026,6 +1038,8 @@ For a failure no use case reported: routing, model binding, content negotiation,
 | Code | Status | Message |
 |---|---|---|
 | `invalid_credentials` | 401 | The hospital code, the e-mail address or the password is not right, or the user may not sign in. |
+| `password_change_required` | 403 | Set a password of your own first: the one you were given must be changed. |
+| `password_current_wrong` | 422 | The current password is not right; nothing was changed. |
 | `tenant_invalid` | 400 | The tenant is not valid. |
 | `user_not_found` | 404 | The user does not exist. |
 | `user_email_taken` | 409 | Another user of this hospital already has this e-mail address (BR-601). |

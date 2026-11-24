@@ -52,6 +52,12 @@ public sealed class User : AggregateRoot<UserId>, ITenantScoped, ICreationAudite
     /// <summary>Whether the user may sign in.</summary>
     public UserStatus Status { get; private set; }
 
+    /// <summary>
+    /// Whether the user must set a password of their own before doing anything else (ADR 0051, amending ADR 0030): true for a
+    /// user an administrator created or whose password an administrator reset, false once the user has changed it.
+    /// </summary>
+    public bool PasswordChangeDue { get; private set; }
+
     /// <summary>When the user last signed in; null until the first sign-in (Prompt 5.2).</summary>
     public DateTimeOffset? LastSignInAtUtc { get; private set; }
 
@@ -86,13 +92,15 @@ public sealed class User : AggregateRoot<UserId>, ITenantScoped, ICreationAudite
 
     /// <summary>
     /// Creates an active user with <paramref name="roles"/>, each granted at <paramref name="createdAtUtc"/> by
-    /// <paramref name="grantedBy"/> (null when no user acts, as for the first user of a tenant).
+    /// <paramref name="grantedBy"/> (null when no user acts, as for the first user of a tenant). A user an administrator
+    /// creates is given <paramref name="passwordChangeDue"/>: the password the administrator chose is changed at the first
+    /// sign-in (ADR 0051).
     /// </summary>
     /// <exception cref="ArgumentException">
     /// A text is blank or too long, there is no role, or a role is not one the enum defines. The validator of the use
     /// case refuses all of these first.
     /// </exception>
-    public static User Create(string email, string displayName, string passwordHash, IReadOnlyCollection<Role> roles, DateTimeOffset createdAtUtc, UserId? grantedBy)
+    public static User Create(string email, string displayName, string passwordHash, IReadOnlyCollection<Role> roles, DateTimeOffset createdAtUtc, UserId? grantedBy, bool passwordChangeDue = false)
     {
         var address = Field.Required(email, EmailMaxLength);
         var name = Field.Required(displayName, DisplayNameMaxLength);
@@ -106,6 +114,7 @@ public sealed class User : AggregateRoot<UserId>, ITenantScoped, ICreationAudite
             DisplayName = name,
             PasswordHash = hash,
             Status = UserStatus.Active,
+            PasswordChangeDue = passwordChangeDue,
         };
 
         foreach (var role in granted)
@@ -195,12 +204,28 @@ public sealed class User : AggregateRoot<UserId>, ITenantScoped, ICreationAudite
         return Result.Success();
     }
 
-    /// <summary>An administrator sets a new password: the hash is replaced. The event says so and carries neither.</summary>
+    /// <summary>
+    /// An administrator sets a new password: the hash is replaced, and the user must change it at the next sign-in
+    /// (ADR 0051). The event says so and carries neither.
+    /// </summary>
     /// <exception cref="ArgumentException">The hash is blank or too long.</exception>
     public void ResetPassword(string passwordHash)
     {
         PasswordHash = Field.Required(passwordHash, PasswordHashMaxLength);
+        PasswordChangeDue = true;
         AddDomainEvent(new UserPasswordReset(Id));
+    }
+
+    /// <summary>
+    /// The user sets a password of their own (ADR 0051): the hash is replaced and no change is due any more. That the
+    /// current password was given is the use case's question. The event says so and carries neither password.
+    /// </summary>
+    /// <exception cref="ArgumentException">The hash is blank or too long.</exception>
+    public void ChangePassword(string passwordHash)
+    {
+        PasswordHash = Field.Required(passwordHash, PasswordHashMaxLength);
+        PasswordChangeDue = false;
+        AddDomainEvent(new UserPasswordChanged(Id));
     }
 
     /// <summary>

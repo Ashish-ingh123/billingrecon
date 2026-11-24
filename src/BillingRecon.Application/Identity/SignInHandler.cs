@@ -72,9 +72,10 @@ public sealed class SignInHandler(
             return committed.Error;
         }
 
-        var token = tokens.Issue(tenant.Id, candidate.Id, candidate.Roles);
+        // A user whose password was set by an administrator gets a token that only changes it (ADR 0051).
+        var token = tokens.Issue(tenant.Id, candidate.Id, candidate.Roles, user.PasswordChangeDue);
         var seconds = (int)Math.Round((token.ExpiresAtUtc - now).TotalSeconds, MidpointRounding.AwayFromZero);
-
-        return SignInOutcome.Success(new SignedInDto(token.Value, TokenType, token.ExpiresAtUtc, seconds), candidate.Id);
+        var signedIn = new SignedInDto(token.Value, TokenType, token.ExpiresAtUtc, seconds, user.PasswordChangeDue);
+        return SignInOutcome.Success(signedIn, candidate.Id);
     }
 }

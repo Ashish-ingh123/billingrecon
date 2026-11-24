@@ -38,6 +38,7 @@ export function sessionFor(roles: readonly Role[], expiresInMs = 60 * 60 * 1000)
     expiresAtUtc: new Date(Date.now() + expiresInMs).toISOString(),
     userId: 'd0000000-0000-4000-8000-000000000002',
     tenantId: 'd0000000-0000-4000-8000-000000000001',
+    credentialsChangeDue: false,
     roles: [...roles],
     email: 'asha@example.org',
     hospital: 'city-hospital',

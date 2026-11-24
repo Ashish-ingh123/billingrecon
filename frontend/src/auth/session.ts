@@ -15,6 +15,11 @@ export interface Session {
   email: string;
   /** The hospital's code the user signed in with. */
   hospital: string;
+  /**
+   * The user must set a password of their own before anything else (ADR 0051): the token reaches the change of the
+   * password only, and the app shows nothing else.
+   */
+  credentialsChangeDue: boolean;
 }
 
 /** Where the session is kept: sessionStorage, so it survives a refresh and ends with the tab (row S5). */
@@ -59,7 +64,7 @@ export function readClaims(token: string): Claims | null {
 
 /** The session of a sign-in the API answered, or null when its token cannot be read. */
 export function sessionFromSignIn(
-  signedIn: { accessToken: string; expiresAtUtc: string },
+  signedIn: { accessToken: string; expiresAtUtc: string; credentialsChangeDue?: boolean },
   email: string,
   hospital: string,
 ): Session | null {
@@ -78,6 +83,7 @@ export function sessionFromSignIn(
     roles: claimed.filter(isRole),
     email: email.trim(),
     hospital: hospital.trim(),
+    credentialsChangeDue: signedIn.credentialsChangeDue === true,
   };
 }
 
@@ -105,7 +111,11 @@ export function readSession(now: Date): Session | null {
       return null;
     }
 
-    return { ...session, roles: session.roles.filter(isRole) };
+    return {
+      ...session,
+      roles: session.roles.filter(isRole),
+      credentialsChangeDue: session.credentialsChangeDue === true,
+    };
   } catch {
     clearSession();
     return null;

@@ -38,6 +38,9 @@ public sealed class JwtOptions
     /// <summary>How long a token is valid (ADR 0031, point 2). There is no refresh token: the client signs in again.</summary>
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(60);
 
+    /// <summary>How long a token that only changes the password lives (ADR 0051): long enough to choose one, no more.</summary>
+    public static readonly TimeSpan PasswordChangeLifetime = TimeSpan.FromMinutes(15);
+
     /// <summary>How far the clock of the API and the clock a token was issued by may disagree.</summary>
     public static readonly TimeSpan ClockSkew = TimeSpan.FromMinutes(1);
 

@@ -30,7 +30,7 @@ public sealed class CreateUserHandler(
             return IdentityErrors.UserEmailTaken();
         }
 
-        var user = User.Create(command.Email, command.DisplayName, hasher.Hash(command.Password), command.Roles, clock.UtcNow, currentUser.UserId);
+        var user = User.Create(command.Email, command.DisplayName, hasher.Hash(command.Password), command.Roles, clock.UtcNow, currentUser.UserId, passwordChangeDue: true);
         repository.Add(user);
 
         var committed = await unitOfWork.CommitAsync(ct);

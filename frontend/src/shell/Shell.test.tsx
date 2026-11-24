@@ -39,11 +39,21 @@ describe('the shell of a signed-in user', () => {
     ]);
   });
 
-  it('shows a section no prompt builds as a placeholder that says so', async () => {
-    renderApp('/administration', { session: sessionFor(['TenantAdmin']), fetch: routedApi({}).fetch });
+  // Until Prompt 10.1 this section was the last placeholder ("No prompt builds these screens yet"); every section is built
+  // now, so the test holds that an administrator reaches its screen (ADR 0051).
+  it('shows Users and settings to an administrator, the last section that was a placeholder', async () => {
+    const api = routedApi({
+      'GET /api/v1/users': () =>
+        new Response(JSON.stringify({ items: [], page: 1, pageSize: 20, totalCount: 0 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    });
+    renderApp('/administration', { session: sessionFor(['TenantAdmin']), fetch: api.fetch });
 
     expect(await screen.findByRole('heading', { name: 'Users and settings' })).toBeInTheDocument();
-    expect(screen.getByText('No prompt builds these screens yet; the API serves them already.')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Users and settings' })).toBeInTheDocument();
+    expect(await screen.findByText('No user is set up yet.')).toBeInTheDocument();
   });
 
   it('moves between sections without signing in again', async () => {

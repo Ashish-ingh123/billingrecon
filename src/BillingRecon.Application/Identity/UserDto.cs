@@ -9,6 +9,7 @@ public sealed record UserDto(
     string DisplayName,
     UserStatus Status,
     IReadOnlyList<Role> Roles,
+    bool CredentialsChangeDue,
     DateTimeOffset? LastSignInAtUtc,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc,

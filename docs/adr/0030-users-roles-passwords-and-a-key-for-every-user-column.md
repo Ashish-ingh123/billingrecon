@@ -2,7 +2,8 @@
 
 - **Status:** Accepted. The owner approved the plan of Prompt 5.1 on 2026-11-21 with the six recommended answers,
   which are points 1 to 6 below; point 7 was settled while building, and the owner confirmed it with the plan of
-  Prompt 5.2 on 2026-11-21 (ADR 0031, point 11). Built and tested
+  Prompt 5.2 on 2026-11-21 (ADR 0031, point 11). **Amended by ADR 0051 (2026-11-24):** point 3's "nothing forces a
+  change at the next sign-in" no longer holds; a change is due after creation and after a reset. Built and tested
   on .NET 10 (SDK 10.0.404, EF Core 10.0.12) on the office machine: build, format gate and the tests without a
   database in the repository, the database tests in a throwaway copy against SQL Server LocalDB 2019. SQL Server 2022
   in Docker is still to come.
@@ -37,7 +38,8 @@ may do is Prompt 5.3.
    `pbkdf2-sha256$iterations$salt$hash` so that the iterations can rise later without invalidating older hashes;
    compared with `CryptographicOperations.FixedTimeEquals`. A password has 12 to 128 characters and no rules of
    composition (NIST SP 800-63B). An administrator's reset sets a password the administrator gives; nothing forces a
-   change at the next sign-in. The hasher is the port `IPasswordHasher`, which sign-in (5.2) uses too.
+   change at the next sign-in (amended by ADR 0051: a change is now due after a reset and after creation).
+   The hasher is the port `IPasswordHasher`, which sign-in (5.2) uses too.
 4. **Guards:** a user holds at least one role; the tenant's last active administrator can neither lose the role nor be
    disabled (422 `user_last_tenant_admin`); nobody disables themselves (422 `user_cannot_disable_self`). Two
    administrators disabling each other at the same moment could still leave none; that needs a lock the prompt did not

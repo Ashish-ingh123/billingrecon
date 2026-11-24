@@ -33,6 +33,12 @@ public static class IdentityErrors
     /// <summary>Code of <see cref="InvalidCredentials"/>.</summary>
     public const string InvalidCredentialsCode = "invalid_credentials";
 
+    /// <summary>Code of <see cref="PasswordCurrentWrong"/>.</summary>
+    public const string PasswordCurrentWrongCode = "password_current_wrong";
+
+    /// <summary>Code of <see cref="PasswordChangeRequired"/>.</summary>
+    public const string PasswordChangeRequiredCode = "password_change_required";
+
     /// <summary>Code of <see cref="PrefixChangeNotFound"/>.</summary>
     public const string PrefixChangeNotFoundCode = "prefix_change_not_found";
 
@@ -54,6 +60,17 @@ public static class IdentityErrors
     /// </summary>
     public static Error InvalidCredentials()
         => Error.Unauthorized(InvalidCredentialsCode, "The hospital code, the e-mail address or the password is not right, or the user may not sign in.");
+
+    /// <summary>The current password given to change one's own password is not the user's (ADR 0051).</summary>
+    public static Error PasswordCurrentWrong()
+        => Error.BusinessRule(PasswordCurrentWrongCode, "The current password is not right; nothing was changed.");
+
+    /// <summary>
+    /// The user must set a password of their own before anything else (ADR 0051): every endpoint but the change of one's
+    /// own password answers this while the change is due.
+    /// </summary>
+    public static Error PasswordChangeRequired()
+        => Error.Forbidden(PasswordChangeRequiredCode, "Set a password of your own first: the one you were given must be changed.");
 
     /// <summary>The code or the name of a tenant is not valid; <paramref name="fieldErrors"/> says which, per field.</summary>
     public static Error TenantInvalid(IReadOnlyDictionary<string, string[]> fieldErrors)
