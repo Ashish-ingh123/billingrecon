@@ -207,9 +207,13 @@ docker-compose.yml             The one-command run (ADR 0045): SQL Server, Seq, 
 .env.example                   Template for .env (licence acceptances, passwords, the signing key, the demo, ports). .env itself is git-ignored.
 deploy/                        migrate/ (the migration image and its SQL steps), demo/seed.mjs (the demo through the API), and
                                load/ (load.mjs, the load test; stats.mjs, its arithmetic, held by stats.test.mjs; ADR 0046).
+                               prod/ (env.example, prepare.sql for TDE, the backup loop, the restore drill, certbot.sh; ADR 0055).
 .dockerignore                  What the API image build never sees: build output, tests, docs, .env, the git history.
 .github/workflows/ci.yml       GitHub Actions: format, build, tests with Docker, coverage, vulnerability report,
                                migration script, API image built and smoke-run (ADR 0017).
+.github/workflows/release.yml  A tag v* builds and pushes the three images and deploys staging; production by hand (ADR 0055).
+docker-compose.prod.yml        Production and staging on one Linux server: images by tag, secrets as files of the host,
+                               certbot, backups and their off-site copy (ADR 0055, runbook section 19). Not run yet.
 .github/dependabot.yml         Weekly NuGet and GitHub Actions update pull requests.
 src/
   Directory.Build.props         Production-code settings: the banned-API analyzer and its list.
@@ -908,6 +912,9 @@ files posted by a second person's approval, brought in once (Accepted on the own
 0054 printed documents: the letterhead as columns of the tenant, the SAC code on a service item and kept on its bill
 line, a recorded print as the way a duplicate is known, the tax document and its split derived at print, printing left
 to the browser (Accepted on the owner's approval of the Prompt 10.4 plan, 2026-11-25),
+0055 production: one Linux server with Docker Compose, secrets as files of the host, `READ_COMMITTED_SNAPSHOT` checked at
+startup, SQL Server 2022 Standard with TDE, Let's Encrypt, backups with an off-site copy and a monthly restore drill, and
+a release pipeline from a tag (Accepted on the owner's answers and approval of the Prompt 10.5 plan, 2026-11-25),
 0058 Phase 10 is built against a reference hospital: `docs/reference-hospital.md` stands in for the client, with a
 generated export, both tax documents and hosting left to the owner (Accepted on the owner's request and approval of
 2026-11-25; it amends the six inputs of Phase 10).
@@ -1073,3 +1080,12 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    Unrecorded copy. `tax.ts` titles a bill (Tax Invoice, Bill of Supply, Statement of Opening Balance) and halves the
    stored tax; `words.ts` writes an amount in lakh and crore. `e2e/printed.spec.ts`. Owed: runbook section 8, row 10.4b,
    and the accountant's sign-off (`docs/go-live.md`, G1).
+   **10.5 is written (2026-11-25, ADR 0055), on the owner's four answers:** production is one Linux server with Docker
+   Compose (`docker-compose.prod.yml`, `deploy/prod`; staging the same file), secrets as files of the host that the API
+   reads from `/run/secrets` (`SecretFiles`, a file named `Section__Key`), SQL Server 2022 Standard with TDE, Let's
+   Encrypt by certbot, a nightly full and 15-minute log backup with an off-site copy by rclone and a monthly restore drill,
+   and `.github/workflows/release.yml` (a tag `v*` builds, pushes and deploys staging; production by hand). Outside
+   Development the API refuses to start, and is not ready, on a database with `READ_COMMITTED_SNAPSHOT` off
+   (`DatabaseSettingsProbe`, a `SqlConnection` of its own reading the server's catalogue, not a raw-SQL file of ADR 0021).
+   Runbook section 19. **Nothing of the deployment has run:** no server, domain or registry exists (runbook section 8,
+   row 10.5; `docs/go-live.md`, G4 to G6).

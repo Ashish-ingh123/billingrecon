@@ -14,9 +14,16 @@ namespace BillingRecon.Infrastructure.Common.Persistence;
 /// left to a default therefore stops the application at startup, in every environment, without a database.</item>
 /// <item>It applies pending migrations, but only when <see cref="DatabaseOptions.ApplyMigrationsOnStartup"/> is on,
 /// which the options validation allows in the Development environment only.</item>
+/// <item>Outside Development it refuses to start on a database that answers and has <c>READ_COMMITTED_SNAPSHOT</c> off,
+/// and warns when the database is not encrypted at rest by SQL Server (ADR 0055).</item>
 /// </list>
 /// </summary>
-public sealed class DatabaseStartup(IServiceScopeFactory scopeFactory, IOptions<DatabaseOptions> options, ILogger<DatabaseStartup> logger)
+public sealed class DatabaseStartup(
+    IServiceScopeFactory scopeFactory,
+    IOptions<DatabaseOptions> options,
+    DatabaseSettingsProbe probe,
+    IHostEnvironment environment,
+    ILogger<DatabaseStartup> logger)
     : IHostedLifecycleService
 {
     /// <inheritdoc />
@@ -28,13 +35,37 @@ public sealed class DatabaseStartup(IServiceScopeFactory scopeFactory, IOptions<
         // Reading the model builds and validates it; an invalid model throws here.
         _ = context.Model;
 
-        if (!options.Value.ApplyMigrationsOnStartup)
+        if (options.Value.ApplyMigrationsOnStartup)
         {
+            logger.LogInformation("Applying pending database migrations at startup (Development only)");
+            await context.Database.MigrateAsync(cancellationToken);
+        }
+
+        if (!environment.IsDevelopment())
+        {
+            await CheckSettingsAsync(cancellationToken);
+        }
+    }
+
+    // A database that does not answer yet does not stop the start: readiness says so, and refuses the same setting.
+    private async Task CheckSettingsAsync(CancellationToken ct)
+    {
+        var settings = await probe.ReadAsync(ct);
+        if (settings is null)
+        {
+            logger.LogWarning("The application database did not answer at startup; its settings are checked by the readiness check");
             return;
         }
 
-        logger.LogInformation("Applying pending database migrations at startup (Development only)");
-        await context.Database.MigrateAsync(cancellationToken);
+        if (!settings.ReadCommittedSnapshot)
+        {
+            throw new InvalidOperationException(DatabaseSettingsProbe.SnapshotOffMessage);
+        }
+
+        if (!settings.Encrypted)
+        {
+            logger.LogWarning("The application database is not encrypted by SQL Server (TDE); the disk it is on must be encrypted instead");
+        }
     }
 
     /// <inheritdoc />

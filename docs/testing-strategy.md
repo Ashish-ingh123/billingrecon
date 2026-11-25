@@ -257,3 +257,12 @@ Application unit tests as an artifact (a guide, not a goal; the integration test
 uninstrumented, see ADR 0017); no vulnerable package; the idempotent migration script generates; the
 API image builds and starts. Written in `.github/workflows/ci.yml` with Prompt 1.5; the gates and
 their local equivalents are in `docs/runbook.md` section 5.
+
+## Production deployment (Prompt 10.5, ADR 0055)
+
+`SecretFilesTests` (a file is a setting, wins over an earlier source, loses its last line break; a missing directory adds
+nothing), `DatabaseSettingsOnSqlServerTests` in the `Database` collection (the API refuses to start with
+`READ_COMMITTED_SNAPSHOT` off and names no database), and `ProductionDeploymentTests` in the architecture tests (the
+production compose file sets no secret, takes every secret from the host's directory, builds nothing, pins every tag,
+runs the release's tag, and publishes only nginx). The deployment itself is proved by walking runbook section 19 on a
+staging server, which has not happened.

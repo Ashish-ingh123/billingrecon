@@ -1,0 +1,179 @@
+# Production and staging of BillingRecon on one Linux server (ADR 0055, docs/runbook.md section 19). The same file runs
+# both: an environment is its own server, its own .env and its own secret files.
+#
+#   docker compose -f docker-compose.prod.yml --env-file /etc/billingrecon/env up -d
+#
+# Nothing is built here: every image is pulled by the tag of a release (IMAGE_TAG), which the release workflow pushed.
+# No secret is in this file or in the env file: each is a file under SECRETS_DIR (default /etc/billingrecon/secrets),
+# readable by root alone, mounted into the one service that needs it. Written on a machine without Docker and not run
+# yet: runbook section 8, row 10.5.
+
+name: billingrecon
+
+services:
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04
+    hostname: billrecon-sql
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "${MSSQL_ACCEPT_EULA:?Set MSSQL_ACCEPT_EULA=Y in the env file to accept the SQL Server licence terms}"
+      # The edition is a licence: Standard has TDE in SQL Server 2022. Name the edition the hospital has paid for.
+      MSSQL_PID: "${MSSQL_PID:?Set MSSQL_PID in the env file to the licensed edition (Standard) or its product key}"
+      MSSQL_AGENT_ENABLED: "true"
+    # The image reads the administrator's password from a variable only: it is set from the secret file, for the server's
+    # process alone, and is in no file of compose.
+    command: ["/bin/bash", "-c", "export MSSQL_SA_PASSWORD=\"$$(cat /run/secrets/mssql_sa_password)\"; exec /opt/mssql/bin/sqlservr"]
+    secrets:
+      - mssql_sa_password
+    volumes:
+      - sql-data:/var/opt/mssql
+      - sql-backups:/var/opt/backups
+    # Not published: only the containers of this network reach the database.
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$(cat /run/secrets/mssql_sa_password)\" -C -b -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  seq:
+    image: datalust/seq:2026.1
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "${SEQ_ACCEPT_EULA:?Set SEQ_ACCEPT_EULA=Y in the env file to accept the Seq licence terms}"
+      # A hash made with `seq config hash`; the first start sets the admin password from it. Not a secret that signs in.
+      SEQ_FIRSTRUN_ADMINPASSWORDHASH: "${SEQ_ADMIN_PASSWORD_HASH:?Set SEQ_ADMIN_PASSWORD_HASH in the env file}"
+    ports:
+      # The server itself only: read it through an SSH tunnel.
+      - "127.0.0.1:5341:80"
+    volumes:
+      - seq-data:/data
+
+  # The database, its logins and every migration of this release, as billingrecon_migrator; runs, then stops. The
+  # release workflow runs it before the API of the new tag starts.
+  migrate:
+    image: "${IMAGE_REGISTRY:?Set IMAGE_REGISTRY in the env file}/billingrecon-migrate:${IMAGE_TAG:?Set IMAGE_TAG to the tag of the release}"
+    environment:
+      SECRETS_DIR: /run/secrets
+    secrets:
+      - mssql_sa_password
+      - migrator_password
+      - app_password
+    depends_on:
+      sql:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: "${IMAGE_REGISTRY}/billingrecon-api:${IMAGE_TAG}"
+    restart: unless-stopped
+    environment:
+      # Production, or Staging on the staging server; never Demo or Development.
+      ASPNETCORE_ENVIRONMENT: "${API_ENVIRONMENT:-Production}"
+      AllowedHosts: "${DOMAIN:?Set DOMAIN in the env file to the name the hospital opens}"
+      ReverseProxy__KnownProxies__0: "172.28.0.10"
+      Seq__ServerUrl: "http://seq"
+    # The API reads its two secrets from these files (SecretFiles): Database__ConnectionString and Jwt__SigningKey.
+    secrets:
+      - source: api_connection_string
+        target: Database__ConnectionString
+      - source: jwt_signing_key
+        target: Jwt__SigningKey
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # nginx with the app, the certificate of Let's Encrypt and /api passed to the API as its one known proxy.
+  frontend:
+    image: "${IMAGE_REGISTRY}/billingrecon-frontend:${IMAGE_TAG}"
+    restart: unless-stopped
+    environment:
+      DOMAIN: "${DOMAIN}"
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - acme-webroot:/var/www/acme
+    networks:
+      default:
+        ipv4_address: 172.28.0.10
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # The certificate: asked for when there is none, then renewed when it has fewer than 30 days left; twice a day it
+  # looks. nginx reads a new certificate within a minute (frontend/deploy/20-production.sh).
+  certbot:
+    image: certbot/certbot:v4.2.0
+    restart: unless-stopped
+    environment:
+      DOMAIN: "${DOMAIN}"
+      CERTBOT_EMAIL: "${CERTBOT_EMAIL:?Set CERTBOT_EMAIL in the env file: Let's Encrypt writes to it before a certificate expires}"
+      CERTBOT_AGREE_TOS: "${CERTBOT_AGREE_TOS:-}"
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - acme-webroot:/var/www/acme
+      - ./deploy/prod/certbot.sh:/certbot.sh:ro
+    entrypoint: ["/bin/sh", "/certbot.sh"]
+    depends_on:
+      - frontend
+
+  # Backups (runbook section 19): a full backup each night and the log every 15 minutes, compressed, encrypted as the
+  # database is (TDE), kept BACKUP_RETENTION_DAYS. SQL Server writes them into the volume both containers share.
+  backup:
+    image: "${IMAGE_REGISTRY}/billingrecon-migrate:${IMAGE_TAG}"
+    restart: unless-stopped
+    environment:
+      BACKUP_RETENTION_DAYS: "${BACKUP_RETENTION_DAYS:-35}"
+      BACKUP_FULL_HOUR_UTC: "${BACKUP_FULL_HOUR_UTC:-20}"
+    secrets:
+      - mssql_sa_password
+    volumes:
+      - sql-backups:/var/opt/backups
+      - ./deploy/prod:/prod:ro
+    entrypoint: ["/bin/bash", "/prod/backup-loop.sh"]
+    depends_on:
+      sql:
+        condition: service_healthy
+
+  # The off-site copy: every 15 minutes what is new in the backups goes to OFFSITE_REMOTE, an rclone remote of the
+  # rclone.conf secret (for example offsite:billingrecon-prod), in a region of India. `copy`, never `sync`: a file
+  # deleted here by the retention, or by an intruder, stays there until the remote's own retention removes it.
+  offsite:
+    image: rclone/rclone:1.71
+    restart: unless-stopped
+    environment:
+      OFFSITE_REMOTE: "${OFFSITE_REMOTE:-}"
+    secrets:
+      - rclone_conf
+    volumes:
+      - sql-backups:/backups:ro
+    entrypoint: ["/bin/sh", "-c", "if [ -z \"$$OFFSITE_REMOTE\" ]; then echo 'OFFSITE_REMOTE is empty: NO OFF-SITE COPY IS MADE' >&2; exec sleep infinity; fi; while true; do rclone copy /backups \"$$OFFSITE_REMOTE\" --config /run/secrets/rclone_conf --exclude 'tde/**' || echo 'OFF-SITE COPY FAILED' >&2; sleep 900; done"]
+
+secrets:
+  mssql_sa_password:
+    file: "${SECRETS_DIR:-/etc/billingrecon/secrets}/mssql_sa_password"
+  migrator_password:
+    file: "${SECRETS_DIR:-/etc/billingrecon/secrets}/migrator_password"
+  app_password:
+    file: "${SECRETS_DIR:-/etc/billingrecon/secrets}/app_password"
+  api_connection_string:
+    file: "${SECRETS_DIR:-/etc/billingrecon/secrets}/api_connection_string"
+  jwt_signing_key:
+    file: "${SECRETS_DIR:-/etc/billingrecon/secrets}/jwt_signing_key"
+  rclone_conf:
+    file: "${SECRETS_DIR:-/etc/billingrecon/secrets}/rclone.conf"
+
+volumes:
+  sql-data:
+  sql-backups:
+  seq-data:
+  letsencrypt:
+  acme-webroot:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24

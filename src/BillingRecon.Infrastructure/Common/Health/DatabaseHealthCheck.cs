@@ -10,7 +10,7 @@ namespace BillingRecon.Infrastructure.Common.Health;
 /// the database which migrations it has applied and compares them with the migrations in this build. A server that
 /// does not answer, a missing database and a migration that has not been applied all mean "not ready".
 /// </summary>
-public sealed class DatabaseHealthCheck(BillingReconDbContext dbContext) : IHealthCheck
+public sealed class DatabaseHealthCheck(BillingReconDbContext dbContext, DatabaseSettingsProbe probe) : IHealthCheck
 {
     /// <summary>Registration name of the check.</summary>
     public const string Name = "database";
@@ -22,9 +22,15 @@ public sealed class DatabaseHealthCheck(BillingReconDbContext dbContext) : IHeal
         {
             var pending = (await dbContext.Database.GetPendingMigrationsAsync(cancellationToken)).Count();
 
-            return pending == 0
-                ? HealthCheckResult.Healthy()
-                : new HealthCheckResult(context.Registration.FailureStatus, $"{pending} database migration(s) have not been applied.");
+            if (pending != 0)
+            {
+                return new HealthCheckResult(context.Registration.FailureStatus, $"{pending} database migration(s) have not been applied.");
+            }
+
+            // The setting the application relies on (ADR 0034, ADR 0055), also when the database was not there at startup.
+            return await probe.ReadAsync(cancellationToken) is { ReadCommittedSnapshot: false }
+                ? new HealthCheckResult(context.Registration.FailureStatus, "The application database has READ_COMMITTED_SNAPSHOT off.")
+                : HealthCheckResult.Healthy();
         }
         catch (Exception exception) when (exception is DbException or InvalidOperationException)
         {

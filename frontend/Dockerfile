@@ -20,7 +20,9 @@ FROM nginx:1.29-alpine
 RUN apk add --no-cache openssl
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY deploy/10-certificate.sh /docker-entrypoint.d/10-certificate.sh
-RUN chmod +x /docker-entrypoint.d/10-certificate.sh
+# In production, the certificate of Let's Encrypt once certbot has it (deploy/20-production.sh, ADR 0055).
+COPY deploy/20-production.sh /docker-entrypoint.d/20-production.sh
+RUN chmod +x /docker-entrypoint.d/10-certificate.sh /docker-entrypoint.d/20-production.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80 443
 # 127.0.0.1, not localhost: localhost can resolve to ::1, and nginx listens on IPv4 only (deploy/nginx.conf).

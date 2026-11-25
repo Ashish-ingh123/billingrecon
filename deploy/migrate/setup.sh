@@ -6,6 +6,13 @@ set -euo pipefail
 sqlcmd=/opt/mssql-tools18/bin/sqlcmd
 server="${SQL_SERVER:-sql}"
 
+# In production (ADR 0055) the three passwords are files of the host's secret store, not variables.
+if [ -n "${SECRETS_DIR:-}" ]; then
+    MSSQL_SA_PASSWORD="$(cat "$SECRETS_DIR/mssql_sa_password")"
+    MIGRATOR_PASSWORD="$(cat "$SECRETS_DIR/migrator_password")"
+    APP_PASSWORD="$(cat "$SECRETS_DIR/app_password")"
+fi
+
 echo "Database and logins, as the administrator"
 SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" "$sqlcmd" -S "$server" -U sa -C -b -i /migrate/logins.sql \
     -v MigratorPassword="$MIGRATOR_PASSWORD" AppPassword="$APP_PASSWORD"

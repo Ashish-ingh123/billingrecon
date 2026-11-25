@@ -1,0 +1,149 @@
+# The release (ADR 0055, docs/runbook.md section 19). A tag v* builds the three images, pushes them to GitHub's
+# registry under that tag, and deploys them to staging: the migrations as billingrecon_migrator first, then the stack.
+# Production is the same deploy, started by hand (Run workflow) with the tag to run and the environment "production",
+# which GitHub holds for its required reviewer. Nothing is built on a server and no secret is in this file: the SSH key
+# and the address of each server are secrets of its GitHub environment, and the application's secrets never leave the
+# server. Written without a server to run it against: runbook section 8, row 10.5.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The tag of the release to deploy (for example v1.2.0); its images must exist"
+        required: true
+      environment:
+        description: "Where to deploy"
+        required: true
+        type: choice
+        options: [staging, production]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: release-${{ github.event.inputs.environment || 'staging' }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  images:
+    name: Build and push the images of the tag
+    # A deploy by hand runs images that a tag already built.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Sign in to the registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Registry name in lower case
+        run: echo "REGISTRY=${REGISTRY,,}" >> "$GITHUB_ENV"
+
+      - name: The API
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: src/BillingRecon.Api/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/billingrecon-api:${{ env.TAG }}
+
+      - name: The migrations
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/migrate/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/billingrecon-migrate:${{ env.TAG }}
+
+      - name: The frontend
+        uses: docker/build-push-action@v7
+        with:
+          context: frontend
+          push: true
+          tags: ${{ env.REGISTRY }}/billingrecon-frontend:${{ env.TAG }}
+          build-args: |
+            VITE_SUPPORT_EMAIL=${{ vars.SUPPORT_EMAIL }}
+
+  deploy:
+    name: Deploy the tag
+    needs: images
+    # Runs after the images of a tag, and alone for a deploy by hand (where the images job is skipped).
+    if: always() && (needs.images.result == 'success' || needs.images.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+    steps:
+      - name: Check out the files of the tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: The server's key and identity
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          # The server's host key is pinned: an unknown server is refused, never trusted on first sight.
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Send the compose file and the scripts of the tag
+        env:
+          TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+        run: |
+          tar -czf release.tgz docker-compose.prod.yml deploy/prod
+          scp -i ~/.ssh/deploy release.tgz "$TARGET:/opt/billingrecon/release.tgz"
+
+      - name: Migrate, then start the release
+        env:
+          TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+        run: |
+          ssh -i ~/.ssh/deploy "$TARGET" "TAG='$TAG' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd /opt/billingrecon
+          tar -xzf release.tgz
+          env_file=/etc/billingrecon/env
+          # The tag that ran before this one, for a roll back (runbook section 19).
+          grep '^IMAGE_TAG=' "$env_file" | cut -d= -f2 > previous-tag || true
+          sudo sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$TAG/" "$env_file"
+          compose="sudo docker compose -f docker-compose.prod.yml --env-file $env_file"
+          $compose pull
+          $compose up -d sql seq
+          # The migrations of this tag, as billingrecon_migrator; a failure stops here, with the old API still running.
+          $compose run --rm migrate
+          $compose up -d --remove-orphans
+          REMOTE
+
+      - name: The release answers
+        env:
+          DOMAIN: ${{ vars.DOMAIN }}
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -fsS "https://$DOMAIN/health/ready" > /dev/null; then
+              echo "https://$DOMAIN is ready on $TAG"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::https://$DOMAIN/health/ready did not answer within five minutes. Roll back: runbook section 19."
+          exit 1

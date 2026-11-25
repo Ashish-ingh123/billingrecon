@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using BillingRecon.Api.Common;
 using BillingRecon.Api.Common.Authentication;
 using BillingRecon.Api.Common.Authorization;
+using BillingRecon.Api.Common.Configuration;
 using BillingRecon.Api.Common.Correlation;
 using BillingRecon.Api.Common.Diagnostics;
 using BillingRecon.Api.Common.Errors;
@@ -22,6 +23,9 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Secrets from the files the host's secret store mounts, which win over every other source (ADR 0055).
+builder.Configuration.AddSecretFiles(Environment.GetEnvironmentVariable(SecretFiles.DirectoryVariable));
 
 // Options validated at startup, structured logging, the clock, the EF Core context with its unit of work, and the
 // readiness check. Configuration comes from appsettings, environment variables and, in Development, user-secrets.

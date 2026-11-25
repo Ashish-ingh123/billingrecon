@@ -1,6 +1,6 @@
 # Continuous integration (ADR 0017): every push to main and every pull request runs the gates below. The Database
 # collection of the integration tests starts SQL Server 2022 in Docker, which the hosted Ubuntu runners provide.
-# Nothing is deployed and no image is pushed to a registry here; that is the release workflow of Prompt 9.1.
+# Nothing is deployed and no image is pushed to a registry here; that is `release.yml` (ADR 0055, Prompt 10.5).
 # What each gate is, and how to run it locally, is in docs/runbook.md section 5.
 
 name: CI

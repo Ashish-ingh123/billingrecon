@@ -140,7 +140,11 @@ public sealed class SqlServerFixture : IAsyncLifetime, IAsyncDisposable
         await ResetAsync(ProbeConnectionString, _probeRespawner);
     }
 
-    /// <summary>Creates <paramref name="database"/> with no tables and no migrations history, if it does not exist yet.</summary>
+    /// <summary>
+    /// Creates <paramref name="database"/> with no tables and no migrations history, if it does not exist yet, as the
+    /// runbook makes one before its migrations: with <c>READ_COMMITTED_SNAPSHOT</c> on, without which the API does not
+    /// start (ADR 0055).
+    /// </summary>
     public async Task CreateEmptyDatabaseAsync(string database)
     {
         if (!database.All(character => char.IsAsciiLetterOrDigit(character) || character == '_'))
@@ -151,7 +155,9 @@ public sealed class SqlServerFixture : IAsyncLifetime, IAsyncDisposable
         await using var connection = new SqlConnection(Container.GetConnectionString());
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
-        command.CommandText = $"IF DB_ID(N'{database}') IS NULL CREATE DATABASE [{database}]";
+        command.CommandText = $"IF DB_ID(N'{database}') IS NULL CREATE DATABASE [{database}]; "
+            + $"IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = N'{database}') = 0 "
+            + $"ALTER DATABASE [{database}] SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE";
         await command.ExecuteNonQueryAsync();
     }
 

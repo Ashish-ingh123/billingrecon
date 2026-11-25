@@ -149,6 +149,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<INumberSeriesRepository, NumberSeriesRepository>();
 
         // Builds the model at startup (an invalid model stops the application) and, in Development, applies migrations.
+        services.AddSingleton<DatabaseSettingsProbe>();
         services.AddHostedService<DatabaseStartup>();
     }
 }

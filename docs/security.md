@@ -113,7 +113,19 @@ file in git. The one key in git, the Development signing key, is refused outside
 signs everybody out (`docs/runbook.md` section 9). The database logins' passwords are made per environment and kept in
 the deployment's secret store (`docs/runbook.md` section 10).
 
+In production (ADR 0055) every secret is a file of the server's `/etc/billingrecon/secrets`, a directory only root may
+enter, mounted into the one service that needs it; the API reads its two from `/run/secrets` (`SecretFiles`) and refuses
+to start without them. No secret is in git, in an image, in the environment file or in the environment of the API's
+container; `ProductionDeploymentTests` holds the compose file to that. The operator keeps every secret, the TDE
+certificate's backup included, in a vault off the server, and rotates each by `docs/runbook.md` section 19.7.
+
 ## 8. Data protection and the audit
+
+**Where the data is held, and how it rests (ADR 0055).** The database, its backups and the logs are on one server and
+one off-site remote, both to be placed in a region of India; the application sends data nowhere else. At rest the
+database and every backup of it are encrypted by SQL Server (TDE, AES-256, Standard edition); the API warns at startup
+when they are not, in which case the disk must be encrypted. In transit everything outside the server is TLS. Which
+provider and region, and so the answer a DPDP review needs, is the owner's to decide (`docs/go-live.md`, G4).
 
 - Phone numbers and e-mail addresses are masked before any log sink (ADR 0012); the request log leaves out query
   strings; no log line carries a password, a token or the address a sign-in typed.

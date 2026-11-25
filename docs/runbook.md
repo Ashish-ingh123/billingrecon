@@ -665,6 +665,7 @@ run of the script, the owner's own eyes, or CI still have to show.
 | 1.2 | `PiiMaskerTests` green in the whole `dotnet test` of the second run (step 5). |
 | 8.2 | The load test of section 14 at full size (10,000 bills) through nginx on SQL Server 2022, with `SERVER_TIMING=true` and at least 2 GB free: every target met, no drift (the whole output is in the log); the stress figure with no pause. The browser journey of section 14 against https://localhost (three tests of `journey.spec.ts`). The office machine ran the load on LocalDB at 2,000 bills only (ADR 0046, built note). |
 | 8.3 | The recovery model of the compose database (`FULL` expected) and `is_read_committed_snapshot_on` = 1, the last query of step 12. |
+| 10.5 | **Nothing of the production deployment has run** (no Docker here, no server, domain or registry yet). On the personal machine: `docker compose -f docker-compose.prod.yml --env-file <a filled copy of deploy/prod/env.example> config` parses; `DatabaseSettingsOnSqlServerTests` on SQL Server 2022. On a staging server, section 19 walked in order by the owner: the image tags of certbot, rclone and Seq exist; SQL Server starts with the administrator's password from its file and `MSSQL_PID`; the API (non-root) reads its two secret files; certbot obtains a certificate and nginx takes it within a minute; `prepare.sql` turns TDE on and the API's "not encrypted" warning stops; a full and a log backup are written and copied off-site; the restore drill passes; the `Release` workflow deploys a tag to staging; a release and a migration are rolled back; each secret is rotated once. |
 | 10.4b | By hand through nginx at https://localhost: a posted bill, a payment and a posted refund each opened by "Print the ...", printed once (the sheet says Original) and again (Duplicate, copy 2), on paper or to a PDF on A4, in both themes; a bill with tax (Tax Invoice, CGST and SGST), one without (Bill of Supply) and an opening receivable (Statement of Opening Balance). `printed.spec.ts` and the three routes of `routes.spec.ts` ran against the built app in Edge only. A printed sample of each goes to an accountant when there is one (`docs/go-live.md`, G1). |
 | 10.4 | The `Database` collection on SQL Server 2022 (step 5 of the script) with migration `0024_PrintedDocuments`: `PrintedDocumentsApiTests` and the `DENY UPDATE, DELETE` on `DocumentPrints` (`DatabasePermissionsOnSqlServerTests`) ran on LocalDB 2019 only. By hand through nginx, as a TenantAdmin: Users and settings, Settings, the letterhead saved and read back; a service item given a SAC code. The printed pages are Prompt 10.4b. |
 | 10.3b | By hand through nginx at https://localhost, as a TenantAdmin: Users and settings, Import; the patients and guarantors of `deploy/reference/export` checked and imported; the opening balances checked with cut-over 2027-04-01 and submitted; a second user approves the batch in Approvals; the batch page says "Approved and posted". A patients' file of 5,000 rows goes through nginx (under its 1 MB). `imports.spec.ts` and the four routes of `routes.spec.ts` (step 11b) ran against the built app in Edge only. |
@@ -1235,3 +1236,104 @@ PowerShell, with a token of a TenantAdmin in `$token` (section 12 for signing in
 $body = @{ patientsCsv = (Get-Content patients.csv -Raw); guarantorsCsv = (Get-Content guarantors.csv -Raw); dryRun = $true } | ConvertTo-Json
 Invoke-RestMethod -Method Post -Uri https://localhost/api/v1/imports/parties -ContentType 'application/json; charset=utf-8' -Headers @{ Authorization = "Bearer $token" } -Body ([Text.Encoding]::UTF8.GetBytes($body))
 ```
+
+## 19. Production and staging (ADR 0055)
+
+One Linux server in an Indian region runs `docker-compose.prod.yml`; staging is a second server with the same file,
+`API_ENVIRONMENT=Staging` and its own secrets. **None of this has run yet** (section 8, row 10.5): walk it on staging
+first and correct this section where the server disagrees.
+
+In every command below, `dc` stands for
+`sudo docker compose -f /opt/billingrecon/docker-compose.prod.yml --env-file /etc/billingrecon/env`.
+
+### 19.1 A new server, once
+
+1. Install Docker Engine with the Compose plugin. Open ports 80 and 443 to the world and 22 to the operator alone.
+   Encrypt the server's disk if the provider offers it. Point the domain's A record at the server.
+2. `sudo install -d -m 700 /etc/billingrecon/secrets` and `sudo install -d /opt/billingrecon`. Copy
+   `deploy/prod/env.example` to `/etc/billingrecon/env` (mode 600) and fill it in: the licences, `MSSQL_PID`,
+   `IMAGE_REGISTRY`, `DOMAIN`, `CERTBOT_EMAIL`, `SEQ_ADMIN_PASSWORD_HASH`, `OFFSITE_REMOTE`.
+3. Make the secret files the example lists, each mode 444 inside the 700 directory, for example
+   `openssl rand -base64 48 | sudo tee /etc/billingrecon/secrets/jwt_signing_key`. Passwords: 20 characters or more,
+   without `$ # ; = ' " \` and spaces. `api_connection_string` repeats `app_password`. Write every secret into the
+   operator's vault as it is made: the server is not where a secret is kept, only where it is used.
+4. Sign the server in to the registry (`sudo docker login ghcr.io`, with a token that may read packages only).
+5. In GitHub, make the environments `staging` and `production` (the latter with a required reviewer), each with the
+   secrets `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS` (the output of `ssh-keyscan <host>`,
+   checked against the server's own key) and the variable `DOMAIN`. The deploy user may run `docker` and may write to
+   `/opt/billingrecon`.
+6. Deploy a tag (19.2). Then, once: `dc exec sql mkdir -p /var/opt/backups/tde /var/opt/backups/full /var/opt/backups/log`
+   and run `deploy/prod/prepare.sql` as the administrator with `-v CertificatePassword=<from the vault>`: TDE and the
+   full recovery model. **Copy the two files of `/var/opt/backups/tde` off the server into the vault and delete them
+   from the server.** Then `dc restart backup`, so that the first full backup is of the encrypted database.
+7. Onboard the hospital (section 17): `dc run --rm api tenant create ...`.
+
+### 19.2 Deploy
+
+Tag the commit (`git tag -a v1.2.0 -m "..."`, `git push origin v1.2.0`). The workflow `Release` builds and pushes the
+three images under the tag and deploys staging: migrations as `billingrecon_migrator`, then the stack, then
+`/health/ready`. Check staging by hand. Production: **Actions, Release, Run workflow**, the tag, `production`; the
+reviewer approves. By hand on a server, the same steps: set `IMAGE_TAG` in `/etc/billingrecon/env`, then
+`dc pull`, `dc run --rm migrate`, `dc up -d --remove-orphans`.
+
+### 19.3 Roll back a release
+
+The tag that ran before is in `/opt/billingrecon/previous-tag`.
+
+- **The new release added no migration** (compare `Common/Migrations` between the two tags): set `IMAGE_TAG` back and
+  `dc up -d`. The old API runs on the same database.
+- **It added one:** the old API is not ready on a database with a migration it does not know (`/health/ready`). First
+  roll the migration back (19.4), then set `IMAGE_TAG` back and `dc up -d`.
+- Either way, say in the incident's notes what was rolled back and why (section 16).
+
+### 19.4 Roll back a migration
+
+Section 3 has the procedure and its warnings; a migration that dropped or rewrote data cannot be undone by `Down`, only
+by a restore (19.5). In production: take a full backup first (`dc restart backup` writes one at once), stop the API
+(`dc stop api`), run the `Down` script from the *new* tag to the last migration of the old tag as
+`billingrecon_migrator`, then start the old tag (19.3).
+
+### 19.5 Restore a backup
+
+To a point in time, on the same or a new server (a new server first needs the TDE certificate restored from the vault:
+`CREATE CERTIFICATE [BillingReconTde] FROM FILE ... WITH PRIVATE KEY (...)` in `master`).
+
+1. `dc stop api frontend`. The hospital is told the application is down (section 16).
+2. If the server still runs, back up the tail of the log: `BACKUP LOG [BillingRecon] TO DISK = N'/var/opt/backups/log/tail.trn' WITH NORECOVERY`.
+3. As the administrator: `RESTORE DATABASE [BillingRecon] FROM DISK = N'<the full backup before the moment>' WITH NORECOVERY, REPLACE`,
+   then each log backup after it in order `WITH NORECOVERY`, the last one `WITH STOPAT = '<the moment, UTC>', RECOVERY`.
+4. `dc run --rm migrate` (it puts the logins' users back and applies nothing new), then `dc up -d`.
+5. Sign in as a Supervisor and open the reconciliation report: zero drift, or the restore is not finished.
+
+### 19.6 The monthly restore drill
+
+`dc exec backup /bin/bash /prod/restore-drill.sh` restores the newest full backup as `BillingRecon_Drill`, runs
+`DBCC CHECKDB`, holds the ledger to balance and drops the copy. `RESTORE DRILL PASSED` and exit code 0 are the proof.
+Once a quarter, do 19.5 in full on staging from production's off-site copy, which also proves the certificate in the
+vault. Record each drill:
+
+| Date | Environment | Backup restored | Result | By |
+|---|---|---|---|---|
+| | | | | |
+
+### 19.7 Rotate a secret
+
+Every new value goes into the vault first.
+
+| Secret | Procedure | Effect |
+|---|---|---|
+| `jwt_signing_key` | Replace the file, `dc up -d --force-recreate api` | Everybody is signed out (section 9) |
+| `app_password` | Replace `app_password` and the password inside `api_connection_string`, `dc run --rm migrate` (it sets the login's password), `dc up -d --force-recreate api` | Seconds of refused requests between the two steps |
+| `migrator_password` | Replace the file, `dc run --rm migrate` | None |
+| `mssql_sa_password` | `ALTER LOGIN [sa] WITH PASSWORD = N'...'` as the administrator, replace the file, `dc up -d --force-recreate backup` | None; the database server is not restarted |
+| `rclone.conf` | Replace the file, `dc up -d --force-recreate offsite` | None |
+| The deploy key | A new key pair, its public half in the deploy user's `authorized_keys`, the private half in the GitHub environment's `DEPLOY_SSH_KEY`, the old public half removed | None |
+| The TDE certificate | Not rotated on a schedule. If its backup's password is exposed: back the certificate up again under a new password | None |
+| The TLS certificate | certbot renews it. By force: `dc exec certbot certbot renew --force-renewal` | None |
+
+### 19.8 What to look at
+
+`dc ps` (every service up, `sql` and `api` healthy), `dc logs backup --since 24h` (one "full backup written and
+verified", a log backup every 15 minutes, no `FAILED`), `dc logs offsite --since 1h` (no `OFF-SITE COPY FAILED`),
+`dc logs api | grep -i "not encrypted"` (nothing, once TDE is on). Seq is at `http://localhost:5341` through
+`ssh -L 5341:127.0.0.1:5341 <server>`. Alerts on these are Prompt 10.6's.
