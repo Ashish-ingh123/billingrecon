@@ -27,6 +27,19 @@ const settings: TenantSettings = {
   maxBackdateDays: 7,
   defaultDueDays: 15,
   prefixes: { bill: 'BIL', creditNote: 'CRN', payment: 'PAY', adjustment: 'ADJ', refund: 'REF' },
+  letterhead: {
+    name: 'City Hospital',
+    legalName: null,
+    addressLine1: null,
+    addressLine2: null,
+    city: null,
+    state: null,
+    pinCode: null,
+    phone: null,
+    email: null,
+    gstin: null,
+    signatory: null,
+  },
   version: 'AAAAAAAAC1E=',
 };
 const page = (items: object[]) => ({ items, page: 1, pageSize: 20, totalCount: items.length });
@@ -199,6 +212,64 @@ describe('the settings of the hospital (ADR 0033, ADR 0051)', () => {
     const sent = api.sent('PATCH', '/api/v1/settings')[0];
     expect(sent?.headers.get('If-Match')).toBe(`"${settings.version}"`);
     expect(await sent?.json()).toEqual({ postingApprovalThreshold: 100000, maxBackdateDays: 7, defaultDueDays: 30 });
+  });
+
+  it('saves the letterhead with the version of the settings, the GSTIN in capitals and an empty part as none', async () => {
+    const saved = {
+      ...settings,
+      version: 'AAAAAAAAC1F=',
+      letterhead: { ...settings.letterhead, legalName: 'City Hospital Private Limited', state: 'Maharashtra' },
+    };
+    const api = routedApi({
+      'GET /api/v1/settings': () => json(200, settings),
+      'PUT /api/v1/settings/letterhead': () => json(200, saved),
+      'PATCH /api/v1/settings': () => json(200, { ...saved, defaultDueDays: 30, version: 'AAAAAAAAC1G=' }),
+    });
+    const { user } = renderApp('/administration/settings', { session: admin, fetch: api.fetch });
+
+    await user.type(
+      await screen.findByLabelText(/^Legal name/, undefined, { timeout: 3000 }),
+      ' City Hospital Private Limited ',
+    );
+    await user.type(screen.getByLabelText(/^State/), 'Maharashtra');
+    await user.type(screen.getByLabelText(/^GSTIN/), '27aaaaa0000a1z5');
+    await user.click(screen.getByRole('button', { name: 'Save letterhead' }));
+
+    expect(await screen.findByText('Documents printed from now on carry this letterhead.')).toBeInTheDocument();
+    const sent = api.sent('PUT', '/api/v1/settings/letterhead')[0];
+    expect(sent?.headers.get('If-Match')).toBe(`"${settings.version}"`);
+    expect(await sent?.json()).toEqual({
+      legalName: 'City Hospital Private Limited',
+      addressLine1: null,
+      addressLine2: null,
+      city: null,
+      state: 'Maharashtra',
+      pinCode: null,
+      phone: null,
+      email: null,
+      gstin: '27AAAAA0000A1Z5',
+      signatory: null,
+    });
+
+    // The settings above share the row: their next save sends the version the letterhead's save answered.
+    await user.click(screen.getByRole('button', { name: 'Save settings' }));
+    await waitFor(() => expect(api.sent('PATCH', '/api/v1/settings')).toHaveLength(1));
+    expect(api.sent('PATCH', '/api/v1/settings')[0]?.headers.get('If-Match')).toBe('"AAAAAAAAC1F="');
+  });
+
+  it('refuses a GSTIN, a PIN code and an e-mail address of the wrong shape before sending', async () => {
+    const api = routedApi({ 'GET /api/v1/settings': () => json(200, settings) });
+    const { user } = renderApp('/administration/settings', { session: admin, fetch: api.fetch });
+
+    await user.type(await screen.findByLabelText(/^GSTIN/, undefined, { timeout: 3000 }), '27AAAAA0000A1Z');
+    await user.type(screen.getByLabelText(/^PIN code/), '41100');
+    await user.type(screen.getByLabelText(/^E-mail address/), 'accounts.cityhospital.org');
+    await user.click(screen.getByRole('button', { name: 'Save letterhead' }));
+
+    expect(await screen.findByText('The GSTIN has 15 characters, each a letter or a digit.')).toBeInTheDocument();
+    expect(screen.getByText('The PIN code has six digits.')).toBeInTheDocument();
+    expect(screen.getByText('Write the address as name@domain.')).toBeInTheDocument();
+    expect(api.sent('PUT', '/api/v1/settings/letterhead')).toHaveLength(0);
   });
 
   it('sends a new prefix as a request a second person approves', async () => {

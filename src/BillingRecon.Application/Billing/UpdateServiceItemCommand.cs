@@ -26,4 +26,7 @@ public sealed record UpdateServiceItemCommand : IServiceItemDetailsInput
 
     /// <inheritdoc />
     public decimal? TaxRatePercent { get; init; }
+
+    /// <inheritdoc />
+    public string? SacCode { get; init; }
 }

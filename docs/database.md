@@ -1091,6 +1091,22 @@ Built 2026-11-25 (Prompt 10.3).
   prefixes `OBR` and `OBA` are not columns of `Tenants` but the same for every tenant (section 4.1's statement names them).
 - **Grants:** `OpeningBatches` takes the schema's `SELECT, INSERT, UPDATE` and nothing more (section 7).
 
+### 5.9 Printed documents (ADR 0054, migration `0024_PrintedDocuments`)
+
+Built 2026-11-25 (Prompt 10.4).
+
+- **`Tenants`** gains the letterhead, ten nullable columns: `LegalName`, `AddressLine1`, `AddressLine2`,
+  `Signatory nvarchar(200)`; `City`, `State nvarchar(100)`; `PinCode varchar(10)`; `Phone varchar(20)`;
+  `Email nvarchar(256)`; `Gstin char(15)`. They share the row's `RowVersion` with the settings.
+- **`ServiceItems`** and **`BillLines`** each gain `SacCode char(6) NULL`: the item's services accounting code, and on a
+  line the code its item had when the line was written.
+- **`DocumentPrints`**: `Id`, `TenantId`, `DocumentType nvarchar(20)` (`Bill`, `Payment`, `Refund`), `DocumentId
+  uniqueidentifier`, `CopyNumber int` (`CK_DocumentPrints_CopyNumber`: 1 or more), `PrintedAtUtc`, `PrintedByUserId`
+  (a key to `Users`). `UX_DocumentPrints_TenantId_DocumentType_DocumentId_CopyNumber` makes the copy numbers of a
+  document gapless from 1 and answers how many it has. No key to the document: it is one of three tables.
+- **Grants:** `DocumentPrints` is insert-only for the application's role, `DENY UPDATE, DELETE`, written at the end of
+  the migration like the ledger's and the audit trail's (section 7).
+
 ## 6. Idempotency store (ADR 0006)
 
 Lifecycle of a row in `IdempotencyKeys` for a financial POST:

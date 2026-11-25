@@ -22,6 +22,7 @@ public static class BillingMapping
             Category: item.Category,
             DefaultUnitPrice: item.DefaultUnitPrice.Value,
             TaxRatePercent: item.TaxRate.Value,
+            SacCode: item.SacCode,
             Status: item.Status,
             CreatedAtUtc: item.CreatedAtUtc,
             UpdatedAtUtc: item.UpdatedAtUtc,
@@ -96,6 +97,7 @@ public static class BillingMapping
             LineAmount: line.LineAmount.Amount,
             DiscountAmount: line.DiscountAmount.Amount,
             TaxRatePercent: line.TaxRate.Value,
+            SacCode: line.SacCode,
             TaxAmount: line.TaxAmount.Amount,
             LineTotal: line.LineTotal.Amount);
     }
@@ -120,6 +122,7 @@ public static class BillingMapping
             Category = input.Category,
             DefaultUnitPrice = UnitPrice.Of(price),
             TaxRate = Percent.Of(taxRate),
+            SacCode = string.IsNullOrWhiteSpace(input.SacCode) ? null : input.SacCode.Trim(),
         };
     }
 }

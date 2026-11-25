@@ -168,6 +168,20 @@ const settings = {
   maxBackdateDays: 7,
   defaultDueDays: 15,
   prefixes: { bill: 'BIL', creditNote: 'CRN', payment: 'PAY', adjustment: 'ADJ', refund: 'REF' },
+  // Since Prompt 10.4 (ADR 0054): the letterhead of the printed documents, partly set.
+  letterhead: {
+    name: 'City Hospital',
+    legalName: 'City Hospital Private Limited',
+    addressLine1: '12 Example Road',
+    addressLine2: null,
+    city: 'Pune',
+    state: 'Maharashtra',
+    pinCode: '411001',
+    phone: null,
+    email: null,
+    gstin: null,
+    signatory: 'Authorised signatory',
+  },
   version: 'AAAAAAAAC1E=',
 };
 const figure = (value: number, previous: number | null, changePercent: number | null) => ({

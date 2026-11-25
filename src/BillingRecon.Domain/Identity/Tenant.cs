@@ -14,6 +14,24 @@ public sealed class Tenant : AggregateRoot<TenantId>, IHasRowVersion
     /// <summary>Longest allowed <see cref="Name"/>.</summary>
     public const int NameMaxLength = 200;
 
+    /// <summary>Longest allowed line of the letterhead's address, and of its legal name and signatory (ADR 0054).</summary>
+    public const int LetterheadLineMaxLength = 200;
+
+    /// <summary>Longest allowed city or state of the letterhead.</summary>
+    public const int LetterheadPlaceMaxLength = 100;
+
+    /// <summary>Longest allowed PIN code of the letterhead.</summary>
+    public const int LetterheadPinCodeMaxLength = 10;
+
+    /// <summary>Longest allowed phone number of the letterhead.</summary>
+    public const int LetterheadPhoneMaxLength = 20;
+
+    /// <summary>Longest allowed e-mail address of the letterhead.</summary>
+    public const int LetterheadEmailMaxLength = 256;
+
+    /// <summary>The length of a GSTIN.</summary>
+    public const int GstinLength = 15;
+
     /// <summary>Longest allowed document-number prefix (ADR 0008).</summary>
     public const int PrefixMaxLength = 3;
 
@@ -61,6 +79,51 @@ public sealed class Tenant : AggregateRoot<TenantId>, IHasRowVersion
     /// need approval (BR-207). Changing it is a TenantAdmin's audited action (BR-607, <see cref="ChangeSettings"/>).
     /// </summary>
     public Money? PostingApprovalThreshold { get; private set; }
+
+    /// <summary>The legal name printed on the hospital's documents; null to print <see cref="Name"/> (ADR 0054).</summary>
+    public string? LegalName { get; private set; }
+
+    /// <summary>The first line of the printed address.</summary>
+    public string? AddressLine1 { get; private set; }
+
+    /// <summary>The second line of the printed address.</summary>
+    public string? AddressLine2 { get; private set; }
+
+    /// <summary>The city of the printed address.</summary>
+    public string? City { get; private set; }
+
+    /// <summary>The state of the printed address: the place of supply of every document (ADR 0054).</summary>
+    public string? State { get; private set; }
+
+    /// <summary>The PIN code of the printed address.</summary>
+    public string? PinCode { get; private set; }
+
+    /// <summary>The phone number printed on the hospital's documents.</summary>
+    public string? Phone { get; private set; }
+
+    /// <summary>The e-mail address printed on the hospital's documents.</summary>
+    public string? Email { get; private set; }
+
+    /// <summary>The hospital's GSTIN, when it is registered: fifteen capital letters and digits.</summary>
+    public string? Gstin { get; private set; }
+
+    /// <summary>The line printed under the place of a signature.</summary>
+    public string? Signatory { get; private set; }
+
+    /// <summary>The letterhead as one value.</summary>
+    public TenantLetterhead Letterhead => new()
+    {
+        LegalName = LegalName,
+        AddressLine1 = AddressLine1,
+        AddressLine2 = AddressLine2,
+        City = City,
+        State = State,
+        PinCode = PinCode,
+        Phone = Phone,
+        Email = Email,
+        Gstin = Gstin,
+        Signatory = Signatory,
+    };
 
     /// <summary>How many days before today a business date may lie (BR-205).</summary>
     public int MaxBackdateDays { get; private set; }
@@ -120,6 +183,58 @@ public sealed class Tenant : AggregateRoot<TenantId>, IHasRowVersion
         DocumentType.OpeningAdvance => OpeningAdvancePrefix,
         _ => throw new ArgumentOutOfRangeException(nameof(documentType), documentType, "Not a document type that takes a number."),
     };
+
+    /// <summary>
+    /// A TenantAdmin sets what the hospital prints at the head and foot of its documents (ADR 0054). Every part is
+    /// trimmed, and a blank one is none. Returns false, and records nothing, when nothing changes.
+    /// </summary>
+    /// <exception cref="ArgumentException">A text is too long, or the GSTIN is not fifteen capital letters and digits: bugs in the caller, whose validator refuses them first.</exception>
+    public bool ChangeLetterhead(TenantLetterhead letterhead)
+    {
+        ArgumentNullException.ThrowIfNull(letterhead);
+
+        var next = new TenantLetterhead
+        {
+            LegalName = Field.Optional(letterhead.LegalName, LetterheadLineMaxLength),
+            AddressLine1 = Field.Optional(letterhead.AddressLine1, LetterheadLineMaxLength),
+            AddressLine2 = Field.Optional(letterhead.AddressLine2, LetterheadLineMaxLength),
+            City = Field.Optional(letterhead.City, LetterheadPlaceMaxLength),
+            State = Field.Optional(letterhead.State, LetterheadPlaceMaxLength),
+            PinCode = Field.Optional(letterhead.PinCode, LetterheadPinCodeMaxLength),
+            Phone = Field.Optional(letterhead.Phone, LetterheadPhoneMaxLength),
+            Email = Field.Optional(letterhead.Email, LetterheadEmailMaxLength),
+            Gstin = Field.Optional(letterhead.Gstin, GstinLength),
+            Signatory = Field.Optional(letterhead.Signatory, LetterheadLineMaxLength),
+        };
+
+        if (next.Gstin is { } gstin && !IsGstin(gstin))
+        {
+            throw new ArgumentException($"A GSTIN has {GstinLength} characters, each a capital letter or a digit.", nameof(letterhead));
+        }
+
+        if (next == Letterhead)
+        {
+            return false;
+        }
+
+        LegalName = next.LegalName;
+        AddressLine1 = next.AddressLine1;
+        AddressLine2 = next.AddressLine2;
+        City = next.City;
+        State = next.State;
+        PinCode = next.PinCode;
+        Phone = next.Phone;
+        Email = next.Email;
+        Gstin = next.Gstin;
+        Signatory = next.Signatory;
+        AddDomainEvent(new TenantLetterheadChanged(LegalName, State, Gstin));
+
+        return true;
+    }
+
+    /// <summary>Whether <paramref name="value"/> has the shape of a GSTIN: fifteen capital letters and digits.</summary>
+    public static bool IsGstin(string? value)
+        => value is { Length: GstinLength } && value.All(character => char.IsAsciiLetterUpper(character) || char.IsAsciiDigit(character));
 
     /// <summary>
     /// A TenantAdmin sets the three settings (BR-607): the approval threshold (null for none, otherwise above zero), the

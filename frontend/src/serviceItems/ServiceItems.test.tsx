@@ -83,7 +83,7 @@ describe('creating a service item', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/service-items/${created.id}`));
     const body = await api.sent('POST', '/api/v1/service-items')[0]?.text();
     expect(body).toBe(
-      '{"code":"LAB/LFT","name":"Liver function test","category":null,"defaultUnitPrice":1500.1234,"taxRatePercent":18}',
+      '{"code":"LAB/LFT","name":"Liver function test","category":null,"defaultUnitPrice":1500.1234,"taxRatePercent":18,"sacCode":null}',
     );
   });
 
@@ -124,6 +124,8 @@ describe('correcting a service item', () => {
       category: 'Rooms',
       defaultUnitPrice: 1250000.5,
       taxRatePercent: 18,
+      // Since Prompt 10.4 (ADR 0054) the SAC code is one of the editable fields: none is sent as null.
+      sacCode: null,
     });
   });
 });

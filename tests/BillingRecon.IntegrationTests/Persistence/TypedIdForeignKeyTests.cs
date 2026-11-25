@@ -149,6 +149,7 @@ public sealed class TypedIdForeignKeyTests
                 "FK_UserRoles_UserId", "FK_UserRoles_GrantedByUserId", "FK_UserRoles_RoleCode",
                 "FK_PrefixChanges_CreatedByUserId", "FK_PrefixChanges_UpdatedByUserId",
                 "FK_OpeningBatches_CreatedByUserId", "FK_OpeningBatches_UpdatedByUserId",
+                "FK_DocumentPrints_PrintedByUserId",
             ],
             ignoreOrder: true);
     }

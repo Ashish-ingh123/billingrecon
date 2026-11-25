@@ -2179,6 +2179,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/payments/{id}/prints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Records that the payment is being printed (ADR 0054) and answers which print it is: the first is the original,
+         *     every later one a duplicate. Only payment that took financial effect is printed. Needs an Idempotency-Key, so a
+         *     request sent twice is one print; no body.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["DocumentPrintDto"];
+                        "application/json": components["schemas"]["DocumentPrintDto"];
+                        "text/json": components["schemas"]["DocumentPrintDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/refunds": {
         parameters: {
             query?: never;
@@ -2835,6 +2923,94 @@ export interface paths {
                 };
                 /** @description Precondition Required */
                 428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refunds/{id}/prints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Records that the refund is being printed (ADR 0054) and answers which print it is: the first is the original,
+         *     every later one a duplicate. Only refund that took financial effect is printed. Needs an Idempotency-Key, so a
+         *     request sent twice is one print; no body.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["DocumentPrintDto"];
+                        "application/json": components["schemas"]["DocumentPrintDto"];
+                        "text/json": components["schemas"]["DocumentPrintDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -4350,6 +4526,111 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/settings/letterhead": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What the hospital prints at the head and foot of its documents (ADR 0054), for anyone who is signed in: whoever
+         *     may print a document needs it, and it says nothing a printed page does not.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["LetterheadDto"];
+                        "application/json": components["schemas"]["LetterheadDto"];
+                        "text/json": components["schemas"]["LetterheadDto"];
+                    };
+                };
+            };
+        };
+        /**
+         * Sets the letterhead (ADR 0054): every part is sent, one left out is cleared. Needs If-Match with the version of the
+         *     settings, which the letterhead shares; answers the settings with their new version.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateLetterheadRequest"];
+                    "text/json": components["schemas"]["UpdateLetterheadRequest"];
+                    "application/*+json": components["schemas"]["UpdateLetterheadRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["TenantSettingsDto"];
+                        "application/json": components["schemas"]["TenantSettingsDto"];
+                        "text/json": components["schemas"]["TenantSettingsDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Precondition Required */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users": {
         parameters: {
             query?: never;
@@ -5773,6 +6054,94 @@ export interface paths {
                 };
                 /** @description Precondition Required */
                 428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bills/{id}/prints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Records that the bill is being printed (ADR 0054) and answers which print it is: the first is the original,
+         *     every later one a duplicate. Only bill that took financial effect is printed. Needs an Idempotency-Key, so a
+         *     request sent twice is one print; no body.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["DocumentPrintDto"];
+                        "application/json": components["schemas"]["DocumentPrintDto"];
+                        "text/json": components["schemas"]["DocumentPrintDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -8434,6 +8803,7 @@ export interface components {
             discountAmount: number | string;
             /** Format: double */
             taxRatePercent: number | string;
+            sacCode: null | string;
             /** Format: double */
             taxAmount: number | string;
             /** Format: double */
@@ -8718,6 +9088,8 @@ export interface components {
              * @description The tax rate, in percent, that a new bill line starts from: 0 to 100, at most two decimals.
              */
             taxRatePercent?: null | number | string;
+            /** @description The SAC code of the service, six digits; left out for none. */
+            sacCode?: null | string;
         };
         /** @description The body of `POST /api/v1/users`. Unknown members are refused. */
         CreateUserRequest: {
@@ -8972,6 +9344,17 @@ export interface components {
             refund: string;
         };
         /**
+         * @description One recorded print of a document (ADR 0054): the how-manieth it is, whether that makes it the original, and when. A
+         *     printed page shows "Original" for the first and "Duplicate" for every later one.
+         */
+        DocumentPrintDto: {
+            /** Format: int32 */
+            copyNumber: number | string;
+            original: boolean;
+            /** Format: date-time */
+            printedAtUtc: string;
+        };
+        /**
          * @description The kinds of document that are numbered (BR-801): each has its own gapless series per tenant and fiscal year, and
          *     its own default prefix among the tenant's settings (BR-802). The member names are stored as text
          *     (docs/database.md, section 3.6), so renaming one is a data migration.
@@ -9023,6 +9406,23 @@ export interface components {
             dryRun?: null | boolean;
         };
         JsonElement: unknown;
+        /**
+         * @description What the hospital prints at the head and foot of its documents (ADR 0054). Name is the name the
+         *     hospital is known by, which is printed when it has given no legal name; every other part is null until it is set.
+         */
+        LetterheadDto: {
+            name: string;
+            legalName: null | string;
+            addressLine1: null | string;
+            addressLine2: null | string;
+            city: null | string;
+            state: null | string;
+            pinCode: null | string;
+            phone: null | string;
+            email: null | string;
+            gstin: null | string;
+            signatory: null | string;
+        };
         /** @description The body of `POST /api/v1/auth/login`: the hospital's code, the e-mail address and the password. Unknown members are refused. */
         LoginRequest: {
             /** @description The code of the tenant (the hospital), in any case. */
@@ -9948,6 +10348,7 @@ export interface components {
             defaultUnitPrice: number | string;
             /** Format: double */
             taxRatePercent: number | string;
+            sacCode: null | string;
             status: components["schemas"]["ServiceItemStatus"];
             /** Format: date-time */
             createdAtUtc: string;
@@ -10007,6 +10408,7 @@ export interface components {
             /** Format: int32 */
             defaultDueDays: number | string;
             prefixes: components["schemas"]["DocumentPrefixesDto"];
+            letterhead: components["schemas"]["LetterheadDto"];
             version: string;
         };
         /**
@@ -10104,6 +10506,32 @@ export interface components {
             reason?: null | string;
         };
         /**
+         * @description The hospital's letterhead (ADR 0054): every part is sent, and one left out or blank is cleared. Unknown members are
+         *     refused.
+         */
+        UpdateLetterheadRequest: {
+            /** @description The legal name, when it differs from the hospital's name. */
+            legalName?: null | string;
+            /** @description The first line of the address. */
+            addressLine1?: null | string;
+            /** @description The second line of the address. */
+            addressLine2?: null | string;
+            /** @description The city. */
+            city?: null | string;
+            /** @description The state: the place of supply of every document. */
+            state?: null | string;
+            /** @description The PIN code, six digits. */
+            pinCode?: null | string;
+            /** @description The phone number. */
+            phone?: null | string;
+            /** @description The e-mail address. */
+            email?: null | string;
+            /** @description The GSTIN, fifteen letters and digits. */
+            gstin?: null | string;
+            /** @description The line under the place of a signature. */
+            signatory?: null | string;
+        };
+        /**
          * @description The body of `PATCH /api/v1/patients/{id}`: the complete demographics, every member sent, and an optional one
          *     left out is cleared. The MRN and the status cannot be changed here: a body that names them, or any member the API
          *     does not know, is refused with 400.
@@ -10183,6 +10611,8 @@ export interface components {
              * @description The tax rate, in percent, that a new bill line starts from: 0 to 100, at most two decimals.
              */
             taxRatePercent?: null | number | string;
+            /** @description The SAC code of the service, six digits; left out for none. */
+            sacCode?: null | string;
         };
         /**
          * @description The body of `PATCH /api/v1/settings`: every setting it changes, as the new state (docs/api.md section 5). A

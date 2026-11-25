@@ -18,4 +18,7 @@ public interface IServiceItemDetailsInput
 
     /// <summary>The tax rate, in percent, that a new bill line starts from; null when the client sent none.</summary>
     public decimal? TaxRatePercent { get; }
+
+    /// <summary>The SAC code of the service, six digits; left out for none (ADR 0054).</summary>
+    public string? SacCode { get; }
 }

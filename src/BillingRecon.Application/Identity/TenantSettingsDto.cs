@@ -9,4 +9,5 @@ public sealed record TenantSettingsDto(
     int MaxBackdateDays,
     int DefaultDueDays,
     DocumentPrefixesDto Prefixes,
+    LetterheadDto Letterhead,
     string Version);

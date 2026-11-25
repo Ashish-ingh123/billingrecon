@@ -35,6 +35,9 @@ public static class CommonErrors
 
     public const string ApprovalCheckerRoleCode = "approval_checker_role";
 
+    /// <summary>Code of <see cref="DocumentNotPrintable"/>.</summary>
+    public const string DocumentNotPrintableCode = "document_not_printable";
+
     /// <summary>The request has invalid fields; <paramref name="fieldErrors"/> holds the messages per field.</summary>
     public static Error ValidationFailed(IReadOnlyDictionary<string, string[]> fieldErrors)
         => Error.Validation(ValidationFailedCode, "The request is not valid. The errors are listed per field.", fieldErrors);
@@ -91,4 +94,11 @@ public static class CommonErrors
     /// </summary>
     public static Error ApprovalCheckerRole()
         => Error.Forbidden(ApprovalCheckerRoleCode, "Only a Supervisor or a TenantAdmin may approve or reject (BR-603).");
+
+    /// <summary>
+    /// Printing a document that has not taken financial effect, or no longer has (ADR 0054): a draft, one that waits for
+    /// approval, a voided one, a reversed payment. Only a posted document is handed to a patient.
+    /// </summary>
+    public static Error DocumentNotPrintable()
+        => Error.BusinessRule(DocumentNotPrintableCode, "Only a posted document is printed: this one is a draft, waits for approval, or was voided or reversed.");
 }

@@ -15,6 +15,7 @@ import { ProblemAlert } from '../components/ProblemAlert';
 import { useRecordForm } from '../components/useRecordForm';
 import { formatMoney } from '../format';
 import { AdministrationTabs } from './AdministrationTabs';
+import { LetterheadForm } from './LetterheadForm';
 import {
   documentTypes,
   requestPrefixChange,
@@ -32,11 +33,14 @@ const settingsFields = ['postingApprovalThreshold', 'maxBackdateDays', 'defaultD
 
 /**
  * The hospital's settings (ADR 0033, ADR 0051), for its administrator: the approval threshold of a bill, how far back a
- * document may be dated, the default due days; and the prefix of each numbered document, whose change is a request a
- * second person approves in the inbox.
+ * document may be dated, the default due days; the letterhead of its printed documents (ADR 0054); and the prefix of
+ * each numbered document, whose change is a request a second person approves in the inbox.
  */
 export function SettingsPage() {
   const settings = useSettings();
+  // The two forms save the same row under one version (ADR 0054): when one saves, the other is given the new version
+  // by being made anew.
+  const [made, setMade] = useState({ settings: 0, letterhead: 0 });
 
   return (
     <section aria-labelledby="page-title">
@@ -49,7 +53,16 @@ export function SettingsPage() {
         <LoadState error={settings.error} what="the settings" />
       ) : (
         <>
-          <SettingsForm initial={settings.data} />
+          <SettingsForm
+            key={`settings-${String(made.settings)}`}
+            initial={settings.data}
+            onSaved={() => setMade((now) => ({ ...now, letterhead: now.letterhead + 1 }))}
+          />
+          <LetterheadForm
+            key={`letterhead-${String(made.letterhead)}`}
+            initial={settings.data}
+            onSaved={() => setMade((now) => ({ ...now, settings: now.settings + 1 }))}
+          />
           <Prefixes settings={settings.data} />
         </>
       )}
@@ -57,7 +70,7 @@ export function SettingsPage() {
   );
 }
 
-function SettingsForm({ initial }: { initial: TenantSettings }) {
+function SettingsForm({ initial, onSaved }: { initial: TenantSettings; onSaved: () => void }) {
   const client = useApiClient();
   const queryClient = useQueryClient();
   const [saved, setSaved] = useState(false);
@@ -95,6 +108,7 @@ function SettingsForm({ initial }: { initial: TenantSettings }) {
       outcome.rebase(next);
       form.reset(settingsValues(next));
       setSaved(true);
+      onSaved();
     },
     onError: outcome.failed,
   });

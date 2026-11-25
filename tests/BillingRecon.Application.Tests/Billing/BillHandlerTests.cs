@@ -335,7 +335,7 @@ public sealed class BillHandlerTests
 
     private ServiceItemId InCatalogue(ServiceItemId id, string name, decimal price, decimal taxRate, ServiceItemStatus status)
     {
-        var item = new ServiceItemDto(id.Value, "ITEM-1", name, null, price, taxRate, status, _clock.UtcNow, _clock.UtcNow, Text(CurrentVersion));
+        var item = new ServiceItemDto(id.Value, "ITEM-1", name, null, price, taxRate, "999311", status, _clock.UtcNow, _clock.UtcNow, Text(CurrentVersion));
         _items.GetManyAsync(Arg.Is<IReadOnlyCollection<ServiceItemId>>(ids => ids.Contains(id)), Arg.Any<CancellationToken>()).Returns([item]);
 
         return id;

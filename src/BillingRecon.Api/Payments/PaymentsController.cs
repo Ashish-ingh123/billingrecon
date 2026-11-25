@@ -118,4 +118,26 @@ public sealed class PaymentsController : ApiControllerBase
 
         return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
     }
+    /// <summary>
+    /// Records that the payment is being printed (ADR 0054) and answers which print it is: the first is the original,
+    /// every later one a duplicate. Only payment that took financial effect is printed. Needs an Idempotency-Key, so a
+    /// request sent twice is one print; no body.
+    /// </summary>
+    [Authorize(Policy = Policies.ReadPayments)]
+    [HttpPost("{id:guid}/prints")]
+    [Idempotent]
+    [ProducesResponseType<DocumentPrintDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> RecordPrintAsync(
+        Guid id,
+        [FromServices] ICommandHandler<RecordDocumentPrintCommand, DocumentPrintDto> handler,
+        CancellationToken ct)
+    {
+        var result = await handler.HandleAsync(new RecordDocumentPrintCommand(PrintedDocumentType.Payment, id), ct);
+
+        return result.IsSuccess ? StatusCode(StatusCodes.Status201Created, result.Value) : Problem(result.Error);
+    }
 }

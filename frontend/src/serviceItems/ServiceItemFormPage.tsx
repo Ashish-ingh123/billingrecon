@@ -83,6 +83,16 @@ function ServiceItemFields({ form, fixedCode }: { form: UseFormReturn<ServiceIte
         error={errors.taxRatePercent?.message}
         {...register('taxRatePercent', { validate: taxRate })}
       />
+      <TextField
+        id="item-sac-code"
+        label="SAC code"
+        inputMode="numeric"
+        hint="Optional: the six digits the service is classified under, printed on a tax invoice."
+        error={errors.sacCode?.message}
+        {...register('sacCode', {
+          validate: (value) => value.trim() === '' || /^\d{6}$/.test(value.trim()) || 'The SAC code has six digits.',
+        })}
+      />
     </div>
   );
 }

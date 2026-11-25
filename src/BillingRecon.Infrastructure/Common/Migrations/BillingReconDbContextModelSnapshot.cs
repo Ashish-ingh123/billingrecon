@@ -434,6 +434,12 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasPrecision(9, 3)
                         .HasColumnType("decimal(9,3)");
 
+                    b.Property<string>("SacCode")
+                        .HasMaxLength(6)
+                        .IsUnicode(false)
+                        .HasColumnType("char(6)")
+                        .IsFixedLength();
+
                     b.Property<Guid?>("ServiceItemId")
                         .HasColumnType("uniqueidentifier");
 
@@ -825,6 +831,12 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
+                    b.Property<string>("SacCode")
+                        .HasMaxLength(6)
+                        .IsUnicode(false)
+                        .HasColumnType("char(6)")
+                        .IsFixedLength();
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -950,6 +962,48 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                             t.HasCheckConstraint("CK_ApprovalRequests_RejectionHasComment", "[Status] <> 'Rejected' OR [CheckerComment] IS NOT NULL");
 
                             t.HasCheckConstraint("CK_ApprovalRequests_Status", "[Status] IN ('Pending', 'Approved', 'Rejected')");
+                        });
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Common.DocumentPrint", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("CopyNumber")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<DateTimeOffset>("PrintedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("PrintedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "DocumentType", "DocumentId", "CopyNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_DocumentPrints_TenantId_DocumentType_DocumentId_CopyNumber");
+
+                    b.ToTable("DocumentPrints", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_DocumentPrints_CopyNumber", "[CopyNumber] >= 1");
+
+                            t.HasCheckConstraint("CK_DocumentPrints_DocumentType", "[DocumentType] IN ('Bill', 'Payment', 'Refund')");
                         });
                 });
 
@@ -1225,6 +1279,14 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("AddressLine1")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("AddressLine2")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("AdjustmentPrefix")
                         .IsRequired()
                         .HasMaxLength(3)
@@ -1236,6 +1298,10 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasMaxLength(3)
                         .IsUnicode(false)
                         .HasColumnType("varchar(3)");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -1256,6 +1322,20 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                     b.Property<int>("DefaultDueDays")
                         .HasColumnType("int");
 
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Gstin")
+                        .HasMaxLength(15)
+                        .IsUnicode(false)
+                        .HasColumnType("char(15)")
+                        .IsFixedLength();
+
+                    b.Property<string>("LegalName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<int>("MaxBackdateDays")
                         .HasColumnType("int");
 
@@ -1269,6 +1349,16 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasMaxLength(3)
                         .IsUnicode(false)
                         .HasColumnType("varchar(3)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("PinCode")
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)");
 
                     b.Property<decimal?>("PostingApprovalThreshold")
                         .HasPrecision(18, 2)
@@ -1285,6 +1375,14 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<string>("Signatory")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("State")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -2596,6 +2694,22 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_ApprovalRequests_TenantId");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Common.DocumentPrint", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("PrintedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_DocumentPrints_PrintedByUserId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_DocumentPrints_TenantId");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Common.IdempotencyKey", b =>

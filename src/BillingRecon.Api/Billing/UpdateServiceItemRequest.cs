@@ -24,6 +24,9 @@ public sealed record UpdateServiceItemRequest
     /// <summary>The tax rate, in percent, that a new bill line starts from: 0 to 100, at most two decimals.</summary>
     public decimal? TaxRatePercent { get; init; }
 
+    /// <summary>The SAC code of the service, six digits; left out for none.</summary>
+    public string? SacCode { get; init; }
+
     /// <summary>The command for service item <paramref name="id"/>, at the version the client read.</summary>
     public UpdateServiceItemCommand ToCommand(ServiceItemId id, string expectedVersion) => new()
     {
@@ -33,5 +36,6 @@ public sealed record UpdateServiceItemRequest
         Category = Category,
         DefaultUnitPrice = DefaultUnitPrice,
         TaxRatePercent = TaxRatePercent,
+        SacCode = SacCode,
     };
 }

@@ -48,6 +48,9 @@ public sealed class TenantsSchemaTests : IDisposable
             [
                 "Id", "Code", "Name", "Status", "PostingApprovalThreshold", "MaxBackdateDays", "DefaultDueDays",
                 "BillPrefix", "CreditNotePrefix", "PaymentPrefix", "AdjustmentPrefix", "RefundPrefix", "CreatedAtUtc", "RowVersion",
+
+                // Since Prompt 10.4: the letterhead of the printed documents (migration 0024_PrintedDocuments).
+                "LegalName", "AddressLine1", "AddressLine2", "City", "State", "PinCode", "Phone", "Email", "Gstin", "Signatory",
             ],
             ignoreOrder: true);
     }

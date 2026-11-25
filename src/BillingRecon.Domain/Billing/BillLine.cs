@@ -47,6 +47,12 @@ public sealed class BillLine : Entity<BillLineId>, ITenantScoped, IHardDeletable
     /// <summary>The catalogue entry the line was priced from; null for a free-text line.</summary>
     public ServiceItemId? ServiceItemId { get; private set; }
 
+    /// <summary>
+    /// The SAC code the catalogue entry had when the line was written (ADR 0054): kept on the line, so a posted bill
+    /// prints the code it was raised under whatever the catalogue says later. Null for a free-text line.
+    /// </summary>
+    public string? SacCode { get; private set; }
+
     /// <summary>What is charged, as the bill shows it.</summary>
     public string Description { get; private set; }
 
@@ -128,6 +134,7 @@ public sealed class BillLine : Entity<BillLineId>, ITenantScoped, IHardDeletable
     internal void Apply(BillLineDetails details, LineAmounts amounts)
     {
         ServiceItemId = details.ServiceItemId;
+        SacCode = details.SacCode;
         Description = Field.Required(details.Description, DescriptionMaxLength);
         Quantity = details.Quantity;
         UnitPrice = details.UnitPrice;

@@ -51,6 +51,9 @@ public sealed class ServiceItemsSchemaTests : IDisposable
             [
                 "Id", "TenantId", "Code", "Name", "Category", "DefaultUnitPrice", "TaxRatePercent", "Status",
                 "CreatedAtUtc", "CreatedByUserId", "UpdatedAtUtc", "UpdatedByUserId", "RowVersion",
+
+                // Since Prompt 10.4: the services accounting code (migration 0024_PrintedDocuments).
+                "SacCode",
             ],
             ignoreOrder: true);
     }

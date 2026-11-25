@@ -191,6 +191,75 @@ export function updateSettings(client: ApiClient, version: string, values: Setti
   );
 }
 
+/** The letterhead as a form edits it (ADR 0054): every part as text, an empty one for none. */
+export interface LetterheadValues {
+  legalName: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  phone: string;
+  email: string;
+  gstin: string;
+  signatory: string;
+}
+
+export const letterheadFields = [
+  'legalName',
+  'addressLine1',
+  'addressLine2',
+  'city',
+  'state',
+  'pinCode',
+  'phone',
+  'email',
+  'gstin',
+  'signatory',
+] as const satisfies readonly (keyof LetterheadValues)[];
+
+export function letterheadValues(settings: TenantSettings): LetterheadValues {
+  const { letterhead } = settings;
+  return {
+    legalName: letterhead.legalName ?? '',
+    addressLine1: letterhead.addressLine1 ?? '',
+    addressLine2: letterhead.addressLine2 ?? '',
+    city: letterhead.city ?? '',
+    state: letterhead.state ?? '',
+    pinCode: letterhead.pinCode ?? '',
+    phone: letterhead.phone ?? '',
+    email: letterhead.email ?? '',
+    gstin: letterhead.gstin ?? '',
+    signatory: letterhead.signatory ?? '',
+  };
+}
+
+/** Every part is sent, an empty one as null, which clears it; the version is the settings'. */
+export function updateLetterhead(
+  client: ApiClient,
+  version: string,
+  values: LetterheadValues,
+): Promise<TenantSettings> {
+  const part = (value: string) => (value.trim() === '' ? null : value.trim());
+  return answer(
+    client.PUT('/api/v1/settings/letterhead', {
+      body: {
+        legalName: part(values.legalName),
+        addressLine1: part(values.addressLine1),
+        addressLine2: part(values.addressLine2),
+        city: part(values.city),
+        state: part(values.state),
+        pinCode: part(values.pinCode),
+        phone: part(values.phone),
+        email: part(values.email),
+        gstin: part(values.gstin)?.toUpperCase() ?? null,
+        signatory: part(values.signatory),
+      },
+      headers: ifMatch(version),
+    }),
+  );
+}
+
 export function requestPrefixChange(
   client: ApiClient,
   documentType: DocumentType,

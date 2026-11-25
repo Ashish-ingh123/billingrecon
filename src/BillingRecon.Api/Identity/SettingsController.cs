@@ -51,4 +51,46 @@ public sealed class SettingsController : ApiControllerBase
 
         return result.IsSuccess ? OkWithVersion(result.Value, result.Value.Version) : Problem(result.Error);
     }
+    /// <summary>
+    /// What the hospital prints at the head and foot of its documents (ADR 0054), for anyone who is signed in: whoever
+    /// may print a document needs it, and it says nothing a printed page does not.
+    /// </summary>
+    [Authorize(Policy = Policies.SignedIn)]
+    [HttpGet("letterhead")]
+    [ProducesResponseType<LetterheadDto>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetLetterheadAsync(
+        [FromServices] IQueryHandler<GetLetterheadQuery, LetterheadDto> handler,
+        CancellationToken ct)
+    {
+        var result = await handler.HandleAsync(new GetLetterheadQuery(), ct);
+
+        return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
+    }
+
+    /// <summary>
+    /// Sets the letterhead (ADR 0054): every part is sent, one left out is cleared. Needs If-Match with the version of the
+    /// settings, which the letterhead shares; answers the settings with their new version.
+    /// </summary>
+    [Authorize(Policy = Policies.ManageTenant)]
+    [HttpPut("letterhead")]
+    [ProducesResponseType<TenantSettingsDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status428PreconditionRequired)]
+    public async Task<IActionResult> UpdateLetterheadAsync(
+        UpdateLetterheadRequest request,
+        [FromServices] ICommandHandler<UpdateLetterheadCommand, TenantSettingsDto> handler,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (!TryGetExpectedVersion(out var version, out var refusal))
+        {
+            return refusal;
+        }
+
+        var result = await handler.HandleAsync(request.ToCommand(version), ct);
+
+        return result.IsSuccess ? OkWithVersion(result.Value, result.Value.Version) : Problem(result.Error);
+    }
 }

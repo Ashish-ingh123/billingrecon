@@ -40,6 +40,9 @@ public sealed class ServiceItemConfiguration : IEntityTypeConfiguration<ServiceI
         builder.HasIndex(item => new { item.TenantId, item.Name }).HasDatabaseName("IX_ServiceItems_TenantId_Name");
 
         builder.Property(item => item.Category).HasMaxLength(ServiceItem.CategoryMaxLength);
+
+        // The services accounting code, six digits, when the hospital gave one (ADR 0054).
+        builder.Property(item => item.SacCode).HasMaxLength(ServiceItem.SacCodeLength).IsFixedLength().IsUnicode(false);
         builder.Property(item => item.TaxRate).HasColumnName("TaxRatePercent");
         builder.Property(item => item.Status).HasMaxLength(StatusMaxLength);
     }

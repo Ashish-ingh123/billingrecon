@@ -222,6 +222,13 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   changes, a file too large for one request refused before sending, the key of a submission reused after a fault, a
   batch's state) and `frontend/e2e/imports.spec.ts` in a real browser (files chosen from the disk, the findings and
   their download, no layout shift, a phone, the keyboard, axe in both themes); the four routes are in `routes.spec.ts`.
+- **Printed documents, their data** (Prompt 10.4; ADR 0054): `PrintedDocumentsTests` (domain: the letterhead set, trimmed
+  and cleared, a GSTIN's shape, the SAC code on an item and kept on a line, the original and the duplicate),
+  `PrintedDocumentsHandlerTests` (the next copy number, a document that cannot be printed, two prints at once, the
+  letterhead under the settings' version) and `PrintedDocumentsApiTests` in the `Database` collection (the letterhead
+  set by the administrator and read by a cashier, a posted bill's line keeping its SAC code after the catalogue changes,
+  the same request being one print, a draft refused, another hospital's document not found). On the screens:
+  `Administration.test.tsx` (the letterhead saved with the settings' version, which the settings form then sends).
 - **Signing out** (Prompt 10.2c; ADR 0057): `Shell.test.tsx` holds that Sign out sends `POST /api/v1/auth/logout` with
   the token of the session that ends, signs out here all the same when the API refuses or cannot be reached, tells the
   other tabs who signed out and keeps nothing of it, and that a tab signs out when another says the same user did. On

@@ -22,7 +22,27 @@ public static class SettingsMapping
                 Payment: tenant.PrefixOf(DocumentType.Payment),
                 Adjustment: tenant.PrefixOf(DocumentType.Adjustment),
                 Refund: tenant.PrefixOf(DocumentType.Refund)),
+            Letterhead: tenant.ToLetterheadDto(),
             Version: RowVersionText.Of(tenant));
+    }
+
+    /// <summary>The letterhead of <paramref name="tenant"/> as the API answers it, with the name the hospital is known by.</summary>
+    public static LetterheadDto ToLetterheadDto(this Tenant tenant)
+    {
+        ArgumentNullException.ThrowIfNull(tenant);
+
+        return new LetterheadDto(
+            Name: tenant.Name,
+            LegalName: tenant.LegalName,
+            AddressLine1: tenant.AddressLine1,
+            AddressLine2: tenant.AddressLine2,
+            City: tenant.City,
+            State: tenant.State,
+            PinCode: tenant.PinCode,
+            Phone: tenant.Phone,
+            Email: tenant.Email,
+            Gstin: tenant.Gstin,
+            Signatory: tenant.Signatory);
     }
 
     /// <summary><paramref name="change"/>, with its version.</summary>

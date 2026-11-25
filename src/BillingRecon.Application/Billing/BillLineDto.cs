@@ -15,5 +15,6 @@ public sealed record BillLineDto(
     decimal LineAmount,
     decimal DiscountAmount,
     decimal TaxRatePercent,
+    string? SacCode,
     decimal TaxAmount,
     decimal LineTotal);

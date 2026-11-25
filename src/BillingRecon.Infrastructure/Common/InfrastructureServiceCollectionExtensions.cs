@@ -127,6 +127,9 @@ public static class InfrastructureServiceCollectionExtensions
 
         // Approval requests: opened and decided by the use cases of their documents, listed for the checker (BR-604, BR-605).
         services.AddScoped<IApprovalRequestRepository, ApprovalRequestRepository>();
+
+        // The recorded prints of documents (ADR 0054).
+        services.AddScoped<IDocumentPrintRepository, DocumentPrintRepository>();
         services.AddScoped<IApprovalRequestReadService, ApprovalRequestReadService>();
 
         // The settings of the current tenant, for the use cases of every module (BR-205, BR-607).

@@ -33,5 +33,9 @@ internal sealed class ServiceItemDetailsValidator : AbstractValidator<IServiceIt
             .NotNull().WithMessage("The tax rate is required. Send 0 for a service that is not taxed.")
             .Must(taxRate => taxRate is { } value && Percent.TryOf(value, out _))
             .WithMessage($"The tax rate is a percentage from 0 to 100, with at most {Percent.Scale} decimals.");
+
+        RuleFor(input => input.SacCode)
+            .Must(code => string.IsNullOrWhiteSpace(code) || ServiceItem.IsSacCode(code.Trim()))
+            .WithMessage($"The SAC code has {ServiceItem.SacCodeLength} digits, or is left out.");
     }
 }

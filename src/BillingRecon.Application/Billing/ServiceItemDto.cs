@@ -14,6 +14,7 @@ public sealed record ServiceItemDto(
     string? Category,
     decimal DefaultUnitPrice,
     decimal TaxRatePercent,
+    string? SacCode,
     ServiceItemStatus Status,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc,

@@ -1,3 +1,4 @@
+using BillingRecon.Application.Common;
 using BillingRecon.Application.Reporting;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,6 +16,9 @@ public static class ReportingServiceCollectionExtensions
         services.AddScoped<IRegisterReports, RegisterReports>();
         services.AddScoped<ICollectionReports, CollectionReports>();
         services.AddScoped<IBalanceReports, BalanceReports>();
+
+        // Whether a document of any module can be printed (ADR 0054): a read, like every report.
+        services.AddScoped<IPrintableDocuments, PrintableDocuments>();
         services.AddScoped<IApprovalReports, ApprovalReports>();
         services.AddScoped<IDashboardReports, DashboardReports>();
 

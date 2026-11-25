@@ -80,6 +80,7 @@ function ServiceItemView({ item }: { item: ServiceItem }) {
           ['Category', item.category],
           ['Default unit price', `₹${formatDecimal(item.defaultUnitPrice, 4)}`],
           ['Tax rate', formatPercent(item.taxRatePercent)],
+          ['SAC code', item.sacCode],
           ['Created', formatInstant(item.createdAtUtc)],
           ['Last changed', formatInstant(item.updatedAtUtc)],
         ]}

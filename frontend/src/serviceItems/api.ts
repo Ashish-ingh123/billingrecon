@@ -18,6 +18,7 @@ export interface ServiceItemValues {
   category: string;
   defaultUnitPrice: string;
   taxRatePercent: string;
+  sacCode: string;
 }
 
 export const serviceItemFields = [
@@ -26,6 +27,7 @@ export const serviceItemFields = [
   'category',
   'defaultUnitPrice',
   'taxRatePercent',
+  'sacCode',
 ] as const satisfies readonly (keyof ServiceItemValues)[];
 
 export const emptyServiceItem: ServiceItemValues = {
@@ -34,6 +36,7 @@ export const emptyServiceItem: ServiceItemValues = {
   category: '',
   defaultUnitPrice: '',
   taxRatePercent: '',
+  sacCode: '',
 };
 
 export function serviceItemValues(item: ServiceItem): ServiceItemValues {
@@ -43,6 +46,7 @@ export function serviceItemValues(item: ServiceItem): ServiceItemValues {
     category: item.category ?? '',
     defaultUnitPrice: String(item.defaultUnitPrice),
     taxRatePercent: String(item.taxRatePercent),
+    sacCode: item.sacCode ?? '',
   };
 }
 
@@ -53,6 +57,7 @@ function correction(values: ServiceItemValues) {
     category: values.category.trim() === '' ? null : values.category,
     defaultUnitPrice: toNumber(values.defaultUnitPrice),
     taxRatePercent: toNumber(values.taxRatePercent),
+    sacCode: values.sacCode.trim() === '' ? null : values.sacCode.trim(),
   };
 }
 
@@ -61,6 +66,7 @@ export const comparedServiceItemFields: readonly ComparedField<ServiceItem>[] = 
   { label: 'Category', value: (item) => item.category ?? '' },
   { label: 'Default unit price', value: (item) => formatDecimal(item.defaultUnitPrice, 4) },
   { label: 'Tax rate', value: (item) => formatPercent(item.taxRatePercent) },
+  { label: 'SAC code', value: (item) => item.sacCode ?? '' },
   { label: 'Status', value: (item) => item.status },
 ];
 

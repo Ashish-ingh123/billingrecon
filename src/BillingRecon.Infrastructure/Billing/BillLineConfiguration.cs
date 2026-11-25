@@ -43,6 +43,9 @@ public sealed class BillLineConfiguration : IEntityTypeConfiguration<BillLine>
             .HasConstraintName("FK_BillLines_ServiceItemId");
 
         builder.Property(line => line.Description).HasMaxLength(BillLine.DescriptionMaxLength);
+
+        // The SAC code the catalogue entry had when the line was written (ADR 0054).
+        builder.Property(line => line.SacCode).HasMaxLength(ServiceItem.SacCodeLength).IsFixedLength().IsUnicode(false);
         builder.Property(line => line.TaxRate).HasColumnName("TaxRatePercent");
     }
 }

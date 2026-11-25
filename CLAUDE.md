@@ -776,6 +776,7 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 | `docs/traceability.md` | Each user story, US-01 to US-44, with the tests that prove it; `TraceabilityTests` keeps it complete and every test it names real (Prompt 8.3) |
 | `deploy/reference/` | `generate-export.mjs` and `export/`: the synthetic export of the reference hospital, in the layouts of runbook section 18, which `OpeningBalancesApiTests` imports whole (ADR 0058) |
 | `docs/reference-hospital.md` | The fictional hospital Phase 10 is built for while there is no client: its size, settings, cut-over date, synthetic export, documents, staff and letterhead, and what a real hospital changes (ADR 0058) |
+| `docs/go-live.md` | What stands between the product and a first live hospital outside the code: the open sign-offs, each with who decides it. Begun by Prompt 10.4, completed by Prompt 10.7 |
 | `docs/backlog.md` | What R1 leaves open: owner questions, recorded deviations, accepted limitations and follow-ups, each with where it came from and when it is due (Prompt 8.3, from the items of section 9) |
 | `docs/adr/` | Architecture Decision Records. ADR 0000 defines the format. |
 
@@ -902,6 +903,9 @@ to 0056 stay with Prompts 10.3 to 10.6).
 advances as bills and payments of their own series, a seventh ledger account `OpeningBalances`, a batch of three CSV
 files posted by a second person's approval, brought in once (Accepted on the owner's approval of the Prompt 10.3 plan,
 2026-11-25; it amends ADR 0005, ADR 0008 and ADR 0033),
+0054 printed documents: the letterhead as columns of the tenant, the SAC code on a service item and kept on its bill
+line, a recorded print as the way a duplicate is known, the tax document and its split derived at print, printing left
+to the browser (Accepted on the owner's approval of the Prompt 10.4 plan, 2026-11-25),
 0058 Phase 10 is built against a reference hospital: `docs/reference-hospital.md` stands in for the client, with a
 generated export, both tax documents and hosting left to the owner (Accepted on the owner's request and approval of
 2026-11-25; it amends the six inputs of Phase 10).
@@ -1053,3 +1057,12 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    Submit is offered, stays in the page's memory only, and its findings download as CSV. The API's file limits are what one
    request through nginx's 1 MB carries (600,000 characters of patients, 200,000 of guarantors, 250,000 a batch file); the
    browser weighs a request before sending. `e2e/imports.spec.ts`. Owed: runbook section 8, row 10.3b.
+   **10.4 is written (2026-11-25, ADR 0054), split by the owner into 10.4 and 10.4b:** the data a printed document needs.
+   The letterhead is ten optional columns of `Tenants` (`GET` for anyone signed in and `PUT` for the TenantAdmin at
+   `/api/v1/settings/letterhead`, sharing the settings' version; `LetterheadForm` on the Settings screen); the SAC code is
+   on `ServiceItem` and kept on `BillLine` from the catalogue; a print is recorded by `POST .../{id}/prints` on bills,
+   payments and refunds into `DocumentPrints` (append-only, no event: the row is its own trail), the first the original
+   and later ones duplicates; only what took financial effect prints (422 `document_not_printable`). Migration
+   `0024_PrintedDocuments`. The tax split (CGST and SGST, never IGST), the kind of tax document and the amount in words
+   are derived at print, in 10.4b, which is not started. `docs/go-live.md` holds the open sign-offs. Owed: runbook
+   section 8, row 10.4.

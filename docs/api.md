@@ -447,7 +447,7 @@ The actions, by `entityType`, each one state change (every state change raises o
 | `Refund` | `Drafted`, `Updated`, `Voided`, `SubmittedForApproval`, `ReturnedToDraft`, `Posted` |
 | `ApprovalRequest` | `Opened`, `Approved`, `Rejected` |
 | `User` | `Created`, `Updated`, `RolesReplaced`, `Disabled`, `Enabled`, `PasswordReset`, `PasswordChanged`, `SignedIn`, `SignedOut` |
-| `Tenant` | `Onboarded`, `SettingsChanged`, `PrefixChanged`, `Suspended`, `Resumed` (the last three of the operator's command, ADR 0052, with no user) |
+| `Tenant` | `Onboarded`, `SettingsChanged`, `LetterheadChanged` (ADR 0054), `PrefixChanged`, `Suspended`, `Resumed` (the last three of the operator's command, ADR 0052, with no user) |
 | `PrefixChange` | `Requested`, `Approved`, `Rejected` |
 | `OpeningBatch` | `Submitted`, `Approved`, `Rejected` (ADR 0053; the images never hold the files) |
 | `NumberSeries` | `PrefixChanged` |
@@ -1065,6 +1065,38 @@ for every hospital and are not settings: a prefix change that names them, or ask
 In the audit trail: `OpeningBatch` `Submitted`, `Approved`, `Rejected`; `Bill` `BroughtForward`; `Payment`
 `BroughtForward`. The reconciliation report gains identity 12, `OpeningBalancesAccount`.
 
+### 8.18 Letterhead, SAC codes and the record of a print (ADR 0054)
+
+What a printed document needs beyond the document itself. The printed pages are Prompt 10.4b; this is their data.
+
+| Method and path | Who | Success | Failures |
+|---|---|---|---|
+| `GET /api/v1/settings/letterhead` | Anyone signed in (`SignedIn`) | 200 | |
+| `PUT /api/v1/settings/letterhead` | TenantAdmin (`ManageTenant`) | 200, the settings | 400; 409 `concurrency_conflict`; 428 |
+| `POST /api/v1/bills/{id}/prints` | Who reads bills (`ReadBills`) | 201 | 400; 404 `bill_not_found`; 409; 422 `document_not_printable` |
+| `POST /api/v1/payments/{id}/prints` | Who reads payments (`ReadPayments`) | 201 | 400; 404 `payment_not_found`; 409; 422 `document_not_printable` |
+| `POST /api/v1/refunds/{id}/prints` | Who reads refunds (`ReadRefunds`) | 201 | 400; 404 `refund_not_found`; 409; 422 `document_not_printable` |
+
+**The letterhead** is what the hospital prints at the head and foot of its documents: `name` (the hospital's name,
+read-only here), `legalName`, `addressLine1`, `addressLine2`, `city`, `state`, `pinCode` (six digits), `phone`, `email`,
+`gstin` (fifteen letters and digits, kept in capitals) and `signatory` (the line under the place of a signature). Every
+part but the name is optional and null until it is set. `PUT` sends every part, and one left out or blank is cleared;
+it needs `If-Match` with the version of the settings, which the letterhead shares, and answers the settings
+(`GET /api/v1/settings` now carries `letterhead` too). The state is the place of supply of every document. Whether a
+GSTIN is a real registration the API cannot know. In the audit trail of the tenant: `LetterheadChanged`.
+
+**The SAC code** of a service item (`sacCode`, six digits, optional) is sent with its other details on
+`POST /api/v1/service-items` and `PATCH /api/v1/service-items/{id}` and answered with them. A bill line answers the
+`sacCode` its service had when the line was written; it is taken from the catalogue, never from the request, and a
+free-text line has none.
+
+**A print is recorded** before a document is printed. The request has no body and needs an `Idempotency-Key`, so one
+sent twice is one print. The answer: `copyNumber` (1, 2, 3 and so on for that document), `original` (true for the first
+alone) and `printedAtUtc`; the printed page says "Original" or "Duplicate" from it. Only what took financial effect is
+printed: a posted bill (an opening receivable included), a payment that was not reversed, a posted refund. Anything
+else is 422 `document_not_printable`. The records are insert-only, like the audit trail; there is no endpoint that
+lists, changes or removes them.
+
 ## 9. Error-code catalogue
 
 Every `errorCode` the API can answer, with its status and what the client is told (the `detail`). Section 3 gives the
@@ -1247,6 +1279,7 @@ For a failure no use case reported: routing, model binding, content negotiation,
 | Code | Status | Message |
 |---|---|---|
 | `ledger_balance_negative` | 422 | The posting would take a balance below zero (BR-405). Read the document again and retry. |
+| `document_not_printable` | 422 | Only a posted document is printed: this one is a draft, waits for approval, or was voided or reversed. |
 | `opening_batch_not_found` | 404 | The opening batch does not exist. |
 | `opening_batch_not_pending` | 409 | The opening batch was decided already; it is approved or rejected once. |
 | `opening_batch_duplicate` | 409 | These files were submitted before for this cut-over date; opening balances are brought in once. |

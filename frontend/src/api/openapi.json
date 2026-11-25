@@ -3433,6 +3433,127 @@
         }
       }
     },
+    "/api/v1/payments/{id}/prints": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Records that the payment is being printed (ADR 0054) and answers which print it is: the first is the original,\nevery later one a duplicate. Only payment that took financial effect is printed. Needs an Idempotency-Key, so a\nrequest sent twice is one print; no body.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentPrintDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentPrintDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentPrintDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/refunds": {
       "post": {
         "tags": [
@@ -4558,6 +4679,127 @@
           },
           "428": {
             "description": "Precondition Required",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/refunds/{id}/prints": {
+      "post": {
+        "tags": [
+          "Refunds"
+        ],
+        "summary": "Records that the refund is being printed (ADR 0054) and answers which print it is: the first is the original,\nevery later one a duplicate. Only refund that took financial effect is printed. Needs an Idempotency-Key, so a\nrequest sent twice is one print; no body.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentPrintDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentPrintDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentPrintDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7005,6 +7247,144 @@
         }
       }
     },
+    "/api/v1/settings/letterhead": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "What the hospital prints at the head and foot of its documents (ADR 0054), for anyone who is signed in: whoever\nmay print a document needs it, and it says nothing a printed page does not.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/LetterheadDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LetterheadDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LetterheadDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Sets the letterhead (ADR 0054): every part is sent, one left out is cleared. Needs If-Match with the version of the\nsettings, which the letterhead shares; answers the settings with their new version.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLetterheadRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLetterheadRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLetterheadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantSettingsDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantSettingsDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantSettingsDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Precondition Required",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users": {
       "post": {
         "tags": [
@@ -9359,6 +9739,127 @@
           },
           "428": {
             "description": "Precondition Required",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bills/{id}/prints": {
+      "post": {
+        "tags": [
+          "Bills"
+        ],
+        "summary": "Records that the bill is being printed (ADR 0054) and answers which print it is: the first is the original,\nevery later one a duplicate. Only bill that took financial effect is printed. Needs an Idempotency-Key, so a\nrequest sent twice is one print; no body.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentPrintDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentPrintDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentPrintDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
               "text/plain": {
                 "schema": {
@@ -14117,6 +14618,7 @@
           "lineAmount",
           "discountAmount",
           "taxRatePercent",
+          "sacCode",
           "taxAmount",
           "lineTotal"
         ],
@@ -14183,6 +14685,12 @@
               "string"
             ],
             "format": "double"
+          },
+          "sacCode": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "taxAmount": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
@@ -14907,6 +15415,13 @@
             ],
             "description": "The tax rate, in percent, that a new bill line starts from: 0 to 100, at most two decimals.",
             "format": "double"
+          },
+          "sacCode": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The SAC code of the service, six digits; left out for none."
           }
         },
         "additionalProperties": false,
@@ -15636,6 +16151,32 @@
         },
         "description": "The default number prefix of each document type (BR-802): the prefix of its next new series."
       },
+      "DocumentPrintDto": {
+        "required": [
+          "copyNumber",
+          "original",
+          "printedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "copyNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "original": {
+            "type": "boolean"
+          },
+          "printedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "One recorded print of a document (ADR 0054): the how-manieth it is, whether that makes it the original, and when. A\nprinted page shows \"Original\" for the first and \"Duplicate\" for every later one."
+      },
       "DocumentType": {
         "enum": [
           "Bill",
@@ -15765,6 +16306,88 @@
         "description": "The patients and guarantors of the system before (ADR 0053), each file as the text of a CSV file. With\nbool? ImportPartiesRequest.DryRun nothing is written. Unknown members are refused."
       },
       "JsonElement": {},
+      "LetterheadDto": {
+        "required": [
+          "name",
+          "legalName",
+          "addressLine1",
+          "addressLine2",
+          "city",
+          "state",
+          "pinCode",
+          "phone",
+          "email",
+          "gstin",
+          "signatory"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "legalName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "addressLine1": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "addressLine2": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "city": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "state": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pinCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "phone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gstin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "signatory": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "What the hospital prints at the head and foot of its documents (ADR 0054). Name is the name the\nhospital is known by, which is printed when it has given no legal name; every other part is null until it is set."
+      },
       "LoginRequest": {
         "type": "object",
         "properties": {
@@ -18510,6 +19133,7 @@
           "category",
           "defaultUnitPrice",
           "taxRatePercent",
+          "sacCode",
           "status",
           "createdAtUtc",
           "updatedAtUtc",
@@ -18548,6 +19172,12 @@
               "string"
             ],
             "format": "double"
+          },
+          "sacCode": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "status": {
             "$ref": "#/components/schemas/ServiceItemStatus"
@@ -18682,6 +19312,7 @@
           "maxBackdateDays",
           "defaultDueDays",
           "prefixes",
+          "letterhead",
           "version"
         ],
         "type": "object",
@@ -18713,6 +19344,9 @@
           },
           "prefixes": {
             "$ref": "#/components/schemas/DocumentPrefixesDto"
+          },
+          "letterhead": {
+            "$ref": "#/components/schemas/LetterheadDto"
           },
           "version": {
             "type": "string"
@@ -18966,6 +19600,83 @@
         "additionalProperties": false,
         "description": "The body of `PATCH /api/v1/credit-notes/{id}`: the date and the reason of a draft. Unknown members are refused."
       },
+      "UpdateLetterheadRequest": {
+        "type": "object",
+        "properties": {
+          "legalName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The legal name, when it differs from the hospital's name."
+          },
+          "addressLine1": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The first line of the address."
+          },
+          "addressLine2": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The second line of the address."
+          },
+          "city": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The city."
+          },
+          "state": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The state: the place of supply of every document."
+          },
+          "pinCode": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The PIN code, six digits."
+          },
+          "phone": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The phone number."
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The e-mail address."
+          },
+          "gstin": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The GSTIN, fifteen letters and digits."
+          },
+          "signatory": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The line under the place of a signature."
+          }
+        },
+        "additionalProperties": false,
+        "description": "The hospital's letterhead (ADR 0054): every part is sent, and one left out or blank is cleared. Unknown members are\nrefused."
+      },
       "UpdatePatientRequest": {
         "type": "object",
         "properties": {
@@ -19162,6 +19873,13 @@
             ],
             "description": "The tax rate, in percent, that a new bill line starts from: 0 to 100, at most two decimals.",
             "format": "double"
+          },
+          "sacCode": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The SAC code of the service, six digits; left out for none."
           }
         },
         "additionalProperties": false,

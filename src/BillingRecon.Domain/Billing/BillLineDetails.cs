@@ -27,4 +27,7 @@ public sealed record BillLineDetails
 
     /// <summary>The tax rate of the line.</summary>
     public required Percent TaxRate { get; init; }
+
+    /// <summary>The SAC code the catalogue entry of the line has now; null for a free-text line or an entry without one (ADR 0054).</summary>
+    public string? SacCode { get; init; }
 }

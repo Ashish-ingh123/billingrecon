@@ -112,6 +112,9 @@ public sealed class BillsSchemaTests : IDisposable
             [
                 "Id", "TenantId", "BillId", "LineNo", "ServiceItemId", "Description", "Quantity", "UnitPrice",
                 "LineAmount", "DiscountAmount", "TaxRatePercent", "TaxAmount", "LineTotal",
+
+                // Since Prompt 10.4: the SAC code the line's service had when it was written (migration 0024_PrintedDocuments).
+                "SacCode",
             ],
             ignoreOrder: true);
     }

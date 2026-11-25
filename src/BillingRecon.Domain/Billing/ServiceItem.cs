@@ -17,6 +17,9 @@ public sealed class ServiceItem : AggregateRoot<ServiceItemId>, ITenantScoped, I
     /// <summary>Longest allowed <see cref="Category"/>.</summary>
     public const int CategoryMaxLength = 50;
 
+    /// <summary>The length of <see cref="SacCode"/>: a services accounting code has six digits.</summary>
+    public const int SacCodeLength = 6;
+
     // Also the constructor Entity Framework uses to load an item: it passes the two stored values and then sets the
     // remaining properties.
     private ServiceItem(ServiceItemCode code, string name)
@@ -38,6 +41,12 @@ public sealed class ServiceItem : AggregateRoot<ServiceItemId>, ITenantScoped, I
 
     /// <summary>A free grouping for lists and reports, such as Consultation or Laboratory.</summary>
     public string? Category { get; private set; }
+
+    /// <summary>
+    /// The services accounting code (SAC) the hospital classifies the service under, six digits, printed on a tax
+    /// document (ADR 0054); null when it gave none. A bill line keeps the code its item had when the line was written.
+    /// </summary>
+    public string? SacCode { get; private set; }
 
     /// <summary>The price of one unit that a new bill line starts from (BR-201).</summary>
     public UnitPrice DefaultUnitPrice { get; private set; }
@@ -95,10 +104,10 @@ public sealed class ServiceItem : AggregateRoot<ServiceItemId>, ITenantScoped, I
     {
         ArgumentNullException.ThrowIfNull(details);
 
-        var before = (Name, Category, DefaultUnitPrice, TaxRate);
+        var before = (Name, Category, DefaultUnitPrice, TaxRate, SacCode);
         Apply(details);
 
-        if (before != (Name, Category, DefaultUnitPrice, TaxRate))
+        if (before != (Name, Category, DefaultUnitPrice, TaxRate, SacCode))
         {
             AddDomainEvent(new ServiceItemUpdated(Id, Code, Name));
         }
@@ -137,10 +146,19 @@ public sealed class ServiceItem : AggregateRoot<ServiceItemId>, ITenantScoped, I
     {
         var name = Field.Required(details.Name, NameMaxLength);
         var category = Field.Optional(details.Category, CategoryMaxLength);
+        var sacCode = Field.Optional(details.SacCode, SacCodeLength);
+        if (sacCode is not null && !IsSacCode(sacCode))
+        {
+            throw new ArgumentException($"A SAC code has {SacCodeLength} digits; the validator of the use case should have refused it.", nameof(details));
+        }
 
         Name = name;
         Category = category;
         DefaultUnitPrice = details.DefaultUnitPrice;
         TaxRate = details.TaxRate;
+        SacCode = sacCode;
     }
+
+    /// <summary>Whether <paramref name="value"/> has the shape of a SAC code: six digits.</summary>
+    public static bool IsSacCode(string? value) => value is { Length: SacCodeLength } && value.All(char.IsAsciiDigit);
 }

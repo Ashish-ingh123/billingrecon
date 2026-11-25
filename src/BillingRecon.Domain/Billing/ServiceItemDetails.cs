@@ -21,4 +21,7 @@ public sealed record ServiceItemDetails
 
     /// <summary>The tax rate that a new bill line starts from.</summary>
     public required Percent TaxRate { get; init; }
+
+    /// <summary>The SAC code of the service, six digits, when the hospital classifies it (ADR 0054).</summary>
+    public string? SacCode { get; init; }
 }

@@ -63,6 +63,19 @@ public sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant>
 
         // Computed from the five columns above.
         builder.Ignore(tenant => tenant.Prefixes);
+
+        // The letterhead of the hospital's printed documents (ADR 0054): every part optional.
+        builder.Property(tenant => tenant.LegalName).HasMaxLength(Tenant.LetterheadLineMaxLength);
+        builder.Property(tenant => tenant.AddressLine1).HasMaxLength(Tenant.LetterheadLineMaxLength);
+        builder.Property(tenant => tenant.AddressLine2).HasMaxLength(Tenant.LetterheadLineMaxLength);
+        builder.Property(tenant => tenant.City).HasMaxLength(Tenant.LetterheadPlaceMaxLength);
+        builder.Property(tenant => tenant.State).HasMaxLength(Tenant.LetterheadPlaceMaxLength);
+        builder.Property(tenant => tenant.PinCode).HasMaxLength(Tenant.LetterheadPinCodeMaxLength).IsUnicode(false);
+        builder.Property(tenant => tenant.Phone).HasMaxLength(Tenant.LetterheadPhoneMaxLength).IsUnicode(false);
+        builder.Property(tenant => tenant.Email).HasMaxLength(Tenant.LetterheadEmailMaxLength);
+        builder.Property(tenant => tenant.Gstin).HasMaxLength(Tenant.GstinLength).IsFixedLength().IsUnicode(false);
+        builder.Property(tenant => tenant.Signatory).HasMaxLength(Tenant.LetterheadLineMaxLength);
+        builder.Ignore(tenant => tenant.Letterhead);
     }
 
     // [BillPrefix] NOT IN ([CreditNotePrefix], ...) AND [CreditNotePrefix] NOT IN (...) ...: every pair once.

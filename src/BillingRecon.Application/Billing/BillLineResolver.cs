@@ -56,6 +56,9 @@ internal static class BillLineResolver
                 UnitPrice = UnitPrice.Of(input.UnitPrice ?? item?.DefaultUnitPrice ?? Required(null, "unit price")),
                 DiscountAmount = Money.Of(input.DiscountAmount ?? 0m),
                 TaxRate = Percent.Of(input.TaxRatePercent ?? item?.TaxRatePercent ?? Required(null, "tax rate")),
+
+                // From the catalogue, never from the request: the code a line prints is the one its service has (ADR 0054).
+                SacCode = item?.SacCode,
             });
         }
 
