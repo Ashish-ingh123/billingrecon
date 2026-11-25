@@ -13,6 +13,7 @@ import { TotalsCard } from '../components/TotalsCard';
 import forms from '../components/forms.module.css';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
+import { PrintLink } from '../printing/PrintLink';
 import { creditNoteStatusLabels, useCreditNotes } from '../creditNotes/api';
 import { formatDate, formatDecimal, formatInstant, formatPercent } from '../format';
 import { usePatient } from '../patients/api';
@@ -96,6 +97,7 @@ function BillView({ bill }: { bill: Bill }) {
           )
         }
       />
+      {isPosted && <PrintLink to={`/bills/${bill.id}/print`}>Print the bill</PrintLink>}
       {draftActions.notices}
       {bill.status === 'PendingApproval' && (
         <Banner tone="warning" title="Waiting for approval" live>

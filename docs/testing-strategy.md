@@ -229,6 +229,11 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   set by the administrator and read by a cashier, a posted bill's line keeping its SAC code after the catalogue changes,
   the same request being one print, a draft refused, another hospital's document not found). On the screens:
   `Administration.test.tsx` (the letterhead saved with the settings' version, which the settings form then sends).
+  The printed pages (Prompt 10.4b): `words.test.ts` (the amount in words for 0.50, 1,00,000.01, 12,34,56,789.99 and the
+  edges of each scale; the tax in its two halves, always summing to the stored tax), `Printing.test.tsx` (each document's
+  fields against its record, the three titles of a bill, Original then Duplicate with the dialog opened only after the
+  record, a refused print opening none, what is not printed) and `frontend/e2e/printed.spec.ts` (each document recorded,
+  marked and printed to an A4 PDF in both themes with no shell and dark text on white, a phone, axe).
 - **Signing out** (Prompt 10.2c; ADR 0057): `Shell.test.tsx` holds that Sign out sends `POST /api/v1/auth/logout` with
   the token of the session that ends, signs out here all the same when the API refuses or cannot be reached, tells the
   other tabs who signed out and keeps nothing of it, and that a tab signs out when another says the same user did. On

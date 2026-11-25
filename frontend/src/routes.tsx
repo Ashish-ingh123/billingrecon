@@ -193,6 +193,22 @@ export const routes: RouteObject[] = [
             'ManageTenant',
             async () => (await import('./administration/SettingsPage')).SettingsPage,
           ),
+          // The printed documents (Prompt 10.4b, ADR 0054): whoever may read a document may print it.
+          guarded(
+            '/bills/:id/print',
+            'ReadBills',
+            async () => (await import('./printing/PrintedBillPage')).PrintedBillPage,
+          ),
+          guarded(
+            '/payments/:id/print',
+            'ReadPayments',
+            async () => (await import('./printing/PrintedReceiptPage')).PrintedReceiptPage,
+          ),
+          guarded(
+            '/refunds/:id/print',
+            'ReadRefunds',
+            async () => (await import('./printing/PrintedRefundPage')).PrintedRefundPage,
+          ),
           // Bringing in a hospital's records and opening balances (Prompt 10.3b, ADR 0053).
           guarded(
             '/administration/import',

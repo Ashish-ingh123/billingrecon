@@ -1,0 +1,226 @@
+/* The printed documents (Prompt 10.4b, ADR 0054): a sheet on the screen, the same sheet on A4. Every value is a token;
+   on paper the tokens of print make the text dark on white whatever the theme (ADR 0050, amended). */
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.barNote {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.sheet {
+  max-width: 50rem;
+  margin: 0 auto var(--space-6);
+  padding: var(--space-6);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.letterhead {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  padding-bottom: var(--space-4);
+  border-bottom: 2px solid var(--border-strong);
+}
+
+.mark {
+  flex: none;
+  font-size: var(--text-2xl);
+}
+
+.hospital {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.address {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: baseline;
+  justify-content: space-between;
+  margin: var(--space-4) 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-lg);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.copy {
+  margin: 0;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+}
+
+.printedAt {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* Who it is for and what it is: two columns of facts, one on a phone. */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--space-2) var(--space-5);
+  margin: 0 0 var(--space-4);
+}
+
+.facts div {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  gap: var(--space-2);
+}
+
+.facts dt {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  margin-bottom: var(--space-4);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.table th,
+.table td {
+  padding: var(--space-2);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.table thead th {
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.table .number {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.totals {
+  display: grid;
+  gap: var(--space-1);
+  width: min(100%, 22rem);
+  margin: 0 0 var(--space-4) auto;
+}
+
+.totals div {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
+.totals dt {
+  color: var(--text-muted);
+}
+
+.totals dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.totals .grand {
+  padding-top: var(--space-2);
+  font-weight: 700;
+  border-top: 1px solid var(--border-strong);
+}
+
+.totals .grand dt {
+  color: var(--text);
+}
+
+.words {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-md);
+}
+
+.small {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.signature {
+  width: min(100%, 16rem);
+  margin: var(--space-7) 0 0 auto;
+  text-align: center;
+}
+
+.signature p {
+  margin: 0;
+}
+
+.signatureLine {
+  margin-bottom: var(--space-2);
+  border-top: 1px solid var(--border-strong);
+}
+
+/* The way to the printed page, on a document's own page. */
+.printLink {
+  margin: 0 0 var(--space-4);
+}
+
+@media print {
+  .bar,
+  .barNote,
+  .printLink {
+    display: none;
+  }
+
+  .sheet {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .tableWrap {
+    overflow: visible;
+  }
+
+  .signature {
+    break-inside: avoid;
+  }
+}

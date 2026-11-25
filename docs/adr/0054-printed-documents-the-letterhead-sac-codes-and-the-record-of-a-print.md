@@ -77,3 +77,29 @@ and what only an accountant decides is said to be open.
 - Verified on the office machine on LocalDB 2019 and in Edge against the built app; SQL Server 2022 and nginx are owed
   (runbook section 8, row 10.4). The accountant's sign-off of a printed sample cannot be had without a client and is
   an open line of `docs/go-live.md`.
+
+## Amended 2026-11-25 (Prompt 10.4b): the printed pages
+
+Built as the plan of Prompt 10.4 described its second half; no endpoint changed.
+
+1. **Three pages, `frontend/src/printing`:** `/bills/:id/print`, `/payments/:id/print`, `/refunds/:id/print`, each
+   under the read policy of its document and reached by a link on the document's page, which is shown only for what
+   can be printed. Each is a sheet (`PrintSheet`) with the letterhead, the title, which print it is, the document, and
+   the place of a signature. On paper the application around the sheet and the bar above it are gone, by the print
+   styles of ADR 0050, and the text is dark on white in either theme.
+2. **Print records first, then opens the dialog.** The button sends `POST .../prints` with a key of its own for each
+   press and, once the answer says which print it is, calls the browser's print. The sheet then says "Original" or
+   "Duplicate (copy n)" with the time. A page printed some other way, before the button was pressed, says "Unrecorded
+   copy": it is honest about not having been counted.
+3. **The bill** is titled by what it carries (`tax.ts`): "Tax Invoice" with each line's stored tax in its CGST and SGST
+   halves and their rates, and the two totals; "Bill of Supply" with the exempt wording when it carries no tax;
+   "Statement of Opening Balance" for an opening receivable, with its earlier number and no tax fields, since that
+   bill was not issued here. The place of supply is the letterhead's state. Every figure is the stored one.
+4. **The receipt** shows the active allocations by the number of their bills and what is not yet applied as of the
+   print; an opening advance is titled "Statement of Opening Advance". A reversed payment has no receipt. **The refund
+   voucher** names its source by number, its reason, and a line for the receiver's signature.
+5. **The amount in words** (`words.ts`) is exact on whole paise, in lakh and crore, with the crores themselves counted
+   the same way above a thousand crore; one rupee and one paisa are singular.
+6. **Verified** in Edge against the built app with a stubbed API: each document in both themes recorded, marked and
+   printed to an A4 PDF, a phone, axe; the three routes in the every-route suite. Through nginx on a real printer it is
+   owed (runbook section 8, row 10.4b), and so is the accountant's sign-off of a printed sample (`docs/go-live.md`, G1).

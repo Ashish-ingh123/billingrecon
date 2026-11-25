@@ -61,6 +61,20 @@ export const payer = {
   updatedAtUtc: '2026-10-01T04:31:00+00:00',
   version: 'AAAAAAAAB9I=',
 };
+/** The hospital's letterhead, as `GET /api/v1/settings/letterhead` answers it (ADR 0054). */
+export const letterhead = {
+  name: 'City Hospital',
+  legalName: 'City Hospital Private Limited',
+  addressLine1: '12 Example Road',
+  addressLine2: null,
+  city: 'Pune',
+  state: 'Maharashtra',
+  pinCode: '411001',
+  phone: '+91 00000 00000',
+  email: null,
+  gstin: '27AAAAA0000A1Z5',
+  signatory: 'Authorised signatory',
+};
 export const lines = [
   {
     id: 'd4000000-0000-4000-8000-000000000001',
@@ -97,6 +111,8 @@ export const draft = {
   dueDate: '2026-12-05',
   encounterReference: 'OPD-7781',
   notes: null,
+  origin: 'Standard',
+  legacyNumber: null,
   status: 'Draft',
   number: null,
   fiscalYear: null,

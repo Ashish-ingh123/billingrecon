@@ -14,6 +14,7 @@ import { TotalsCard } from '../components/TotalsCard';
 import forms from '../components/forms.module.css';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
+import { PrintLink } from '../printing/PrintLink';
 import { ReasonForm } from '../components/ReasonForm';
 import { useDocumentAction } from '../components/useDocumentAction';
 import { formatDate, formatInstant } from '../format';
@@ -136,6 +137,7 @@ function RefundView({ refund }: { refund: Refund }) {
           )
         }
       />
+      {refund.status === 'Posted' && <PrintLink to={`/refunds/${refund.id}/print`}>Print the voucher</PrintLink>}
       {action.notices}
       {voiding && (
         <ReasonForm

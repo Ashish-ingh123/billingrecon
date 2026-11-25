@@ -16,6 +16,7 @@ import { TotalsCard } from '../components/TotalsCard';
 import forms from '../components/forms.module.css';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
+import { PrintLink } from '../printing/PrintLink';
 import { ReasonForm } from '../components/ReasonForm';
 import { useDocumentAction } from '../components/useDocumentAction';
 import { formatDate, formatDecimal, formatInstant } from '../format';
@@ -139,6 +140,7 @@ function PaymentView({ record }: { record: PaymentWithAllocations }) {
           )
         }
       />
+      {payment.status !== 'Reversed' && <PrintLink to={`/payments/${payment.id}/print`}>Print the receipt</PrintLink>}
       {action.notices}
       {asking === 'payment' && (
         <ReasonForm

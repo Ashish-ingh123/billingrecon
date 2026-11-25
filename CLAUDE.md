@@ -471,6 +471,8 @@ frontend/                      React + TypeScript + Vite (ADR 0038): index.html 
                                src/auth/useSignOut.ts and e2e/signout.spec.ts (ADR 0057).
                                src/imports (api.ts, FileField, Findings with findingsCsv.ts, the index, the two imports, a
                                batch's page) and e2e/imports.spec.ts (ADR 0053, amended).
+                               src/printing (api.ts, PrintSheet, PrintLink, the three printed pages, tax.ts, words.ts) and
+                               e2e/printed.spec.ts (ADR 0054, amended).
                                src/administration (api.ts, the users list, a user's page, the user forms with
                                RoleChoices, the settings with the prefix request) and src/auth/ChangePasswordPage.tsx
                                (ADR 0051).
@@ -1064,5 +1066,10 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    payments and refunds into `DocumentPrints` (append-only, no event: the row is its own trail), the first the original
    and later ones duplicates; only what took financial effect prints (422 `document_not_printable`). Migration
    `0024_PrintedDocuments`. The tax split (CGST and SGST, never IGST), the kind of tax document and the amount in words
-   are derived at print, in 10.4b, which is not started. `docs/go-live.md` holds the open sign-offs. Owed: runbook
-   section 8, row 10.4.
+   are derived at print. `docs/go-live.md` holds the open sign-offs. Owed: runbook section 8, row 10.4.
+   **10.4b is written (2026-11-25, ADR 0054 amended):** the printed pages, `frontend/src/printing`: `/bills/:id/print`,
+   `/payments/:id/print`, `/refunds/:id/print`, each a `PrintSheet` with the letterhead, linked from its document's page.
+   Print records the print and then opens the browser's dialog; the sheet says Original, Duplicate or, if never recorded,
+   Unrecorded copy. `tax.ts` titles a bill (Tax Invoice, Bill of Supply, Statement of Opening Balance) and halves the
+   stored tax; `words.ts` writes an amount in lakh and crore. `e2e/printed.spec.ts`. Owed: runbook section 8, row 10.4b,
+   and the accountant's sign-off (`docs/go-live.md`, G1).

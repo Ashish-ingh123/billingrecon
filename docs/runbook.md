@@ -665,6 +665,7 @@ run of the script, the owner's own eyes, or CI still have to show.
 | 1.2 | `PiiMaskerTests` green in the whole `dotnet test` of the second run (step 5). |
 | 8.2 | The load test of section 14 at full size (10,000 bills) through nginx on SQL Server 2022, with `SERVER_TIMING=true` and at least 2 GB free: every target met, no drift (the whole output is in the log); the stress figure with no pause. The browser journey of section 14 against https://localhost (three tests of `journey.spec.ts`). The office machine ran the load on LocalDB at 2,000 bills only (ADR 0046, built note). |
 | 8.3 | The recovery model of the compose database (`FULL` expected) and `is_read_committed_snapshot_on` = 1, the last query of step 12. |
+| 10.4b | By hand through nginx at https://localhost: a posted bill, a payment and a posted refund each opened by "Print the ...", printed once (the sheet says Original) and again (Duplicate, copy 2), on paper or to a PDF on A4, in both themes; a bill with tax (Tax Invoice, CGST and SGST), one without (Bill of Supply) and an opening receivable (Statement of Opening Balance). `printed.spec.ts` and the three routes of `routes.spec.ts` ran against the built app in Edge only. A printed sample of each goes to an accountant when there is one (`docs/go-live.md`, G1). |
 | 10.4 | The `Database` collection on SQL Server 2022 (step 5 of the script) with migration `0024_PrintedDocuments`: `PrintedDocumentsApiTests` and the `DENY UPDATE, DELETE` on `DocumentPrints` (`DatabasePermissionsOnSqlServerTests`) ran on LocalDB 2019 only. By hand through nginx, as a TenantAdmin: Users and settings, Settings, the letterhead saved and read back; a service item given a SAC code. The printed pages are Prompt 10.4b. |
 | 10.3b | By hand through nginx at https://localhost, as a TenantAdmin: Users and settings, Import; the patients and guarantors of `deploy/reference/export` checked and imported; the opening balances checked with cut-over 2027-04-01 and submitted; a second user approves the batch in Approvals; the batch page says "Approved and posted". A patients' file of 5,000 rows goes through nginx (under its 1 MB). `imports.spec.ts` and the four routes of `routes.spec.ts` (step 11b) ran against the built app in Edge only. |
 | 10.3 | The `Database` collection on SQL Server 2022 (step 5 of the script) with migration `0023_OpeningBalances`: `OpeningBalancesApiTests`, the whole export of the reference hospital among them, ran on LocalDB 2019 only. The migration applied by `migrate` to a database that already holds bills and payments (every existing row gets `Origin = Standard`). By hand through nginx: the procedure of section 18 with `deploy/reference/export`, the batch approved from the inbox by a second user, the reconciliation without drift. `node deploy/reference/generate-export.mjs --check` in CI. |
@@ -973,7 +974,7 @@ for one that came over HTTPS (the API believes the loopback, section 11); that i
 
 ### The browser journey (`frontend/e2e/journey.spec.ts`)
 
-Eleven files: `journey.spec.ts`, the main journey, which needs the API and the demo; since Prompt 9.2 `shell.spec.ts`, the
+Twelve files: `journey.spec.ts`, the main journey, which needs the API and the demo; since Prompt 9.2 `shell.spec.ts`, the
 shell and the patients list with the API's answers given by the test; since Prompt 9.3 `money.spec.ts`, the bill editor, a
 posted bill, a credit note and an adjustment the same way (a request it did not expect fails it); since Prompt 9.3b
 `cashier.spec.ts`, the payment, allocating, a refund, the statement and the inbox, with the helper both share,
@@ -982,7 +983,8 @@ posted bill, a credit note and an adjustment the same way (a request it did not 
 `test-results`), and `print.spec.ts`, print, forced colours and the keyboard; since Prompt 10.2b `search.spec.ts`, a list
 answering while its search is typed and a picker as an autocomplete by the keyboard and by a tap, with axe; since Prompt 10.2c `signout.spec.ts`, a sign-out telling the API and
 ending the same user's session in a second tab; since Prompt 10.3b `imports.spec.ts`, the import of patients and of opening
-balances with files chosen from the disk, their findings, a phone and the keyboard; and, since Prompt 9.1, `signin.spec.ts`,
+balances with files chosen from the disk, their findings, a phone and the keyboard; since Prompt 10.4b `printed.spec.ts`, the printed bill,
+receipt and refund voucher recorded, marked and printed to A4 in both themes; and, since Prompt 9.1, `signin.spec.ts`,
 the sign-in page alone (its layout against `docs/ui/sign-in.png`, nginx's content security policy applied in the test,
 reduced motion, the keyboard, narrow windows), which needs no API but does need the **built** app: the one-command run,
 or `npm run build` and `npm run preview` with `E2E_BASE_URL=http://localhost:4173` (the Vite dev server's own inline
