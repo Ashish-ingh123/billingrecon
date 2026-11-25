@@ -55,6 +55,13 @@ Invoke-Step '1. Versions' {
     npm --version
     docker version --format '{{.Server.Version}}'
     git rev-parse HEAD
+    # The frontend's packages need Node 22.22 or later (`engines` of frontend/package.json): with an older one `npm ci`
+    # refuses and the component tests cannot start, so say it here rather than in step 7.
+    $node = [version]((node --version) -replace '^v', '')
+    if ($node -lt [version]'22.22.0') {
+        "Node $node is older than 22.22.0: steps 7a and 7g will fail. Install Node 24 LTS and run this again."
+        $global:LASTEXITCODE = 1
+    }
 }
 
 # 2 to 5. The backend: tools, build, format gate, every test (the Database collection on SQL Server 2022 in Docker).
@@ -98,6 +105,14 @@ Invoke-Step '8. docker compose down -v, then up --build' {
     docker compose up -d --build
     Wait-Ok 'https://localhost/health/ready' 600
     docker compose ps
+    # The demo's seed runs after `up` returns: wait for its end and show what it said. The load test and the journey
+    # need its users, so a seed that failed fails this step.
+    $seed = docker wait (docker compose ps -aq demo-seed)
+    docker compose logs --no-log-prefix demo-seed
+    if ($seed -ne '0') {
+        "The demo seed ended with exit code $seed."
+        $global:LASTEXITCODE = 1
+    }
 }
 
 # 9. Section 2 and row 8.1: health, headers, the redirect, readiness following SQL Server, the correlation id.
@@ -147,7 +162,9 @@ Invoke-Step '12. Backup, restore check and recovery model' {
     docker compose cp sql:/var/opt/mssql/backup/BillingRecon.bak ./BillingRecon.bak
     docker compose cp deploy/backup/restore-check.sql sql:/tmp/restore-check.sql
     docker compose exec -T sql bash -c 'SQLCMDPASSWORD=$MSSQL_SA_PASSWORD /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -W -i /tmp/restore-check.sql -v Database=BillingRecon BackupFile=/var/opt/mssql/backup/BillingRecon.bak Target=BillingRecon_Restored DataDir=/var/opt/mssql/data'
-    docker compose exec -T sql bash -c 'SQLCMDPASSWORD=$MSSQL_SA_PASSWORD /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -W -Q "SELECT name, recovery_model_desc, is_read_committed_snapshot_on FROM sys.databases WHERE name LIKE N''BillingRecon%''; DROP DATABASE IF EXISTS [BillingRecon_Restored];"'
+    # No double quote inside the argument: Windows PowerShell 5.1 does not escape one for a native command, and the query
+    # then reaches sqlcmd in pieces. database_id > 4 is every database but the system's.
+    docker compose exec -T sql bash -c 'SQLCMDPASSWORD=$MSSQL_SA_PASSWORD /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -W -Q ''SELECT name, recovery_model_desc, is_read_committed_snapshot_on FROM sys.databases WHERE database_id > 4; DROP DATABASE IF EXISTS [BillingRecon_Restored];'''
 }
 
 "`n===== Summary" | Tee-Object -FilePath $log -Append
