@@ -41,6 +41,8 @@ public static class BillingMapping
             DueDate: bill.DueDate,
             EncounterReference: bill.EncounterReference,
             Notes: bill.Notes,
+            Origin: bill.Origin,
+            LegacyNumber: bill.LegacyNumber,
             Status: bill.Status,
             Number: bill.Number,
             FiscalYear: bill.FiscalYear?.Label,

@@ -20,6 +20,9 @@ public sealed class Payer : AggregateRoot<PayerId>, ITenantScoped, ICreationAudi
     /// <summary>Longest allowed <see cref="Email"/>.</summary>
     public const int EmailMaxLength = 256;
 
+    /// <summary>Longest allowed <see cref="LegacyReference"/>.</summary>
+    public const int LegacyReferenceMaxLength = 50;
+
     // Also the constructor Entity Framework uses to load a payer: it passes the two stored values and then sets the
     // remaining properties.
     private Payer(PayerKind kind, string name)
@@ -41,6 +44,12 @@ public sealed class Payer : AggregateRoot<PayerId>, ITenantScoped, ICreationAudi
 
     /// <summary>The patient this payer is, when it is one (BR-104); null for a guarantor. It never changes.</summary>
     public PatientId? PatientId { get; private set; }
+
+    /// <summary>
+    /// The reference a guarantor had in the system before (ADR 0053), by which an import finds the payer again; unique in
+    /// the tenant when set. Null for a payer made here, and for a payer that is a patient, which is found by the MRN.
+    /// </summary>
+    public string? LegacyReference { get; private set; }
 
     /// <summary>A phone number.</summary>
     public string? Phone { get; private set; }
@@ -73,7 +82,7 @@ public sealed class Payer : AggregateRoot<PayerId>, ITenantScoped, ICreationAudi
     /// (BR-104): it needs other aggregates, which this one does not see.
     /// </summary>
     /// <exception cref="ArgumentException">A value of <paramref name="details"/> breaks a limit the validator checks.</exception>
-    public static Result<Payer> Create(PayerKind kind, PayerDetails details, PatientId? patientId)
+    public static Result<Payer> Create(PayerKind kind, PayerDetails details, PatientId? patientId, string? legacyReference = null)
     {
         ArgumentNullException.ThrowIfNull(details);
 
@@ -92,7 +101,11 @@ public sealed class Payer : AggregateRoot<PayerId>, ITenantScoped, ICreationAudi
             return PayersErrors.PayerKindNotSupported();
         }
 
-        var payer = new Payer(kind, Field.Required(details.Name, NameMaxLength)) { PatientId = patientId };
+        var payer = new Payer(kind, Field.Required(details.Name, NameMaxLength))
+        {
+            PatientId = patientId,
+            LegacyReference = Field.Optional(legacyReference, LegacyReferenceMaxLength),
+        };
         payer.Apply(details);
 
         // The id is still empty here: it is assigned when the payer is added to the unit of work.

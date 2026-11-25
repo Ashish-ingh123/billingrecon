@@ -440,15 +440,16 @@ The actions, by `entityType`, each one state change (every state change raises o
 | `Patient` | `Registered`, `Updated`, `Deactivated`, `Reactivated` |
 | `Payer` | `Created`, `Updated`, `Deactivated`, `Reactivated` |
 | `ServiceItem` | `Created`, `Updated`, `Deactivated`, `Reactivated` |
-| `Bill` | `Drafted`, `HeaderUpdated`, `LinesReplaced`, `Voided`, `SubmittedForApproval`, `ReturnedToDraft`, `Posted`, `CreditApplied` (a payment, credit or adjustment lowered what is owed), `CreditReversed` (one of those was taken back) |
+| `Bill` | `Drafted`, `HeaderUpdated`, `LinesReplaced`, `Voided`, `SubmittedForApproval`, `ReturnedToDraft`, `Posted`, `BroughtForward` (an opening receivable, ADR 0053), `CreditApplied` (a payment, credit or adjustment lowered what is owed), `CreditReversed` (one of those was taken back) |
 | `CreditNote` | `Drafted`, `HeaderUpdated`, `LinesReplaced`, `Voided`, `SubmittedForApproval`, `ReturnedToDraft`, `Posted`, `Applied`, `ApplicationReversalRequested`, `ApplicationReversalRejected`, `ApplicationReversed`, `Refunded` |
-| `Payment` | `Recorded`, `Allocated`, `AllocationReversalRequested`, `AllocationReversalRejected`, `AllocationReversed`, `ReversalRequested`, `ReversalRejected`, `Reversed`, `Refunded` |
+| `Payment` | `Recorded`, `BroughtForward` (an opening advance, ADR 0053), `Allocated`, `AllocationReversalRequested`, `AllocationReversalRejected`, `AllocationReversed`, `ReversalRequested`, `ReversalRejected`, `Reversed`, `Refunded` |
 | `Adjustment` | `Drafted`, `Updated`, `Voided`, `SubmittedForApproval`, `ReturnedToDraft`, `Posted` |
 | `Refund` | `Drafted`, `Updated`, `Voided`, `SubmittedForApproval`, `ReturnedToDraft`, `Posted` |
 | `ApprovalRequest` | `Opened`, `Approved`, `Rejected` |
 | `User` | `Created`, `Updated`, `RolesReplaced`, `Disabled`, `Enabled`, `PasswordReset`, `PasswordChanged`, `SignedIn`, `SignedOut` |
 | `Tenant` | `Onboarded`, `SettingsChanged`, `PrefixChanged`, `Suspended`, `Resumed` (the last three of the operator's command, ADR 0052, with no user) |
 | `PrefixChange` | `Requested`, `Approved`, `Rejected` |
+| `OpeningBatch` | `Submitted`, `Approved`, `Rejected` (ADR 0053; the images never hold the files) |
 | `NumberSeries` | `PrefixChanged` |
 
 The members of `before` and `after` are the stored columns, named in PascalCase as the database names them, with
@@ -1000,6 +1001,68 @@ ends the day before the period starts (for 1 to 30 October, 1 to 30 September; f
 - **Top payers, recent payments, pending approvals, drift:** the answer of the report each comes from (section 8.15),
   page 1 at the size above, with the totals of every page, so that a panel can say "5 of 23".
 
+### 8.17 Bringing in a hospital's records and opening balances (ADR 0053; BR-101, BR-104, BR-603, BR-801, BR-401)
+
+For the day a hospital starts here. Two steps, in this order: its patients and guarantors, then what they owed and
+what they had paid in advance at the cut-over. Every file is the text of a CSV file in a JSON string: UTF-8, a comma
+between fields, a header line, double quotes around a field that holds a comma. The layouts are in `docs/runbook.md`
+section 18. Unknown members of a body are refused. A finding names its `file`, its `line` (1 is the header, 0 the file
+as a whole) and its `reason`, and never repeats a patient's name, phone or address.
+
+| Method and path | Who | Success | Failures |
+|---|---|---|---|
+| `POST /api/v1/imports/parties` | TenantAdmin (`ManageTenant`) | 200, what was done or would be | 400; 409 `duplicate_key` |
+| `POST /api/v1/opening-batches/dry-run` | TenantAdmin (`ManageTenant`) | 200, what the files hold | 400 |
+| `POST /api/v1/opening-batches` | TenantAdmin (`ManageTenant`) | 201, the batch waiting | 400; 403 `approval_needs_user`; 409 `opening_batch_duplicate`; 422 `opening_batch_has_rejections` |
+| `GET /api/v1/opening-batches/{id}` | Supervisor, TenantAdmin (`Decide`) | 200 | 404 `opening_batch_not_found` |
+| `GET /api/v1/opening-batches` | Supervisor, TenantAdmin (`Decide`) | 200, a page, newest first | 400 |
+| `POST /api/v1/opening-batches/{id}/approve` | Supervisor, TenantAdmin (`Decide`) | 200, approved and posted | 400; 403 `approval_checker_is_maker`, `approval_checker_role`; 404; 409 `opening_batch_not_pending`, `concurrency_conflict`; 422 `opening_batch_has_rejections`; 428 |
+| `POST /api/v1/opening-batches/{id}/reject` | Supervisor, TenantAdmin (`Decide`) | 200, rejected | 400; 403; 404; 409; 428 |
+
+**Patients and guarantors.** The body: `patientsCsv` (required), `guarantorsCsv`, `dryRun`. A patient is found by its
+MRN, without regard to case: one the hospital has under the same name is *matched* and left as it is; one it has under
+another name is rejected and never merged; a new one is registered with the self-pay payer it is (BR-104). A guarantor
+is found by `guarantor_ref`, the reference it had before, which the payer keeps. Each row meets the rules a user's own
+registration meets. The answer: `dryRun`, `written`, `patientsCreated`, `patientsMatched`, `payersCreated`,
+`guarantorsCreated`, `guarantorsMatched`, `rejected`. **One rejected row writes nothing** (`written: false`, still
+200): correct the file and send it again. It takes no `Idempotency-Key`: sent twice, the second finds every row matched.
+One file holds at most 5,000 rows.
+
+**The opening batch.** The body of the dry run and of the submission: `cutOverDate` (the first day documents are
+raised here; the balances are as at the day before), `billsCsv`, `advancesCsv`, `trialBalanceCsv`, and for the
+submission `comment`. The dry run answers `accepted`, `receivables`, `receivableTotal`, `advances`, `advanceTotal`,
+`creditBalanceTotal` and `rejected`, and writes nothing. A row is rejected when a value is missing or malformed, its
+patient or guarantor is not here or is inactive, its date is on or after the cut-over, its old number is in the file
+twice or was brought in before; and the three totals must equal the trial balance to the paisa. A batch holds at most
+2,000 opening balances.
+
+The submission needs an `Idempotency-Key`, checks the files the same way, and with one finding answers 422
+`opening_batch_has_rejections` and writes nothing. Otherwise it keeps the files, opens an approval request and answers
+the batch (`id`, `cutOverDate`, `status`, the counts and totals, `submittedAtUtc`, `submittedByUserId`,
+`decidedAtUtc`, `version`); the files are never answered back. The same files for the same cut-over date, while a batch
+of them waits or was approved, are 409 `opening_batch_duplicate`: opening balances are brought in once.
+
+**Approval is the posting** (BR-603). A second user, a Supervisor or TenantAdmin, sends `approve` or `reject` (a
+comment is required to reject) with `If-Match` and an `Idempotency-Key`. On approval the kept files are checked again
+against the hospital as it is now, and then, in one transaction:
+
+- each unpaid bill becomes an **opening receivable**: a posted bill with `origin: "Opening"`, one line for what was
+  outstanding, its old number in `legacyNumber`, its old bill date and due date, and a number of its own series,
+  `OBR/YY-YY/NNNNNN`, in the fiscal year of the cut-over;
+- each advance or credit balance becomes an **opening advance**: a posted payment with `origin: "Opening"`, its old
+  reference in `legacyNumber` and `reference`, its old date and method, and a number `OBA/YY-YY/NNNNNN`. A credit
+  balance of the system before is brought in the same way and says so in its notes;
+- each is posted to the ledger against the account `OpeningBalances`, dated the day before the cut-over, so an opening
+  receivable is not revenue here and an opening advance is not cash received here.
+
+From then on an opening receivable is allocated to, credited, adjusted and reported like any posted bill, and an
+opening advance is allocated and refunded like any payment. An opening advance is **never reversed** (422
+`opening_advance_not_reversible`): no money came in here; refund it instead. The prefixes `OBR` and `OBA` are the same
+for every hospital and are not settings: a prefix change that names them, or asks for either type, is refused.
+`GET /api/v1/bills/{id}` and `GET /api/v1/payments/{id}` answer `origin` (`Standard` or `Opening`) and `legacyNumber`.
+In the audit trail: `OpeningBatch` `Submitted`, `Approved`, `Rejected`; `Bill` `BroughtForward`; `Payment`
+`BroughtForward`. The reconciliation report gains identity 12, `OpeningBalancesAccount`.
+
 ## 9. Error-code catalogue
 
 Every `errorCode` the API can answer, with its status and what the client is told (the `detail`). Section 3 gives the
@@ -1151,6 +1214,7 @@ For a failure no use case reported: routing, model binding, content negotiation,
 | `allocation_reversed` | 409 | The allocation was reversed already (BR-305). |
 | `allocation_not_pending_reversal` | 422 | The allocation is not waiting for a reversal, so there is nothing to approve or reject. |
 | `payment_refunded` | 422 | A refund was posted from the payment, so it cannot be reversed (BR-306). Correct it with a new payment. |
+| `opening_advance_not_reversible` | 422 | An opening advance is not reversed: it was brought in at the cut-over, not received here. Refund it instead. |
 | `refund_not_found` | 404 | The refund does not exist. |
 | `refund_not_draft` | 422 | Only a draft refund can be corrected, voided or submitted. |
 | `refund_pending_approval` | 409 | The refund is waiting for approval and cannot be changed until it is approved or rejected (BR-604). |
@@ -1181,6 +1245,10 @@ For a failure no use case reported: routing, model binding, content negotiation,
 | Code | Status | Message |
 |---|---|---|
 | `ledger_balance_negative` | 422 | The posting would take a balance below zero (BR-405). Read the document again and retry. |
+| `opening_batch_not_found` | 404 | The opening batch does not exist. |
+| `opening_batch_not_pending` | 409 | The opening batch was decided already; it is approved or rejected once. |
+| `opening_batch_duplicate` | 409 | These files were submitted before for this cut-over date; opening balances are brought in once. |
+| `opening_batch_has_rejections` | 422 | The files cannot be brought in as they are: *n* finding(s). Run the dry run, which names each with its file, line and reason; nothing was written. |
 
 `ledger_balance_negative` is the ledger's own refusal under its lock (BR-405). No endpoint answers it as it is: every use
 case whose posting can lower a balance answers it as 409 `concurrency_conflict`, since a request that committed first

@@ -26,6 +26,7 @@ public static class PaymentsErrors
     public const string RefundDateTooOldCode = "refund_date_too_old";
     public const string RefundDateBeforeSourceDateCode = "refund_date_before_source_date";
     public const string RefundExceedsAvailableCode = "refund_exceeds_available";
+    public const string OpeningAdvanceNotReversibleCode = "opening_advance_not_reversible";
 
     /// <summary>No payment with that id exists for the tenant. Another tenant's payment gets the same answer.</summary>
     public static Error PaymentNotFound() => Error.NotFound(PaymentNotFoundCode, "The payment does not exist.");
@@ -51,6 +52,13 @@ public static class PaymentsErrors
     /// <summary>Using a payment that was reversed (BR-306): it holds no money and never changes again.</summary>
     public static Error PaymentReversed()
         => Error.Conflict(PaymentReversedCode, "The payment was reversed and can no longer be used (BR-306).");
+
+    /// <summary>
+    /// Reversing an opening advance (ADR 0053): no money came in here, so there is none to take back out of the cash
+    /// received. What the payer is owed is refunded; what was brought in by mistake is refunded with that as its reason.
+    /// </summary>
+    public static Error OpeningAdvanceNotReversible()
+        => Error.BusinessRule(OpeningAdvanceNotReversibleCode, "An opening advance is not reversed: it was brought in at the cut-over, not received here. Refund it instead.");
 
     /// <summary>Approving or rejecting the reversal of a payment nobody asked to reverse.</summary>
     public static Error PaymentNotPendingReversal()

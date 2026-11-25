@@ -257,6 +257,10 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasColumnType("char(7)")
                         .IsFixedLength();
 
+                    b.Property<string>("LegacyNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
@@ -265,6 +269,14 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasMaxLength(16)
                         .IsUnicode(false)
                         .HasColumnType("varchar(16)");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
+                        .HasDefaultValue("Standard");
 
                     b.Property<Guid>("PatientId")
                         .HasColumnType("uniqueidentifier");
@@ -333,6 +345,11 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                     b.HasIndex("TenantId", "BillDate")
                         .HasDatabaseName("IX_Bills_TenantId_BillDate");
 
+                    b.HasIndex("TenantId", "LegacyNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Bills_TenantId_LegacyNumber")
+                        .HasFilter("[LegacyNumber] IS NOT NULL");
+
                     b.HasIndex("TenantId", "Number")
                         .IsUnique()
                         .HasDatabaseName("UX_Bills_TenantId_Number")
@@ -345,15 +362,15 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasDatabaseName("IX_Bills_TenantId_Status")
                         .HasFilter("[Status] = 'PendingApproval'");
 
-                    b.HasIndex("TenantId", "FiscalYear", "SequenceNumber")
-                        .IsUnique()
-                        .HasDatabaseName("UX_Bills_TenantId_FiscalYear_SequenceNumber")
-                        .HasFilter("[SequenceNumber] IS NOT NULL");
-
                     b.HasIndex("TenantId", "PayerId", "Status")
                         .HasDatabaseName("IX_Bills_TenantId_PayerId_Status");
 
                     SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("TenantId", "PayerId", "Status"), new[] { "BalanceDue", "Total" });
+
+                    b.HasIndex("TenantId", "Origin", "FiscalYear", "SequenceNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Bills_TenantId_Origin_FiscalYear_SequenceNumber")
+                        .HasFilter("[SequenceNumber] IS NOT NULL");
 
                     b.ToTable("Bills", null, t =>
                         {
@@ -363,9 +380,13 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                             t.HasCheckConstraint("CK_Bills_DueDate", "[DueDate] >= [BillDate]");
 
+                            t.HasCheckConstraint("CK_Bills_LegacyNumberIffOpening", "([Origin] = 'Standard' AND [LegacyNumber] IS NULL) OR ([Origin] = 'Opening' AND [LegacyNumber] IS NOT NULL AND [Number] IS NOT NULL)");
+
                             t.HasCheckConstraint("CK_Bills_NumberIffPosted", "([Status] IN ('Draft', 'PendingApproval', 'Voided') AND [Number] IS NULL AND [PostedAtUtc] IS NULL) OR ([Status] IN ('Posted', 'PartiallyPaid', 'Settled') AND [Number] IS NOT NULL AND [PostedAtUtc] IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_Bills_NumberParts", "([Number] IS NULL AND [FiscalYear] IS NULL AND [SequenceNumber] IS NULL AND [PostedByUserId] IS NULL) OR ([Number] IS NOT NULL AND [FiscalYear] IS NOT NULL AND [SequenceNumber] >= 1)");
+
+                            t.HasCheckConstraint("CK_Bills_Origin", "[Origin] IN ('Standard', 'Opening')");
 
                             t.HasCheckConstraint("CK_Bills_Status", "[Status] IN ('Draft', 'Voided', 'Posted', 'PartiallyPaid', 'Settled', 'PendingApproval')");
 
@@ -918,13 +939,13 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                     b.ToTable("ApprovalRequests", null, t =>
                         {
-                            t.HasCheckConstraint("CK_ApprovalRequests_Action", "[Action] IN ('Post', 'Reverse', 'ChangePrefix')");
+                            t.HasCheckConstraint("CK_ApprovalRequests_Action", "[Action] IN ('Post', 'Reverse', 'ChangePrefix', 'BringForward')");
 
                             t.HasCheckConstraint("CK_ApprovalRequests_CheckerIsNotMaker", "[CheckerUserId] IS NULL OR [CheckerUserId] <> [MakerUserId]");
 
                             t.HasCheckConstraint("CK_ApprovalRequests_Decided", "([Status] = 'Pending' AND [CheckerUserId] IS NULL AND [DecidedAtUtc] IS NULL) OR ([Status] <> 'Pending' AND [CheckerUserId] IS NOT NULL AND [DecidedAtUtc] IS NOT NULL)");
 
-                            t.HasCheckConstraint("CK_ApprovalRequests_DocumentType", "[DocumentType] IN ('Bill', 'CreditNote', 'Adjustment', 'Refund', 'Payment', 'PaymentAllocation', 'CreditNoteAllocation', 'PrefixChange')");
+                            t.HasCheckConstraint("CK_ApprovalRequests_DocumentType", "[DocumentType] IN ('Bill', 'CreditNote', 'Adjustment', 'Refund', 'Payment', 'PaymentAllocation', 'CreditNoteAllocation', 'PrefixChange', 'OpeningBatch')");
 
                             t.HasCheckConstraint("CK_ApprovalRequests_RejectionHasComment", "[Status] <> 'Rejected' OR [CheckerComment] IS NOT NULL");
 
@@ -1061,7 +1082,7 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                     b.ToTable("NumberSeries", null, t =>
                         {
-                            t.HasCheckConstraint("CK_NumberSeries_DocumentType", "[DocumentType] IN ('Bill', 'CreditNote', 'Payment', 'Adjustment', 'Refund')");
+                            t.HasCheckConstraint("CK_NumberSeries_DocumentType", "[DocumentType] IN ('Bill', 'CreditNote', 'Payment', 'Adjustment', 'Refund', 'OpeningReceivable', 'OpeningAdvance')");
 
                             t.HasCheckConstraint("CK_NumberSeries_NextNumber", "[NextNumber] >= 1");
 
@@ -1142,7 +1163,7 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                             t.HasCheckConstraint("CK_PrefixChanges_Decided", "([Status] = 'Pending' AND [DecidedAtUtc] IS NULL) OR ([Status] <> 'Pending' AND [DecidedAtUtc] IS NOT NULL)");
 
-                            t.HasCheckConstraint("CK_PrefixChanges_DocumentType", "[DocumentType] IN ('Bill', 'CreditNote', 'Payment', 'Adjustment', 'Refund')");
+                            t.HasCheckConstraint("CK_PrefixChanges_DocumentType", "[DocumentType] IN ('Bill', 'CreditNote', 'Payment', 'Adjustment', 'Refund', 'OpeningReceivable', 'OpeningAdvance')");
 
                             t.HasCheckConstraint("CK_PrefixChanges_FromPrefix", "LEN([FromPrefix]) BETWEEN 1 AND 3 AND [FromPrefix] NOT LIKE '%[^A-Z0-9]%' COLLATE Latin1_General_BIN2");
 
@@ -1534,6 +1555,10 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(20)");
 
+                    b.Property<string>("LegacyReference")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1570,6 +1595,11 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "LegacyReference")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Payers_TenantId_LegacyReference")
+                        .HasFilter("[LegacyReference] IS NOT NULL");
 
                     b.HasIndex("TenantId", "Name")
                         .HasDatabaseName("IX_Payers_TenantId_Name");
@@ -1610,6 +1640,10 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasColumnType("char(7)")
                         .IsFixedLength();
 
+                    b.Property<string>("LegacyNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("Method")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -1625,6 +1659,14 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasMaxLength(16)
                         .IsUnicode(false)
                         .HasColumnType("varchar(16)");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
+                        .HasDefaultValue("Standard");
 
                     b.Property<Guid>("PayerId")
                         .HasColumnType("uniqueidentifier");
@@ -1685,6 +1727,11 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("TenantId", "LegacyNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Payments_TenantId_LegacyNumber")
+                        .HasFilter("[LegacyNumber] IS NOT NULL");
+
                     b.HasIndex("TenantId", "Number")
                         .IsUnique()
                         .HasDatabaseName("UX_Payments_TenantId_Number");
@@ -1694,20 +1741,24 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                     SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("TenantId", "PaymentDate"), new[] { "Method", "Amount", "Status" });
 
-                    b.HasIndex("TenantId", "FiscalYear", "SequenceNumber")
-                        .IsUnique()
-                        .HasDatabaseName("UX_Payments_TenantId_FiscalYear_SequenceNumber");
-
                     b.HasIndex("TenantId", "PayerId", "Status")
                         .HasDatabaseName("IX_Payments_TenantId_PayerId_Status");
 
                     SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("TenantId", "PayerId", "Status"), new[] { "UnappliedAmount" });
 
+                    b.HasIndex("TenantId", "Origin", "FiscalYear", "SequenceNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Payments_TenantId_Origin_FiscalYear_SequenceNumber");
+
                     b.ToTable("Payments", null, t =>
                         {
                             t.HasCheckConstraint("CK_Payments_Amount", "[Amount] > 0");
 
+                            t.HasCheckConstraint("CK_Payments_LegacyNumberIffOpening", "([Origin] = 'Standard' AND [LegacyNumber] IS NULL) OR ([Origin] = 'Opening' AND [LegacyNumber] IS NOT NULL)");
+
                             t.HasCheckConstraint("CK_Payments_Method", "[Method] IN ('Cash', 'Card', 'UPI', 'BankTransfer', 'Cheque')");
+
+                            t.HasCheckConstraint("CK_Payments_Origin", "[Origin] IN ('Standard', 'Opening')");
 
                             t.HasCheckConstraint("CK_Payments_Reference", "[Method] = 'Cash' OR [Reference] IS NOT NULL");
 
@@ -2005,7 +2056,7 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                     b.ToTable("LedgerEntries", null, t =>
                         {
-                            t.HasCheckConstraint("CK_LedgerEntries_Account", "[Account] IN ('Receivable', 'UnappliedCash', 'CreditAvailable', 'Revenue', 'Cash', 'Adjustments')");
+                            t.HasCheckConstraint("CK_LedgerEntries_Account", "[Account] IN ('Receivable', 'UnappliedCash', 'CreditAvailable', 'Revenue', 'Cash', 'Adjustments', 'OpeningBalances')");
 
                             t.HasCheckConstraint("CK_LedgerEntries_Credit", "[Credit] >= 0");
 
@@ -2015,7 +2066,7 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                             t.HasCheckConstraint("CK_LedgerEntries_OneSide", "([Debit] > 0 AND [Credit] = 0) OR ([Debit] = 0 AND [Credit] > 0)");
 
-                            t.HasCheckConstraint("CK_LedgerEntries_Subject", "([Account] = 'Receivable' AND [SubjectType] = 'Bill' AND [SubjectId] IS NOT NULL AND [PayerId] IS NOT NULL) OR ([Account] = 'UnappliedCash' AND [SubjectType] = 'Payment' AND [SubjectId] IS NOT NULL AND [PayerId] IS NOT NULL) OR ([Account] = 'CreditAvailable' AND [SubjectType] = 'CreditNote' AND [SubjectId] IS NOT NULL AND [PayerId] IS NOT NULL) OR ([Account] IN ('Revenue', 'Cash', 'Adjustments') AND [SubjectType] IS NULL AND [SubjectId] IS NULL AND [PayerId] IS NULL)");
+                            t.HasCheckConstraint("CK_LedgerEntries_Subject", "([Account] = 'Receivable' AND [SubjectType] = 'Bill' AND [SubjectId] IS NOT NULL AND [PayerId] IS NOT NULL) OR ([Account] = 'UnappliedCash' AND [SubjectType] = 'Payment' AND [SubjectId] IS NOT NULL AND [PayerId] IS NOT NULL) OR ([Account] = 'CreditAvailable' AND [SubjectType] = 'CreditNote' AND [SubjectId] IS NOT NULL AND [PayerId] IS NOT NULL) OR ([Account] IN ('Revenue', 'Cash', 'Adjustments', 'OpeningBalances') AND [SubjectType] IS NULL AND [SubjectId] IS NULL AND [PayerId] IS NULL)");
 
                             t.HasCheckConstraint("CK_LedgerEntries_SubjectType", "[SubjectType] IN ('Bill', 'Payment', 'CreditNote')");
                         });
@@ -2084,7 +2135,110 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         {
                             t.HasCheckConstraint("CK_LedgerPostings_DocumentType", "[DocumentType] IN ('Bill', 'Payment', 'PaymentAllocation', 'CreditNote', 'CreditNoteAllocation', 'Adjustment', 'Refund')");
 
-                            t.HasCheckConstraint("CK_LedgerPostings_Kind", "[Kind] IN ('BillPosted', 'PaymentRecorded', 'PaymentAllocated', 'AllocationReversed', 'PaymentReversed', 'CreditNotePosted', 'CreditApplied', 'CreditApplicationReversed', 'AdjustmentPosted', 'RefundPosted')");
+                            t.HasCheckConstraint("CK_LedgerPostings_Kind", "[Kind] IN ('BillPosted', 'PaymentRecorded', 'PaymentAllocated', 'AllocationReversed', 'PaymentReversed', 'CreditNotePosted', 'CreditApplied', 'CreditApplicationReversed', 'AdjustmentPosted', 'RefundPosted', 'OpeningReceivablePosted', 'OpeningAdvancePosted')");
+                        });
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Receivables.OpeningBatch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("AdvanceTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Advances")
+                        .HasColumnType("int");
+
+                    b.Property<string>("AdvancesCsv")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasAnnotation("BillingRecon:NotAudited", true)
+                        .HasAnnotation("BillingRecon:Unbounded", true);
+
+                    b.Property<string>("BillsCsv")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasAnnotation("BillingRecon:NotAudited", true)
+                        .HasAnnotation("BillingRecon:Unbounded", true);
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("CutOverDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("DecidedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<decimal>("ReceivableTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Receivables")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TrialBalanceCsv")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasAnnotation("BillingRecon:NotAudited", true)
+                        .HasAnnotation("BillingRecon:Unbounded", true);
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "ContentHash")
+                        .IsUnique()
+                        .HasDatabaseName("UX_OpeningBatches_TenantId_ContentHash")
+                        .HasFilter("[Status] <> 'Rejected'");
+
+                    b.HasIndex("TenantId", "CreatedAtUtc")
+                        .HasDatabaseName("IX_OpeningBatches_TenantId_CreatedAtUtc");
+
+                    b.ToTable("OpeningBatches", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OpeningBatches_Counts", "[Receivables] >= 0 AND [Advances] >= 0 AND [Receivables] + [Advances] >= 1");
+
+                            t.HasCheckConstraint("CK_OpeningBatches_Decided", "([Status] = 'PendingApproval' AND [DecidedAtUtc] IS NULL) OR ([Status] <> 'PendingApproval' AND [DecidedAtUtc] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_OpeningBatches_Status", "[Status] IN ('PendingApproval', 'Approved', 'Rejected')");
+
+                            t.HasCheckConstraint("CK_OpeningBatches_Totals", "[ReceivableTotal] >= 0 AND [AdvanceTotal] >= 0");
                         });
                 });
 
@@ -2800,6 +2954,28 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_LedgerPostings_TenantId");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Receivables.OpeningBatch", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_OpeningBatches_CreatedByUserId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_OpeningBatches_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_OpeningBatches_UpdatedByUserId");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Receivables.PayerBalance", b =>

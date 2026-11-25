@@ -40,6 +40,9 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, ICreation
     /// <summary>Longest allowed reason of a reversal, of the payment or of one of its allocations.</summary>
     public const int ReversalReasonMaxLength = 500;
 
+    /// <summary>Longest allowed <see cref="LegacyNumber"/>; the reference of a payment holds it too.</summary>
+    public const int LegacyNumberMaxLength = 50;
+
     private readonly List<PaymentAllocation> _allocations = [];
 
     // Entity Framework creates a payment with this constructor and then sets the properties.
@@ -102,6 +105,12 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, ICreation
     /// reversed. Set by the use case before it saves.
     /// </summary>
     public LedgerPostingId? ReversalPostingId { get; private set; }
+
+    /// <summary>Whether the payment was recorded here or is an opening advance brought in at the cut-over (ADR 0053).</summary>
+    public DocumentOrigin Origin { get; private set; }
+
+    /// <summary>The reference the money had in the system before; set on an opening advance only (ADR 0053).</summary>
+    public string? LegacyNumber { get; private set; }
 
     /// <inheritdoc />
     public DateTimeOffset CreatedAtUtc { get; private set; }
@@ -207,6 +216,65 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, ICreation
 
         // The id is still empty here: it is assigned when the payment is added to the unit of work.
         payment.AddDomainEvent(new PaymentRecorded(number.Value, payerId, method, amount, paymentDate));
+
+        return payment;
+    }
+
+    /// <summary>
+    /// An opening advance (ADR 0053): money of <paramref name="payerId"/> that the system before held at the cut-over and
+    /// had not applied, known there as <paramref name="legacyNumber"/> and received on <paramref name="paymentDate"/>.
+    /// It is posted as it is made, under <paramref name="number"/> of the opening series, with no back-date window: the
+    /// opening batch that brings it was approved. It is allocated and refunded like any payment, and never reversed,
+    /// since no money came in here.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    /// The payer is empty, the amount is out of range, the number is not an opening advance's, or the old reference is
+    /// blank or too long. The opening batch refuses all of these as rejected rows first.
+    /// </exception>
+    public static Payment BringForward(PayerId payerId, DateOnly paymentDate, PaymentMethod method, Money amount, string legacyNumber, string? notes, DocumentNumber number)
+    {
+        ArgumentNullException.ThrowIfNull(number);
+
+        if (payerId.Value == Guid.Empty)
+        {
+            throw new ArgumentException("An opening advance belongs to a payer; the empty id is not one.", nameof(payerId));
+        }
+
+        if (!Enum.IsDefined(method))
+        {
+            throw new ArgumentOutOfRangeException(nameof(method), method, "The payment method is not one the enum defines.");
+        }
+
+        if (!amount.IsPositive || amount.Amount > MaxAmount)
+        {
+            throw new ArgumentException($"An opening advance has an amount above zero and at most {MaxAmount}.", nameof(amount));
+        }
+
+        if (number.Type != DocumentType.OpeningAdvance)
+        {
+            throw new ArgumentException("An opening advance takes a number of the opening advances' series (ADR 0053).", nameof(number));
+        }
+
+        var legacy = Field.Required(legacyNumber, LegacyNumberMaxLength);
+        var payment = new Payment
+        {
+            Number = number.Value,
+            FiscalYear = number.FiscalYear,
+            SequenceNumber = number.Sequence,
+            PayerId = payerId,
+            PaymentDate = paymentDate,
+            Method = method,
+            Reference = legacy,
+            Amount = amount,
+            UnappliedAmount = amount,
+            Status = PaymentStatus.Posted,
+            Notes = Field.Optional(notes, NotesMaxLength),
+            Origin = DocumentOrigin.Opening,
+            LegacyNumber = legacy,
+        };
+
+        // The id is still empty here: it is assigned when the payment is added to the unit of work.
+        payment.AddDomainEvent(new PaymentBroughtForward(number.Value, payerId, method, amount, paymentDate, legacy));
 
         return payment;
     }
@@ -421,6 +489,11 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, ICreation
     public Result RequestReversal(string reason)
     {
         var why = Field.Required(reason, ReversalReasonMaxLength);
+
+        if (Origin == DocumentOrigin.Opening)
+        {
+            return PaymentsErrors.OpeningAdvanceNotReversible();
+        }
 
         if (RefuseUnlessPosted() is { } refused)
         {

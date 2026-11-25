@@ -1121,6 +1121,694 @@
         }
       }
     },
+    "/api/v1/opening-batches/dry-run": {
+      "post": {
+        "tags": [
+          "OpeningBatchChecks"
+        ],
+        "summary": "Checks the files and answers what they hold.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpeningBatchFilesRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpeningBatchFilesRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpeningBatchFilesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningBatchCheckDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningBatchCheckDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningBatchCheckDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/opening-batches": {
+      "post": {
+        "tags": [
+          "OpeningBatches"
+        ],
+        "summary": "Submits the files for approval. Nothing is posted until a second person approves the batch.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpeningBatchFilesRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpeningBatchFilesRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpeningBatchFilesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningBatchDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningBatchDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningBatchDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "OpeningBatches"
+        ],
+        "summary": "The opening batches of the hospital, newest first.",
+        "parameters": [
+          {
+            "name": "Status",
+            "in": "query",
+            "description": "Only the batches in this status.",
+            "schema": {
+              "$ref": "#/components/schemas/OpeningBatchStatus"
+            }
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "description": "The page, from 1.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "The page size, at most 100.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfOfOpeningBatchDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfOfOpeningBatchDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfOfOpeningBatchDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/opening-batches/{id}": {
+      "get": {
+        "tags": [
+          "OpeningBatches"
+        ],
+        "summary": "One opening batch, with its version as the ETag.",
+        "operationId": "GetOpeningBatch",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningBatchDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningBatchDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningBatchDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/opening-batches/{id}/approve": {
+      "post": {
+        "tags": [
+          "OpeningBatches"
+        ],
+        "summary": "Approves the batch: its opening receivables and advances are posted in the same transaction.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DecideOpeningBatchRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DecideOpeningBatchRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DecideOpeningBatchRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningBatchDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningBatchDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningBatchDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Precondition Required",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/opening-batches/{id}/reject": {
+      "post": {
+        "tags": [
+          "OpeningBatches"
+        ],
+        "summary": "Rejects the batch, saying why: nothing of it is posted.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideOpeningBatchRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideOpeningBatchRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideOpeningBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningBatchDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningBatchDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningBatchDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Precondition Required",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/payments/{id}/reverse": {
       "post": {
         "tags": [
@@ -3870,6 +4558,96 @@
           },
           "428": {
             "description": "Precondition Required",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/imports/parties": {
+      "post": {
+        "tags": [
+          "PartyImports"
+        ],
+        "summary": "Checks the files and, unless it is a dry run or a row is rejected, writes their patients, payers and guarantors.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportPartiesRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportPartiesRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportPartiesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartyImportDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartyImportDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartyImportDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
             "content": {
               "text/plain": {
                 "schema": {
@@ -12796,7 +13574,8 @@
         "enum": [
           "Post",
           "Reverse",
-          "ChangePrefix"
+          "ChangePrefix",
+          "BringForward"
         ],
         "description": "What the maker asks to be done to the document, once a checker approves (BR-604, BR-606)."
       },
@@ -12809,7 +13588,8 @@
           "Payment",
           "PaymentAllocation",
           "CreditNoteAllocation",
-          "PrefixChange"
+          "PrefixChange",
+          "OpeningBatch"
         ],
         "description": "The kind of document an approval request is about (BR-604; docs/database.md, section 3.6)."
       },
@@ -13170,6 +13950,8 @@
           "dueDate",
           "encounterReference",
           "notes",
+          "origin",
+          "legacyNumber",
           "status",
           "number",
           "fiscalYear",
@@ -13215,6 +13997,15 @@
             ]
           },
           "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "origin": {
+            "$ref": "#/components/schemas/DocumentOrigin"
+          },
+          "legacyNumber": {
             "type": [
               "null",
               "string"
@@ -14796,6 +15587,27 @@
         },
         "description": "The trend of the dashboard: the period, the interval of its points, billed against collected per point, and the figures\nof every day of the period for the cards' sparklines."
       },
+      "DecideOpeningBatchRequest": {
+        "type": "object",
+        "properties": {
+          "comment": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "What the checker says."
+          }
+        },
+        "additionalProperties": false,
+        "description": "The decision on an opening batch: a comment, optional for an approval and required for a rejection."
+      },
+      "DocumentOrigin": {
+        "enum": [
+          "Standard",
+          "Opening"
+        ],
+        "description": "Where a bill or a payment comes from (ADR 0053). The member names are stored as text."
+      },
       "DocumentPrefixesDto": {
         "required": [
           "bill",
@@ -14830,7 +15642,9 @@
           "CreditNote",
           "Payment",
           "Adjustment",
-          "Refund"
+          "Refund",
+          "OpeningReceivable",
+          "OpeningAdvance"
         ],
         "description": "The kinds of document that are numbered (BR-801): each has its own gapless series per tenant and fiscal year, and\nits own default prefix among the tenant's settings (BR-802). The member names are stored as text\n(docs/database.md, section 3.6), so renaming one is a data migration."
       },
@@ -14897,6 +15711,59 @@
         },
         "description": "One drift row of the reconciliation: which identity is broken (the names of docs/database.md section 5.6), the bill,\npayment, credit note, payer, posting or number series it is about, its document number or other reference where it\nhas one, and the two figures that disagree: what is cached (or counted) and what the ledger (or the series) says."
       },
+      "ImportFinding": {
+        "required": [
+          "file",
+          "line",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "description": "Why a row of an imported file cannot be brought in (ADR 0053): the file, the line the row starts on (1 for the header,\n0 for the file as a whole), and the reason in words a person can act on. A finding never repeats a patient's name,\nphone or address: it names the row, and the row is in the file."
+      },
+      "ImportPartiesRequest": {
+        "type": "object",
+        "properties": {
+          "patientsCsv": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The patients: mrn and full_name, and optionally date_of_birth, sex, phone, email, address_line1, address_line2, city, state, pin_code."
+          },
+          "guarantorsCsv": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The guarantors: guarantor_ref and name, and optionally phone and email."
+          },
+          "dryRun": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "True to check the files and write nothing. Left out, the rows are written when none is rejected."
+          }
+        },
+        "additionalProperties": false,
+        "description": "The patients and guarantors of the system before (ADR 0053), each file as the text of a CSV file. With\nbool? ImportPartiesRequest.DryRun nothing is written. Unknown members are refused."
+      },
       "JsonElement": {},
       "LoginRequest": {
         "type": "object",
@@ -14925,6 +15792,217 @@
         },
         "additionalProperties": false,
         "description": "The body of `POST /api/v1/auth/login`: the hospital's code, the e-mail address and the password. Unknown members are refused."
+      },
+      "OpeningBatchCheckDto": {
+        "required": [
+          "cutOverDate",
+          "accepted",
+          "receivables",
+          "receivableTotal",
+          "advances",
+          "advanceTotal",
+          "creditBalanceTotal",
+          "rejected"
+        ],
+        "type": "object",
+        "properties": {
+          "cutOverDate": {
+            "type": "string",
+            "description": "The cut-over date the files were checked for.",
+            "format": "date"
+          },
+          "accepted": {
+            "type": "boolean",
+            "description": "Whether the files can be submitted as they are."
+          },
+          "receivables": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "How many opening receivables.",
+            "format": "int32"
+          },
+          "receivableTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "Their sum.",
+            "format": "double"
+          },
+          "advances": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "How many opening advances, credit balances included.",
+            "format": "int32"
+          },
+          "advanceTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "Their sum.",
+            "format": "double"
+          },
+          "creditBalanceTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "The part of AdvanceTotal that was a credit balance in the system before.",
+            "format": "double"
+          },
+          "rejected": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportFinding"
+            },
+            "description": "Every finding, with its file, line and reason."
+          }
+        },
+        "description": "What the files of an opening batch would bring in (ADR 0053), and every row that stops them. bool OpeningBatchCheckDto.Accepted\nis true when nothing is rejected and the totals are those of the trial balance: only then can the batch be submitted."
+      },
+      "OpeningBatchDto": {
+        "required": [
+          "id",
+          "cutOverDate",
+          "status",
+          "receivables",
+          "receivableTotal",
+          "advances",
+          "advanceTotal",
+          "submittedAtUtc",
+          "submittedByUserId",
+          "decidedAtUtc",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cutOverDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OpeningBatchStatus"
+          },
+          "receivables": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "receivableTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "advances": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "advanceTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "submittedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "submittedByUserId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "decidedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "description": "An opening batch as the API answers it (ADR 0053): what it brings in and where it stands, never its files."
+      },
+      "OpeningBatchFilesRequest": {
+        "type": "object",
+        "properties": {
+          "cutOverDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The first day on which documents are raised here.",
+            "format": "date"
+          },
+          "billsCsv": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The unpaid bills: legacy_number, mrn, bill_date, outstanding_amount, and optionally guarantor_ref and due_date."
+          },
+          "advancesCsv": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The advances and credit balances: legacy_reference, received_date, amount, method, one of mrn and guarantor_ref, and optionally kind."
+          },
+          "trialBalanceCsv": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The trial balance: account (Receivable, Advance, Credit) and amount."
+          },
+          "comment": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "What the maker says to the checker; read by the submission only."
+          }
+        },
+        "additionalProperties": false,
+        "description": "The files of an opening batch (ADR 0053), each as the text of a CSV file, with the cut-over date they are as at the\nday before. The body of the dry run and of the submission; unknown members are refused."
+      },
+      "OpeningBatchStatus": {
+        "enum": [
+          "PendingApproval",
+          "Approved",
+          "Rejected"
+        ],
+        "description": "Where an opening batch stands (ADR 0053). The member names are stored as text."
       },
       "OutstandingTotalsDto": {
         "required": [
@@ -15160,6 +16238,48 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CreditNoteSummaryDto"
+            }
+          },
+          "page": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
+      },
+      "PageOfOfOpeningBatchDto": {
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpeningBatchDto"
             }
           },
           "page": {
@@ -15482,6 +16602,82 @@
           }
         },
         "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
+      },
+      "PartyImportDto": {
+        "required": [
+          "dryRun",
+          "written",
+          "patientsCreated",
+          "patientsMatched",
+          "payersCreated",
+          "guarantorsCreated",
+          "guarantorsMatched",
+          "rejected"
+        ],
+        "type": "object",
+        "properties": {
+          "dryRun": {
+            "type": "boolean",
+            "description": "Whether the files were only checked."
+          },
+          "written": {
+            "type": "boolean",
+            "description": "Whether the rows were written."
+          },
+          "patientsCreated": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Patients the tenant did not have, each made with its self-pay payer.",
+            "format": "int32"
+          },
+          "patientsMatched": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Patients the tenant has already under the same MRN and name: left as they are.",
+            "format": "int32"
+          },
+          "payersCreated": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Self-pay payers made: one per new patient, and one per matched patient that had none.",
+            "format": "int32"
+          },
+          "guarantorsCreated": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Guarantors the tenant did not have.",
+            "format": "int32"
+          },
+          "guarantorsMatched": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Guarantors the tenant has already under the same reference: left as they are.",
+            "format": "int32"
+          },
+          "rejected": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportFinding"
+            },
+            "description": "Every row that cannot be brought in, with its file, line and reason."
+          }
+        },
+        "description": "What an import of patients and guarantors did, or with a dry run would do (ADR 0053). bool PartyImportDto.Written is true\nonly when it was no dry run and no row was rejected: one rejected row writes nothing at all."
       },
       "PatientDto": {
         "required": [
@@ -15825,6 +17021,8 @@
           "unappliedAmount",
           "status",
           "notes",
+          "origin",
+          "legacyNumber",
           "reversedAtUtc",
           "reversalReason",
           "createdAtUtc",
@@ -15880,6 +17078,15 @@
             "$ref": "#/components/schemas/PaymentStatus"
           },
           "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "origin": {
+            "$ref": "#/components/schemas/DocumentOrigin"
+          },
+          "legacyNumber": {
             "type": [
               "null",
               "string"
@@ -18149,6 +19356,12 @@
       "name": "Reports"
     },
     {
+      "name": "OpeningBatchChecks"
+    },
+    {
+      "name": "OpeningBatches"
+    },
+    {
       "name": "PaymentReversals"
     },
     {
@@ -18156,6 +19369,9 @@
     },
     {
       "name": "Refunds"
+    },
+    {
+      "name": "PartyImports"
     },
     {
       "name": "Patients"

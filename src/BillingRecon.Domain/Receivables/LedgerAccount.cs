@@ -24,4 +24,11 @@ public enum LedgerAccount
 
     /// <summary>Balances given up without money: discounts, write-offs, rounding. Control account.</summary>
     Adjustments = 5,
+
+    /// <summary>
+    /// The other side of every opening balance (ADR 0053): credited by the receivables brought in at the cut-over, debited
+    /// by the advances. Its balance is what the hospital carried over from the system before, and no later posting touches
+    /// it; so an opening receivable is not revenue here, and an opening advance is not cash received here. Control account.
+    /// </summary>
+    OpeningBalances = 6,
 }

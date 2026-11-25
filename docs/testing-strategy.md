@@ -211,6 +211,13 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   nothing, a stale request cancelled and its answer dropped, the address replaced and Back, page 1, the picker by the
   keyboard alone and by the pointer), and `frontend/e2e/search.spec.ts` on the same helper: a list in both themes with no
   layout shift, the picker by the keyboard with axe while its results are open, and by a tap on a phone.
+- **Opening balances** (Prompt 10.3; ADR 0053): `OpeningBalanceTests` (domain: the opening receivable and advance, the
+  batch decided once, the fixed prefixes), `OpeningBatchCheckerTests` (every kind of rejected row with its file, line and
+  reason, the trial balance to the paisa, the CSV reader), and `OpeningBalancesApiTests` in the `Database` collection: the
+  dry runs write nothing, patients matched and never merged, a batch posted whole by a second person's approval, the same
+  batch refused twice, a payment settling an opening receivable, an approval refused when a row no longer holds, and the
+  whole export of the reference hospital (`deploy/reference/export`) imported to its trial balance, payer by payer. The
+  export is held to its generator by `node deploy/reference/generate-export.mjs --check` in CI.
 - **Signing out** (Prompt 10.2c; ADR 0057): `Shell.test.tsx` holds that Sign out sends `POST /api/v1/auth/logout` with
   the token of the session that ends, signs out here all the same when the API refuses or cannot be reached, tells the
   other tabs who signed out and keeps nothing of it, and that a tab signs out when another says the same user did. On

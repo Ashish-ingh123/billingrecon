@@ -72,14 +72,14 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
             GROUP  BY ISNULL([SourcePaymentId], [SourceCreditNoteId])
         ),
         [NumberedDocuments] AS (
-            SELECT 'Bill' AS [DocumentType], [FiscalYear], COUNT(*) AS [Documents], MAX([SequenceNumber]) AS [Highest]
-            FROM   [dbo].[Bills] WHERE [TenantId] = @tenant AND [SequenceNumber] IS NOT NULL GROUP BY [FiscalYear]
+            SELECT CASE [Origin] WHEN 'Opening' THEN 'OpeningReceivable' ELSE 'Bill' END AS [DocumentType], [FiscalYear], COUNT(*) AS [Documents], MAX([SequenceNumber]) AS [Highest]
+            FROM   [dbo].[Bills] WHERE [TenantId] = @tenant AND [SequenceNumber] IS NOT NULL GROUP BY [Origin], [FiscalYear]
             UNION ALL
             SELECT 'CreditNote', [FiscalYear], COUNT(*), MAX([SequenceNumber])
             FROM   [dbo].[CreditNotes] WHERE [TenantId] = @tenant AND [SequenceNumber] IS NOT NULL GROUP BY [FiscalYear]
             UNION ALL
-            SELECT 'Payment', [FiscalYear], COUNT(*), MAX([SequenceNumber])
-            FROM   [dbo].[Payments] WHERE [TenantId] = @tenant GROUP BY [FiscalYear]
+            SELECT CASE [Origin] WHEN 'Opening' THEN 'OpeningAdvance' ELSE 'Payment' END, [FiscalYear], COUNT(*), MAX([SequenceNumber])
+            FROM   [dbo].[Payments] WHERE [TenantId] = @tenant GROUP BY [Origin], [FiscalYear]
             UNION ALL
             SELECT 'Adjustment', [FiscalYear], COUNT(*), MAX([SequenceNumber])
             FROM   [dbo].[Adjustments] WHERE [TenantId] = @tenant AND [SequenceNumber] IS NOT NULL GROUP BY [FiscalYear]
@@ -111,13 +111,15 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
         FROM   [dbo].[Bills] AS b
         WHERE  b.[TenantId] = @tenant AND b.[Number] IS NOT NULL AND b.[Total] > 0
           AND  NOT EXISTS (SELECT 1 FROM [dbo].[LedgerPostings] AS p
-                           WHERE p.[TenantId] = @tenant AND p.[DocumentType] = 'Bill' AND p.[DocumentId] = b.[Id] AND p.[Kind] = 'BillPosted')
+                           WHERE p.[TenantId] = @tenant AND p.[DocumentType] = 'Bill' AND p.[DocumentId] = b.[Id]
+                             AND p.[Kind] = CASE b.[Origin] WHEN 'Opening' THEN 'OpeningReceivablePosted' ELSE 'BillPosted' END)
 
         UNION ALL
         SELECT 'PostingWithoutBill', p.[Id], NULL, 0, 0
         FROM   [dbo].[LedgerPostings] AS p
-        WHERE  p.[TenantId] = @tenant AND p.[Kind] = 'BillPosted'
-          AND  NOT EXISTS (SELECT 1 FROM [dbo].[Bills] AS b WHERE b.[TenantId] = @tenant AND b.[Id] = p.[DocumentId] AND b.[Number] IS NOT NULL)
+        WHERE  p.[TenantId] = @tenant AND p.[Kind] IN ('BillPosted', 'OpeningReceivablePosted')
+          AND  NOT EXISTS (SELECT 1 FROM [dbo].[Bills] AS b WHERE b.[TenantId] = @tenant AND b.[Id] = p.[DocumentId] AND b.[Number] IS NOT NULL
+                             AND p.[Kind] = CASE b.[Origin] WHEN 'Opening' THEN 'OpeningReceivablePosted' ELSE 'BillPosted' END)
 
         UNION ALL
         SELECT 'PaymentUnapplied', p.[Id], p.[Number], p.[UnappliedAmount], ISNULL(l.[Balance], 0)
@@ -130,13 +132,15 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
         FROM   [dbo].[Payments] AS p
         WHERE  p.[TenantId] = @tenant
           AND  NOT EXISTS (SELECT 1 FROM [dbo].[LedgerPostings] AS lp
-                           WHERE lp.[TenantId] = @tenant AND lp.[DocumentType] = 'Payment' AND lp.[DocumentId] = p.[Id] AND lp.[Kind] = 'PaymentRecorded')
+                           WHERE lp.[TenantId] = @tenant AND lp.[DocumentType] = 'Payment' AND lp.[DocumentId] = p.[Id]
+                             AND lp.[Kind] = CASE p.[Origin] WHEN 'Opening' THEN 'OpeningAdvancePosted' ELSE 'PaymentRecorded' END)
 
         UNION ALL
         SELECT 'PostingWithoutPayment', lp.[Id], NULL, 0, 0
         FROM   [dbo].[LedgerPostings] AS lp
-        WHERE  lp.[TenantId] = @tenant AND lp.[Kind] = 'PaymentRecorded'
-          AND  NOT EXISTS (SELECT 1 FROM [dbo].[Payments] AS p WHERE p.[TenantId] = @tenant AND p.[Id] = lp.[DocumentId])
+        WHERE  lp.[TenantId] = @tenant AND lp.[Kind] IN ('PaymentRecorded', 'OpeningAdvancePosted')
+          AND  NOT EXISTS (SELECT 1 FROM [dbo].[Payments] AS p WHERE p.[TenantId] = @tenant AND p.[Id] = lp.[DocumentId]
+                             AND lp.[Kind] = CASE p.[Origin] WHEN 'Opening' THEN 'OpeningAdvancePosted' ELSE 'PaymentRecorded' END)
 
         UNION ALL
         SELECT 'PaymentAllocations', p.[Id], p.[Number], p.[UnappliedAmount],
@@ -343,6 +347,13 @@ public sealed class ReconciliationQuery(BillingReconDbContext context, ITenantCo
         LEFT JOIN [NumberedDocuments] AS d ON d.[DocumentType] = ns.[DocumentType] AND d.[FiscalYear] = ns.[FiscalYear]
         WHERE  ns.[TenantId] = @tenant
           AND (ISNULL(d.[Documents], 0) <> ISNULL(d.[Highest], 0) OR ISNULL(d.[Highest], 0) <> ns.[NextNumber] - 1)
+
+        UNION ALL
+        SELECT 'OpeningBalancesAccount', @tenant, NULL, o.[Documents], o.[Ledger]
+        FROM  (SELECT (SELECT ISNULL(SUM([Total]), 0) FROM [dbo].[Bills] WHERE [TenantId] = @tenant AND [Origin] = 'Opening')
+                    - (SELECT ISNULL(SUM([Amount]), 0) FROM [dbo].[Payments] WHERE [TenantId] = @tenant AND [Origin] = 'Opening') AS [Documents],
+                      (SELECT ISNULL(SUM([Credit] - [Debit]), 0) FROM [dbo].[LedgerEntries] WHERE [TenantId] = @tenant AND [Account] = 'OpeningBalances') AS [Ledger]) AS o
+        WHERE  o.[Documents] <> o.[Ledger]
         """;
 
     /// <inheritdoc />

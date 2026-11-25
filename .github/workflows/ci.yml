@@ -241,3 +241,8 @@ jobs:
         # The percentiles and the verdict of deploy/load (ADR 0046), with Node's own test runner. The load itself is run
         # by hand against a running stack, never here: shared runners say nothing about latency (docs/runbook.md section 14).
         run: node --test ../deploy/load/stats.test.mjs
+
+      - name: The reference export is what its generator writes
+        # The synthetic export of the reference hospital (ADR 0058) is committed so that a test can import it; this holds
+        # the committed files to the script that makes them.
+        run: node ../deploy/reference/generate-export.mjs --check

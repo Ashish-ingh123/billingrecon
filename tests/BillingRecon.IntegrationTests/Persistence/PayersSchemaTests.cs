@@ -85,6 +85,9 @@ public sealed class PayersSchemaTests : IDisposable
             [
                 "Id", "TenantId", "Kind", "Name", "PatientId", "Phone", "Email", "Status",
                 "CreatedAtUtc", "CreatedByUserId", "UpdatedAtUtc", "UpdatedByUserId", "RowVersion",
+
+                // Since Prompt 10.3: the reference a guarantor had in the system before (migration 0023_OpeningBalances).
+                "LegacyReference",
             ],
             ignoreOrder: true);
     }
@@ -94,6 +97,7 @@ public sealed class PayersSchemaTests : IDisposable
     [InlineData("CREATE INDEX [IX_Patients_TenantId_FullName] ON [Patients] ([TenantId], [FullName]);")]
     [InlineData("CREATE INDEX [IX_Payers_TenantId_Name] ON [Payers] ([TenantId], [Name]);")]
     [InlineData("CREATE UNIQUE INDEX [UX_Payers_TenantId_PatientId] ON [Payers] ([TenantId], [PatientId]) WHERE [PatientId] IS NOT NULL;")]
+    [InlineData("CREATE UNIQUE INDEX [UX_Payers_TenantId_LegacyReference] ON [Payers] ([TenantId], [LegacyReference]) WHERE [LegacyReference] IS NOT NULL;")]
     public void The_documented_indexes_exist(string index)
     {
         _ddl.ShouldContain(index, Case.Sensitive);
@@ -107,7 +111,7 @@ public sealed class PayersSchemaTests : IDisposable
             .Where(line => line.Contains(" INDEX [", StringComparison.Ordinal) && (line.Contains("ON [Patients]", StringComparison.Ordinal) || line.Contains("ON [Payers]", StringComparison.Ordinal)))
             .ToArray();
 
-        indexes.Length.ShouldBe(4, string.Join(Environment.NewLine, indexes));
+        indexes.Length.ShouldBe(5, string.Join(Environment.NewLine, indexes));
     }
 
     [Fact]

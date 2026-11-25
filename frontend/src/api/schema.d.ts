@@ -822,6 +822,408 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/opening-batches/dry-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Checks the files and answers what they hold. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["OpeningBatchFilesRequest"];
+                    "text/json": components["schemas"]["OpeningBatchFilesRequest"];
+                    "application/*+json": components["schemas"]["OpeningBatchFilesRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["OpeningBatchCheckDto"];
+                        "application/json": components["schemas"]["OpeningBatchCheckDto"];
+                        "text/json": components["schemas"]["OpeningBatchCheckDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/opening-batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The opening batches of the hospital, newest first. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Only the batches in this status. */
+                    Status?: components["schemas"]["OpeningBatchStatus"];
+                    /** @description The page, from 1. */
+                    Page?: number | string;
+                    /** @description The page size, at most 100. */
+                    PageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PageOfOfOpeningBatchDto"];
+                        "application/json": components["schemas"]["PageOfOfOpeningBatchDto"];
+                        "text/json": components["schemas"]["PageOfOfOpeningBatchDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Submits the files for approval. Nothing is posted until a second person approves the batch. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["OpeningBatchFilesRequest"];
+                    "text/json": components["schemas"]["OpeningBatchFilesRequest"];
+                    "application/*+json": components["schemas"]["OpeningBatchFilesRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["OpeningBatchDto"];
+                        "application/json": components["schemas"]["OpeningBatchDto"];
+                        "text/json": components["schemas"]["OpeningBatchDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/opening-batches/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One opening batch, with its version as the ETag. */
+        get: operations["GetOpeningBatch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/opening-batches/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approves the batch: its opening receivables and advances are posted in the same transaction. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": null | components["schemas"]["DecideOpeningBatchRequest"];
+                    "text/json": null | components["schemas"]["DecideOpeningBatchRequest"];
+                    "application/*+json": null | components["schemas"]["DecideOpeningBatchRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["OpeningBatchDto"];
+                        "application/json": components["schemas"]["OpeningBatchDto"];
+                        "text/json": components["schemas"]["OpeningBatchDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Precondition Required */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/opening-batches/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rejects the batch, saying why: nothing of it is posted. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DecideOpeningBatchRequest"];
+                    "text/json": components["schemas"]["DecideOpeningBatchRequest"];
+                    "application/*+json": components["schemas"]["DecideOpeningBatchRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["OpeningBatchDto"];
+                        "application/json": components["schemas"]["OpeningBatchDto"];
+                        "text/json": components["schemas"]["OpeningBatchDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Precondition Required */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/payments/{id}/reverse": {
         parameters: {
             query?: never;
@@ -2433,6 +2835,72 @@ export interface paths {
                 };
                 /** @description Precondition Required */
                 428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/parties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Checks the files and, unless it is a dry run or a row is rejected, writes their patients, payers and guarantors. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ImportPartiesRequest"];
+                    "text/json": components["schemas"]["ImportPartiesRequest"];
+                    "application/*+json": components["schemas"]["ImportPartiesRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PartyImportDto"];
+                        "application/json": components["schemas"]["PartyImportDto"];
+                        "text/json": components["schemas"]["PartyImportDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -7765,12 +8233,12 @@ export interface components {
          * @description What the maker asks to be done to the document, once a checker approves (BR-604, BR-606).
          * @enum {unknown}
          */
-        ApprovalAction: "Post" | "Reverse" | "ChangePrefix";
+        ApprovalAction: "Post" | "Reverse" | "ChangePrefix" | "BringForward";
         /**
          * @description The kind of document an approval request is about (BR-604; docs/database.md, section 3.6).
          * @enum {unknown}
          */
-        ApprovalDocumentType: "Bill" | "CreditNote" | "Adjustment" | "Refund" | "Payment" | "PaymentAllocation" | "CreditNoteAllocation" | "PrefixChange";
+        ApprovalDocumentType: "Bill" | "CreditNote" | "Adjustment" | "Refund" | "Payment" | "PaymentAllocation" | "CreditNoteAllocation" | "PrefixChange" | "OpeningBatch";
         /** @description An approval request as the API returns it: who asked for what on which document, and who decided. */
         ApprovalRequestDto: {
             /** Format: uuid */
@@ -7916,6 +8384,8 @@ export interface components {
             dueDate: string;
             encounterReference: null | string;
             notes: null | string;
+            origin: components["schemas"]["DocumentOrigin"];
+            legacyNumber: null | string;
             status: components["schemas"]["BillStatus"];
             number: null | string;
             fiscalYear: null | string;
@@ -8483,6 +8953,16 @@ export interface components {
             points: components["schemas"]["TrendPointDto"][];
             daily: components["schemas"]["DailyFiguresDto"][];
         };
+        /** @description The decision on an opening batch: a comment, optional for an approval and required for a rejection. */
+        DecideOpeningBatchRequest: {
+            /** @description What the checker says. */
+            comment?: null | string;
+        };
+        /**
+         * @description Where a bill or a payment comes from (ADR 0053). The member names are stored as text.
+         * @enum {unknown}
+         */
+        DocumentOrigin: "Standard" | "Opening";
         /** @description The default number prefix of each document type (BR-802): the prefix of its next new series. */
         DocumentPrefixesDto: {
             bill: string;
@@ -8497,7 +8977,7 @@ export interface components {
          *     (docs/database.md, section 3.6), so renaming one is a data migration.
          * @enum {unknown}
          */
-        DocumentType: "Bill" | "CreditNote" | "Payment" | "Adjustment" | "Refund";
+        DocumentType: "Bill" | "CreditNote" | "Payment" | "Adjustment" | "Refund" | "OpeningReceivable" | "OpeningAdvance";
         /** @description How many drift rows one broken identity has. */
         DriftCountDto: {
             identity: string;
@@ -8519,6 +8999,29 @@ export interface components {
             /** Format: double */
             ledger: number | string;
         };
+        /**
+         * @description Why a row of an imported file cannot be brought in (ADR 0053): the file, the line the row starts on (1 for the header,
+         *     0 for the file as a whole), and the reason in words a person can act on. A finding never repeats a patient's name,
+         *     phone or address: it names the row, and the row is in the file.
+         */
+        ImportFinding: {
+            file: string;
+            /** Format: int32 */
+            line: number | string;
+            reason: string;
+        };
+        /**
+         * @description The patients and guarantors of the system before (ADR 0053), each file as the text of a CSV file. With
+         *     bool? ImportPartiesRequest.DryRun nothing is written. Unknown members are refused.
+         */
+        ImportPartiesRequest: {
+            /** @description The patients: mrn and full_name, and optionally date_of_birth, sex, phone, email, address_line1, address_line2, city, state, pin_code. */
+            patientsCsv?: null | string;
+            /** @description The guarantors: guarantor_ref and name, and optionally phone and email. */
+            guarantorsCsv?: null | string;
+            /** @description True to check the files and write nothing. Left out, the rows are written when none is rejected. */
+            dryRun?: null | boolean;
+        };
         JsonElement: unknown;
         /** @description The body of `POST /api/v1/auth/login`: the hospital's code, the e-mail address and the password. Unknown members are refused. */
         LoginRequest: {
@@ -8529,6 +9032,93 @@ export interface components {
             /** @description The password. */
             password?: null | string;
         };
+        /**
+         * @description What the files of an opening batch would bring in (ADR 0053), and every row that stops them. bool OpeningBatchCheckDto.Accepted
+         *     is true when nothing is rejected and the totals are those of the trial balance: only then can the batch be submitted.
+         */
+        OpeningBatchCheckDto: {
+            /**
+             * Format: date
+             * @description The cut-over date the files were checked for.
+             */
+            cutOverDate: string;
+            /** @description Whether the files can be submitted as they are. */
+            accepted: boolean;
+            /**
+             * Format: int32
+             * @description How many opening receivables.
+             */
+            receivables: number | string;
+            /**
+             * Format: double
+             * @description Their sum.
+             */
+            receivableTotal: number | string;
+            /**
+             * Format: int32
+             * @description How many opening advances, credit balances included.
+             */
+            advances: number | string;
+            /**
+             * Format: double
+             * @description Their sum.
+             */
+            advanceTotal: number | string;
+            /**
+             * Format: double
+             * @description The part of AdvanceTotal that was a credit balance in the system before.
+             */
+            creditBalanceTotal: number | string;
+            /** @description Every finding, with its file, line and reason. */
+            rejected: components["schemas"]["ImportFinding"][];
+        };
+        /** @description An opening batch as the API answers it (ADR 0053): what it brings in and where it stands, never its files. */
+        OpeningBatchDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            cutOverDate: string;
+            status: components["schemas"]["OpeningBatchStatus"];
+            /** Format: int32 */
+            receivables: number | string;
+            /** Format: double */
+            receivableTotal: number | string;
+            /** Format: int32 */
+            advances: number | string;
+            /** Format: double */
+            advanceTotal: number | string;
+            /** Format: date-time */
+            submittedAtUtc: string;
+            /** Format: uuid */
+            submittedByUserId: null | string;
+            /** Format: date-time */
+            decidedAtUtc: null | string;
+            version: string;
+        };
+        /**
+         * @description The files of an opening batch (ADR 0053), each as the text of a CSV file, with the cut-over date they are as at the
+         *     day before. The body of the dry run and of the submission; unknown members are refused.
+         */
+        OpeningBatchFilesRequest: {
+            /**
+             * Format: date
+             * @description The first day on which documents are raised here.
+             */
+            cutOverDate?: null | string;
+            /** @description The unpaid bills: legacy_number, mrn, bill_date, outstanding_amount, and optionally guarantor_ref and due_date. */
+            billsCsv?: null | string;
+            /** @description The advances and credit balances: legacy_reference, received_date, amount, method, one of mrn and guarantor_ref, and optionally kind. */
+            advancesCsv?: null | string;
+            /** @description The trial balance: account (Receivable, Advance, Credit) and amount. */
+            trialBalanceCsv?: null | string;
+            /** @description What the maker says to the checker; read by the submission only. */
+            comment?: null | string;
+        };
+        /**
+         * @description Where an opening batch stands (ADR 0053). The member names are stored as text.
+         * @enum {unknown}
+         */
+        OpeningBatchStatus: "PendingApproval" | "Approved" | "Rejected";
         /** @description Every payer of the report together: how many, and the sums of their balances, each equal to its ledger account. */
         OutstandingTotalsDto: {
             /** Format: int32 */
@@ -8600,6 +9190,19 @@ export interface components {
          */
         PageOfOfCreditNoteSummaryDto: {
             items: components["schemas"]["CreditNoteSummaryDto"][];
+            /** Format: int32 */
+            page: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int32 */
+            totalCount: number | string;
+        };
+        /**
+         * @description One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that
+         *     was asked for, and how many items all pages hold together.
+         */
+        PageOfOfOpeningBatchDto: {
+            items: components["schemas"]["OpeningBatchDto"][];
             /** Format: int32 */
             page: number | string;
             /** Format: int32 */
@@ -8697,6 +9300,43 @@ export interface components {
             pageSize: number | string;
             /** Format: int32 */
             totalCount: number | string;
+        };
+        /**
+         * @description What an import of patients and guarantors did, or with a dry run would do (ADR 0053). bool PartyImportDto.Written is true
+         *     only when it was no dry run and no row was rejected: one rejected row writes nothing at all.
+         */
+        PartyImportDto: {
+            /** @description Whether the files were only checked. */
+            dryRun: boolean;
+            /** @description Whether the rows were written. */
+            written: boolean;
+            /**
+             * Format: int32
+             * @description Patients the tenant did not have, each made with its self-pay payer.
+             */
+            patientsCreated: number | string;
+            /**
+             * Format: int32
+             * @description Patients the tenant has already under the same MRN and name: left as they are.
+             */
+            patientsMatched: number | string;
+            /**
+             * Format: int32
+             * @description Self-pay payers made: one per new patient, and one per matched patient that had none.
+             */
+            payersCreated: number | string;
+            /**
+             * Format: int32
+             * @description Guarantors the tenant did not have.
+             */
+            guarantorsCreated: number | string;
+            /**
+             * Format: int32
+             * @description Guarantors the tenant has already under the same reference: left as they are.
+             */
+            guarantorsMatched: number | string;
+            /** @description Every row that cannot be brought in, with its file, line and reason. */
+            rejected: components["schemas"]["ImportFinding"][];
         };
         /**
          * @description A patient as the API returns it. string PatientDto.Version is the row version in base64, the same value the response
@@ -8837,6 +9477,8 @@ export interface components {
             unappliedAmount: number | string;
             status: components["schemas"]["PaymentStatus"];
             notes: null | string;
+            origin: components["schemas"]["DocumentOrigin"];
+            legacyNumber: null | string;
             /** Format: date-time */
             reversedAtUtc: null | string;
             reversalReason: null | string;
@@ -9622,6 +10264,41 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    GetOpeningBatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["OpeningBatchDto"];
+                    "application/json": components["schemas"]["OpeningBatchDto"];
+                    "text/json": components["schemas"]["OpeningBatchDto"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetPayment: {
         parameters: {
             query?: never;

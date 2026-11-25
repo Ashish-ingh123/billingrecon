@@ -29,4 +29,7 @@ public enum ApprovalDocumentType
     /// when no request had used it: the request is about the change, not about a series.
     /// </summary>
     PrefixChange = 7,
+
+    /// <summary>An opening batch: the opening receivables and advances of a hospital, brought in once (ADR 0053).</summary>
+    OpeningBatch = 8,
 }

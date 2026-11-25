@@ -38,6 +38,19 @@ const prefixChange = {
   decidedAtUtc: null,
   version: 'AAAAAAAADQA=',
 };
+const openingBatch = {
+  id: 'fd000000-0000-4000-8000-000000000001',
+  cutOverDate: '2027-04-01',
+  status: 'PendingApproval',
+  receivables: 300,
+  receivableTotal: 6584094.91,
+  advances: 55,
+  advanceTotal: 540270.61,
+  submittedAtUtc: '2027-04-02T05:00:00+00:00',
+  submittedByUserId: 'd0000000-0000-4000-8000-000000000009',
+  decidedAtUtc: null,
+  version: 'AAAAAAAADgA=',
+};
 const later = creditApplication({
   id: 'f9100000-0000-4000-8000-000000000002',
   appliedAtPosting: false,
@@ -153,6 +166,23 @@ const kinds: {
     approve: `/api/v1/settings/prefix-changes/${prefixChange.id}/approve`,
     version: prefixChange.version,
     keyed: false,
+  },
+  {
+    // Since Prompt 10.3 (ADR 0053): its approval posts every opening balance of the batch, so it carries a key.
+    kind: 'OpeningBatch',
+    request: pendingApproval({
+      documentType: 'OpeningBatch',
+      action: 'BringForward',
+      documentId: openingBatch.id,
+      payerId: null,
+      payerName: null,
+      amount: null,
+      makerComment: 'Agreed with the March closing',
+    }),
+    read: [`GET /api/v1/opening-batches/${openingBatch.id}`, openingBatch],
+    approve: `/api/v1/opening-batches/${openingBatch.id}/approve`,
+    version: openingBatch.version,
+    keyed: true,
   },
 ];
 

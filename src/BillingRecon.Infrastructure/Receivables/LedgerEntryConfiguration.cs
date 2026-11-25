@@ -31,7 +31,7 @@ public sealed class LedgerEntryConfiguration : IEntityTypeConfiguration<LedgerEn
                 "([Account] = 'Receivable' AND [SubjectType] = 'Bill' AND [SubjectId] IS NOT NULL AND [PayerId] IS NOT NULL) "
                 + "OR ([Account] = 'UnappliedCash' AND [SubjectType] = 'Payment' AND [SubjectId] IS NOT NULL AND [PayerId] IS NOT NULL) "
                 + "OR ([Account] = 'CreditAvailable' AND [SubjectType] = 'CreditNote' AND [SubjectId] IS NOT NULL AND [PayerId] IS NOT NULL) "
-                + "OR ([Account] IN ('Revenue', 'Cash', 'Adjustments') AND [SubjectType] IS NULL AND [SubjectId] IS NULL AND [PayerId] IS NULL)");
+                + "OR ([Account] IN ('Revenue', 'Cash', 'Adjustments', 'OpeningBalances') AND [SubjectType] IS NULL AND [SubjectId] IS NULL AND [PayerId] IS NULL)");
         });
         builder.HasKey(entry => entry.Id);
         builder.Property(entry => entry.Id).UseIdentityColumn();

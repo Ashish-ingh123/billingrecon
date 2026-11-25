@@ -871,6 +871,7 @@ posting balance and let R5 export journals to an external accounting system; the
 | `Revenue` | Credit | — | Σ Credit − Σ Debit | net billed (bills less credit notes) |
 | `Cash` | Debit | — | Σ Debit − Σ Credit | net money received (payments less refunds and reversals) |
 | `Adjustments` | Debit | — | Σ Debit − Σ Credit | balances given up without money (discounts, write-offs, rounding) |
+| `OpeningBalances` | Credit | — | Σ Credit − Σ Debit | what the hospital carried over from the system before: the opening receivables less the opening advances (ADR 0053). Only an approved opening batch posts to it |
 
 Every entry has one positive `Debit` or one positive `Credit`, never both, never negative
 (`CK_LedgerEntries_OneSide`). "Increase what the payer owes" is always a **debit to `Receivable`**;
@@ -893,6 +894,8 @@ Every entry has one positive `Debit` or one positive `Credit`, never both, never
 | `CreditApplicationReversed` | Application reversal approved | Dr `Receivable(bill)` X · Cr `CreditAvailable(creditNote)` X | the mirror |
 | `AdjustmentPosted` | Adjustment posted, amount *D* | Dr `Adjustments` D · Cr `Receivable(bill)` D | `Bill.BalanceDue −= D`; `Payer.Receivable −= D` |
 | `RefundPosted` | Refund posted, amount *R* | Dr `UnappliedCash(payment)` **or** `CreditAvailable(creditNote)` R · Cr `Cash` R | source cache `−= R`; `Payer.UnappliedCash` or `Payer.CreditAvailable` `−= R` |
+| `OpeningReceivablePosted` | Opening batch approved, an unpaid bill of the system before, outstanding *O* (ADR 0053) | Dr `Receivable(bill)` O · Cr `OpeningBalances` O, dated the day before the cut-over | `Bill.BalanceDue = O`; `Payer.Receivable += O` |
+| `OpeningAdvancePosted` | Opening batch approved, an advance or credit balance of the system before, amount *V* (ADR 0053) | Dr `OpeningBalances` V · Cr `UnappliedCash(payment)` V, dated the day before the cut-over | `Payment.UnappliedAmount = V`; `Payer.UnappliedCash += V` |
 
 ### 5.4 The paired-entry treatment of allocations
 
@@ -936,6 +939,7 @@ scenario; the reconciliation report evaluates them on demand.
 | 9 | Tenant trial balance: `Receivable + Cash + Adjustments (debit balances) = Revenue + UnappliedCash + CreditAvailable (credit balances)`, summed over all entries of the tenant. |
 | 10 | No subject balance is negative (identities 3, 4, 5 each ≥ 0) and `BalanceDue ≤ Total`, `UnappliedAmount ≤ Amount`, `AvailableAmount ≤ Total` (BR-405). |
 | 11 | Gapless: for each (tenant, document type, fiscal year), `COUNT(*) = MAX(SequenceNumber)` and `NumberSeries.NextNumber = MAX(SequenceNumber) + 1` (§4.3). |
+| 12 | *Since ADR 0053:* the balance of `OpeningBalances` (`Σ Credit − Σ Debit`) `= Σ Bills.Total` of the opening receivables `− Σ Payments.Amount` of the opening advances. Nothing but an approved opening batch posts to the account. And identity 11 counts bills and payments **by origin**: the opening receivables against the series `OpeningReceivable`, the opening advances against `OpeningAdvance`, the rest against `Bill` and `Payment`; identity 2 looks for the posting kind of a document's origin. |
 
 ### 5.6 Reconciliation queries
 
@@ -1060,6 +1064,32 @@ Both filter on the columns of `IX_LedgerPostings_TenantId_BusinessDate` (no quer
 constants, the tenant in both places, nothing that writes.
 
 ---
+
+### 5.8 Opening balances (ADR 0053, migration `0023_OpeningBalances`)
+
+Built 2026-11-25 (Prompt 10.3).
+
+- **`Bills` and `Payments`** each gain `Origin nvarchar(20) NOT NULL DEFAULT 'Standard'` (`Standard`, `Opening`; `CK_<Table>_Origin`) and
+  `LegacyNumber nvarchar(50) NULL`, the number or reference the document had in the system before, with
+  `CK_<Table>_LegacyNumberIffOpening` and the filtered unique index `UX_<Table>_TenantId_LegacyNumber`: an old number is
+  brought in once. The default is the one exception to "application code sets everything" besides flags and zero
+  balances: every row that existed needs the value. The unique index of a number's position becomes
+  `UX_<Table>_TenantId_Origin_FiscalYear_SequenceNumber`, since an opening series starts at 1 beside the standard one.
+- **`Payers`** gains `LegacyReference nvarchar(50) NULL`, the reference a guarantor had before, with the filtered unique
+  index `UX_Payers_TenantId_LegacyReference`.
+- **`OpeningBatches`**: `Id`, `TenantId`, `CutOverDate date`, `ContentHash char(64)` (SHA-256 of the date and the three
+  files, upper-case hexadecimal), `BillsCsv`, `AdvancesCsv`, `TrialBalanceCsv` (`nvarchar(max)`, out of every audit image),
+  `Receivables int`, `ReceivableTotal decimal(18,2)`, `Advances int`, `AdvanceTotal decimal(18,2)`, `Status nvarchar(20)`
+  (`PendingApproval`, `Approved`, `Rejected`), `DecidedAtUtc`, the audit columns and `RowVersion`. CHECKs:
+  `CK_OpeningBatches_Counts`, `_Totals`, `_Decided`. Indexes: `UX_OpeningBatches_TenantId_ContentHash WHERE Status <> 'Rejected'`
+  and `IX_OpeningBatches_TenantId_CreatedAtUtc`. Keys to `Tenants` and `Users` by the conventions.
+- **Enums stored as text** gain values, and their CHECKs with them: `NumberSeries.DocumentType` and
+  `PrefixChanges.DocumentType` (`OpeningReceivable`, `OpeningAdvance`), `LedgerPostings.Kind` (the two above),
+  `LedgerEntries.Account` (`OpeningBalances`, also among the accounts without a subject in `CK_LedgerEntries_Subject`),
+  `ApprovalRequests.DocumentType` (`OpeningBatch`) and `.Action` (`BringForward`).
+- **Numbers:** the series of the two opening types are created, like any series, when their first number is taken; their
+  prefixes `OBR` and `OBA` are not columns of `Tenants` but the same for every tenant (section 4.1's statement names them).
+- **Grants:** `OpeningBatches` takes the schema's `SELECT, INSERT, UPDATE` and nothing more (section 7).
 
 ## 6. Idempotency store (ADR 0006)
 

@@ -6,6 +6,7 @@ using BillingRecon.Api.Common.Idempotency;
 using BillingRecon.Api.Identity;
 using BillingRecon.Api.Payers;
 using BillingRecon.Api.Payments;
+using BillingRecon.Api.Receivables;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BillingRecon.ArchitectureTests;
@@ -28,6 +29,9 @@ public sealed class IdempotencyConventionTests
         typeof(AdjustmentsController),
         typeof(PaymentsController),
         typeof(PaymentReversalsController),
+
+        // Since ADR 0053: its approval posts every opening receivable and advance of a batch.
+        typeof(OpeningBatchesController),
     ];
 
     /// <summary>
@@ -44,6 +48,11 @@ public sealed class IdempotencyConventionTests
         typeof(UsersController),
         typeof(AuthController),
         typeof(PrefixChangesController),
+
+        // Since ADR 0053: the import of patients, which matches what is there and can be sent again, and the dry run of
+        // an opening batch, which writes nothing.
+        typeof(PartyImportsController),
+        typeof(OpeningBatchChecksController),
     ];
 
     private static readonly Type[] ControllersWithPosts =

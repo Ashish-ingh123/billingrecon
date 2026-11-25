@@ -100,6 +100,10 @@ public sealed class BillsSchemaTests : IDisposable
 
                 // Since Prompt 3.5: what posting sets (migration 0009_BillPosting).
                 "Number", "FiscalYear", "SequenceNumber", "PostedAtUtc", "PostedByUserId",
+
+                // Since Prompt 10.3: where the bill comes from, and the number an opening receivable had before (migration
+                // 0023_OpeningBalances).
+                "Origin", "LegacyNumber",
             ],
             ignoreOrder: true);
 
@@ -131,8 +135,9 @@ public sealed class BillsSchemaTests : IDisposable
             .ToArray();
 
         // Four for drafts, since Prompt 3.5 the two filtered unique indexes of the number (BR-801), and since Prompt 3.6
-        // the filtered index of the bills that wait for approval (BR-207).
-        indexes.Length.ShouldBe(7, string.Join(Environment.NewLine, indexes));
+        // the filtered index of the bills that wait for approval (BR-207), and since Prompt 10.3 the unique index of the
+        // old numbers of opening receivables (ADR 0053).
+        indexes.Length.ShouldBe(8, string.Join(Environment.NewLine, indexes));
     }
 
     [Fact]

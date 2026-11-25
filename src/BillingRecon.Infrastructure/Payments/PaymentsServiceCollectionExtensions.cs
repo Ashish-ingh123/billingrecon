@@ -17,6 +17,9 @@ public static class PaymentsServiceCollectionExtensions
         services.AddScoped<IRefundRepository, RefundRepository>();
         services.AddScoped<IRefundReadService, RefundReadService>();
 
+        // What Payments answers when an opening batch brings in advances (ADR 0053).
+        services.AddScoped<IOpeningAdvances, OpeningAdvances>();
+
         return services;
     }
 }

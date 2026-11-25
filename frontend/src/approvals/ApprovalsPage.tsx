@@ -43,6 +43,7 @@ const kindIcons: Record<ApprovalDocumentType, IconName> = {
   PaymentAllocation: 'undo',
   Refund: 'wallet',
   PrefixChange: 'gear',
+  OpeningBatch: 'building',
 };
 
 /**

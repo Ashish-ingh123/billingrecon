@@ -51,7 +51,7 @@ public sealed class LedgerEntry : ITenantScoped, IAppendOnly
 
     /// <summary>
     /// What the entry does to the balance of its account, in the direction that account grows (docs/database.md,
-    /// section 5.2): a debit raises Receivable, Cash and Adjustments, a credit raises the other three.
+    /// section 5.2): a debit raises Receivable, Cash and Adjustments, a credit raises the other four.
     /// </summary>
     public Money BalanceChange()
         => Account is LedgerAccount.Receivable or LedgerAccount.Cash or LedgerAccount.Adjustments ? Debit - Credit : Credit - Debit;

@@ -56,7 +56,7 @@ public sealed class TenantOnboardingOnSqlServerTests(SqlServerFixture sqlServer)
             var tenant = await context.Set<Tenant>().SingleAsync();
             (tenant.Code, tenant.Name, tenant.Status).ShouldBe((Code, "City Hospital", TenantStatus.Active));
             (tenant.PostingApprovalThreshold, tenant.MaxBackdateDays, tenant.DefaultDueDays).ShouldBe((Money.Of(100_000m), 3, 15));
-            tenant.Prefixes.Values.ShouldBe(["INV", "CRN", "PAY", "ADJ", "REF"]);
+            tenant.Prefixes.Values.ShouldBe(["INV", "CRN", "PAY", "ADJ", "REF", "OBR", "OBA"]);
 
             var admin = await context.Set<User>().Include(user => user.Roles).SingleAsync();
             (admin.Id, admin.Email, admin.PasswordChangeDue).ShouldBe((onboarded.AdminUserId, AdminEmail, true));

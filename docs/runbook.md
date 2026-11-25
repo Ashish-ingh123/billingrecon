@@ -665,6 +665,7 @@ run of the script, the owner's own eyes, or CI still have to show.
 | 1.2 | `PiiMaskerTests` green in the whole `dotnet test` of the second run (step 5). |
 | 8.2 | The load test of section 14 at full size (10,000 bills) through nginx on SQL Server 2022, with `SERVER_TIMING=true` and at least 2 GB free: every target met, no drift (the whole output is in the log); the stress figure with no pause. The browser journey of section 14 against https://localhost (three tests of `journey.spec.ts`). The office machine ran the load on LocalDB at 2,000 bills only (ADR 0046, built note). |
 | 8.3 | The recovery model of the compose database (`FULL` expected) and `is_read_committed_snapshot_on` = 1, the last query of step 12. |
+| 10.3 | The `Database` collection on SQL Server 2022 (step 5 of the script) with migration `0023_OpeningBalances`: `OpeningBalancesApiTests`, the whole export of the reference hospital among them, ran on LocalDB 2019 only. The migration applied by `migrate` to a database that already holds bills and payments (every existing row gets `Origin = Standard`). By hand through nginx: the procedure of section 18 with `deploy/reference/export`, the batch approved from the inbox by a second user, the reconciliation without drift. `node deploy/reference/generate-export.mjs --check` in CI. |
 | 10.2c | The `Database` collection on SQL Server 2022 (step 5 of the script) with migration `0022_UserSessions`: `AuthApiTests` (a sign-out, a disabling, a reset and changed roles refuse the token; a change of one's own password) and the permission walk ran on LocalDB 2019 only. The load test of section 14: every request now reads the user's row once, so its p95 targets are to be met again. By hand through nginx at https://localhost: sign in on two tabs, sign out on one, the other goes to the sign-in at once; a token copied before the sign-out answers 401 `session_ended` (`curl -k -H "Authorization: Bearer <token>" https://localhost/api/v1/system/info`). Everyone signs in once more after this deployment. |
 | 10.2b | The `Database` collection on SQL Server 2022 (`dotnet test`, step 5 of the script): `PatientsApiTests` (a part of an MRN, the wildcards in an MRN) and `UsersApiTests` (a part of an e-mail, its wildcards) ran on LocalDB 2019 only. `e2e/search.spec.ts` with the other stubbed suites through nginx (step 11b). By hand at https://localhost, in both themes on a desktop and a phone: the lists of patients, payers, service items and users and the outstanding report answer while a search is typed, with no Search or Find button and Back leaving the list; in a new bill, a payment and a report, the patient, payer and catalogue pickers open their results while typing and are used by the keyboard alone and by a tap; the journey (`journey.spec.ts`) chooses from those results. |
 | 10.2 | With Compose (`API_ENVIRONMENT=Production`, `DEMO_ENABLED=false`): `docker compose run --rm api tenant create ...` as in section 17.1, the administrator signs in at https://localhost and must change the password; `tenant suspend` refuses that user within 30 seconds, `tenant resume` lets them in; then `API_ENVIRONMENT=Demo` with the demo as before. By hand: the script does not run it. |
@@ -1161,3 +1162,65 @@ docker compose run --rm api tenant resume --code city-hospital --reason "Contrac
 The reason is required and is kept in the audit record (`Suspended`, `Resumed`). Suspending a suspended hospital, or
 lifting the suspension of an active one, is refused with `tenant_status_unchanged` and changes nothing; an unknown code is
 `tenant_not_found`.
+
+## 18. Bringing in a hospital's records and opening balances (ADR 0053)
+
+Done once, on the day a hospital starts here: its patients and guarantors, then what they owed and what they had paid
+in advance at the close of the day before the **cut-over date**, the first day on which documents are raised here.
+First on staging with the whole export, then on production at the cut-over. The endpoints are in `docs/api.md`
+section 8.17. The export of the reference hospital, in these layouts, is `deploy/reference/export/`
+(`docs/reference-hospital.md`; `node deploy/reference/generate-export.mjs` writes it, `--check` compares it).
+
+**Never put a real hospital's export in git, in a ticket or in a chat.** It holds patients' names and what they owe.
+Keep it on the machine that sends it and delete it there when the batch is approved.
+
+### 18.1 The files
+
+CSV, UTF-8, a comma between fields, the first line the header, double quotes around a field that holds a comma. Dates
+are `yyyy-MM-dd`; amounts are plain numbers with at most two decimals (`1250.50`, never `1,250.50`). Columns may be in
+any order; a column the layout does not name is ignored. Map the old system's export to these before anything else.
+
+| File | Required columns | Optional columns |
+|---|---|---|
+| `patients.csv` | `mrn`, `full_name` | `date_of_birth`, `sex` (`Male`, `Female`, `Other`), `phone`, `email`, `address_line1`, `address_line2`, `city`, `state`, `pin_code` |
+| `guarantors.csv` | `guarantor_ref`, `name` | `phone`, `email` |
+| `bills.csv` | `legacy_number`, `mrn`, `bill_date`, `outstanding_amount` | `guarantor_ref` (who owes it, when not the patient), `due_date` (the bill date when left out) |
+| `advances.csv` | `legacy_reference`, `received_date`, `amount`, `method` (`Cash`, `Card`, `UPI`, `BankTransfer`, `Cheque`), and one of `mrn` and `guarantor_ref` | `kind` (`Advance`, or `Credit` for a credit balance) |
+| `trial_balance.csv` | `account` (`Receivable`, `Advance`, `Credit`), `amount` | |
+
+`outstanding_amount` is what is still owed on the bill, not its original total. One patients' file holds at most 5,000
+rows and one batch at most 2,000 opening balances: split a larger hospital, each part of the balances with a trial
+balance of its own.
+
+### 18.2 The procedure
+
+1. **Agree the cut-over date** with the hospital, and that nothing is entered in the old system from that day on.
+2. **Patients and guarantors, dry run.** As a TenantAdmin, `POST /api/v1/imports/parties` with `dryRun: true`. Read
+   `rejected`: each finding names its file, line and reason. A patient the hospital has already under the same MRN and
+   name is *matched*; under another name it is rejected, and you decide which is right. Correct the files, not the
+   database.
+3. **Patients and guarantors, for real.** The same request without `dryRun`. `written: true` and the counts. One
+   rejected row writes nothing. Sent again, every row is matched and nothing changes.
+4. **Opening balances, dry run.** `POST /api/v1/opening-batches/dry-run` with the cut-over date and the three files.
+   `accepted: true` only when no row is rejected and the three totals equal the trial balance to the paisa. A
+   difference is in the files or in the old system's ledger: find it there.
+5. **Submit.** `POST /api/v1/opening-batches`, with an `Idempotency-Key`. The batch waits; nothing is posted.
+6. **A second person approves** (a Supervisor or another TenantAdmin): the approvals inbox shows the batch with its
+   counts and totals, or `POST /api/v1/opening-batches/{id}/approve` with `If-Match`. They compare the totals with the
+   old system's closing trial balance, signed by the hospital's accounts, before approving. The approval posts
+   everything in one transaction; a patient deactivated meanwhile refuses it with nothing written.
+7. **Check.** `GET /api/v1/reports/reconciliation` shows no drift; the outstanding-by-payer report's totals are the
+   trial balance; pick ten payers with the hospital and compare each one's statement with the old system.
+8. **Keep** the approved batch's id and the hospital's signed trial balance with the go-live record.
+
+The same files cannot be brought in twice (409 `opening_batch_duplicate`), nor a bill or advance whose old number was
+brought in before. A batch that is wrong is **rejected** before approval and submitted again when right. After
+approval nothing is undone: a wrong opening receivable is corrected with a credit note or an adjustment, a wrong
+opening advance is refunded with the mistake as its reason, each under maker-checker like any other.
+
+PowerShell, with a token of a TenantAdmin in `$token` (section 12 for signing in) and the files in the current folder:
+
+```powershell
+$body = @{ patientsCsv = (Get-Content patients.csv -Raw); guarantorsCsv = (Get-Content guarantors.csv -Raw); dryRun = $true } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri https://localhost/api/v1/imports/parties -ContentType 'application/json; charset=utf-8' -Headers @{ Authorization = "Bearer $token" } -Body ([Text.Encoding]::UTF8.GetBytes($body))
+```

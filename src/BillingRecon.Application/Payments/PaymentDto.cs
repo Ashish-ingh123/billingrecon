@@ -1,3 +1,4 @@
+using BillingRecon.Domain.Common;
 using BillingRecon.Domain.Payments;
 
 namespace BillingRecon.Application.Payments;
@@ -16,6 +17,8 @@ public sealed record PaymentDto(
     decimal UnappliedAmount,
     PaymentStatus Status,
     string? Notes,
+    DocumentOrigin Origin,
+    string? LegacyNumber,
     DateTimeOffset? ReversedAtUtc,
     string? ReversalReason,
     DateTimeOffset CreatedAtUtc,

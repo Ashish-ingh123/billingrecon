@@ -29,6 +29,9 @@ public sealed class Bill : AggregateRoot<BillId>, ITenantScoped, ICreationAudite
     /// <summary>Longest allowed <see cref="VoidReason"/>.</summary>
     public const int VoidReasonMaxLength = 500;
 
+    /// <summary>Longest allowed <see cref="LegacyNumber"/>.</summary>
+    public const int LegacyNumberMaxLength = 50;
+
     private readonly List<BillLine> _lines = [];
 
     // Also the constructor Entity Framework uses to load a bill: it passes the two stored ids and then sets the
@@ -104,6 +107,12 @@ public sealed class Bill : AggregateRoot<BillId>, ITenantScoped, ICreationAudite
     /// <summary>Who posted the bill; null until it is posted, or when no user did it.</summary>
     public UserId? PostedByUserId { get; private set; }
 
+    /// <summary>Whether the bill was raised here or is an opening receivable brought in at the cut-over (ADR 0053).</summary>
+    public DocumentOrigin Origin { get; private set; }
+
+    /// <summary>The number the bill had in the system before; set on an opening receivable only (ADR 0053).</summary>
+    public string? LegacyNumber { get; private set; }
+
     /// <inheritdoc />
     public DateTimeOffset CreatedAtUtc { get; private set; }
 
@@ -121,6 +130,80 @@ public sealed class Bill : AggregateRoot<BillId>, ITenantScoped, ICreationAudite
 
     /// <summary>The lines of the bill, in the order of their numbers. A draft may have none; a bill needs one to be posted.</summary>
     public IReadOnlyList<BillLine> Lines => _lines;
+
+    /// <summary>
+    /// An opening receivable (ADR 0053): what <paramref name="payerId"/> still owed at the cut-over on a bill of the
+    /// system before, <paramref name="legacyNumber"/>, dated <paramref name="billDate"/> there. It is posted as it is
+    /// made, with one line for <paramref name="outstanding"/> and no tax, under <paramref name="number"/> of the opening
+    /// series; no draft, no back-date window and no approval of its own: the opening batch that brings it was approved.
+    /// From then on it is allocated to, credited, adjusted and reported like any posted bill.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    /// An id is empty, the amount is not above zero, the dates are out of order, the number is not an opening
+    /// receivable's, or the old number is blank or too long. The opening batch refuses all of these as rejected rows first.
+    /// </exception>
+    public static Bill BringForward(
+        PatientId patientId,
+        PayerId payerId,
+        DateOnly billDate,
+        DateOnly dueDate,
+        Money outstanding,
+        string legacyNumber,
+        DocumentNumber number,
+        DateTimeOffset postedAtUtc,
+        UserId? postedBy)
+    {
+        ArgumentNullException.ThrowIfNull(number);
+
+        if (patientId.Value == Guid.Empty || payerId.Value == Guid.Empty)
+        {
+            throw new ArgumentException("An opening receivable is for a patient and owed by a payer; the empty id is neither.", nameof(patientId));
+        }
+
+        if (!outstanding.IsPositive || outstanding.Amount > BillLine.MaxLineAmount)
+        {
+            throw new ArgumentException("An opening receivable is for an amount above zero that a bill line can hold.", nameof(outstanding));
+        }
+
+        if (dueDate < billDate)
+        {
+            throw new ArgumentException("An opening receivable is due on or after its bill date.", nameof(dueDate));
+        }
+
+        if (number.Type != DocumentType.OpeningReceivable)
+        {
+            throw new ArgumentException("An opening receivable takes a number of the opening receivables' series (ADR 0053).", nameof(number));
+        }
+
+        var legacy = Field.Required(legacyNumber, LegacyNumberMaxLength);
+        var line = new BillLineDetails
+        {
+            Description = $"Opening balance of bill {legacy}",
+            Quantity = Quantity.Of(1m),
+            UnitPrice = UnitPrice.Of(outstanding.Amount),
+            TaxRate = Percent.Zero,
+        };
+        var amounts = CheckLines([line]);
+        if (amounts.IsFailure)
+        {
+            throw new ArgumentException($"The line of an opening receivable was refused: {amounts.Error.Code}.", nameof(outstanding));
+        }
+
+        var bill = new Bill(patientId, payerId) { Origin = DocumentOrigin.Opening, LegacyNumber = legacy };
+        bill.Apply(new BillHeader { BillDate = billDate, DueDate = dueDate });
+        bill.Apply([line], amounts.Value);
+        bill.Number = number.Value;
+        bill.FiscalYear = number.FiscalYear;
+        bill.SequenceNumber = number.Sequence;
+        bill.PostedAtUtc = postedAtUtc;
+        bill.PostedByUserId = postedBy;
+        bill.Status = BillStatus.Posted;
+
+        // The id is still empty here: it is assigned when the bill is added to the unit of work.
+        bill.AddDomainEvent(new BillBroughtForward(number.Value, payerId, bill.Total, billDate, legacy));
+
+        return bill;
+    }
 
     /// <summary>
     /// Creates a draft for <paramref name="patientId"/>, owed by <paramref name="payerId"/>, with

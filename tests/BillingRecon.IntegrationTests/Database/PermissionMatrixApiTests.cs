@@ -174,6 +174,14 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
         ("GET", "api/v1/dashboard/pending-approvals", "dashboard"),
         ("GET", "api/v1/dashboard/drift", "dashboard"),
 
+        ("POST", "api/v1/imports/parties", "users, settings, prefixes"),
+        ("POST", "api/v1/opening-batches/dry-run", "users, settings, prefixes"),
+        ("POST", "api/v1/opening-batches", "users, settings, prefixes"),
+        ("GET", "api/v1/opening-batches", "approve or reject"),
+        ("GET", "api/v1/opening-batches/{id:guid}", "approve or reject"),
+        ("POST", "api/v1/opening-batches/{id:guid}/approve", "approve or reject"),
+        ("POST", "api/v1/opening-batches/{id:guid}/reject", "approve or reject"),
+
         // The last row on purpose: the walk below sends every row as every role, and a sign-out ends the sessions of the
         // user who sent it (ADR 0057), so nothing may follow it.
         ("POST", "api/v1/auth/logout", "signed in"),

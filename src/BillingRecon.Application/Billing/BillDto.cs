@@ -1,4 +1,5 @@
 using BillingRecon.Domain.Billing;
+using BillingRecon.Domain.Common;
 
 namespace BillingRecon.Application.Billing;
 
@@ -15,6 +16,8 @@ public sealed record BillDto(
     DateOnly DueDate,
     string? EncounterReference,
     string? Notes,
+    DocumentOrigin Origin,
+    string? LegacyNumber,
     BillStatus Status,
     string? Number,
     string? FiscalYear,

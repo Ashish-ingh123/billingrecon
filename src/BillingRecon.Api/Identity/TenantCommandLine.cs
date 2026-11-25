@@ -1,6 +1,7 @@
 using System.Globalization;
 using BillingRecon.Application.Identity;
 using BillingRecon.Domain.Common;
+using BillingRecon.Domain.Identity;
 
 namespace BillingRecon.Api.Identity;
 
@@ -167,6 +168,7 @@ public static class TenantCommandLine
             if (parts.Length != 2
                 || !Enum.TryParse<DocumentType>(parts[0], ignoreCase: false, out var type)
                 || !Enum.IsDefined(type)
+                || !Tenant.HasPrefixSetting(type)
                 || !prefixes.TryAdd(type, parts[1]))
             {
                 problem = "Give --prefixes as Type=PREFIX pairs separated by commas, each type once: Bill, CreditNote, Payment, Adjustment, Refund.";

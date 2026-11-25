@@ -11,4 +11,7 @@ public enum ApprovalAction
 
     /// <summary>Change the prefix of a number series.</summary>
     ChangePrefix = 2,
+
+    /// <summary>Bring in the opening balances of an opening batch (ADR 0053).</summary>
+    BringForward = 3,
 }

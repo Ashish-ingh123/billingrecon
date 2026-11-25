@@ -167,7 +167,9 @@ public sealed class TenantTests
     {
         var tenant = Tenant.Create("city-hospital", "City Hospital", CreatedAt).Value;
 
-        Enum.GetValues<DocumentType>().Select(tenant.PrefixOf).ShouldBe(["BIL", "CN", "PAY", "ADJ", "REF"]);
+        // The five a tenant may change, and the two of the opening balances, which are the same for every tenant (ADR 0053).
+        Enum.GetValues<DocumentType>().Select(tenant.PrefixOf).ShouldBe(["BIL", "CN", "PAY", "ADJ", "REF", "OBR", "OBA"]);
+        Enum.GetValues<DocumentType>().Where(Tenant.HasPrefixSetting).ShouldBe([DocumentType.Bill, DocumentType.CreditNote, DocumentType.Payment, DocumentType.Adjustment, DocumentType.Refund]);
         tenant.Prefixes.Keys.ShouldBe(Enum.GetValues<DocumentType>());
     }
 

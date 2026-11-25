@@ -49,7 +49,8 @@ public sealed class NumberSeriesAllocator(
         """;
 
     // The tenant's default prefix for the document type is read only when the series is created, under the same
-    // range lock. Without a tenant row there is no prefix: nothing is inserted and no number comes back.
+    // range lock. The two kinds of opening balance have the same prefix for every tenant, Tenant.OpeningReceivablePrefix
+    // and Tenant.OpeningAdvancePrefix, written here as the text they are (ADR 0053). Without a tenant row there is no prefix: nothing is inserted and no number comes back.
     private const string TakeNext =
         """
         SET NOCOUNT ON;
@@ -68,6 +69,8 @@ public sealed class NumberSeriesAllocator(
                                  WHEN 'Payment' THEN [PaymentPrefix]
                                  WHEN 'Adjustment' THEN [AdjustmentPrefix]
                                  WHEN 'Refund' THEN [RefundPrefix]
+                                 WHEN 'OpeningReceivable' THEN 'OBR'
+                                 WHEN 'OpeningAdvance' THEN 'OBA'
                              END
             FROM   [dbo].[Tenants]
             WHERE  [Id] = @tenant;

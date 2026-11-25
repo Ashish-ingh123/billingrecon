@@ -772,6 +772,8 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 | `docs/testing-strategy.md` | Test pyramid, tooling, database tests, architecture tests, the frontend's tests (section 5a), the load test and the browser journey (section 5b), CI gates |
 | `docs/runbook.md` | Written so far: local infrastructure, the "Verify on a Docker machine" checklist, migrations, tests, CI, the container image, idempotency keys, the deferred verification list, sign-in with the signing key (section 9), the database logins with the migrations outside Development (section 10), the proxy in front of the API with its hosts and origins (section 11), the frontend with its commands, a local sign-in and the OpenAPI snapshot (section 12), the one-command local run with the demo (section 13), the load test and the browser journey (section 14), backup and restore (section 15) and the incident procedures (section 16), with rolling back a migration in section 3. Complete for R1 (Prompt 8.3) |
 | `docs/traceability.md` | Each user story, US-01 to US-44, with the tests that prove it; `TraceabilityTests` keeps it complete and every test it names real (Prompt 8.3) |
+| `deploy/reference/` | `generate-export.mjs` and `export/`: the synthetic export of the reference hospital, in the layouts of runbook section 18, which `OpeningBalancesApiTests` imports whole (ADR 0058) |
+| `docs/reference-hospital.md` | The fictional hospital Phase 10 is built for while there is no client: its size, settings, cut-over date, synthetic export, documents, staff and letterhead, and what a real hospital changes (ADR 0058) |
 | `docs/backlog.md` | What R1 leaves open: owner questions, recorded deviations, accepted limitations and follow-ups, each with where it came from and when it is due (Prompt 8.3, from the items of section 9) |
 | `docs/adr/` | Architecture Decision Records. ADR 0000 defines the format. |
 
@@ -894,6 +896,13 @@ in a `Demo` environment only (Accepted on the owner's approval of the Prompt 10.
 user's row read on every request with a token, `POST /api/v1/auth/logout`, and the other tabs told (Accepted on the
 owner's approval of the Prompt 10.2c plan, 2026-11-25; it amends ADR 0031 point 8 and ADR 0032 point 8; the numbers 0053
 to 0056 stay with Prompts 10.3 to 10.6).
+0053 opening balances and the import of a hospital's records: parties first and balances second, opening receivables and
+advances as bills and payments of their own series, a seventh ledger account `OpeningBalances`, a batch of three CSV
+files posted by a second person's approval, brought in once (Accepted on the owner's approval of the Prompt 10.3 plan,
+2026-11-25; it amends ADR 0005, ADR 0008 and ADR 0033),
+0058 Phase 10 is built against a reference hospital: `docs/reference-hospital.md` stands in for the client, with a
+generated export, both tax documents and hosting left to the owner (Accepted on the owner's request and approval of
+2026-11-25; it amends the six inputs of Phase 10).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -975,7 +984,7 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    is needed). Owed: a second run with Node 24, which must show the journey and the full-size load test (row 8.2), the
    whole routes suite, the component tests and the recovery model; what only the owner's eyes can check; and the first
    green run of the CI workflow on GitHub (row 1.5).
-2. **Everything else still open:** `docs/backlog.md`, 32 rows (B1 to B35 but B18, B21 and B24): owner questions, recorded deviations,
+2. **Everything else still open:** `docs/backlog.md`, 34 rows (B1 to B37 but B18, B21 and B24): owner questions, recorded deviations,
    accepted limitations, follow-ups and small fixes, each with its origin and when it is due. Three are marked
    *R1 review*, for the owner: B3 (three credit-note choices), B19 (adjustments by kind), B33 (the stale `0002_Payers`
    in two ADRs). B18 and B24 were closed by Prompt 10.1.
@@ -1007,8 +1016,8 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
 6. **After Phase 9: Phase 10, go-live** (`docs/build-prompts.md`, written 2026-11-24 from the owner's draft):
    10.0 the verification debt and the merge to `main`; 10.1 the users and settings screens with a forced password change;
    10.2 onboarding a hospital by an operator's command; 10.3 the hospital's records and opening balances; 10.4 printed
-   documents; 10.5 production; 10.6 operations; 10.7 readiness. Six inputs from the client come first (the list is at the
-   top of Phase 10); 10.3 and 10.4 stop without them. ADR numbers 0051 to 0056 are theirs. **10.0 started** on branch
+   documents; 10.5 production; 10.6 operations; 10.7 readiness. Six inputs from the client came first; since 2026-11-25 there is no client and `docs/reference-hospital.md`, a fictional self-pay hospital with a generated export, gives them, hosting excepted (ADR 0058; the list is at the
+   top of Phase 10). ADR numbers 0051 to 0056 are theirs. **10.0 started** on branch
    `phase-10-golive`: `deploy/verify/personal-machine.ps1` (commit `0cc7c1e`) ran once on the personal machine
    (item 1); its defects are fixed, and it waits for the second run, then the merge to `main` (every phase branch is an
    ancestor of the next, so each merge is a fast-forward) and CI. **10.1 is written (ADR 0051, amending ADR 0030 point 3):** the users and settings screens under
@@ -1029,3 +1038,12 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    and changed roles; a test that goes on as a user after one of those signs that user in again, and the permission walk
    keeps the sign-out as its last row; owed: runbook section 8, row 10.2c (SQL Server 2022, the load test with the read per
    request, nginx).
+   **10.3 is written (2026-11-25, ADR 0053, for the reference hospital of ADR 0058):** patients and guarantors are imported
+   by `POST /api/v1/imports/parties` (matched by MRN, never merged, a dry run), and opening balances by an opening batch
+   (`/api/v1/opening-batches`: dry run, submit, and the approval of a second person, which posts everything in one
+   transaction). An opening receivable is a bill and an opening advance a payment with `Origin = Opening` and
+   `LegacyNumber`, numbered from their own series `OBR` and `OBA` (fixed, not settings) in the fiscal year of the cut-over,
+   posted against the seventh ledger account `OpeningBalances`; an opening advance is never reversed; reconciliation
+   identity 12; migration `0023_OpeningBalances`; the procedure is runbook section 18. A new ledger account must be
+   named in `CK_LedgerEntries_Subject`, and a new document type in the allocator's statement: both list by name. The screen is
+   10.3b, not started. Owed: runbook section 8, row 10.3.

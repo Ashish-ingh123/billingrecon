@@ -21,6 +21,9 @@ public static class BillingServiceCollectionExtensions
         // What Billing answers to the modules that settle bills (docs/domain-model.md, section 6).
         services.AddScoped<IBillSettlement, BillSettlement>();
 
+        // What Billing answers when an opening batch brings in receivables (ADR 0053).
+        services.AddScoped<IOpeningReceivables, OpeningReceivables>();
+
         services.AddScoped<ICreditNoteRepository, CreditNoteRepository>();
         services.AddScoped<ICreditNoteReadService, CreditNoteReadService>();
 

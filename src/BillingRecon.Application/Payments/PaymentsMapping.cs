@@ -23,6 +23,8 @@ public static class PaymentsMapping
             UnappliedAmount: payment.UnappliedAmount.Amount,
             Status: payment.Status,
             Notes: payment.Notes,
+            Origin: payment.Origin,
+            LegacyNumber: payment.LegacyNumber,
             ReversedAtUtc: payment.ReversedAtUtc,
             ReversalReason: payment.ReversalReason,
             CreatedAtUtc: payment.CreatedAtUtc,

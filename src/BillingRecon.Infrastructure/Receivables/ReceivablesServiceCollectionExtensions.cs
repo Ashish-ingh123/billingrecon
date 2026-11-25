@@ -18,6 +18,10 @@ public static class ReceivablesServiceCollectionExtensions
         services.AddScoped<IReconciliationQuery, ReconciliationQuery>();
         services.AddScoped<ILedgerMovements, LedgerMovementsQuery>();
 
+        // The opening batches (ADR 0053).
+        services.AddScoped<IOpeningBatchRepository, OpeningBatchRepository>();
+        services.AddScoped<IOpeningBatchReadService, OpeningBatchReadService>();
+
         return services;
     }
 }

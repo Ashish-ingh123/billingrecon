@@ -22,6 +22,9 @@ public static class PayersServiceCollectionExtensions
         services.AddScoped<IBillableParties, BillableParties>();
         services.AddScoped<IActivePayers, BillableParties>();
 
+        // What Payers answers when records of the system before are brought in (ADR 0053).
+        services.AddScoped<IImportParties, ImportParties>();
+
         return services;
     }
 }

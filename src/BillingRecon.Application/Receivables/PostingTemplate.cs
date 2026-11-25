@@ -389,6 +389,59 @@ public sealed record PostingTemplate(
             ]);
     }
 
+    /// <summary>
+    /// An opening receivable brought in by an approved opening batch (ADR 0053): Dr Receivable(bill), Cr OpeningBalances.
+    /// It is not revenue here: the system before billed it. <paramref name="closingDate"/> is the day before the cut-over,
+    /// the business date of every opening posting.
+    /// </summary>
+    public static PostingTemplate OpeningReceivableBroughtForward(BillId billId, PayerId payerId, Money outstanding, DateOnly closingDate, DocumentNumber number)
+    {
+        ArgumentNullException.ThrowIfNull(number);
+
+        if (!outstanding.IsPositive)
+        {
+            throw new ArgumentException("An opening receivable is brought in for an amount above zero.", nameof(outstanding));
+        }
+
+        return new PostingTemplate(
+            LedgerPostingKind.OpeningReceivablePosted,
+            LedgerDocumentType.Bill,
+            billId.Value,
+            payerId,
+            closingDate,
+            $"Opening receivable {number} brought forward",
+            [
+                LedgerLine.Dr(LedgerAccount.Receivable, outstanding, new LedgerSubject(LedgerSubjectType.Bill, billId.Value)),
+                LedgerLine.Cr(LedgerAccount.OpeningBalances, outstanding),
+            ]);
+    }
+
+    /// <summary>
+    /// An opening advance brought in by an approved opening batch (ADR 0053): Dr OpeningBalances, Cr
+    /// UnappliedCash(payment). It is not cash received here: the system before received it.
+    /// </summary>
+    public static PostingTemplate OpeningAdvanceBroughtForward(PaymentId paymentId, PayerId payerId, Money amount, DateOnly closingDate, DocumentNumber number)
+    {
+        ArgumentNullException.ThrowIfNull(number);
+
+        if (!amount.IsPositive)
+        {
+            throw new ArgumentException("An opening advance is brought in for an amount above zero.", nameof(amount));
+        }
+
+        return new PostingTemplate(
+            LedgerPostingKind.OpeningAdvancePosted,
+            LedgerDocumentType.Payment,
+            paymentId.Value,
+            payerId,
+            closingDate,
+            $"Opening advance {number} brought forward",
+            [
+                LedgerLine.Dr(LedgerAccount.OpeningBalances, amount),
+                LedgerLine.Cr(LedgerAccount.UnappliedCash, amount, new LedgerSubject(LedgerSubjectType.Payment, paymentId.Value)),
+            ]);
+    }
+
     private static void RequireRefundAmount(Money amount)
     {
         if (!amount.IsPositive)

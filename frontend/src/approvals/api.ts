@@ -24,6 +24,7 @@ export const approvalDocumentTypes: readonly ApprovalDocumentType[] = [
   'PaymentAllocation',
   'CreditNoteAllocation',
   'PrefixChange',
+  'OpeningBatch',
 ];
 
 /** What a request asks, by the kind of its document: each kind has one action (ADR 0023 to ADR 0033). */
@@ -36,6 +37,7 @@ export const requestLabels: Record<ApprovalDocumentType, string> = {
   PaymentAllocation: 'Reverse an allocation',
   CreditNoteAllocation: 'Reverse an application of credit',
   PrefixChange: 'Change a document prefix',
+  OpeningBatch: 'Bring in opening balances',
 };
 
 /** The kinds as the filter names them. */
@@ -48,11 +50,12 @@ export const documentTypeLabels: Record<ApprovalDocumentType, string> = {
   PaymentAllocation: 'Allocation reversals',
   CreditNoteAllocation: 'Reversals of applied credit',
   PrefixChange: 'Prefix changes',
+  OpeningBatch: 'Opening balances',
 };
 
 /**
  * Where a request's document is shown: its own page, or for an allocation or an application of credit the page of the
- * payment or the credit note it belongs to (`parentDocumentId`, ADR 0042 point 2). A prefix change has no page yet.
+ * payment or the credit note it belongs to (`parentDocumentId`, ADR 0042 point 2). A prefix change and an opening batch have no page yet.
  */
 export function documentLink(request: PendingApproval): { to: string; label: string } | null {
   const parent = request.parentDocumentId;
@@ -72,6 +75,7 @@ export function documentLink(request: PendingApproval): { to: string; label: str
     case 'CreditNoteAllocation':
       return parent === null ? null : { to: `/credit-notes/${parent}`, label: 'Its credit note' };
     case 'PrefixChange':
+    case 'OpeningBatch':
       return null;
   }
 }
@@ -392,6 +396,38 @@ export async function readDecidable(client: ApiClient, request: PendingApproval)
               ...path,
               body: { comment },
               headers: ifMatch(change.version),
+            }),
+          ),
+      };
+    }
+
+    case 'OpeningBatch': {
+      // An opening batch (ADR 0053): its approval posts every opening receivable and advance, so it carries a key.
+      const batch = await answer(client.GET('/api/v1/opening-batches/{id}', { params: { path: { id } } }));
+      const path = { params: { path: { id } } };
+      return {
+        path: `/opening-batches/${id}`,
+        version: batch.version,
+        facts: [
+          ['State', batch.status === 'PendingApproval' ? 'Waiting for approval' : batch.status],
+          ['Cut-over date', formatDate(batch.cutOverDate)],
+          ['Opening receivables', `${String(batch.receivables)}, ₹${formatDecimal(batch.receivableTotal)}`],
+          ['Opening advances', `${String(batch.advances)}, ₹${formatDecimal(batch.advanceTotal)}`],
+        ],
+        approve: (comment, key) =>
+          answer(
+            client.POST('/api/v1/opening-batches/{id}/approve', {
+              ...path,
+              body: optional(comment),
+              headers: keyed(batch.version, key),
+            }),
+          ),
+        reject: (comment, key) =>
+          answer(
+            client.POST('/api/v1/opening-batches/{id}/reject', {
+              ...path,
+              body: { comment },
+              headers: keyed(batch.version, key),
             }),
           ),
       };

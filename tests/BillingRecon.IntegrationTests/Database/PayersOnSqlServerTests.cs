@@ -39,6 +39,7 @@ public sealed class PayersOnSqlServerTests(SqlServerFixture sqlServer) : Databas
                 "IX_Patients_TenantId_FullName:TenantId:0:0",
                 "IX_Payers_TenantId_Name:TenantId:0:0",
                 "UX_Payers_TenantId_PatientId:TenantId:1:1",
+                "UX_Payers_TenantId_LegacyReference:TenantId:1:1",
             ],
             ignoreOrder: true);
     }

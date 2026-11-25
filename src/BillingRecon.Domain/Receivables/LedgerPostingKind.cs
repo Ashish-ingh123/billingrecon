@@ -32,4 +32,10 @@ public enum LedgerPostingKind
 
     /// <summary>A refund was posted: Dr UnappliedCash(payment) or CreditAvailable(creditNote), Cr Cash.</summary>
     RefundPosted = 9,
+
+    /// <summary>An opening receivable was brought in: Dr Receivable(bill), Cr OpeningBalances (ADR 0053).</summary>
+    OpeningReceivablePosted = 10,
+
+    /// <summary>An opening advance was brought in: Dr OpeningBalances, Cr UnappliedCash(payment) (ADR 0053).</summary>
+    OpeningAdvancePosted = 11,
 }

@@ -37,6 +37,13 @@ public sealed class PayerConfiguration : IEntityTypeConfiguration<Payer>
             .HasFilter("[PatientId] IS NOT NULL")
             .HasDatabaseName("UX_Payers_TenantId_PatientId");
 
+        // The reference a guarantor had in the system before (ADR 0053): an import finds the payer again by it.
+        builder.Property(payer => payer.LegacyReference).HasMaxLength(Payer.LegacyReferenceMaxLength);
+        builder.HasIndex(payer => new { payer.TenantId, payer.LegacyReference })
+            .IsUnique()
+            .HasFilter("[LegacyReference] IS NOT NULL")
+            .HasDatabaseName("UX_Payers_TenantId_LegacyReference");
+
         builder.Property(payer => payer.Phone).HasMaxLength(Payer.PhoneMaxLength);
         builder.Property(payer => payer.Email).HasMaxLength(Payer.EmailMaxLength);
         builder.Property(payer => payer.Status).HasMaxLength(StatusMaxLength);

@@ -20,6 +20,12 @@ public sealed class Tenant : AggregateRoot<TenantId>, IHasRowVersion
     /// <summary>Upper limit of <see cref="MaxBackdateDays"/> and <see cref="DefaultDueDays"/> (BR-205).</summary>
     public const int MaxDays = 365;
 
+    /// <summary>The prefix of every opening receivable (ADR 0053): the same for every tenant, and not a setting.</summary>
+    public const string OpeningReceivablePrefix = "OBR";
+
+    /// <summary>The prefix of every opening advance (ADR 0053): the same for every tenant, and not a setting.</summary>
+    public const string OpeningAdvancePrefix = "OBA";
+
     /// <summary>How many days a new tenant allows a document to be back-dated (BR-205).</summary>
     public const int InitialMaxBackdateDays = 7;
 
@@ -91,7 +97,16 @@ public sealed class Tenant : AggregateRoot<TenantId>, IHasRowVersion
         [DocumentType.Payment] = PaymentPrefix,
         [DocumentType.Adjustment] = AdjustmentPrefix,
         [DocumentType.Refund] = RefundPrefix,
+        [DocumentType.OpeningReceivable] = OpeningReceivablePrefix,
+        [DocumentType.OpeningAdvance] = OpeningAdvancePrefix,
     };
+
+    /// <summary>
+    /// Whether the prefix of <paramref name="documentType"/> is a setting of the tenant (BR-802): true for the five kinds of
+    /// document a user raises, false for the two kinds of opening balance, whose prefixes are fixed (ADR 0053).
+    /// </summary>
+    public static bool HasPrefixSetting(DocumentType documentType)
+        => documentType is not (DocumentType.OpeningReceivable or DocumentType.OpeningAdvance);
 
     /// <summary>The default prefix of <paramref name="documentType"/>: the prefix of its next new series (BR-802).</summary>
     public string PrefixOf(DocumentType documentType) => documentType switch
@@ -101,6 +116,8 @@ public sealed class Tenant : AggregateRoot<TenantId>, IHasRowVersion
         DocumentType.Payment => PaymentPrefix,
         DocumentType.Adjustment => AdjustmentPrefix,
         DocumentType.Refund => RefundPrefix,
+        DocumentType.OpeningReceivable => OpeningReceivablePrefix,
+        DocumentType.OpeningAdvance => OpeningAdvancePrefix,
         _ => throw new ArgumentOutOfRangeException(nameof(documentType), documentType, "Not a document type that takes a number."),
     };
 
@@ -143,6 +160,11 @@ public sealed class Tenant : AggregateRoot<TenantId>, IHasRowVersion
     /// <exception cref="InvalidOperationException">Another type has it as its default; the use case refuses that first.</exception>
     public void ChangePrefix(DocumentType documentType, string prefix)
     {
+        if (!HasPrefixSetting(documentType))
+        {
+            throw new ArgumentException("The prefix of an opening balance is the same for every tenant and is not changed (ADR 0053).", nameof(documentType));
+        }
+
         if (!DocumentNumber.IsPrefix(prefix))
         {
             throw new ArgumentException($"A prefix has 1 to {DocumentNumber.PrefixMaxLength} characters, each a capital letter or a digit (BR-802).", nameof(prefix));

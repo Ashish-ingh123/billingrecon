@@ -116,4 +116,12 @@ public static class DriftIdentity
     /// ledger figure the numbers the series has given (its next number less one); in a broken row the two differ.
     /// </summary>
     public const string NumberSeriesGap = "NumberSeriesGap";
+
+    /// <summary>
+    /// Identity 12 (ADR 0053): the balance of the <c>OpeningBalances</c> account is not what the opening documents say,
+    /// the opening receivables less the opening advances. Only an approved opening batch posts to that account, so a
+    /// difference means a posting reached it that no opening document stands for. Its row names the tenant, its cached
+    /// figure what the documents come to, its ledger figure the balance of the account.
+    /// </summary>
+    public const string OpeningBalancesAccount = "OpeningBalancesAccount";
 }

@@ -21,4 +21,16 @@ public enum DocumentType
 
     /// <summary>A refund; default prefix <c>REF</c>.</summary>
     Refund,
+
+    /// <summary>
+    /// An opening receivable: what a payer still owed on a bill of the system before, brought in at the cut-over
+    /// (ADR 0053). Its prefix is <c>OBR</c> for every tenant and is not a setting.
+    /// </summary>
+    OpeningReceivable,
+
+    /// <summary>
+    /// An opening advance: money of a payer the system before held and had not applied, brought in at the cut-over
+    /// (ADR 0053). Its prefix is <c>OBA</c> for every tenant and is not a setting.
+    /// </summary>
+    OpeningAdvance,
 }
