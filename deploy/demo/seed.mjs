@@ -53,8 +53,29 @@ async function waitForApi() {
   throw new Error(`The API did not become ready at ${base}.`);
 }
 
-async function signIn(email) {
-  const answer = await call('POST', '/api/v1/auth/login', { body: { tenant, email, password } });
+async function signIn(email, secret = password) {
+  const answer = await call('POST', '/api/v1/auth/login', { body: { tenant, email, password: secret } });
+  return answer.accessToken;
+}
+
+/** A one-time password for a new user: 24 characters, letters and digits. */
+function oneTimePassword() {
+  const bytes = crypto.getRandomValues(new Uint8Array(18));
+  return Buffer.from(bytes).toString('base64url').replace(/[-_]/g, 'x');
+}
+
+/**
+ * Creates a user as the administrator does, with a one-time password, then sets DEMO_PASSWORD as that user must before
+ * anything else (ADR 0051): the token of the answer is the user's, with no change due.
+ */
+async function createUser(adminToken, email, displayName, role) {
+  const oneTime = oneTimePassword();
+  await call('POST', '/api/v1/users', { token: adminToken, body: { email, displayName, password: oneTime, roles: [role] } });
+  const changing = await signIn(email, oneTime);
+  const answer = await call('POST', '/api/v1/auth/password', {
+    token: changing,
+    body: { currentPassword: oneTime, newPassword: password },
+  });
   return answer.accessToken;
 }
 
@@ -75,17 +96,18 @@ if (Number(existing.totalCount) > 0) {
   process.exit(0);
 }
 
+const tokens = {};
 for (const [email, displayName, role] of [
   ['supervisor@demo.local', 'Sunita Supervisor', 'Supervisor'],
   ['clerk@demo.local', 'Kavya Clerk', 'BillingClerk'],
   ['cashier@demo.local', 'Chetan Cashier', 'Cashier'],
   ['viewer@demo.local', 'Vivek Viewer', 'Viewer'],
 ]) {
-  await call('POST', '/api/v1/users', { token: admin, body: { email, displayName, password, roles: [role] } });
+  tokens[role] = await createUser(admin, email, displayName, role);
 }
 
-const clerk = await signIn('clerk@demo.local');
-const cashier = await signIn('cashier@demo.local');
+const clerk = tokens.BillingClerk;
+const cashier = tokens.Cashier;
 
 const items = [];
 for (const [code, name, category, price, tax] of [
