@@ -27,6 +27,8 @@ public sealed class PiiMaskerTests
     [InlineData("+91-98765-43210")]
     [InlineData("919876543210")]
     [InlineData("0091 9876543210")]
+    [InlineData("0091 98765 43210")]
+    [InlineData("0091-98765-43210")]
     [InlineData("09876543210")]
     [InlineData("98765 43210")]
     [InlineData("98765-43210")]
@@ -43,6 +45,11 @@ public sealed class PiiMaskerTests
     [InlineData("9876543210@ybl", "******3210@ybl")]
     [InlineData("phone_9876543210_home", "phone_******3210_home")]
     [InlineData("ref-919876543210", "ref-******3210")]
+    [InlineData("x+919876543210", "x+******3210")]
+    [InlineData("a@b then 0091 98765 43210", "a@b then ******3210")]
+    [InlineData("no dot before the at: a@b, one after it: c@d.org", "no dot before the at: a@b, one after it: c***@d.org")]
+    [InlineData("12345678901234567890 9876543210", "12345678901234567890 ******3210")]
+    [InlineData("9876543210 12345678901234567890", "******3210 12345678901234567890")]
     [InlineData("3f2504e0-4f89-11d3-9a0c-0305e82c3301 919876543210", "3f2504e0-4f89-11d3-9a0c-0305e82c3301 ******3210")]
     public void Numbers_and_addresses_are_masked_inside_longer_text(string value, string expected)
     {

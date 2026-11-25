@@ -47,12 +47,12 @@ public static partial class PiiMasker
         try
         {
             var masked = value;
-            if (masked.Contains('@'))
+            if (MayHoldEmail(masked))
             {
                 masked = EmailPattern().Replace(masked, MaskEmail);
             }
 
-            if (CountDigits(masked) >= PhoneDigits)
+            if (CountDigits(masked) >= PhoneDigits && MayHoldPhone(masked))
             {
                 masked = PhonePattern().Replace(masked, MaskPhone);
             }
@@ -114,6 +114,44 @@ public static partial class PiiMasker
         }
 
         return string.Concat("******", kept);
+    }
+
+    // An address has a dot somewhere after its @ (the domain), so a value with no dot after its first @ holds none and
+    // is not given to the pattern at all. This only spares the scan: what the pattern matches is unchanged.
+    private static bool MayHoldEmail(string value)
+    {
+        var at = value.IndexOf('@', StringComparison.Ordinal);
+
+        return at >= 0 && value.IndexOf('.', at + 1) >= 0;
+    }
+
+    // A number as the pattern writes it is 10 to 16 characters long (ten digits; at most "0091", a separator, and a
+    // separator between the two groups of five), with no ASCII letter or digit just before it or just after it. A value
+    // with no such stretch, a very long run of digits for one, holds none and is not given to the pattern at all. This
+    // only spares the scan: what the pattern matches is unchanged.
+    private static bool MayHoldPhone(string value)
+    {
+        const int Shortest = 10;
+        const int Longest = 16;
+
+        for (var start = 0; start + Shortest <= value.Length; start++)
+        {
+            if (start > 0 && char.IsAsciiLetterOrDigit(value[start - 1]))
+            {
+                continue;
+            }
+
+            var last = Math.Min(start + Longest, value.Length);
+            for (var end = start + Shortest; end <= last; end++)
+            {
+                if (end == value.Length || !char.IsAsciiLetterOrDigit(value[end]))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static int CountDigits(string value)
