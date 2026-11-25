@@ -193,6 +193,27 @@ export const routes: RouteObject[] = [
             'ManageTenant',
             async () => (await import('./administration/SettingsPage')).SettingsPage,
           ),
+          // Bringing in a hospital's records and opening balances (Prompt 10.3b, ADR 0053).
+          guarded(
+            '/administration/import',
+            'ManageTenant',
+            async () => (await import('./imports/ImportIndexPage')).ImportIndexPage,
+          ),
+          guarded(
+            '/administration/import/patients',
+            'ManageTenant',
+            async () => (await import('./imports/PartiesImportPage')).PartiesImportPage,
+          ),
+          guarded(
+            '/administration/import/opening-balances',
+            'ManageTenant',
+            async () => (await import('./imports/OpeningBalancesPage')).OpeningBalancesPage,
+          ),
+          guarded(
+            '/administration/import/batches/:id',
+            'ManageTenant',
+            async () => (await import('./imports/OpeningBatchPage')).OpeningBatchPage,
+          ),
           guarded('/reports', 'Reports', async () => (await import('./reports/ReportsIndex')).ReportsIndex),
           guarded(
             '/reports/bills',

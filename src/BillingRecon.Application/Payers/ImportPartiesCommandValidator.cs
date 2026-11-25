@@ -15,7 +15,7 @@ public sealed class ImportPartiesCommandValidator : AbstractValidator<ImportPart
             .Must(text => text!.Length <= ImportPartiesCommand.MaxFileLength)
             .WithMessage($"The patients' file holds at most {ImportPartiesCommand.MaxFileLength} characters; split it.");
         RuleFor(command => command.GuarantorsCsv)
-            .Must(text => text is null || text.Length <= ImportPartiesCommand.MaxFileLength)
-            .WithMessage($"The guarantors' file holds at most {ImportPartiesCommand.MaxFileLength} characters; split it.");
+            .Must(text => text is null || text.Length <= ImportPartiesCommand.MaxGuarantorsFileLength)
+            .WithMessage($"The guarantors' file holds at most {ImportPartiesCommand.MaxGuarantorsFileLength} characters; split it.");
     }
 }

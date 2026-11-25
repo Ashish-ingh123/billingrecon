@@ -218,6 +218,10 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   batch refused twice, a payment settling an opening receivable, an approval refused when a row no longer holds, and the
   whole export of the reference hospital (`deploy/reference/export`) imported to its trial balance, payer by payer. The
   export is held to its generator by `node deploy/reference/generate-export.mjs --check` in CI.
+  The screens (Prompt 10.3b): `Imports.test.tsx` (Import and Submit closed while a row is rejected and after a file
+  changes, a file too large for one request refused before sending, the key of a submission reused after a fault, a
+  batch's state) and `frontend/e2e/imports.spec.ts` in a real browser (files chosen from the disk, the findings and
+  their download, no layout shift, a phone, the keyboard, axe in both themes); the four routes are in `routes.spec.ts`.
 - **Signing out** (Prompt 10.2c; ADR 0057): `Shell.test.tsx` holds that Sign out sends `POST /api/v1/auth/logout` with
   the token of the session that ends, signs out here all the same when the API refuses or cannot be reached, tells the
   other tabs who signed out and keeps nothing of it, and that a tab signs out when another says the same user did. On

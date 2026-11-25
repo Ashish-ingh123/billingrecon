@@ -1026,7 +1026,8 @@ is found by `guarantor_ref`, the reference it had before, which the payer keeps.
 registration meets. The answer: `dryRun`, `written`, `patientsCreated`, `patientsMatched`, `payersCreated`,
 `guarantorsCreated`, `guarantorsMatched`, `rejected`. **One rejected row writes nothing** (`written: false`, still
 200): correct the file and send it again. It takes no `Idempotency-Key`: sent twice, the second finds every row matched.
-One file holds at most 5,000 rows.
+One file holds at most 5,000 rows, and one request at most 600,000 characters of patients and 200,000 of guarantors
+(400 `validation_failed` beyond): the proxy in front of the API takes 1 MB a request.
 
 **The opening batch.** The body of the dry run and of the submission: `cutOverDate` (the first day documents are
 raised here; the balances are as at the day before), `billsCsv`, `advancesCsv`, `trialBalanceCsv`, and for the
@@ -1034,7 +1035,8 @@ submission `comment`. The dry run answers `accepted`, `receivables`, `receivable
 `creditBalanceTotal` and `rejected`, and writes nothing. A row is rejected when a value is missing or malformed, its
 patient or guarantor is not here or is inactive, its date is on or after the cut-over, its old number is in the file
 twice or was brought in before; and the three totals must equal the trial balance to the paisa. A batch holds at most
-2,000 opening balances.
+2,000 opening balances. Each file holds at most 250,000 characters; a larger one is a finding of the
+file.
 
 The submission needs an `Idempotency-Key`, checks the files the same way, and with one finding answers 422
 `opening_batch_has_rejections` and writes nothing. Otherwise it keeps the files, opens an approval request and answers

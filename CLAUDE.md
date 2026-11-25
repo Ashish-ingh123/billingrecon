@@ -469,6 +469,8 @@ frontend/                      React + TypeScript + Vite (ADR 0038): index.html 
                                e2e/print.spec.ts (ADR 0050, amended).
                                src/components/LiveSearch.test.tsx and RecordPicker.test.tsx, and e2e/search.spec.ts (10.2b).
                                src/auth/useSignOut.ts and e2e/signout.spec.ts (ADR 0057).
+                               src/imports (api.ts, FileField, Findings with findingsCsv.ts, the index, the two imports, a
+                               batch's page) and e2e/imports.spec.ts (ADR 0053, amended).
                                src/administration (api.ts, the users list, a user's page, the user forms with
                                RoleChoices, the settings with the prefix request) and src/auth/ChangePasswordPage.tsx
                                (ADR 0051).
@@ -984,7 +986,7 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    is needed). Owed: a second run with Node 24, which must show the journey and the full-size load test (row 8.2), the
    whole routes suite, the component tests and the recovery model; what only the owner's eyes can check; and the first
    green run of the CI workflow on GitHub (row 1.5).
-2. **Everything else still open:** `docs/backlog.md`, 34 rows (B1 to B37 but B18, B21 and B24): owner questions, recorded deviations,
+2. **Everything else still open:** `docs/backlog.md`, 33 rows (B1 to B36 but B18, B21 and B24): owner questions, recorded deviations,
    accepted limitations, follow-ups and small fixes, each with its origin and when it is due. Three are marked
    *R1 review*, for the owner: B3 (three credit-note choices), B19 (adjustments by kind), B33 (the stale `0002_Payers`
    in two ADRs). B18 and B24 were closed by Prompt 10.1.
@@ -1045,5 +1047,9 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    `LegacyNumber`, numbered from their own series `OBR` and `OBA` (fixed, not settings) in the fiscal year of the cut-over,
    posted against the seventh ledger account `OpeningBalances`; an opening advance is never reversed; reconciliation
    identity 12; migration `0023_OpeningBalances`; the procedure is runbook section 18. A new ledger account must be
-   named in `CK_LedgerEntries_Subject`, and a new document type in the allocator's statement: both list by name. The screen is
-   10.3b, not started. Owed: runbook section 8, row 10.3.
+   named in `CK_LedgerEntries_Subject`, and a new document type in the allocator's statement: both list by name. Owed: runbook section 8, row 10.3.
+   **10.3b is written (2026-11-25, ADR 0053 amended):** the import screens, `frontend/src/imports`, behind a third tab of
+   Users and settings (`/administration/import`, its two imports and a batch's page). A file is checked before Import or
+   Submit is offered, stays in the page's memory only, and its findings download as CSV. The API's file limits are what one
+   request through nginx's 1 MB carries (600,000 characters of patients, 200,000 of guarantors, 250,000 a batch file); the
+   browser weighs a request before sending. `e2e/imports.spec.ts`. Owed: runbook section 8, row 10.3b.

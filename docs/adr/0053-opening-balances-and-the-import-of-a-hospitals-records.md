@@ -103,3 +103,28 @@ has nothing to be allocated to. R1 had no way to bring them in but typing each o
   decisions of an approval request are nine documents'.
 - Verified on the office machine on LocalDB 2019; SQL Server 2022 and CI are owed (runbook section 8, row 10.3). The
   screen is Prompt 10.3b: the inbox already shows and decides a batch.
+
+## Amended 2026-11-25 (Prompt 10.3b): the screens, and what one request can carry
+
+The owner approved the plan of Prompt 10.3b with its three choices.
+
+1. **Four screens under Administration, behind a third tab, Import,** for the TenantAdmin (`frontend/src/imports`): the
+   two steps in their order with the batches that were submitted; the import of patients and guarantors; the import of
+   opening balances; one batch with its state and history. No endpoint changed. On each import the files are checked
+   first, and Import or Submit is offered only for files that were checked and had no rejected row; choosing another file
+   closes it again. The approval stays in the inbox, where a batch already was.
+2. **The files stay in the page.** A chosen file is read once into memory, used for the check and then for the request,
+   and is gone when the page is left: nothing of it goes to the browser's storage or the address, since it holds
+   patients' names and what they owe.
+3. **The findings can be downloaded** as CSV, written in the browser with the reports' own quoting and formula guard: a
+   real export can have hundreds of rejected rows, and they are worked through in the old system, not on this screen.
+4. **The limits are what one request can carry.** The proxy takes a request of at most 1 MB (`client_max_body_size`,
+   ADR 0045), and a request refused there never reaches the API's own message. So the API takes 600,000 characters of
+   patients and 200,000 of guarantors in one request, and 250,000 of each file of an opening batch (they were 4,000,000
+   and 2,000,000, which no request through the proxy could have carried); the rows per file and the documents per batch
+   are unchanged. The browser weighs the request in bytes before sending and refuses one over 900,000 with a message to
+   split the files. Raising the proxy's limit for every endpoint was the alternative, and would have weakened a
+   protection for the sake of two requests.
+5. **Verified** in Edge against the built app with a stubbed API (both themes, a desktop and a phone, axe, the keyboard,
+   no layout shift, nginx's content security policy applied); through nginx against a real import it is owed
+   (runbook section 8, row 10.3b). Backlog B37 is closed.

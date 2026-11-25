@@ -665,6 +665,7 @@ run of the script, the owner's own eyes, or CI still have to show.
 | 1.2 | `PiiMaskerTests` green in the whole `dotnet test` of the second run (step 5). |
 | 8.2 | The load test of section 14 at full size (10,000 bills) through nginx on SQL Server 2022, with `SERVER_TIMING=true` and at least 2 GB free: every target met, no drift (the whole output is in the log); the stress figure with no pause. The browser journey of section 14 against https://localhost (three tests of `journey.spec.ts`). The office machine ran the load on LocalDB at 2,000 bills only (ADR 0046, built note). |
 | 8.3 | The recovery model of the compose database (`FULL` expected) and `is_read_committed_snapshot_on` = 1, the last query of step 12. |
+| 10.3b | By hand through nginx at https://localhost, as a TenantAdmin: Users and settings, Import; the patients and guarantors of `deploy/reference/export` checked and imported; the opening balances checked with cut-over 2027-04-01 and submitted; a second user approves the batch in Approvals; the batch page says "Approved and posted". A patients' file of 5,000 rows goes through nginx (under its 1 MB). `imports.spec.ts` and the four routes of `routes.spec.ts` (step 11b) ran against the built app in Edge only. |
 | 10.3 | The `Database` collection on SQL Server 2022 (step 5 of the script) with migration `0023_OpeningBalances`: `OpeningBalancesApiTests`, the whole export of the reference hospital among them, ran on LocalDB 2019 only. The migration applied by `migrate` to a database that already holds bills and payments (every existing row gets `Origin = Standard`). By hand through nginx: the procedure of section 18 with `deploy/reference/export`, the batch approved from the inbox by a second user, the reconciliation without drift. `node deploy/reference/generate-export.mjs --check` in CI. |
 | 10.2c | The `Database` collection on SQL Server 2022 (step 5 of the script) with migration `0022_UserSessions`: `AuthApiTests` (a sign-out, a disabling, a reset and changed roles refuse the token; a change of one's own password) and the permission walk ran on LocalDB 2019 only. The load test of section 14: every request now reads the user's row once, so its p95 targets are to be met again. By hand through nginx at https://localhost: sign in on two tabs, sign out on one, the other goes to the sign-in at once; a token copied before the sign-out answers 401 `session_ended` (`curl -k -H "Authorization: Bearer <token>" https://localhost/api/v1/system/info`). Everyone signs in once more after this deployment. |
 | 10.2b | The `Database` collection on SQL Server 2022 (`dotnet test`, step 5 of the script): `PatientsApiTests` (a part of an MRN, the wildcards in an MRN) and `UsersApiTests` (a part of an e-mail, its wildcards) ran on LocalDB 2019 only. `e2e/search.spec.ts` with the other stubbed suites through nginx (step 11b). By hand at https://localhost, in both themes on a desktop and a phone: the lists of patients, payers, service items and users and the outstanding report answer while a search is typed, with no Search or Find button and Back leaving the list; in a new bill, a payment and a report, the patient, payer and catalogue pickers open their results while typing and are used by the keyboard alone and by a tap; the journey (`journey.spec.ts`) chooses from those results. |
@@ -971,7 +972,7 @@ for one that came over HTTPS (the API believes the loopback, section 11); that i
 
 ### The browser journey (`frontend/e2e/journey.spec.ts`)
 
-Ten files: `journey.spec.ts`, the main journey, which needs the API and the demo; since Prompt 9.2 `shell.spec.ts`, the
+Eleven files: `journey.spec.ts`, the main journey, which needs the API and the demo; since Prompt 9.2 `shell.spec.ts`, the
 shell and the patients list with the API's answers given by the test; since Prompt 9.3 `money.spec.ts`, the bill editor, a
 posted bill, a credit note and an adjustment the same way (a request it did not expect fails it); since Prompt 9.3b
 `cashier.spec.ts`, the payment, allocating, a refund, the statement and the inbox, with the helper both share,
@@ -979,7 +980,8 @@ posted bill, a credit note and an adjustment the same way (a request it did not 
 `routes.spec.ts`, every route in both themes at two widths with axe's WCAG 2.2 AA checks (its screenshots in
 `test-results`), and `print.spec.ts`, print, forced colours and the keyboard; since Prompt 10.2b `search.spec.ts`, a list
 answering while its search is typed and a picker as an autocomplete by the keyboard and by a tap, with axe; since Prompt 10.2c `signout.spec.ts`, a sign-out telling the API and
-ending the same user's session in a second tab; and, since Prompt 9.1, `signin.spec.ts`,
+ending the same user's session in a second tab; since Prompt 10.3b `imports.spec.ts`, the import of patients and of opening
+balances with files chosen from the disk, their findings, a phone and the keyboard; and, since Prompt 9.1, `signin.spec.ts`,
 the sign-in page alone (its layout against `docs/ui/sign-in.png`, nginx's content security policy applied in the test,
 reduced motion, the keyboard, narrow windows), which needs no API but does need the **built** app: the one-command run,
 or `npm run build` and `npm run preview` with `E2E_BASE_URL=http://localhost:4173` (the Vite dev server's own inline
@@ -1188,11 +1190,17 @@ any order; a column the layout does not name is ignored. Map the old system's ex
 | `advances.csv` | `legacy_reference`, `received_date`, `amount`, `method` (`Cash`, `Card`, `UPI`, `BankTransfer`, `Cheque`), and one of `mrn` and `guarantor_ref` | `kind` (`Advance`, or `Credit` for a credit balance) |
 | `trial_balance.csv` | `account` (`Receivable`, `Advance`, `Credit`), `amount` | |
 
-`outstanding_amount` is what is still owed on the bill, not its original total. One patients' file holds at most 5,000
+`outstanding_amount` is what is still owed on the bill, not its original total. One request carries at most 600,000
+characters of patients and 200,000 of guarantors, and 250,000 of each file of a batch, because the proxy takes 1 MB a
+request; the screens say so before sending. One patients' file holds at most 5,000
 rows and one batch at most 2,000 opening balances: split a larger hospital, each part of the balances with a trial
 balance of its own.
 
 ### 18.2 The procedure
+
+Since Prompt 10.3b the steps below are screens: **Users and settings, Import**, for a TenantAdmin. Each import offers
+"Check the files" first and "Import" or "Submit for approval" only for files that were checked and had no rejected row;
+"Download the findings" writes the rejected rows as a file to work through. The requests are named too, for a script.
 
 1. **Agree the cut-over date** with the hospital, and that nothing is entered in the old system from that day on.
 2. **Patients and guarantors, dry run.** As a TenantAdmin, `POST /api/v1/imports/parties` with `dryRun: true`. Read

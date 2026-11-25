@@ -1,0 +1,107 @@
+/* Bringing in a hospital's records and opening balances (Prompt 10.3b, ADR 0053). Every value is a token. */
+
+/* The two steps of the index: numbered cards, side by side when there is room. */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: var(--space-4);
+  margin: 0 0 var(--space-6);
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.step h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.step p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.stepNumber {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* What a check found: tiles in a row, two by two on a phone. Their height is fixed, so the result arrives without a jump. */
+.figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: var(--space-4);
+  margin: 0 0 var(--space-5);
+}
+
+.tile {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.tile dt {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.tile dd {
+  min-height: 2.25rem;
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 600;
+  line-height: 2.25rem;
+  overflow-wrap: anywhere;
+}
+
+/* The place a result takes: reserved before it arrives. */
+.result {
+  min-height: 12rem;
+  margin-top: var(--space-5);
+}
+
+.findings {
+  margin-top: var(--space-5);
+}
+
+.findingsHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.findingsHead h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.note {
+  margin: var(--space-2) 0 var(--space-3);
+  color: var(--text-muted);
+}
+
+.section {
+  margin-top: var(--space-6);
+}
+
+.section h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
+}

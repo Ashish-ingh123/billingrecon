@@ -29,8 +29,12 @@ public sealed record OpeningBatchFiles(DateOnly CutOverDate, string? BillsCsv, s
     /// <summary>The name a finding gives the trial balance.</summary>
     public const string TrialBalanceFile = "trial_balance.csv";
 
-    /// <summary>How many characters one file may hold.</summary>
-    public const int MaxFileLength = 2_000_000;
+    /// <summary>
+    /// How many characters one file may hold. The proxy in front of the API takes a request of at most 1 MB
+    /// (`client_max_body_size`, ADR 0045), so the three files of one request stay under it together; 2,000 bills of the
+    /// reference hospital are about 120,000 characters.
+    /// </summary>
+    public const int MaxFileLength = 250_000;
 
     /// <summary>
     /// The SHA-256 of the cut-over date and the three files, in upper-case hexadecimal: the same files for the same date

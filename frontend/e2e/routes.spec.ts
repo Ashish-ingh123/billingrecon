@@ -22,6 +22,19 @@ import {
 // route's screenshot in both themes at both widths is kept as an artifact of the run (test-results), not in git. It needs
 // the built app (`npm run build`, `npm run preview`, E2E_BASE_URL=http://localhost:4173).
 
+const openingBatch = {
+  id: 'fd000000-0000-4000-8000-000000000001',
+  cutOverDate: '2027-04-01',
+  status: 'PendingApproval',
+  receivables: 300,
+  receivableTotal: 6584094.91,
+  advances: 55,
+  advanceTotal: 540270.61,
+  submittedAtUtc: '2027-04-02T05:00:00+00:00',
+  submittedByUserId: 'd0000000-0000-4000-8000-000000000009',
+  decidedAtUtc: null,
+  version: 'AAAAAAAADgA=',
+};
 const everyRole = sessionOf(['TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier']);
 
 const serviceItem = {
@@ -213,6 +226,8 @@ const answers: Answers = {
   'GET /api/v1/users': () => pageOf([colleague]),
   [`GET /api/v1/users/${colleague.id}`]: () => colleague,
   'GET /api/v1/settings': () => settings,
+  'GET /api/v1/opening-batches': () => pageOf([openingBatch]),
+  [`GET /api/v1/opening-batches/${openingBatch.id}`]: () => openingBatch,
   'GET /api/v1/dashboard/summary': () => ({
     period,
     previousPeriod: { from: '2026-10-01', to: '2026-10-31' },
@@ -300,6 +315,11 @@ const routes: readonly (readonly [string, string | RegExp])[] = [
   [`/administration/users/${colleague.id}`, colleague.displayName],
   [`/administration/users/${colleague.id}/edit`, `Edit ${colleague.displayName}`],
   ['/administration/settings', 'Users and settings'],
+  // Since Prompt 10.3b: bringing in a hospital's records and opening balances (ADR 0053).
+  ['/administration/import', 'Users and settings'],
+  ['/administration/import/patients', 'Import patients and guarantors'],
+  ['/administration/import/opening-balances', 'Import opening balances'],
+  [`/administration/import/batches/${openingBatch.id}`, 'Opening batch'],
   ['/change-password', 'Change your password'],
   ['/no-access', 'No access'],
   ['/no-such-page', 'Page not found'],

@@ -15,8 +15,15 @@ public sealed record ImportPartiesCommand
     /// <summary>How many rows one file may hold: one commit writes them all.</summary>
     public const int MaxRows = 5000;
 
-    /// <summary>How many characters one file may hold.</summary>
-    public const int MaxFileLength = 4_000_000;
+    /// <summary>
+    /// How many characters the patients' file may hold. The proxy in front of the API takes a request of at most 1 MB
+    /// (`client_max_body_size`, ADR 0045), so the two files of one request stay well under it together; 5,000 rows of the
+    /// reference hospital are about 450,000 characters.
+    /// </summary>
+    public const int MaxFileLength = 600_000;
+
+    /// <summary>How many characters the guarantors' file may hold: far fewer rows, and the same request.</summary>
+    public const int MaxGuarantorsFileLength = 200_000;
 
     /// <summary>
     /// The patients: <c>mrn</c> and <c>full_name</c>, and optionally <c>date_of_birth</c> (yyyy-MM-dd), <c>sex</c>,

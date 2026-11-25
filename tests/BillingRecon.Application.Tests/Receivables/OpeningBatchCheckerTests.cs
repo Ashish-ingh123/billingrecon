@@ -201,6 +201,33 @@ public sealed class OpeningBatchCheckerTests
     }
 
     [Fact]
+    public async Task ADR0053_a_file_larger_than_one_request_can_carry_is_refused_whole()
+    {
+        // The proxy in front of the API takes 1 MB a request, so three files of this size could never arrive together.
+        var large = "legacy_number,mrn,bill_date,outstanding_amount\n" + new string('x', OpeningBatchFiles.MaxFileLength);
+
+        var check = await CheckAsync(bills: large, advances: null);
+
+        check.Findings.ShouldContain(finding => finding.File == "bills.csv" && finding.Line == 0 && finding.Reason.Contains("at most 250000 characters", StringComparison.Ordinal));
+        check.Receivables.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ADR0053_the_files_of_patients_and_guarantors_are_held_to_what_one_request_can_carry()
+    {
+        var validator = new ImportPartiesCommandValidator();
+        var patients = "mrn,full_name\n" + new string('x', ImportPartiesCommand.MaxFileLength);
+        var guarantors = "guarantor_ref,name\n" + new string('x', ImportPartiesCommand.MaxGuarantorsFileLength);
+
+        (await validator.ValidateAsync(new ImportPartiesCommand { PatientsCsv = "mrn,full_name\nNF-1,Asha Rao", GuarantorsCsv = null })).IsValid.ShouldBeTrue();
+        (await validator.ValidateAsync(new ImportPartiesCommand { PatientsCsv = " " })).Errors.ShouldHaveSingleItem().ErrorMessage.ShouldBe("The patients' file is required.");
+        (await validator.ValidateAsync(new ImportPartiesCommand { PatientsCsv = patients })).Errors.ShouldHaveSingleItem().ErrorMessage.ShouldContain("at most 600000 characters");
+        (await validator.ValidateAsync(new ImportPartiesCommand { PatientsCsv = "mrn,full_name\nNF-1,Asha Rao", GuarantorsCsv = guarantors })).Errors.ShouldHaveSingleItem().ErrorMessage.ShouldContain("at most 200000 characters");
+        (ImportPartiesCommand.MaxFileLength + ImportPartiesCommand.MaxGuarantorsFileLength).ShouldBeLessThan(1_000_000);
+        (3 * OpeningBatchFiles.MaxFileLength).ShouldBeLessThan(1_000_000);
+    }
+
+    [Fact]
     public void ADR0053_the_same_files_for_the_same_date_have_the_same_hash_and_any_change_another()
     {
         var files = new OpeningBatchFiles(CutOver, Bills, Advances, TrialBalance);
