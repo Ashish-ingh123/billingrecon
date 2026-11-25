@@ -253,7 +253,8 @@ const routes: readonly (readonly [string, string | RegExp])[] = [
   [`/patients/${patient.id}`, patient.fullName],
   [`/patients/${patient.id}/edit`, /^Edit/],
   ['/payers', 'Payers'],
-  [`/payers/new?patientId=${patient.id}`, 'New payer'],
+  // Not "New payer": that heading shows only while the patient loads, and may be gone before it is looked for.
+  [`/payers/new?patientId=${patient.id}`, `Payer for ${patient.fullName}`],
   [`/payers/${payer.id}`, /Asha Verma/],
   [`/payers/${payer.id}/edit`, /^Edit/],
   [`/payers/${payer.id}/statement`, 'Statement of Asha Verma'],
@@ -280,7 +281,8 @@ const routes: readonly (readonly [string, string | RegExp])[] = [
   [`/credit-notes/${draftCreditNote.id}/edit`, /credit note/i],
   [`/credit-notes/${creditNote.id}/apply`, /^Apply/],
   ['/adjustments', 'Adjustments'],
-  [`/adjustments/new?billId=${posted.id}`, /adjustment/i],
+  // Not "New adjustment": that heading shows only while the bill loads, and may be gone before it is looked for.
+  [`/adjustments/new?billId=${posted.id}`, `Adjust ${posted.number}`],
   [`/adjustments/${adjustment.id}`, /adjustment/i],
   [`/adjustments/${draftAdjustment.id}/edit`, /adjustment/i],
   ['/approvals', 'Approvals'],
