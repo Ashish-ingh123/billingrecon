@@ -39,7 +39,7 @@ public sealed class ChangeOwnPasswordHandlerTests
         _hasher.Verify(Current, Hash).Returns(true);
         _hasher.Hash(Chosen).Returns(NewHash);
         var expires = _clock.UtcNow.AddMinutes(60);
-        _tokens.Issue(Apollo, _user.Id, Arg.Any<IReadOnlyCollection<Role>>(), false).Returns(new AccessToken("new.token.value", expires));
+        _tokens.Issue(Apollo, _user.Id, Arg.Any<IReadOnlyCollection<Role>>(), false, Arg.Any<int>()).Returns(new AccessToken("new.token.value", expires));
     }
 
     private ChangeOwnPasswordHandler Handler(IUnitOfWork unitOfWork)
@@ -60,7 +60,7 @@ public sealed class ChangeOwnPasswordHandlerTests
         Received.InOrder(() =>
         {
             unitOfWork.CommitAsync(Arg.Any<CancellationToken>());
-            _tokens.Issue(Apollo, _user.Id, Arg.Any<IReadOnlyCollection<Role>>(), false);
+            _tokens.Issue(Apollo, _user.Id, Arg.Any<IReadOnlyCollection<Role>>(), false, 1);
         });
     }
 
@@ -75,7 +75,7 @@ public sealed class ChangeOwnPasswordHandlerTests
         _user.PasswordHash.ShouldBe(Hash);
         _user.PasswordChangeDue.ShouldBeTrue();
         await unitOfWork.DidNotReceiveWithAnyArgs().CommitAsync(default);
-        _tokens.DidNotReceiveWithAnyArgs().Issue(default, default, default!, default);
+        _tokens.DidNotReceiveWithAnyArgs().Issue(default, default, default!, default, default);
     }
 
     [Theory]
@@ -97,7 +97,7 @@ public sealed class ChangeOwnPasswordHandlerTests
             .HandleAsync(new ChangeOwnPasswordCommand(Current, Chosen), CancellationToken.None);
 
         result.Error.Code.ShouldBe(CommonErrors.ConcurrencyConflictCode);
-        _tokens.DidNotReceiveWithAnyArgs().Issue(default, default, default!, default);
+        _tokens.DidNotReceiveWithAnyArgs().Issue(default, default, default!, default, default);
     }
 
     [Fact]

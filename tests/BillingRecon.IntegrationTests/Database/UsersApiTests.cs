@@ -135,15 +135,16 @@ public sealed class UsersApiTests(SqlServerFixture sqlServer) : DatabaseTest(sql
         var self = await UserAsync(client, admin.UserId!.Value.Value);
         using var lastRole = await client.SendWithIfMatchAsync(HttpMethod.Put, User(self.Id, "roles"), new ReplaceUserRolesRequest { Roles = [Role.Supervisor] }, PayersApi.ETag(self.Version));
         using var ownDisable = await client.SendWithIfMatchAsync(HttpMethod.Post, User(self.Id, "disable"), body: null, PayersApi.ETag(self.Version));
-        // The second user holds a token from before the change, which still says TenantAdmin (ADR 0031 point 8, ADR 0032
-        // point 8): the endpoint lets it in, and the guard of the last administrator is what refuses.
+        // The second user holds a token from before the change, which still says TenantAdmin. Until ADR 0057 the endpoint
+        // let it in and the guard of the last administrator refused; now the change of roles ended that session, so the
+        // token is refused before any guard. The guard itself is held by UserHandlerTests, with the ports replaced.
         using var asSecond = factory.CreateClientFor(new FixedIdentity(admin.TenantId, new UserId(second.Id)), "TenantAdmin");
         using var lastDisable = await asSecond.SendWithIfMatchAsync(HttpMethod.Post, User(self.Id, "disable"), body: null, PayersApi.ETag(self.Version));
         using var none = await client.SendWithIfMatchAsync(HttpMethod.Put, User(viewer.Id, "roles"), new ReplaceUserRolesRequest { Roles = [] }, PayersApi.ETag(viewer.Version));
 
         await lastRole.ShouldBeProblemAsync(HttpStatusCode.UnprocessableEntity, IdentityErrors.UserLastTenantAdminCode);
         await ownDisable.ShouldBeProblemAsync(HttpStatusCode.UnprocessableEntity, IdentityErrors.UserCannotDisableSelfCode);
-        await lastDisable.ShouldBeProblemAsync(HttpStatusCode.UnprocessableEntity, IdentityErrors.UserLastTenantAdminCode);
+        await lastDisable.ShouldBeProblemAsync(HttpStatusCode.Unauthorized, IdentityErrors.SessionEndedCode);
         await none.ShouldBeProblemAsync(HttpStatusCode.BadRequest, "validation_failed");
         (await UserAsync(client, self.Id)).ShouldBeEquivalentTo(self);
 

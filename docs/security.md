@@ -16,8 +16,12 @@ its reason, or named with the prompt that does it.
 - The answer is a JWT the API issues and checks itself: HS256 with `Jwt:SigningKey` (256 bits or more), issuer
   `BillingRecon`, audience `BillingRecon.Api`, 60 minutes by the application's clock, with the user (`sub`), the
   tenant (`tenant_id`) and the roles (`role`). Only HS256 is accepted; a refused token gets a bare
-  `WWW-Authenticate: Bearer`. No refresh token, no revocation: a token lives until it expires, also when its user is
-  disabled or loses a role meanwhile.
+  `WWW-Authenticate: Bearer`. No refresh token.
+- **A token belongs to a session of its user** (ADR 0057): it carries the number of the user's sessions (`ses`), and
+  every request with a token is held against the user's row, with no cache. A sign-out
+  (`POST /api/v1/auth/logout`), a change or a reset of the password, a disabling and a change of the roles give the
+  user another number, so every token issued before answers 401 `session_ended` from the next request on, on every
+  device. A sign-out in one browser tab also ends the same user's session in the other tabs.
 - **Deny by default:** every endpoint needs a valid token but the sign-in, the health checks and, in Development, the
   OpenAPI document and the Scalar page. In Development a request without a token acts as the development user (a
   TenantAdmin); Development must never be the environment of a machine others can reach.
@@ -156,7 +160,7 @@ it.
 | S1 | Guessing a user's password through the sign-in | The slow hash; one answer for every refusal; the limit per account (10 refusals, then held 15 minutes) and per address (section 2) | Done (ADR 0031, ADR 0035). The limits live in memory per instance and a restart forgets them: Accepted, R1 runs one instance |
 | S2 | Password spraying: one common password tried on many accounts | The limit per client address (30 a minute); passwords of 12 characters or more | Done (ADR 0035). From many addresses at once only the per-account limit applies: Accepted |
 | S3 | Forging a token | HS256 with a key of 256 bits or more from the secret store; only HS256; issuer, audience and lifetime checked against the application's clock | Done (ADR 0031) |
-| S4 | A stolen token used by someone else | Valid 60 minutes at most | Accepted for R1: no revocation (ADR 0031 point 8) |
+| S4 | A stolen token used by someone else | Valid 60 minutes at most, and refused once its user signs out, changes the password, is disabled or has the roles changed | Reduced (ADR 0057). Until one of those happens the token works: Accepted |
 | S5 | A token stolen from the browser by a script (XSS) | The token in `sessionStorage`, gone with the tab and after 60 minutes; React's escaping and a lint rule against raw HTML; the frontend's content security policy, which lists the inline theme script by its SHA-256 (section 6) | Where the token is kept: Done (ADR 0038 point 9). A script that runs in the page can still use the token while the page is open, wherever it is kept: Accepted, the defence is keeping scripts out. The policy: Done with Prompt 8.1, set by nginx on every page and file of the app (ADR 0045) |
 | S6 | The development key or the development identity used in a deployment | The API refuses the key of the repository outside Development; the development identity exists only in Development | Done (ADR 0031). Keeping Development off reachable machines is operational: Accepted |
 | S7 | A forged client address or scheme in forwarded headers | Believed from the loopback and `ReverseProxy:KnownProxies` only, one proxy deep; the framework's switch that believes anyone stops the API at startup | Done (ADR 0035) |
@@ -218,7 +222,7 @@ it.
 | # | Threat | What stops it | State |
 |---|---|---|---|
 | E1 | Doing what one's role does not allow | One policy per action, deny by default, a test of every endpoint with every role | Done (ADR 0031, ADR 0032) |
-| E2 | A disabled user, or one who lost a role, keeps acting | Their token expires within 60 minutes | Accepted for R1 (ADR 0031 point 8, ADR 0032 point 8) |
+| E2 | A disabled user, or one who lost a role, keeps acting | Every request with a token is held against the user's row: a disabling or a change of roles refuses the token from the next request on (401 `session_ended`) | Done (ADR 0057, amending ADR 0031 point 8 and ADR 0032 point 8) |
 | E3 | A tenant left without an administrator | The last active TenantAdmin cannot be disabled or demoted; nobody disables themself | Done (ADR 0030) |
 | E4 | A password reset by an administrator who then knows it | The reset is audited | Accepted for R1: no forced change at the next sign-in (ADR 0030) |
 | E5 | The application's database login doing what only the migrator may | It holds the application's role alone, not `db_owner`, not `db_ddladmin` | Done (ADR 0034) |

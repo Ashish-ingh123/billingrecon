@@ -1,7 +1,8 @@
-import { screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, screen, waitFor, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { signedOutSignalKey } from '../auth/AuthProvider';
 import { sessionStorageKey } from '../auth/session';
-import { fakeApi, json, renderApp, routedApi, sessionFor } from '../test/app';
+import { json, renderApp, routedApi, sessionFor } from '../test/app';
 
 describe('the shell of a signed-in user', () => {
   it('shows the hospital, the user and their roles, and the sections their roles may open', async () => {
@@ -94,10 +95,85 @@ describe('the shell of a signed-in user', () => {
     expect(window.sessionStorage.getItem(sessionStorageKey)).toBeNull();
   });
 
-  it('replaces the notice of the sign-out with what the next attempt met', async () => {
-    const api = fakeApi(
-      json(401, { title: 'Unauthorized', status: 401, detail: 'Not right.', errorCode: 'invalid_credentials' }),
+  it('tells the API of the sign-out, with the token of the session that ends (ADR 0057)', async () => {
+    const session = sessionFor(['BillingClerk']);
+    const api = routedApi({ 'POST /api/v1/auth/logout': () => new Response(null, { status: 204 }) });
+    const { user } = renderApp('/reports', { session, fetch: api.fetch });
+
+    await user.click(await screen.findByRole('button', { name: 'Sign out' }));
+
+    expect(await screen.findByText('You have signed out.')).toBeInTheDocument();
+    await waitFor(() => expect(api.sent('POST', '/api/v1/auth/logout')).toHaveLength(1));
+    expect(api.sent('POST', '/api/v1/auth/logout')[0]?.headers.get('Authorization')).toBe(
+      `Bearer ${session.accessToken}`,
     );
+  });
+
+  it.each([
+    ['refuses the sign-out', () => json(401, { title: 'Unauthorized', status: 401, errorCode: 'session_ended' })],
+    ['cannot be reached', () => Promise.reject(new TypeError('Failed to fetch'))],
+  ])('signs out here all the same when the API %s', async (_, answer) => {
+    const api = routedApi({ 'POST /api/v1/auth/logout': answer });
+    const { user, router } = renderApp('/reports', { session: sessionFor(['Viewer']), fetch: api.fetch });
+
+    await user.click(await screen.findByRole('button', { name: 'Sign out' }));
+    await waitFor(() => expect(api.sent('POST', '/api/v1/auth/logout')).toHaveLength(1));
+
+    // The refusal of the sign-out's own request does not turn "signed out" into "your session has ended".
+    expect(await screen.findByText('You have signed out.')).toBeInTheDocument();
+    expect(screen.queryByText('Your session has ended. Sign in again to continue.')).not.toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/sign-in');
+    expect(window.sessionStorage.getItem(sessionStorageKey)).toBeNull();
+  });
+
+  it('tells the other tabs of the browser who signed out, and keeps nothing of it', async () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    const session = sessionFor(['Viewer']);
+    const api = routedApi({ 'POST /api/v1/auth/logout': () => new Response(null, { status: 204 }) });
+    const { user } = renderApp('/reports', { session, fetch: api.fetch });
+
+    await user.click(await screen.findByRole('button', { name: 'Sign out' }));
+
+    expect(await screen.findByText('You have signed out.')).toBeInTheDocument();
+    expect(setItem.mock.calls.filter(([key]) => key === signedOutSignalKey)).toEqual([
+      [signedOutSignalKey, session.userId],
+    ]);
+    expect(window.localStorage.getItem(signedOutSignalKey)).toBeNull();
+    setItem.mockRestore();
+  });
+
+  it('signs out when another tab says the same user signed out, and not for another user', async () => {
+    const session = sessionFor(['Viewer']);
+    const api = routedApi({});
+    const { router } = renderApp('/reports', { session, fetch: api.fetch });
+    await screen.findByRole('button', { name: 'Sign out' });
+
+    const say = (userId: string | null) =>
+      act(() => {
+        window.dispatchEvent(new StorageEvent('storage', { key: signedOutSignalKey, newValue: userId }));
+      });
+
+    // Another user of this browser signed out, and the signal's own removal: neither concerns this tab.
+    say('d0000000-0000-4000-8000-00000000ffff');
+    say(null);
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
+    expect(window.sessionStorage.getItem(sessionStorageKey)).not.toBeNull();
+
+    say(session.userId);
+    expect(await screen.findByText('You have signed out.')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/sign-in');
+    expect(window.sessionStorage.getItem(sessionStorageKey)).toBeNull();
+    // The tab that signed out told the API; this one sends nothing.
+    expect(api.requests).toHaveLength(0);
+  });
+
+  it('replaces the notice of the sign-out with what the next attempt met', async () => {
+    // The sign-out is a request of its own since ADR 0057, so each path has its answer.
+    const api = routedApi({
+      'POST /api/v1/auth/logout': () => new Response(null, { status: 204 }),
+      'POST /api/v1/auth/login': () =>
+        json(401, { title: 'Unauthorized', status: 401, detail: 'Not right.', errorCode: 'invalid_credentials' }),
+    });
     const { user } = renderApp('/reports', { session: sessionFor(['BillingClerk']), fetch: api.fetch });
     await user.click(await screen.findByRole('button', { name: 'Sign out' }));
     expect(await screen.findByText('You have signed out.')).toBeInTheDocument();

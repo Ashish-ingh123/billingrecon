@@ -141,8 +141,14 @@ public class ApiFactory : WebApplicationFactory<Program>
         if (ReplacesTenantStatus)
         {
             services.AddScoped<ITenantStatusReader, ActiveTenants>();
+
+            // Nor whether a token is of its user's current session (ADR 0057).
+            services.AddSingleton<IUserSessionReader>(Sessions);
         }
     }
+
+    /// <summary>The sessions of the users, where no database says (ADR 0057). A test ends the sessions of a user here.</summary>
+    public CurrentSessions Sessions { get; } = new();
 
     /// <summary>Whether every tenant is taken as active, as no database is there to say (ADR 0052).</summary>
     protected virtual bool ReplacesTenantStatus => true;

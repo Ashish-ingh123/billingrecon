@@ -39,6 +39,9 @@ public static class IdentityErrors
     /// <summary>Code of <see cref="PasswordChangeRequired"/>.</summary>
     public const string PasswordChangeRequiredCode = "password_change_required";
 
+    /// <summary>Code of <see cref="SessionEnded"/>.</summary>
+    public const string SessionEndedCode = "session_ended";
+
     /// <summary>Code of <see cref="PrefixChangeNotFound"/>.</summary>
     public const string PrefixChangeNotFoundCode = "prefix_change_not_found";
 
@@ -98,6 +101,13 @@ public static class IdentityErrors
     /// </summary>
     public static Error PasswordChangeRequired()
         => Error.Forbidden(PasswordChangeRequiredCode, "Set a password of your own first: the one you were given must be changed.");
+
+    /// <summary>
+    /// The token of the request was issued for a session that has ended (ADR 0057): the user signed out, the password or the
+    /// roles changed, or the user was disabled. Signing in again gives a token that works.
+    /// </summary>
+    public static Error SessionEnded()
+        => Error.Unauthorized(SessionEndedCode, "This session has ended. Sign in again.");
 
     /// <summary>The code or the name of a tenant is not valid; <paramref name="fieldErrors"/> says which, per field.</summary>
     public static Error TenantInvalid(IReadOnlyDictionary<string, string[]> fieldErrors)

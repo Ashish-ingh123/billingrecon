@@ -232,6 +232,9 @@ public sealed partial class AuthenticationTests
                 [TokenClaims.UserIdClaim] = Guid.NewGuid().ToString(),
                 [TokenClaims.TenantIdClaim] = Guid.NewGuid().ToString(),
                 [TokenClaims.RoleClaim] = "Cashier",
+
+                // The session the token was issued in (ADR 0057): without it the token is refused as session_ended.
+                [TokenClaims.SessionClaim] = 0,
             },
             SigningCredentials = new SigningCredentials(Key(factory), SecurityAlgorithms.HmacSha256),
         };

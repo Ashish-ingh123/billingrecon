@@ -104,3 +104,8 @@ Built as decided, on .NET 10 (SDK 10.0.404); the database tests ran in a throwaw
   request act as the maker holding Supervisor, so they still reach BR-603's first rule, and assert the refusal of the
   maker's own role beside it; the users' test of the last administrator acts with a token from before the second
   user lost the role, which is the one way that guard can still be reached.
+
+## Amended 2026-11-25 (Prompt 10.2c, ADR 0057)
+
+Point 8: the roles are still those of the token, but a change of a user's roles now ends the user's sessions, so the
+token with the old roles is refused at once and the next sign-in carries the new ones.

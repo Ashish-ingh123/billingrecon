@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using BillingRecon.Domain.Common;
 using BillingRecon.Domain.Identity;
@@ -29,6 +30,27 @@ public static class TokenClaims
 
     /// <summary>The value of <see cref="PasswordChangeClaim"/>.</summary>
     public const string PasswordChangeRequired = "required";
+
+    /// <summary>
+    /// The claim that carries the number of the user's sessions the token was issued in (ADR 0057): a token is refused
+    /// once the user has another number.
+    /// </summary>
+    public const string SessionClaim = "ses";
+
+    /// <summary>
+    /// The number of the session <paramref name="principal"/> was issued in: true when it carries exactly one such claim
+    /// and it is a whole number that is not negative.
+    /// </summary>
+    public static bool TryReadSession(ClaimsPrincipal principal, out int sessionVersion)
+    {
+        ArgumentNullException.ThrowIfNull(principal);
+
+        sessionVersion = 0;
+        var claims = principal.FindAll(SessionClaim).Take(2).ToArray();
+
+        return claims.Length == 1
+            && int.TryParse(claims[0].Value, NumberStyles.None, CultureInfo.InvariantCulture, out sessionVersion);
+    }
 
     /// <summary>Whether the principal carries the mark of a due password change.</summary>
     public static bool MustChangePassword(ClaimsPrincipal principal)

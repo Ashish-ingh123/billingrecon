@@ -89,6 +89,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<ITenantOperations, TenantOperations>();
         services.AddSingleton<TenantStatusCache>();
         services.AddScoped<ITenantStatusReader, TenantStatusReader>();
+        services.AddScoped<IUserSessionReader, UserSessionReader>();
 
         if (environment.IsDevelopment())
         {

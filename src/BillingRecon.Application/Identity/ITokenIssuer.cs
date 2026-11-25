@@ -9,6 +9,9 @@ namespace BillingRecon.Application.Identity;
 /// </summary>
 public interface ITokenIssuer
 {
-    /// <summary>A new token for user <paramref name="userId"/> of tenant <paramref name="tenantId"/>, holding <paramref name="roles"/>.</summary>
-    public AccessToken Issue(TenantId tenantId, UserId userId, IReadOnlyCollection<Role> roles, bool passwordChangeDue);
+    /// <summary>
+    /// A new token for user <paramref name="userId"/> of tenant <paramref name="tenantId"/>, holding <paramref name="roles"/>,
+    /// good while the number of the user's sessions is <paramref name="sessionVersion"/> (ADR 0057).
+    /// </summary>
+    public AccessToken Issue(TenantId tenantId, UserId userId, IReadOnlyCollection<Role> roles, bool passwordChangeDue, int sessionVersion);
 }

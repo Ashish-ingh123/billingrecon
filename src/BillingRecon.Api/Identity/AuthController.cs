@@ -79,4 +79,22 @@ public sealed class AuthController(ILogger<AuthController> logger) : ApiControll
         var result = await handler.HandleAsync(request.ToCommand(), ct);
         return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
     }
+
+    /// <summary>
+    /// Signs the user out (ADR 0057): every token issued to the user so far, on every device, answers 401
+    /// <c>session_ended</c> from the next request on. It takes no body, and a user whose password change is due may call it.
+    /// </summary>
+    [Authorize(Policy = Policies.SignedIn)]
+    [AllowWhilePasswordChangeDue]
+    [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> LogoutAsync(
+        [FromServices] ICommandHandler<SignOutCommand, bool> handler,
+        CancellationToken ct)
+    {
+        Response.Headers.CacheControl = "no-store";
+        var result = await handler.HandleAsync(new SignOutCommand(), ct);
+        return result.IsSuccess ? NoContent() : Problem(result.Error);
+    }
 }

@@ -100,6 +100,7 @@ with field errors lists the messages per field under `errors`, keyed by the JSON
 | 400 | A host name the API does not answer for (section 1) | `host_not_allowed` |
 | 401 | No token, or one that is not valid: expired, not signed by this API, without a tenant or a user (section 2) | `unauthorized` |
 | 401 | A sign-in that is refused, whatever the reason (section 8.12) | `invalid_credentials` |
+| 401 | A token of a session that has ended: a sign-out, a changed or reset password, changed roles, a disabled user (section 8.12) | `session_ended` |
 | 403 | Any endpoint but the change of one's own password, while a password change is due (section 8.12) | `password_change_required` |
 | 403 | Any endpoint that needs a user, when the user's hospital is suspended by the operator, also with a token issued before (ADR 0052) | `tenant_suspended` |
 | 403 | The user's roles do not allow the endpoint (section 2), or a trail that is the TenantAdmin's (section 8.5) for anyone else | `forbidden` |
@@ -445,7 +446,7 @@ The actions, by `entityType`, each one state change (every state change raises o
 | `Adjustment` | `Drafted`, `Updated`, `Voided`, `SubmittedForApproval`, `ReturnedToDraft`, `Posted` |
 | `Refund` | `Drafted`, `Updated`, `Voided`, `SubmittedForApproval`, `ReturnedToDraft`, `Posted` |
 | `ApprovalRequest` | `Opened`, `Approved`, `Rejected` |
-| `User` | `Created`, `Updated`, `RolesReplaced`, `Disabled`, `Enabled`, `PasswordReset`, `SignedIn` |
+| `User` | `Created`, `Updated`, `RolesReplaced`, `Disabled`, `Enabled`, `PasswordReset`, `PasswordChanged`, `SignedIn`, `SignedOut` |
 | `Tenant` | `Onboarded`, `SettingsChanged`, `PrefixChanged`, `Suspended`, `Resumed` (the last three of the operator's command, ADR 0052, with no user) |
 | `PrefixChange` | `Requested`, `Approved`, `Rejected` |
 | `NumberSeries` | `PrefixChanged` |
@@ -781,7 +782,7 @@ never deleted; a disabled user cannot sign in (BR-601) and everything that names
 that names a user is a foreign key to one.
 
 The audit trail is read with `GET /api/v1/audit-records?entityType=User&entityId=...`: `Created`, `Updated`,
-`RolesReplaced`, `Disabled`, `Enabled`, `PasswordReset`, `SignedIn`. The images hold every column but the password
+`RolesReplaced`, `Disabled`, `Enabled`, `PasswordReset`, `PasswordChanged`, `SignedIn`, `SignedOut`. The images hold every column but the password
 hash.
 
 ### 8.12 Sign-in (US-02; BR-601, BR-602; ADR 0031)
@@ -794,6 +795,17 @@ password, and the key store keeps a fingerprint of the body), and no answer of i
 |---|---|---|
 | `POST /api/v1/auth/login` | 200, the token | 400; 401 `invalid_credentials`; 429 `too_many_sign_ins` |
 | `POST /api/v1/auth/password` (any signed-in user, policy `SignedIn`) | 200, a new token | 400; 401; 422 `password_current_wrong` |
+| `POST /api/v1/auth/logout` (any signed-in user, policy `SignedIn`) | 204 | 401 |
+
+**A sign-out ends the user's sessions on the server** (ADR 0057). Every token carries the number of the session it was
+issued in (the claim `ses`), and every request with a token is held against the user's row: a token whose number is no
+longer the user's, or whose user is disabled or gone, answers 401 `session_ended`, from the next request on and on
+every device. `POST /api/v1/auth/logout` takes no body and no `Idempotency-Key`, answers 204 with
+`Cache-Control: no-store`, and gives the user a new number; so do a change of one's own password (whose answer is a
+token of the new session), a password reset by an administrator, a disabling, and a change of the user's roles, the
+user's own included. Signing in again gives a token that works. The sign-out is in the audit trail (`SignedOut`, by the
+user). A user whose password change is due may sign out. In Development a request without a token acts as the
+development user as before; it has no session to end.
 
 The body (unknown members are refused): `tenant`, the code of the hospital; `email`; `password`. The code and the
 address are compared without regard to case or the spaces around them. The answer: `accessToken`, `tokenType`
@@ -1042,6 +1054,7 @@ For a failure no use case reported: routing, model binding, content negotiation,
 |---|---|---|
 | `invalid_credentials` | 401 | The hospital code, the e-mail address or the password is not right, or the user may not sign in. |
 | `password_change_required` | 403 | Set a password of your own first: the one you were given must be changed. |
+| `session_ended` | 401 | This session has ended. Sign in again. |
 | `password_current_wrong` | 422 | The current password is not right; nothing was changed. |
 | `tenant_invalid` | 400 | The tenant is not valid. |
 | `tenant_suspended` | 403 | This hospital is suspended; ask the operator of BillingRecon. |

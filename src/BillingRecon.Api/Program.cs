@@ -127,6 +127,8 @@ app.UseRateLimiter();
 // 401 (ADR 0031). Inside the error handling, so a refusal is a ProblemDetails like any error; before the identity log
 // scope, which needs the user.
 app.UseAuthentication();
+// A token of a session that has ended (a sign-out, a disabled user, changed roles) is refused: 401 (ADR 0057).
+app.UseMiddleware<SessionGateMiddleware>();
 app.UseAuthorization();
 // A token that only changes its password reaches that and nothing else (ADR 0051).
 app.UseMiddleware<PasswordChangeGateMiddleware>();

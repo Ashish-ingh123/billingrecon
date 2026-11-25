@@ -12,6 +12,7 @@ import forms from '../components/forms.module.css';
 import { ProblemAlert } from '../components/ProblemAlert';
 import { landingPath } from '../shell/navigation';
 import { useAuth } from './AuthContext';
+import { useSignOut } from './useSignOut';
 import styles from './ChangePasswordPage.module.css';
 import { sessionFromSignIn } from './session';
 
@@ -31,7 +32,8 @@ const fields = ['currentPassword', 'newPassword'] as const;
 export function ChangePasswordPage() {
   const client = useApiClient();
   const navigate = useNavigate();
-  const { session, signIn, signOut } = useAuth();
+  const { session, signIn } = useAuth();
+  const signOut = useSignOut();
   const {
     register,
     handleSubmit,
@@ -148,7 +150,7 @@ export function ChangePasswordPage() {
               {changing.isPending ? 'Saving…' : 'Save the new password'}
             </button>
             {due ? (
-              <button type="button" className={buttons.link} onClick={() => signOut('signed-out')}>
+              <button type="button" className={buttons.link} onClick={signOut}>
                 Sign out
               </button>
             ) : (

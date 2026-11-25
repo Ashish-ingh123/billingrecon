@@ -21,7 +21,7 @@ public sealed class PasswordChangeGateTests
     {
         var identity = FixedIdentity.Random();
         var token = factory.Services.GetRequiredService<ITokenIssuer>()
-            .Issue(identity.TenantId!.Value, identity.UserId!.Value, [Role.TenantAdmin], passwordChangeDue);
+            .Issue(identity.TenantId!.Value, identity.UserId!.Value, [Role.TenantAdmin], passwordChangeDue, sessionVersion: 0);
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
         return client;
@@ -34,8 +34,8 @@ public sealed class PasswordChangeGateTests
         var identity = FixedIdentity.Random();
         var issuer = factory.Services.GetRequiredService<ITokenIssuer>();
 
-        var due = new JsonWebToken(issuer.Issue(identity.TenantId!.Value, identity.UserId!.Value, [Role.Viewer], passwordChangeDue: true).Value);
-        var plain = new JsonWebToken(issuer.Issue(identity.TenantId!.Value, identity.UserId!.Value, [Role.Viewer], passwordChangeDue: false).Value);
+        var due = new JsonWebToken(issuer.Issue(identity.TenantId!.Value, identity.UserId!.Value, [Role.Viewer], passwordChangeDue: true, sessionVersion: 0).Value);
+        var plain = new JsonWebToken(issuer.Issue(identity.TenantId!.Value, identity.UserId!.Value, [Role.Viewer], passwordChangeDue: false, sessionVersion: 0).Value);
 
         (due.ValidTo - due.ValidFrom).ShouldBe(TimeSpan.FromMinutes(15));
         due.GetClaim(TokenClaims.PasswordChangeClaim).Value.ShouldBe(TokenClaims.PasswordChangeRequired);

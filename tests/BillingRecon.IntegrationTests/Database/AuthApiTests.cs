@@ -359,6 +359,137 @@ public sealed class AuthApiTests(SqlServerFixture sqlServer) : DatabaseTest(sqlS
         (await signIn.ReadAsAsync<SignedInDto>()).CredentialsChangeDue.ShouldBeTrue();
     }
 
+    [Fact]
+    public async Task ADR0057_a_sign_out_refuses_every_token_of_the_user_and_nobody_elses_and_is_audited()
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var (admin, code, user) = await TenantWithUserAsync(factory);
+        using var administrator = factory.CreateClientFor(admin, "TenantAdmin");
+        using var anonymous = factory.CreateClient();
+
+        // Two sign-ins of the same user, as on two devices; both act for the user.
+        var desk = await SignInAsync(anonymous, code);
+        var phone = await SignInAsync(anonymous, code);
+        new JsonWebToken(desk.AccessToken).GetClaim(TokenClaims.SessionClaim).Value.ShouldBe("0");
+        (await IdentityAsync(anonymous, desk.AccessToken)).UserId.ShouldBe(user.Id);
+        (await IdentityAsync(anonymous, phone.AccessToken)).UserId.ShouldBe(user.Id);
+
+        using (var signedOut = await LogoutAsync(anonymous, desk.AccessToken))
+        {
+            signedOut.StatusCode.ShouldBe(HttpStatusCode.NoContent, await signedOut.Content.ReadAsStringAsync());
+            signedOut.Headers.CacheControl.ShouldNotBeNull().NoStore.ShouldBeTrue();
+        }
+
+        // From the next request on, on every device, the sign-out itself included.
+        using (var onTheDesk = await SendAsync(anonymous, desk.AccessToken))
+        {
+            await onTheDesk.ShouldBeProblemAsync(HttpStatusCode.Unauthorized, IdentityErrors.SessionEndedCode);
+        }
+
+        using (var onThePhone = await SendAsync(anonymous, phone.AccessToken))
+        {
+            await onThePhone.ShouldBeProblemAsync(HttpStatusCode.Unauthorized, IdentityErrors.SessionEndedCode);
+        }
+
+        using (var again = await LogoutAsync(anonymous, desk.AccessToken))
+        {
+            await again.ShouldBeProblemAsync(HttpStatusCode.Unauthorized, IdentityErrors.SessionEndedCode);
+        }
+
+        // Another user of the hospital is not concerned, and the user signs in again into a new session.
+        using (var others = await administrator.GetAsync(Identity))
+        {
+            others.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        var back = await SignInAsync(anonymous, code);
+        new JsonWebToken(back.AccessToken).GetClaim(TokenClaims.SessionClaim).Value.ShouldBe("1");
+        (await IdentityAsync(anonymous, back.AccessToken)).UserId.ShouldBe(user.Id);
+
+        var record = (await TrailAsync(administrator, user.Id)).Where(entry => entry.Action == "SignedOut").ShouldHaveSingleItem();
+        record.UserId.ShouldBe(user.Id);
+    }
+
+    [Theory]
+    [InlineData("disabled")]
+    [InlineData("password reset")]
+    [InlineData("roles replaced")]
+    public async Task ADR0057_what_an_administrator_does_to_a_user_ends_the_users_sessions_at_once(string change)
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var (admin, code, user) = await TenantWithUserAsync(factory);
+        using var administrator = factory.CreateClientFor(admin, "TenantAdmin");
+        using var anonymous = factory.CreateClient();
+        var signedIn = await SignInAsync(anonymous, code);
+        (await IdentityAsync(anonymous, signedIn.AccessToken)).UserId.ShouldBe(user.Id);
+        var target = $"/api/v1/users/{user.Id}/";
+
+        // The sign-in was recorded on the user, so the administrator reads the row again for its version.
+        using (var read = await administrator.GetAsync(new Uri($"/api/v1/users/{user.Id}", UriKind.Relative)))
+        {
+            user = await read.ReadAsAsync<UserDto>();
+        }
+
+        using var done = change switch
+        {
+            "disabled" => await administrator.SendWithIfMatchAsync(HttpMethod.Post, new Uri(target + "disable", UriKind.Relative), body: null, PayersApi.ETag(user.Version)),
+            "password reset" => await administrator.SendWithIfMatchAsync(HttpMethod.Post, new Uri(target + "password", UriKind.Relative), new ResetUserPasswordRequest { Password = NewPassword }, PayersApi.ETag(user.Version)),
+            _ => await administrator.SendWithIfMatchAsync(HttpMethod.Put, new Uri(target + "roles", UriKind.Relative), new ReplaceUserRolesRequest { Roles = [Role.Viewer] }, PayersApi.ETag(user.Version)),
+        };
+        done.StatusCode.ShouldBe(HttpStatusCode.OK, await done.Content.ReadAsStringAsync());
+
+        using var after = await SendAsync(anonymous, signedIn.AccessToken);
+        await after.ShouldBeProblemAsync(HttpStatusCode.Unauthorized, IdentityErrors.SessionEndedCode);
+
+        // The administrator who did it goes on.
+        using var others = await administrator.GetAsync(Identity);
+        others.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task ADR0057_a_change_of_ones_own_password_ends_the_other_sessions_and_answers_a_token_of_the_new_one()
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var (_, code, user) = await TenantWithUserAsync(factory);
+        using var anonymous = factory.CreateClient();
+        var desk = await SignInAsync(anonymous, code);
+        var phone = await SignInAsync(anonymous, code);
+
+        using var changed = await ChangePasswordAsync(anonymous, desk.AccessToken, Password, NewPassword);
+        changed.StatusCode.ShouldBe(HttpStatusCode.OK, await changed.Content.ReadAsStringAsync());
+        var next = await changed.ReadAsAsync<SignedInDto>();
+
+        (await IdentityAsync(anonymous, next.AccessToken)).UserId.ShouldBe(user.Id);
+        using var onTheDesk = await SendAsync(anonymous, desk.AccessToken);
+        await onTheDesk.ShouldBeProblemAsync(HttpStatusCode.Unauthorized, IdentityErrors.SessionEndedCode);
+        using var onThePhone = await SendAsync(anonymous, phone.AccessToken);
+        await onThePhone.ShouldBeProblemAsync(HttpStatusCode.Unauthorized, IdentityErrors.SessionEndedCode);
+    }
+
+    [Fact]
+    public async Task ADR0057_a_token_whose_user_is_of_another_hospital_or_does_not_exist_is_refused()
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var (admin, _, user) = await TenantWithUserAsync(factory);
+        var other = await NewApiTenantAsync();
+        using var anonymous = factory.CreateClient();
+
+        // Signed by this API, but naming a user the tenant of the token does not have.
+        using var foreign = await SendAsync(anonymous, factory.TokenFor(other.TenantId!.Value, new UserId(user.Id), "TenantAdmin"));
+        using var nobody = await SendAsync(anonymous, factory.TokenFor(admin.TenantId!.Value, new UserId(Guid.NewGuid()), "TenantAdmin"));
+
+        await foreign.ShouldBeProblemAsync(HttpStatusCode.Unauthorized, IdentityErrors.SessionEndedCode);
+        await nobody.ShouldBeProblemAsync(HttpStatusCode.Unauthorized, IdentityErrors.SessionEndedCode);
+    }
+
+    private static async Task<HttpResponseMessage> LogoutAsync(HttpClient client, string token)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri("/api/v1/auth/logout", UriKind.Relative));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        return await client.SendAsync(request);
+    }
+
     private static async Task<HttpResponseMessage> ChangePasswordAsync(HttpClient client, string token, string current, string chosen)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri("/api/v1/auth/password", UriKind.Relative))

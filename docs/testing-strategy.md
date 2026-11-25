@@ -211,6 +211,12 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   nothing, a stale request cancelled and its answer dropped, the address replaced and Back, page 1, the picker by the
   keyboard alone and by the pointer), and `frontend/e2e/search.spec.ts` on the same helper: a list in both themes with no
   layout shift, the picker by the keyboard with axe while its results are open, and by a tap on a phone.
+- **Signing out** (Prompt 10.2c; ADR 0057): `Shell.test.tsx` holds that Sign out sends `POST /api/v1/auth/logout` with
+  the token of the session that ends, signs out here all the same when the API refuses or cannot be reached, tells the
+  other tabs who signed out and keeps nothing of it, and that a tab signs out when another says the same user did. On
+  the server: `SessionGateTests` (no database: the claim, one question per request, 401 `session_ended`, the health
+  checks not concerned) and `AuthApiTests` in the `Database` collection (a sign-out, a disabling, a reset, changed roles
+  and a change of one's own password, each against tokens issued before).
 - **The budgets of the build** (Prompt 9.4b), `npm run budgets` after `npm run build`, in CI: the first visit to the
   sign-in page and every route's chunk, compressed, against their budgets.
 - **The browser journey**, `frontend/e2e/journey.spec.ts` (Playwright, Chromium or an installed Edge or Chrome): a

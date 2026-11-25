@@ -73,7 +73,7 @@ public sealed class SignInHandler(
         }
 
         // A user whose password was set by an administrator gets a token that only changes it (ADR 0051).
-        var token = tokens.Issue(tenant.Id, candidate.Id, candidate.Roles, user.PasswordChangeDue);
+        var token = tokens.Issue(tenant.Id, candidate.Id, candidate.Roles, user.PasswordChangeDue, user.SessionVersion);
         var seconds = (int)Math.Round((token.ExpiresAtUtc - now).TotalSeconds, MidpointRounding.AwayFromZero);
         var signedIn = new SignedInDto(token.Value, TokenType, token.ExpiresAtUtc, seconds, user.PasswordChangeDue);
         return SignInOutcome.Success(signedIn, candidate.Id);

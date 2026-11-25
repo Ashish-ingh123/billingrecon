@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
-import { useAuth, useSession } from '../auth/AuthContext';
+import { useSession } from '../auth/AuthContext';
+import { useSignOut } from '../auth/useSignOut';
 import { roleLabels } from '../auth/roles';
 import { BrandMark } from '../brand/BrandMark';
 import { CompanyCredit } from '../brand/CompanyCredit';
@@ -37,7 +38,7 @@ function storeRail(rail: boolean): void {
  */
 export function AppShell() {
   const session = useSession();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   const location = useLocation();
   const [rail, setRail] = useState(readRail);
   const [drawer, setDrawer] = useState(false);
@@ -201,7 +202,7 @@ export function AppShell() {
           </span>
         </span>
         <ThemeToggle />
-        <button type="button" className={styles.signOut} onClick={() => signOut('signed-out')}>
+        <button type="button" className={styles.signOut} onClick={signOut}>
           <Icon name="enter" className={styles.signOutIcon} />
           Sign out
         </button>

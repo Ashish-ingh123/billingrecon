@@ -42,7 +42,7 @@ public sealed class SignInHandlerTests
 
         // Read before the call is configured: the clock is a substitute too.
         var token = new AccessToken(Token, _clock.UtcNow.AddMinutes(60));
-        _tokens.Issue(Apollo, _user.Id, Arg.Any<IReadOnlyCollection<Role>>(), false).Returns(token);
+        _tokens.Issue(Apollo, _user.Id, Arg.Any<IReadOnlyCollection<Role>>(), false, Arg.Any<int>()).Returns(token);
     }
 
     [Fact]
@@ -70,8 +70,20 @@ public sealed class SignInHandlerTests
             _scope.Enter(Apollo, _user.Id, Arg.Is<IReadOnlyCollection<Role>>(roles => roles.SequenceEqual(new[] { Role.Supervisor, Role.Cashier })));
             _users.GetAsync(_user.Id, Arg.Any<CancellationToken>());
             unitOfWork.CommitAsync(Arg.Any<CancellationToken>());
-            _tokens.Issue(Apollo, _user.Id, Arg.Is<IReadOnlyCollection<Role>>(roles => roles.SequenceEqual(new[] { Role.Supervisor, Role.Cashier })), false);
+            _tokens.Issue(Apollo, _user.Id, Arg.Is<IReadOnlyCollection<Role>>(roles => roles.SequenceEqual(new[] { Role.Supervisor, Role.Cashier })), false, 0);
         });
+    }
+
+    [Fact]
+    public async Task ADR0057_the_token_is_issued_in_the_session_the_user_has_now()
+    {
+        _user.EndSessions();
+        _user.EndSessions();
+        _user.ClearDomainEvents();
+
+        await Handler(TestDoubles.UnitOfWork()).HandleAsync(Command, CancellationToken.None);
+
+        _tokens.Received(1).Issue(Apollo, _user.Id, Arg.Any<IReadOnlyCollection<Role>>(), false, 2);
     }
 
     [Fact]
@@ -105,7 +117,7 @@ public sealed class SignInHandlerTests
         _hasher.ReceivedCalls().Count(call => call.GetMethodInfo().Name is nameof(IPasswordHasher.Verify) or nameof(IPasswordHasher.VerifyWithoutHash)).ShouldBe(1);
         _scope.DidNotReceiveWithAnyArgs().Enter(default, default, default!);
         await unitOfWork.DidNotReceiveWithAnyArgs().CommitAsync(default);
-        _tokens.DidNotReceiveWithAnyArgs().Issue(default, default, default!, default);
+        _tokens.DidNotReceiveWithAnyArgs().Issue(default, default, default!, default, default);
         _user.LastSignInAtUtc.ShouldBeNull();
     }
 
@@ -178,7 +190,7 @@ public sealed class SignInHandlerTests
         _user.ResetPassword(Hash);
         _user.ClearDomainEvents();
         var token = new AccessToken(Token, _clock.UtcNow.AddMinutes(15));
-        _tokens.Issue(Apollo, _user.Id, Arg.Any<IReadOnlyCollection<Role>>(), true).Returns(token);
+        _tokens.Issue(Apollo, _user.Id, Arg.Any<IReadOnlyCollection<Role>>(), true, Arg.Any<int>()).Returns(token);
 
         var result = await Handler(TestDoubles.UnitOfWork()).HandleAsync(Command, CancellationToken.None);
 
@@ -192,7 +204,7 @@ public sealed class SignInHandlerTests
         var result = await Handler(TestDoubles.UnitOfWork(CommonErrors.ConcurrencyConflict())).HandleAsync(Command, CancellationToken.None);
 
         result.Error.Code.ShouldBe(CommonErrors.ConcurrencyConflictCode);
-        _tokens.DidNotReceiveWithAnyArgs().Issue(default, default, default!, default);
+        _tokens.DidNotReceiveWithAnyArgs().Issue(default, default, default!, default, default);
     }
 
     [Fact]

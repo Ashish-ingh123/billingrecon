@@ -58,6 +58,13 @@ public sealed class User : AggregateRoot<UserId>, ITenantScoped, ICreationAudite
     /// </summary>
     public bool PasswordChangeDue { get; private set; }
 
+    /// <summary>
+    /// The number of the user's sessions (ADR 0057): a token carries the number it was issued with and is refused once the
+    /// user has another. It goes up at a sign-out, a change or a reset of the password, a disabling and a change of the roles,
+    /// so each of them ends every session the user had.
+    /// </summary>
+    public int SessionVersion { get; private set; }
+
     /// <summary>When the user last signed in; null until the first sign-in (Prompt 5.2).</summary>
     public DateTimeOffset? LastSignInAtUtc { get; private set; }
 
@@ -173,6 +180,7 @@ public sealed class User : AggregateRoot<UserId>, ITenantScoped, ICreationAudite
             _roles.Add(UserRole.Grant(role, grantedAtUtc, grantedBy));
         }
 
+        SessionVersion++;
         AddDomainEvent(new UserRolesReplaced(Id, Names(wanted)));
     }
 
@@ -185,6 +193,7 @@ public sealed class User : AggregateRoot<UserId>, ITenantScoped, ICreationAudite
         }
 
         Status = UserStatus.Disabled;
+        SessionVersion++;
         AddDomainEvent(new UserDisabled(Id, Email));
 
         return Result.Success();
@@ -213,6 +222,7 @@ public sealed class User : AggregateRoot<UserId>, ITenantScoped, ICreationAudite
     {
         PasswordHash = Field.Required(passwordHash, PasswordHashMaxLength);
         PasswordChangeDue = true;
+        SessionVersion++;
         AddDomainEvent(new UserPasswordReset(Id));
     }
 
@@ -225,7 +235,18 @@ public sealed class User : AggregateRoot<UserId>, ITenantScoped, ICreationAudite
     {
         PasswordHash = Field.Required(passwordHash, PasswordHashMaxLength);
         PasswordChangeDue = false;
+        SessionVersion++;
         AddDomainEvent(new UserPasswordChanged(Id));
+    }
+
+    /// <summary>
+    /// The user signs out (ADR 0057): every token issued to the user so far is refused from now on, on every device. Raises
+    /// <see cref="UserSignedOut"/>.
+    /// </summary>
+    public void EndSessions()
+    {
+        SessionVersion++;
+        AddDomainEvent(new UserSignedOut(Id));
     }
 
     /// <summary>

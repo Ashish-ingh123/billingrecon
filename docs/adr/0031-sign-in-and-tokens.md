@@ -132,3 +132,10 @@ Built as decided. What the build found or added, none of it a change of a decisi
   algorithm. The log enrichment no longer reads the long name-identifier claim, since the claims keep their names.
 - **Not done here:** the user commands and requests of Prompt 5.1 that hold a password are records with the generated
   `ToString` too; nothing logs them, and making them print no password is a small follow-up.
+
+## Amended 2026-11-25 (Prompt 10.2c, ADR 0057)
+
+Point 8 no longer holds. A token carries the number of its user's sessions and every request with a token is held
+against the user's row: a sign-out, a change or reset of the password, a disabling and a change of the roles refuse
+every token issued before, from the next request on (401 `session_ended`). Point 9 stands: in Development a request
+without a token acts as the development user, which has no session.

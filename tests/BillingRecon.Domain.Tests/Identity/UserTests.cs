@@ -154,6 +154,50 @@ public sealed class UserTests
     }
 
     [Fact]
+    public void ADR0057_a_sign_out_ends_the_sessions_and_is_an_event()
+    {
+        var user = Created();
+        user.ClearDomainEvents();
+        user.SessionVersion.ShouldBe(0);
+
+        user.EndSessions();
+        user.EndSessions();
+
+        user.SessionVersion.ShouldBe(2);
+        user.DomainEvents.ShouldBe([new UserSignedOut(user.Id), new UserSignedOut(user.Id)]);
+    }
+
+    [Fact]
+    public void ADR0057_a_change_or_reset_of_the_password_a_disabling_and_a_change_of_the_roles_each_end_the_sessions()
+    {
+        var user = Created(Role.Cashier);
+
+        user.ResetPassword("pbkdf2-sha256$1$c2FsdA==$cmVzZXQ=");
+        user.SessionVersion.ShouldBe(1);
+        user.ChangePassword("pbkdf2-sha256$1$c2FsdA==$b3du");
+        user.SessionVersion.ShouldBe(2);
+        user.ReplaceRoles([Role.Cashier, Role.Viewer], Later, Admin);
+        user.SessionVersion.ShouldBe(3);
+        user.Disable().IsSuccess.ShouldBeTrue();
+        user.SessionVersion.ShouldBe(4);
+    }
+
+    [Fact]
+    public void ADR0057_what_changes_nothing_ends_no_session()
+    {
+        var user = Created(Role.Cashier);
+
+        user.ReplaceRoles([Role.Cashier], Later, Admin);
+        user.Update("asha.rao@example.in", "Asha R.");
+        user.RecordSignIn(Later);
+        user.Disable();
+        user.Disable().IsFailure.ShouldBeTrue();
+        user.Enable();
+
+        user.SessionVersion.ShouldBe(1, "only the disabling ended the sessions; enabling starts none");
+    }
+
+    [Fact]
     public void The_roles_table_holds_the_five_roles_in_the_order_of_the_enum()
         => RoleDefinition.All.Select(definition => definition.Code).ShouldBe(Enum.GetValues<Role>());
 

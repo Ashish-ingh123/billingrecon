@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Identity;
@@ -22,7 +23,7 @@ public sealed class JwtTokenIssuer(IOptions<JwtOptions> options, IClock clock) :
     private readonly SigningCredentials _credentials = new(new SymmetricSecurityKey(options.Value.ReadKey()), SecurityAlgorithms.HmacSha256);
 
     /// <inheritdoc />
-    public AccessToken Issue(TenantId tenantId, UserId userId, IReadOnlyCollection<Role> roles, bool passwordChangeDue)
+    public AccessToken Issue(TenantId tenantId, UserId userId, IReadOnlyCollection<Role> roles, bool passwordChangeDue, int sessionVersion)
     {
         ArgumentNullException.ThrowIfNull(roles);
 
@@ -33,6 +34,9 @@ public sealed class JwtTokenIssuer(IOptions<JwtOptions> options, IClock clock) :
 
         var subject = new ClaimsIdentity(TokenClaims.For(tenantId, userId, roles));
         subject.AddClaim(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()));
+
+        // The number of the user's sessions (ADR 0057): the token is refused once the user has another.
+        subject.AddClaim(new Claim(TokenClaims.SessionClaim, sessionVersion.ToString(CultureInfo.InvariantCulture), ClaimValueTypes.Integer32));
         if (passwordChangeDue)
         {
             subject.AddClaim(new Claim(TokenClaims.PasswordChangeClaim, TokenClaims.PasswordChangeRequired));
