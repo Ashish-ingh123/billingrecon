@@ -217,6 +217,12 @@ async function phase(users, done, thinkMs) {
       while (!done(posted)) {
         turn += 1;
         if (await iteration(user, record, turn, thinkMs)) posted += 1;
+        // Nothing posted after twenty turns of every user: the run cannot reach its end, so it stops with the reason
+        // instead of filling the memory with refusals.
+        if (posted === 0 && record.errors.length >= 20 * users.length) {
+          const first = record.errors[0];
+          stop(`No bill was posted in ${record.errors.length} attempts; the first refusal was ${first.operation}: ${first.status} ${first.code}`);
+        }
       }
     }),
   );
@@ -276,12 +282,13 @@ if (threshold !== null && threshold <= 700) {
 // The users, their patients and their payers: new ones every run, named after it.
 const run = new Date().toISOString().replace(/\D/g, '').slice(2, 12);
 console.log(`\nSetup (run ${run}): ${settings.users} users with BillingClerk and Cashier, a patient and a payer each`);
+const oneTime = newPassword();
 const password = newPassword();
 const users = [];
 for (let index = 1; index <= settings.users; index += 1) {
   const number = String(index).padStart(3, '0');
   const email = `load-${run}-${number}@${settings.tenant}.local`;
-  await must('POST', '/api/v1/users', { token: admin, body: { email, displayName: `Load ${run} ${number}`, password, roles: ['BillingClerk', 'Cashier'] } });
+  await must('POST', '/api/v1/users', { token: admin, body: { email, displayName: `Load ${run} ${number}`, password: oneTime, roles: ['BillingClerk', 'Cashier'] } });
   const patient = await must('POST', '/api/v1/patients', {
     token: admin,
     body: { mrn: `LOAD-${run}-${number}`, fullName: `Load Patient ${number}`, dateOfBirth: '1980-01-01', sex: 'Female', phone: null, email: null, addressLine1: null, addressLine2: null, city: 'Pune', state: 'Maharashtra', pinCode: null },
@@ -290,7 +297,13 @@ for (let index = 1; index <= settings.users; index += 1) {
   users.push({ email, patientId: patient.id, payerId: payer.id });
 }
 
-for (const user of users) user.token = await signIn(user.email, password);
+// Each user sets a password of their own before anything else, as a new user must (ADR 0051): the token of that
+// answer has no change due, and is the one the user works with.
+for (const user of users) {
+  const changing = await signIn(user.email, oneTime);
+  const changed = await must('POST', '/api/v1/auth/password', { token: changing, body: { currentPassword: oneTime, newPassword: password } });
+  user.token = changed.accessToken;
+}
 
 const register = await must('GET', '/api/v1/reports/bill-register?page=1&pageSize=1', { token: admin });
 const already = Number(register.totalCount);
