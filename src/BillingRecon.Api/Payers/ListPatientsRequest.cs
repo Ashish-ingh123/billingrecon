@@ -7,7 +7,7 @@ namespace BillingRecon.Api.Payers;
 /// <summary>The query string of <c>GET /api/v1/patients</c>: <c>search</c>, <c>status</c>, <c>page</c> and <c>pageSize</c>, all optional.</summary>
 public sealed record ListPatientsRequest
 {
-    /// <summary>A whole MRN or part of a name.</summary>
+    /// <summary>A part of an MRN or of a name.</summary>
     public string? Search { get; init; }
 
     /// <summary>Active or Inactive; both when left out.</summary>

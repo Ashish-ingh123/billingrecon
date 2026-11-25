@@ -25,11 +25,12 @@ export function PatientPicker(props: PickerProps<Patient>) {
       kind="patient"
       label="Patient"
       hint={props.disabled ? 'The patient of a bill never changes.' : 'Find an active patient by MRN or name.'}
-      find={async (text) =>
+      find={async (text, signal) =>
         (
           await answer(
             client.GET('/api/v1/patients', {
               params: { query: { Search: text, Status: 'Active', Page: 1, PageSize: offered } },
+              signal,
             }),
           )
         ).items
@@ -52,11 +53,12 @@ export function PayerPicker(props: PickerProps<Payer>) {
       hint={
         props.disabled ? 'The payer of a bill never changes.' : "Who owes the bill: the patient's own payer by default."
       }
-      find={async (text) =>
+      find={async (text, signal) =>
         (
           await answer(
             client.GET('/api/v1/payers', {
               params: { query: { Search: text, Status: 'Active', Page: 1, PageSize: offered } },
+              signal,
             }),
           )
         ).items
@@ -78,11 +80,12 @@ export function ServiceItemPicker(props: PickerProps<ServiceItem>) {
     <RecordPicker
       kind="service item"
       label="Add a line from the catalogue"
-      find={async (text) =>
+      find={async (text, signal) =>
         (
           await answer(
             client.GET('/api/v1/service-items', {
               params: { query: { Search: text, Status: 'Active', Page: 1, PageSize: offered } },
+              signal,
             }),
           )
         ).items

@@ -25,9 +25,10 @@ describe('the list of patients (US-10)', () => {
     const { user, router } = renderApp('/patients?page=2', { session: clerk, fetch: api.fetch });
     await screen.findByRole('link', { name: 'Asha Verma' });
 
+    // The search is sent while it is typed, after the pause (Prompt 10.2b): no button is pressed.
     await user.type(screen.getByLabelText('MRN or name'), 'MRN-1001');
-    await user.click(screen.getByRole('button', { name: 'Search' }));
-    await waitFor(() => expect(router.state.location.search).toBe('?search=MRN-1001'));
+    expect(screen.queryByRole('button', { name: 'Search' })).not.toBeInTheDocument();
+    await waitFor(() => expect(router.state.location.search).toBe('?search=MRN-1001'), { timeout: 3000 });
 
     await user.click(screen.getByRole('button', { name: 'Next' }));
     await waitFor(() => expect(router.state.location.search).toBe('?search=MRN-1001&page=2'));

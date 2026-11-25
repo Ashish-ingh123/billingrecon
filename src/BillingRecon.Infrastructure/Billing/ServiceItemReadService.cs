@@ -10,8 +10,6 @@ namespace BillingRecon.Infrastructure.Billing;
 /// <summary>Reads service items through the request's context, untracked and filtered by its tenant.</summary>
 public sealed class ServiceItemReadService(BillingReconDbContext context) : IServiceItemReadService
 {
-    private const string LikeEscape = "\\";
-
     /// <inheritdoc />
     public async Task<ServiceItemDto?> GetAsync(ServiceItemId id, CancellationToken ct)
     {
@@ -37,9 +35,9 @@ public sealed class ServiceItemReadService(BillingReconDbContext context) : ISer
         {
             // The code is a value object stored through a converter, which has no Contains to translate: the cast
             // names its column, and LIKE compares the stored text. The search text is data, never a pattern.
-            var pattern = $"%{EscapeLike(search)}%";
+            var pattern = LikePattern.Containing(search);
             items = items.Where(item =>
-                EF.Functions.Like((string)(object)item.Code, pattern, LikeEscape) || EF.Functions.Like(item.Name, pattern, LikeEscape));
+                EF.Functions.Like((string)(object)item.Code, pattern, LikePattern.Escape) || EF.Functions.Like(item.Name, pattern, LikePattern.Escape));
         }
 
         var totalCount = await items.CountAsync(ct);
@@ -70,14 +68,6 @@ public sealed class ServiceItemReadService(BillingReconDbContext context) : ISer
 
     /// <inheritdoc />
     public Task<bool> CodeExistsAsync(ServiceItemCode code, CancellationToken ct) => Items().AnyAsync(item => item.Code == code, ct);
-
-    // The characters LIKE gives a meaning to, and the escape character itself, each behind the escape character.
-    private static string EscapeLike(string text)
-        => text
-            .Replace(LikeEscape, LikeEscape + LikeEscape, StringComparison.Ordinal)
-            .Replace("%", LikeEscape + "%", StringComparison.Ordinal)
-            .Replace("_", LikeEscape + "_", StringComparison.Ordinal)
-            .Replace("[", LikeEscape + "[", StringComparison.Ordinal);
 
     private IQueryable<ServiceItem> Items() => context.Set<ServiceItem>().AsNoTracking();
 }

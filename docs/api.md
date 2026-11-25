@@ -145,7 +145,9 @@ with field errors lists the messages per field under `errors`, keyed by the JSON
 - The answer is an envelope: `{ "items": [...], "page": 2, "pageSize": 20, "totalCount": 57 }`, the items in a stable
   order (by name, then by id), so that pages neither repeat nor skip a record while nothing changes.
 - Filters are explicit query parameters; a value out of range answers 400.
-- `search` compares without regard to case. A `%` or `_` in it matches itself.
+- `search` finds a part of the text, as `LIKE '%text%'`, without regard to case. A `%`, `_` or `[` in it matches itself.
+  The API accepts a search of one character; the screens send one from two characters, while it is typed (ADR 0018 and
+  ADR 0039, amended 2026-11-25).
 
 ## 7. Idempotency (BR-803, ADR 0006)
 
@@ -220,7 +222,7 @@ key either: `If-Match` already refuses a repeat as stale.
 
 Text is stored without its surrounding white space, and a blank optional value as null.
 
-**Search** (`search`): finds a patient by the whole MRN or by part of the name. **Status** (`status`): `Active` or
+**Search** (`search`): finds a patient by a part of the MRN or a part of the name. **Status** (`status`): `Active` or
 `Inactive`; both when left out. An inactive patient is still listed, read and corrected; no new bill may be raised for
 them (BR-102).
 
@@ -750,7 +752,7 @@ included (section 2; ADR 0032).
 |---|---|---|
 | `POST /api/v1/users` | 201, the user, `Location`, `ETag` | 400; 409 `user_email_taken` |
 | `GET /api/v1/users/{id}` | 200, the user, `ETag` | 404 `user_not_found` |
-| `GET /api/v1/users?status=&role=&email=&page=&pageSize=` | 200, a page of users by address | 400 |
+| `GET /api/v1/users?status=&role=&email=&page=&pageSize=` | 200, a page of users by address; `email` finds a part of the address, without regard to case, a `%` or `_` in it matching itself | 400 |
 | `PATCH /api/v1/users/{id}` (needs `If-Match`) | 200 | 400; 404; 409 `concurrency_conflict`, `user_email_taken`; 428 |
 | `PUT /api/v1/users/{id}/roles` (needs `If-Match`) | 200 | 400; 404; 409 `concurrency_conflict`; 422 `user_last_tenant_admin`; 428 |
 | `POST /api/v1/users/{id}/disable` (needs `If-Match`; no body) | 200, the user `Disabled` | 404; 409 `concurrency_conflict`; 422 `user_cannot_disable_self`, `user_last_tenant_admin`, `user_already_disabled`; 428 |

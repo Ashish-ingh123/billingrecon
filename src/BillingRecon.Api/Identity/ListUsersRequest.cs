@@ -4,7 +4,7 @@ using BillingRecon.Domain.Identity;
 
 namespace BillingRecon.Api.Identity;
 
-/// <summary>The query string of <c>GET /api/v1/users</c>: <c>status</c>, <c>role</c>, <c>email</c> (the start of the address), <c>page</c> and <c>pageSize</c>, all optional.</summary>
+/// <summary>The query string of <c>GET /api/v1/users</c>: <c>status</c>, <c>role</c>, <c>email</c> (a part of the address), <c>page</c> and <c>pageSize</c>, all optional.</summary>
 public sealed record ListUsersRequest
 {
     /// <summary>Only the users in this state.</summary>
@@ -13,7 +13,7 @@ public sealed record ListUsersRequest
     /// <summary>Only the users who hold this role.</summary>
     public Role? Role { get; init; }
 
-    /// <summary>Only the users whose address starts with this, without regard to case.</summary>
+    /// <summary>Only the users whose address holds this text anywhere, without regard to case.</summary>
     public string? Email { get; init; }
 
     /// <summary>From 1; 1 when left out.</summary>

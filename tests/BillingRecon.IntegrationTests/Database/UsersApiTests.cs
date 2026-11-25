@@ -55,7 +55,7 @@ public sealed class UsersApiTests(SqlServerFixture sqlServer) : DatabaseTest(sql
             row.CreatedByUserId.ShouldBe(admin.UserId);
         }
 
-        // Read and listed, by role and by the start of the address without regard to case.
+        // Read and listed, by role and by a part of the address without regard to case (Prompt 10.2b).
         using (var read = await client.GetAsync(User(user.Id)))
         {
             (await read.ReadAsAsync<UserDto>()).ShouldBeEquivalentTo(user);
@@ -63,6 +63,8 @@ public sealed class UsersApiTests(SqlServerFixture sqlServer) : DatabaseTest(sql
 
         (await ListAsync(client, "role=Cashier")).ShouldHaveSingleItem().Id.ShouldBe(user.Id);
         (await ListAsync(client, "email=asha")).ShouldHaveSingleItem().Id.ShouldBe(user.Id);
+        (await ListAsync(client, "email=RAO%40example")).ShouldHaveSingleItem().Id.ShouldBe(user.Id);
+        (await ListAsync(client, "email=rao%40nowhere")).ShouldBeEmpty();
         (await ListAsync(client, "role=Viewer")).ShouldBeEmpty();
 
         // Audited (BR-701), and neither image holds the hash.
@@ -249,6 +251,21 @@ public sealed class UsersApiTests(SqlServerFixture sqlServer) : DatabaseTest(sql
         stamp.Message.ShouldContain("FK_Payers_UpdatedByUserId");
         role.Number.ShouldBe(547);
         (await CountAsync("SELECT COUNT(*) AS [Value] FROM dbo.Roles")).ShouldBe(5, "the reset of the tests leaves the roles alone");
+    }
+
+    [Fact]
+    public async Task The_email_filter_finds_a_part_of_the_address_and_takes_the_wildcards_of_like_as_text()
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "TenantAdmin");
+        var underscore = await CreatedAsync(client, "a_b.wild@example.in", Role.Viewer);
+        var letter = await CreatedAsync(client, "axb.wild@example.in", Role.Viewer);
+
+        (await ListAsync(client, "email=b.WILD")).Select(user => user.Id).ShouldBe([underscore.Id, letter.Id]);
+        (await ListAsync(client, "email=wild%40example.in")).Select(user => user.Id).ShouldBe([underscore.Id, letter.Id]);
+        (await ListAsync(client, "email=a_b")).Select(user => user.Id).ShouldBe([underscore.Id]);
+        (await ListAsync(client, "email=%25")).ShouldBeEmpty();
+        (await ListAsync(client, "email=wild%25")).ShouldBeEmpty();
     }
 
     private static Uri User(Guid id) => new($"/api/v1/users/{id}", UriKind.Relative);

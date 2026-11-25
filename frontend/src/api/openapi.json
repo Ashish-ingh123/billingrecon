@@ -3984,12 +3984,12 @@
         "tags": [
           "Patients"
         ],
-        "summary": "Lists the patients one page at a time, by name; `search` matches a whole MRN or part of a name.",
+        "summary": "Lists the patients one page at a time, by name; `search` matches a part of an MRN or of a name.",
         "parameters": [
           {
             "name": "Search",
             "in": "query",
-            "description": "A whole MRN or part of a name.",
+            "description": "A part of an MRN or of a name.",
             "schema": {
               "type": "string"
             }
@@ -6308,7 +6308,7 @@
           {
             "name": "Email",
             "in": "query",
-            "description": "Only the users whose address starts with this, without regard to case.",
+            "description": "Only the users whose address holds this text anywhere, without regard to case.",
             "schema": {
               "type": "string"
             }

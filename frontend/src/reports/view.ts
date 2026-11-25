@@ -40,7 +40,7 @@ export function useReportQuery<N extends string>(names: readonly N[]) {
   const parsed = Number.parseInt(params.get('page') ?? '1', 10);
   const page = Number.isFinite(parsed) && parsed >= 1 ? parsed : 1;
 
-  const change = (next: Partial<Record<N | 'page', string>>) => {
+  const change = (next: Partial<Record<N | 'page', string>>, options?: { replace?: boolean }) => {
     const merged: Record<string, string> = { ...values, page: String(page), ...next };
     if (!('page' in next)) {
       merged.page = '1';
@@ -53,7 +53,7 @@ export function useReportQuery<N extends string>(names: readonly N[]) {
       }
     }
 
-    setParams(query);
+    setParams(query, { replace: options?.replace === true });
   };
 
   return { values, page, change };

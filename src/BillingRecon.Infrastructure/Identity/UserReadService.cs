@@ -7,7 +7,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BillingRecon.Infrastructure.Identity;
 
-/// <summary>Reads users for the API, without tracking. The tenant filter of the context applies.</summary>
+/// <summary>Reads users for the API, without tracking. The tenant filter of the context applies. The e-mail filter finds a part of
+/// the address (Prompt 10.2b), with the wildcards of LIKE escaped, so a <c>%</c> or <c>_</c> in it matches itself.</summary>
 public sealed class UserReadService(BillingReconDbContext context) : IUserReadService
 {
     /// <inheritdoc />
@@ -36,8 +37,8 @@ public sealed class UserReadService(BillingReconDbContext context) : IUserReadSe
 
         if (query.Email is { } email)
         {
-            var start = User.Normalize(email);
-            users = users.Where(user => user.NormalizedEmail.StartsWith(start));
+            var pattern = LikePattern.Containing(User.Normalize(email));
+            users = users.Where(user => EF.Functions.Like(user.NormalizedEmail, pattern, LikePattern.Escape));
         }
 
         var totalCount = await users.CountAsync(ct);

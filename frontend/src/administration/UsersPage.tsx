@@ -9,6 +9,7 @@ import { Pagination } from '../components/ListControls';
 import listStyles from '../components/ListControls.module.css';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
+import { useLiveSearch } from '../components/useLiveSearch';
 import { formatInstant } from '../format';
 import { AdministrationTabs } from './AdministrationTabs';
 import { useUserListParams, useUsers, type UserStatus } from './api';
@@ -27,12 +28,13 @@ export function UserStatusBadge({ status }: { status: UserStatus }) {
 }
 
 /**
- * The users of the hospital (US-01; ADR 0030, ADR 0051), for its administrator: found by address, by status and by role, a
+ * The users of the hospital (US-01; ADR 0030, ADR 0051), for its administrator: found by a part of their address while it is typed, by status and by role, a
  * page at a time, each with their roles, their status and when they last signed in.
  */
 export function UsersPage() {
   const params = useUserListParams();
   const users = useUsers(params);
+  const email = useLiveSearch(params.email, (text) => params.change({ email: text }, { replace: true }));
   const emailId = useId();
   const statusId = useId();
   const roleId = useId();
@@ -54,23 +56,11 @@ export function UsersPage() {
         className={listStyles.filters}
         role="search"
         aria-label="Find users"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const data = new FormData(event.currentTarget);
-          const email = data.get('email');
-          params.change({ email: typeof email === 'string' ? email : '' });
-        }}
+        onSubmit={(event) => event.preventDefault()}
       >
         <div className={listStyles.field}>
           <label htmlFor={emailId}>E-mail address</label>
-          <input
-            id={emailId}
-            name="email"
-            className={listStyles.input}
-            type="search"
-            defaultValue={params.email}
-            key={params.email}
-          />
+          <input id={emailId} className={listStyles.input} type="search" autoComplete="off" {...email} />
         </div>
         <div className={listStyles.field}>
           <label htmlFor={statusId}>Status</label>
@@ -101,9 +91,6 @@ export function UsersPage() {
             ))}
           </select>
         </div>
-        <button type="submit" className={buttons.secondary}>
-          Find
-        </button>
       </form>
       {users.data === undefined ? (
         <LoadState error={users.error} what="users" />

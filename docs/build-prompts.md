@@ -54,6 +54,7 @@ is left; their numbering is mine, not the blueprint's.
 | 10.0 The verification debt | Started 2026-11-24 on `phase-10-golive`: `deploy/verify/personal-machine.ps1` runs every check of runbook section 8 and writes `verify-10.0.log`. First run on the personal machine 2026-11-24 at `4c2e75f`: the backend green on SQL Server 2022 but three timing failures of `PiiMaskerTests`, 283 of 288 browser tests through nginx; five defects fixed, one commit each (`a6cf3c3`, `fc7c07d`, `c85f539`, `f89c96b`, `17af1e5`). Waits for the second run with Node 22.22 or later (runbook section 8), then the merge to `main` and CI |
 | 10.1 Users and settings screens | Written on 2026-11-24 (ADR 0051, amending ADR 0030), on `phase-10-golive`: the users and the settings under `/administration` for the TenantAdmin, the prefix change as a request, and a forced password change after creation and after a reset (`Users.PasswordChangeDue`, migration `0021_PasswordChange`, a 15-minute token good for `POST /api/v1/auth/password` alone). Backlog B18 and B24 closed. 461 frontend tests, the routes suite with the six new routes in Edge; the `Database` tests on LocalDB 2019 only (runbook section 8, row 10.1) |
 | 10.2 Tenant onboarding | Written on 2026-11-24 (ADR 0052, amending ADR 0045), on `phase-10-golive`: `tenant create`, `tenant suspend` and `tenant resume`, commands of the API's own binary run on the server, audited with no user; the first TenantAdmin with a one-time password and a forced change; a suspension that also refuses tokens issued before it (within 30 seconds); the one-command run in a `Demo` environment, the only one besides Development where the demo runs. Runbook section 17. No migration. The `Database` tests on LocalDB 2019 only (runbook section 8, row 10.2) |
+| 10.2b Live search and autocomplete | Written on 2026-11-25 at the owner's request (amending ADR 0039, ADR 0040 and ADR 0018), on `phase-10-golive`: every search box answers while the user types, after 300 ms and from 2 characters (`useLiveSearch`: the lists of patients, payers, service items and users, the outstanding report), the rows kept until the new ones arrive, a stale request cancelled, the address replaced; the record picker an autocomplete in the combobox pattern; no Search or Find button; the MRN and the user's e-mail matched in part (`LikePattern`). No migration, no package. Text search on the document lists is left for later. The `Database` tests on LocalDB 2019 only (runbook section 8, row 10.2b) |
 | 10.3 to 10.7 Go-live ( the hospital's records and opening balances; printed documents; production; operations; readiness) | Written as prompts on 2026-11-24 from the owner's draft, not started; 10.3 and 10.4 wait for the client's export and formats |
 
 **Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. 5.3b (tenant settings and prefix changes) is written too, and `0019` is in the repository. ADR 0033 built note point 5 was decided on 2026-11-23 (the approval holds the series) and is built as its own commit. 5.4 was split with its plan: its first half, the database logins and grants, is written too, and `0020` is in the repository. 5.4b (HTTP hardening and `docs/security.md` in full) is written too, with no migration; Phase 5 is written to its end, and its merge to `main` is the owner's step. 6.1 (registers and balances), 6.2 (reconciliation and audit trail) and 6.3 (dashboard figures) are written too, with no migration, on `phase-2-billing` like the rest: the backend of R1 is written to its end, and its merge to `main` is the owner's step. 7.1 (the frontend's scaffold and sign-in) is written too, on the same branch, with Node 24 on the office machine. 7.2 (patients, payers and catalogue screens), 7.3 (bill screens), 7.4 (cashier screens) and 7.5 (the checker's inbox, credit notes and adjustments; split with its plan), 7.5b (reports) and 7.6 (dashboard) are written too: the frontend of R1 is written to its end. 8.1 (one-command local run) is written too, on `phase-8-delivery`, and so are 8.2 (performance and browser tests) and 8.3 (release R1, tagged `v1.0.0`): R1 is written to its end. On 2026-11-24 the owner reported the first run on the personal machine: `docker compose up --build` with the demo, and `dotnet test` with Docker, which passed; its output is still to be sent, so the rows of runbook section 8 stay until then. No prompt is left in R1. Phase 9, the interface, has begun: 9.1 (the brand, the tokens and the sign-in page) is written, without the photograph, which is still to come, and so are 9.2 (the shell and the shared components) and 9.3 (the money screens' shared components, bills, credit notes and adjustments); and 9.3b (payments, refunds, the statement and the inbox) is written too; and 9.4 (the dashboard and its tooltips) is written too; and so is 9.4b (the reports, print, the finishing pass and the release): Phase 9 is written, `v1.1.0` proposed; what else follows is in `docs/backlog.md` and the release plan of CLAUDE.md. What was decided for each built prompt is recorded under it below.**
@@ -1521,6 +1522,40 @@ refused; the first admin signs in and must change the password; a suspended hosp
 and nothing of it is deleted; the demo bootstrap refused in Production.
 Add both procedures to the runbook. Write ADR 0052.
 Done when: the operator onboards a hospital in one command and its administrator signs in.
+```
+
+#### 10.2b Live search and autocomplete
+
+Added on 2026-11-25 at the owner's request, with the plan approved that day: the owner does not want to press Search or
+Find before a list or a picker answers. It reverses ADR 0039 point 1 ("a search is sent when the user submits it") and
+the Find button of ADR 0040. Text search on the document lists (bills, payments, credit notes, adjustments, refunds),
+which have none today, is left for a later prompt: it needs new parameters in the API.
+
+```
+Read ADR 0018 (the search of patients), ADR 0039 point 1 and its rejected alternative "a search on every
+key", ADR 0040 (the record picker), ADR 0048 and "The bar of Phase 9".
+Show me the plan first: files, steps, tests, risks. No new package.
+Build, wherever a search box exists today (the lists of patients, payers, service items and users, the
+outstanding report, and every record picker inside a form):
+- lists: the search is sent as the user types, after a pause of 300 ms and from 2 characters (an empty box
+  shows the whole list again). The rows on screen stay until the new ones arrive, with no layout shift; a
+  request that a later key made stale is cancelled and never overwrites a newer answer. The address still
+  carries ?search= (replaced, not pushed, on each key, so Back leaves the list), and a search returns to
+  page 1. The Search button goes; Enter sends at once.
+- pickers: an autocomplete. The results open under the box as the user types, with the same pause and
+  minimum; the arrow keys move, Enter chooses, Escape closes, and Enter never submits the form around it.
+  The combobox pattern of WAI-ARIA, announced to a screen reader, passing axe. The Find button goes.
+- the server: every search matches a part of the text, as LIKE '%text%' with the wildcards of the search
+  escaped, as the service items do today. Two do not yet: the MRN of a patient (the whole MRN only,
+  ADR 0018) and the email of a user (its beginning only). Propose how the MRN is compared in part through
+  its converter before coding it, and say what each search costs without an index.
+Tests: one key sends nothing before the pause and one request after it; a stale answer is dropped; under 2
+characters nothing is sent; the address and Back; page 1 after a search; the picker by keyboard alone and
+by pointer; a part of an MRN and a part of an email found on SQL Server, a search holding % or _ taken as
+text; the browser suites that press Search or Find changed to type and wait, none removed.
+Amend ADR 0039, ADR 0040 and ADR 0018 ("Amended 2026-11-25"); update docs/api.md where a search is
+described.
+Done when: no screen has a Search or Find button, and every search box answers while the user types.
 ```
 
 #### 10.3 The hospital's records and opening balances

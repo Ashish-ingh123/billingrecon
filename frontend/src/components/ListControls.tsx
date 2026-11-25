@@ -1,11 +1,12 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useId } from 'react';
 import buttons from './buttons.module.css';
 import styles from './ListControls.module.css';
 import { pageSize, type ListParams, type StatusFilter } from './listParams';
+import { useLiveSearch } from './useLiveSearch';
 
 /**
- * The search and the status filter of a list, sent when the user submits them (ADR 0039 point 1). `searchLabel` says
- * what the search looks in.
+ * The search and the status filter of a list, sent while the user types (ADR 0039 point 1, amended 2026-11-25): the search after a
+ * pause, the status when it is chosen. `searchLabel` says what the search looks in.
  */
 export function ListFilters({
   params,
@@ -13,40 +14,20 @@ export function ListFilters({
   searchLabel,
 }: {
   params: ListParams;
-  onChange: (next: Partial<ListParams>) => void;
+  onChange: (next: Partial<ListParams>, options?: { replace?: boolean }) => void;
   searchLabel: string;
 }) {
-  const [search, setSearch] = useState(params.search);
-  const [seen, setSeen] = useState(params.search);
+  // A search replaces the entry of the address, so Back leaves the list and does not walk through every key.
+  const search = useLiveSearch(params.search, (text) => onChange({ search: text }, { replace: true }));
   const searchId = useId();
   const statusId = useId();
 
-  // When the address changes the search (Back, a link), the box shows it.
-  if (params.search !== seen) {
-    setSeen(params.search);
-    setSearch(params.search);
-  }
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    onChange({ search });
-  };
-
   return (
-    <form className={styles.filters} role="search" onSubmit={submit}>
+    <form className={styles.filters} role="search" onSubmit={(event) => event.preventDefault()}>
       <div className={styles.field}>
         <label htmlFor={searchId}>{searchLabel}</label>
-        <input
-          id={searchId}
-          className={styles.input}
-          type="search"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
+        <input id={searchId} className={styles.input} type="search" autoComplete="off" {...search} />
       </div>
-      <button type="submit" className={buttons.secondary}>
-        Search
-      </button>
       <div className={styles.field}>
         <label htmlFor={statusId}>Status</label>
         <select

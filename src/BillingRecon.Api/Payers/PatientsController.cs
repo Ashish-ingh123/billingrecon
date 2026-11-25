@@ -52,7 +52,7 @@ public sealed class PatientsController : ApiControllerBase
         return result.IsSuccess ? OkWithVersion(result.Value, result.Value.Version) : Problem(result.Error);
     }
 
-    /// <summary>Lists the patients one page at a time, by name; <c>search</c> matches a whole MRN or part of a name.</summary>
+    /// <summary>Lists the patients one page at a time, by name; <c>search</c> matches a part of an MRN or of a name.</summary>
     [Authorize(Policy = Policies.ReadReferenceData)]
     [HttpGet]
     [ProducesResponseType<PageOf<PatientDto>>(StatusCodes.Status200OK)]

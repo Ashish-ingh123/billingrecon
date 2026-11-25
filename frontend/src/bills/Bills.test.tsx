@@ -265,13 +265,15 @@ describe('a new bill (US-20, BR-201 to BR-203)', () => {
   }
 
   async function fillDraft(user: ReturnType<typeof renderApp>['user']) {
-    await user.type(await screen.findByLabelText('Patient'), 'asha{Enter}');
-    await user.click(await screen.findByRole('button', { name: 'Asha Verma (MRN MRN-1001)' }));
+    // The results open while the text is typed (Prompt 10.2b): by the pointer here, by the keyboard for the line.
+    await user.type(await screen.findByLabelText('Patient'), 'asha');
+    await user.click(await screen.findByRole('option', { name: 'Asha Verma (MRN MRN-1001)' }));
     // The patient's own payer owes the bill unless the user chooses another.
     expect(await screen.findByText("Asha Verma (Self-pay, a patient's own payer)")).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText('Add a line from the catalogue'), 'cbc{Enter}');
-    await user.click(await screen.findByRole('button', { name: /^LAB\/CBC: Complete blood count/ }));
+    await user.type(screen.getByLabelText('Add a line from the catalogue'), 'cbc');
+    await screen.findByRole('option', { name: /^LAB\/CBC: Complete blood count/ });
+    await user.keyboard('{ArrowDown}{Enter}');
     expect(screen.getByLabelText('Line 1: description')).toHaveValue('Complete blood count');
 
     await user.click(screen.getByRole('button', { name: 'Add a free-text line' }));

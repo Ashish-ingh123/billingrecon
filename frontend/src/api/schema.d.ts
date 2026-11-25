@@ -2457,11 +2457,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Lists the patients one page at a time, by name; `search` matches a whole MRN or part of a name. */
+        /** Lists the patients one page at a time, by name; `search` matches a part of an MRN or of a name. */
         get: {
             parameters: {
                 query?: {
-                    /** @description A whole MRN or part of a name. */
+                    /** @description A part of an MRN or of a name. */
                     Search?: string;
                     /** @description Active or Inactive; both when left out. */
                     Status?: components["schemas"]["PatientStatus"];
@@ -3849,7 +3849,7 @@ export interface paths {
                     Status?: components["schemas"]["UserStatus"];
                     /** @description Only the users who hold this role. */
                     Role?: components["schemas"]["Role"];
-                    /** @description Only the users whose address starts with this, without regard to case. */
+                    /** @description Only the users whose address holds this text anywhere, without regard to case. */
                     Email?: string;
                     /** @description From 1; 1 when left out. */
                     Page?: number | string;

@@ -1,4 +1,4 @@
-import { useQuery, type QueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, type QueryClient } from '@tanstack/react-query';
 import { answer, ifMatch } from '../api/call';
 import type { ApiClient } from '../api/client';
 import { useApiClient } from '../api/ApiClientContext';
@@ -100,7 +100,9 @@ export function usePayers(params: ListParams) {
   const client = useApiClient();
   return useQuery({
     queryKey: payerKeys.list(params),
-    queryFn: () => answer(client.GET('/api/v1/payers', { params: { query: listQuery(params) } })),
+    queryFn: ({ signal }) => answer(client.GET('/api/v1/payers', { params: { query: listQuery(params) }, signal })),
+    // The rows on screen stay while a search that is being typed is read (ADR 0039, amended 2026-11-25).
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -88,9 +88,16 @@ export function readDailyCollection(client: ApiClient, date: string) {
   return answer(client.GET('/api/v1/reports/daily-collection', { params: { query: date === '' ? {} : { date } } }));
 }
 
-export function readOutstanding(client: ApiClient, search: string, page: number, pageSize: number) {
+export function readOutstanding(
+  client: ApiClient,
+  search: string,
+  page: number,
+  pageSize: number,
+  signal?: AbortSignal,
+) {
   return answer(
     client.GET('/api/v1/reports/outstanding-by-payer', {
+      ...(signal === undefined ? {} : { signal }),
       params: { query: { ...optional('Search', search.trim()), Page: page, PageSize: pageSize } },
     }),
   );
@@ -133,11 +140,15 @@ export function readReconciliation(client: ApiClient, page: number, pageSize: nu
  * A page of a report for the screen, read again whenever the filter or the page changes; the page shown stays while the
  * next one is read. Reports are never cached across visits: each opening reads the figures as they are now.
  */
-export function useReport<T>(name: string, filter: unknown, read: (client: ApiClient) => Promise<T>) {
+export function useReport<T>(
+  name: string,
+  filter: unknown,
+  read: (client: ApiClient, signal: AbortSignal) => Promise<T>,
+) {
   const client = useApiClient();
   return useQuery({
     queryKey: ['reports', name, filter],
-    queryFn: () => read(client),
+    queryFn: ({ signal }) => read(client, signal),
     placeholderData: keepPreviousData,
     staleTime: 0,
     gcTime: 0,

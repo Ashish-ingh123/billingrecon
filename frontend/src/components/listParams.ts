@@ -13,9 +13,12 @@ export interface ListParams {
 
 /**
  * A list's search, status filter and page, kept in the address (ADR 0039 point 1): `?search=&status=&page=`. A new search
- * or filter starts again at the first page.
+ * or filter starts again at the first page. A change asked with `replace` takes the place of the entry of the address
+ * (a search typed key by key, amended 2026-11-25), so Back leaves the list.
  */
-export function useListParams(): ListParams & { change: (next: Partial<ListParams>) => void } {
+export function useListParams(): ListParams & {
+  change: (next: Partial<ListParams>, options?: { replace?: boolean }) => void;
+} {
   const [params, setParams] = useSearchParams();
   const status = params.get('status');
   const page = Number.parseInt(params.get('page') ?? '1', 10);
@@ -26,7 +29,7 @@ export function useListParams(): ListParams & { change: (next: Partial<ListParam
     page: Number.isFinite(page) && page >= 1 ? page : 1,
   };
 
-  const change = (next: Partial<ListParams>) => {
+  const change = (next: Partial<ListParams>, options?: { replace?: boolean }) => {
     const merged = { ...current, ...next };
     if (next.search !== undefined || 'status' in next) {
       merged.page = next.page ?? 1;
@@ -45,7 +48,7 @@ export function useListParams(): ListParams & { change: (next: Partial<ListParam
       query.set('page', String(merged.page));
     }
 
-    setParams(query);
+    setParams(query, { replace: options?.replace === true });
   };
 
   return { ...current, change };

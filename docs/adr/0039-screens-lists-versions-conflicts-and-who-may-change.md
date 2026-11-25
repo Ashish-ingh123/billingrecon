@@ -97,3 +97,28 @@ Built as decided. What the build found:
   behind the open form: Phone and City listed), kept their changes and saved over it, created a service item whose price
   of 1250000.1234 came back exactly, and deactivated it after the confirmation; a Viewer read the patient and their payer
   with no action offered and was refused the registration form by its address.
+
+## Amended 2026-11-25 (Prompt 10.2b)
+
+Point 1 said "a search is sent when the user submits it, not on each key", and "a search on every key" was a rejected
+alternative. The owner reversed it: no Search or Find button is pressed before a list answers.
+
+- **A search is sent while it is typed**: after a pause of 300 ms, from 2 characters; an emptied box shows the whole
+  list again; Enter sends at once, whatever the length. One hook, `useLiveSearch` (`src/components`), serves the lists
+  of patients, payers and service items (`ListFilters`), the users, and the outstanding report. The Search and Find
+  buttons are gone.
+- **What the rejected alternative feared is answered.** "More requests": one per pause, and a request that a later key
+  made stale is cancelled through the query's abort signal; its answer, if it still comes, belongs to another query
+  key and is never shown. "A list that moves under the user's hand": the rows on screen stay until the new ones arrive
+  (`placeholderData: keepPreviousData`), and a browser test holds the layout shift under 0.01.
+- **The address still carries the search** (`?search=`, `?email=`), but a search replaces the entry of the history
+  instead of pushing one, so Back leaves the list and does not walk through every key. A status, a role and a page
+  still push. A search returns to page 1.
+- **The box keeps what is typed.** The address holds the search trimmed; the box is set from the address only when the
+  address changed by something else (Back, a link), so a space typed between two words is not taken away.
+- **The server** matches a part of the text everywhere (ADR 0018, amended the same day).
+- **Not built:** a text search on the lists of bills, payments, credit notes, adjustments and refunds, which have none;
+  it needs new parameters in the API and is a later prompt.
+- **Tests:** `LiveSearch.test.tsx` (nothing before the pause and one request after it; one character sends nothing; an
+  emptied box; Enter; the rows kept; a stale request cancelled and its answer dropped; the address replaced and Back;
+  page 1; the users and the outstanding report) and `e2e/search.spec.ts` in a browser, both themes.

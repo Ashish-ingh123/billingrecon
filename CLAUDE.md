@@ -83,7 +83,7 @@ React + TypeScript + Vite in `frontend/` (ADR 0038, Prompt 7.1). Node 22.22 or l
 | Forms | **React Hook Form**, no schema library | The API validates; its messages per field go on the fields. |
 | Components | Our own, **CSS Modules** on the **design tokens** of `src/theme/tokens.css`; no UI kit | No raw colour outside `tokens.css` (a test scans every file); WCAG AA in both themes (a test computes the contrast). The theme (System, Light, Dark) is `data-theme` on `<html>`, set by the inline script of `index.html` before React mounts; its SHA-256 is pinned by a test for the CSP of 8.1. |
 | Errors | **`ProblemAlert`** | The one way a screen shows a refusal: the API's message, field messages not placed on fields, the wait of a 429, the reference (correlation id). |
-| Screens (ADR 0039) | Lists, records, forms | A list keeps its search, status and page in the address. Every change sends `If-Match` from the record's `version`. Who may change is `src/auth/permissions.ts`, a copy of the API's policies that a test holds to `Policies.cs`. Deactivate asks once more, in place. A 409 `concurrency_conflict` says nothing was saved, lists what changed, and offers "Load the latest version" or "Keep my changes". Decimals are typed as text, sent as JSON numbers, refused beyond 15 significant digits; amounts shown with Indian grouping. The API's field messages go at their fields. |
+| Screens (ADR 0039) | Lists, records, forms | A list keeps its search, status and page in the address. Since 10.2b (amended 2026-11-25) a search is sent while it is typed, after 300 ms and from 2 characters (`useLiveSearch`), the rows kept until the new ones arrive, a stale request cancelled, the address replaced and not pushed; no screen has a Search or Find button; `RecordPicker` is an autocomplete in the combobox pattern of WAI-ARIA (ADR 0040, amended). Every change sends `If-Match` from the record's `version`. Who may change is `src/auth/permissions.ts`, a copy of the API's policies that a test holds to `Policies.cs`. Deactivate asks once more, in place. A 409 `concurrency_conflict` says nothing was saved, lists what changed, and offers "Load the latest version" or "Keep my changes". Decimals are typed as text, sent as JSON numbers, refused beyond 15 significant digits; amounts shown with Indian grouping. The API's field messages go at their fields. |
 | Bills (ADR 0040) | One editor for a draft; the key of an operation | A new draft is one `POST` with its lines; a correction sends what changed, the header (`PATCH`) then the lines (`PUT`) with chained versions. Create, void and post carry an `Idempotency-Key` from `useIdempotentRequest`: the same key when the same request is sent again after no answer, a fault or 409 `idempotency_in_progress`, a new one otherwise. Live totals are an estimate by exact arithmetic on `BigInt` (`src/bills/lineMath.ts`), held with the server's `LineCalculator` to one file of cases (`src/bills/lineCases.json`); after a save the server's figures are shown. Posting answers posted (200) or sent for approval (202). Every record's history is the `AuditTrail` component. |
 | Cashier (ADR 0041) | Allocate oldest first; refunds from their source; the payer statement | Allocating lists the payer's bills that owe something, oldest first, with "Apply oldest first"; the caps (each bill's balance due, the unapplied cash) are checked in exact paise (`src/money.ts`) before sending, and again by the server. A refund is drawn from a payment or a credit note, from its page or the payer statement (`/payers/:id/statement`). Every financial action on a document (reversal requests, a refund's void and submission) goes through `useDocumentAction`: the key of the operation, the retry, the conflict, the outcome. Approving a reversal or a refund is 7.5's. |
 | Inbox, credit notes, adjustments (ADR 0042) | Decide in the inbox; draft from the bill | `/approvals` (policy `Decide`) lists what waits from the pending approvals report, which answers `parentDocumentId` (an allocation's payment, an application's credit note) and `makerComment`; **Review** reads the document as it is now and sends Approve (comment optional) or Reject (comment required) with that document's version and a key (none for a prefix change). The maker's own request shows no review. Credit notes and adjustments are drafted from the posted bill (`?billId=`); a credit note credits the bill's lines by quantity at their price and tax, plus free-text lines, capped per line and in total before sending. A credit note's credit is applied with the shared `ApplyToBills` form of the allocation. A document that waits links a checker to the inbox (`ReviewLink`). |
@@ -363,7 +363,8 @@ src/
                                 LedgerMovementsQuery, the sixth file with raw SQL (Receivables), ADR 0037.
                                 NumberSeriesTimer, the wait and hold of a number series, marked by the allocator and by
                                 whoever ends the transaction; the idempotency store reads its key's row at the
-                                reservation (Common), ADR 0046.
+                                reservation (Common), ADR 0046. LikePattern, the escaped pattern of a search that
+                                matches a part of a text (Common/Persistence; ADR 0018, amended 2026-11-25).
   BillingRecon.Api/             Controllers, middleware and filters (correlation id, idempotency, tenant resolution),
                                 the error contract (Common/Errors: exception handler, Error to ProblemDetails mapper),
                                 authentication/authorisation, OpenAPI + Scalar, Program.cs (composition root),
@@ -434,7 +435,8 @@ frontend/                      React + TypeScript + Vite (ADR 0038): index.html 
                                sign-in, the route guard), src/api (openapi.json, the generated schema.d.ts, the client,
                                ProblemDetails as ApiProblem, call.ts: answer, ApiError, ifMatch), src/components
                                (ProblemAlert, the fields, the list controls with listParams, the page header, the status
-                               badge, the conflict notice, the inline confirmation, useRecordForm, useStatusActions),
+                               badge, the conflict notice, the inline confirmation, useRecordForm, useStatusActions), useLiveSearch (the search sent while
+                               it is typed, 10.2b),
                                src/shell (the navigation from the permission matrix, the shell, the placeholder pages,
                                RequirePolicy), src/patients, src/payers and src/serviceItems (each: api.ts with its queries
                                and changes, the list, the record and the forms; ADR 0039), src/bills (api.ts, the list, the
@@ -465,6 +467,7 @@ frontend/                      React + TypeScript + Vite (ADR 0038): index.html 
                                src/dashboard also Tooltip.tsx with Tooltip.module.css and useChartTip.ts, and
                                e2e/dashboard.spec.ts (ADR 0050). scripts/budgets.test.mjs, e2e/routes.spec.ts and
                                e2e/print.spec.ts (ADR 0050, amended).
+                               src/components/LiveSearch.test.tsx and RecordPicker.test.tsx, and e2e/search.spec.ts (10.2b).
                                src/administration (api.ts, the users list, a user's page, the user forms with
                                RoleChoices, the settings with the prefix request) and src/auth/ChangePasswordPage.tsx
                                (ADR 0051).
@@ -782,7 +785,9 @@ context, typed ids, tenant isolation on reads and writes, audit columns, banned 
 0016 integration test infrastructure (one SQL Server per test run, two databases, Respawn, the test
 identity), 0017 the CI pipeline, the API container image and LF line endings, 0018 use cases,
 validation, the unit of work and the HTTP contract of a resource (Accepted with the approval of the
-Prompt 2.2 plan, 2026-10-17), 0019 bill drafts: replaceable lines, one version for the whole bill, and the
+Prompt 2.2 plan, 2026-10-17; "Amended 2026-11-25 (Prompt 10.2b)": every search matches a part of the text, the MRN
+through a cast of its converted column, with ADR 0039 and ADR 0040 amended the same day for the search sent while it is
+typed and the picker as an autocomplete), 0019 bill drafts: replaceable lines, one version for the whole bill, and the
 guard against deletes (Accepted for the points of the Prompt 2.4 plan and, with it, the amendment of ADR 0003 for the foreign
 keys of `Bills`, 2026-11-20; its unit-of-work point accepted as built on 2026-11-24), 0020 domain events are
 dispatched by the unit of work, and the audit trail is their one subscriber (Accepted with the approval of the
@@ -1010,4 +1015,7 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    `docker compose run --rm api tenant ...`, runbook section 17), its first TenantAdmin with a one-time password printed
    once; `tenant suspend` and `tenant resume`, a suspended hospital refused at sign-in and, within 30 seconds, with a
    token issued before (403 `tenant_suspended`); the demo only in the `Demo` environment (Compose's default,
-   `API_ENVIRONMENT`) and Development, the commands refused in `Demo`; owed: runbook section 8, row 10.2.
+   `API_ENVIRONMENT`) and Development, the commands refused in `Demo`; owed: runbook section 8, row 10.2. **10.2b is written (2026-11-25, amending ADR 0018, ADR 0039 and
+   ADR 0040), at the owner's request:** every search box answers while the user types and no screen has a Search or Find
+   button; the record picker is an autocomplete; the MRN of a patient and the e-mail of a user are matched in part; no
+   migration, no package; text search on the document lists is left for a later prompt; owed: runbook section 8, row 10.2b.

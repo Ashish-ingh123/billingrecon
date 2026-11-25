@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
 import { answer, ifMatch } from '../api/call';
 import type { ApiClient } from '../api/client';
@@ -40,7 +40,9 @@ export interface UserListParams {
   page: number;
 }
 
-export function useUserListParams(): UserListParams & { change: (next: Partial<UserListParams>) => void } {
+export function useUserListParams(): UserListParams & {
+  change: (next: Partial<UserListParams>, options?: { replace?: boolean }) => void;
+} {
   const [query, setQuery] = useSearchParams();
   const status = query.get('status');
   const role = query.get('role');
@@ -52,14 +54,14 @@ export function useUserListParams(): UserListParams & { change: (next: Partial<U
     page: Number.isFinite(page) && page >= 1 ? page : 1,
   };
 
-  const change = (next: Partial<UserListParams>) => {
+  const change = (next: Partial<UserListParams>, options?: { replace?: boolean }) => {
     const merged = { ...params, ...next, page: next.page ?? 1 };
     const search = new URLSearchParams();
     if (merged.email.trim() !== '') search.set('email', merged.email.trim());
     if (merged.status !== undefined) search.set('status', merged.status);
     if (merged.role !== undefined) search.set('role', merged.role);
     if (merged.page > 1) search.set('page', String(merged.page));
-    setQuery(search);
+    setQuery(search, { replace: options?.replace === true });
   };
 
   return { ...params, change };
@@ -80,9 +82,10 @@ export function useUsers(params: UserListParams) {
   const client = useApiClient();
   return useQuery({
     queryKey: userKeys.list(params),
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       answer(
         client.GET('/api/v1/users', {
+          signal,
           params: {
             query: {
               ...(params.email === '' ? {} : { Email: params.email }),
@@ -94,6 +97,8 @@ export function useUsers(params: UserListParams) {
           },
         }),
       ),
+    // The users on screen stay while a search that is being typed is read (ADR 0039, amended 2026-11-25).
+    placeholderData: keepPreviousData,
   });
 }
 

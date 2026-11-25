@@ -1,12 +1,12 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useId } from 'react';
 import { useApiClient } from '../api/ApiClientContext';
-import buttons from '../components/buttons.module.css';
 import table from '../components/DataTable.module.css';
 import { Pagination } from '../components/ListControls';
 import listStyles from '../components/ListControls.module.css';
 import { pageSize } from '../components/listParams';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
+import { useLiveSearch } from '../components/useLiveSearch';
 import { readOutstanding, useReport } from './api';
 import { outstandingColumns, outstandingTotals, outstandingIsWhole } from './columns';
 import { reportCsv } from './csv';
@@ -23,16 +23,12 @@ export function OutstandingPage() {
   const client = useApiClient();
   const searchId = useId();
   const { values, page, change } = useReportQuery(['search'] as const);
-  const [search, setSearch] = useState(values.search);
-  const report = useReport('outstanding-by-payer', { search: values.search, page }, (api) =>
-    readOutstanding(api, values.search, page, pageSize),
+  // The name is searched while it is typed (ADR 0039, amended 2026-11-25); the page shown stays until the next arrives.
+  const search = useLiveSearch(values.search, (text) => change({ search: text }, { replace: true }));
+  const report = useReport('outstanding-by-payer', { search: values.search, page }, (api, signal) =>
+    readOutstanding(api, values.search, page, pageSize, signal),
   );
   const totals = report.data?.totals;
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    change({ search: search.trim() });
-  };
 
   return (
     <section aria-labelledby="page-title">
@@ -42,20 +38,11 @@ export function OutstandingPage() {
         subtitle="What each payer owes, less the cash and credit they hold, the largest first. Each payer opens their statement."
       />
       <div className={styles.toolbar}>
-        <form className={listStyles.filters} role="search" onSubmit={submit}>
+        <form className={listStyles.filters} role="search" onSubmit={(event) => event.preventDefault()}>
           <div className={listStyles.field}>
             <label htmlFor={searchId}>Payer name</label>
-            <input
-              id={searchId}
-              className={listStyles.input}
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
+            <input id={searchId} className={listStyles.input} type="search" autoComplete="off" {...search} />
           </div>
-          <button type="submit" className={buttons.secondary}>
-            Search
-          </button>
         </form>
         <ExportButton
           fileName="outstanding-by-payer.csv"

@@ -139,3 +139,28 @@ Written out in `docs/api.md`. In short:
   outside the database collection pass, apart from the eleven that differ on .NET 9 by design; the database collection,
   pointed at LocalDB 2019 in the copy only, passes in full (89 tests), with a migration scaffolded there by EF Core 9.
   Still to do on the machine with .NET 10 and Docker: scaffold `0002_Payers` with EF Core 10, build, and run every test.
+
+## Amended 2026-11-25 (Prompt 10.2b)
+
+On the owner's request for a search that answers while it is typed, with the plan approved that day:
+
+- **Every search matches a part of the text**, as `LIKE '%text%'`, without regard to case. Two did not: the MRN of a
+  patient (the whole MRN only, the alternative rejected above) and the e-mail filter of the users (its beginning only).
+  Both now match a part.
+- **The MRN is compared through its converter by a cast**, as the service item code has been since Prompt 2.3:
+  `EF.Functions.Like((string)(object)patient.Mrn, pattern, escape)`. The cast names the column, so SQL Server compares
+  the stored text; no second column, no migration. The sentence above, that Entity Framework does not translate a
+  `LIKE` on a converted value, holds for `Contains` and not for this form.
+- **The search is data, never a pattern.** `LikePattern.Containing` (Infrastructure, `Common/Persistence`) puts the
+  escape character before `\`, `%`, `_` and `[`; the patient, user and service item read services use it. The payer
+  search and the outstanding report keep `Contains`, which Entity Framework escapes the same way.
+- **Cost, accepted.** A pattern that begins with `%` cannot seek on an index: each search reads the tenant's rows of
+  the table, once for the count and once for the page. For patients nothing changes in practice, because the name was
+  already searched in part; for users the range seek on `UX_Users_TenantId_NormalizedEmail` becomes a scan of one
+  hospital's users. Not measured. A hospital whose patient list makes this slow needs a full-text or trigram index,
+  which is a later decision.
+- **The API accepts a search of one character**, as before; the two-character minimum is the screen's (ADR 0039,
+  amended the same day).
+- **Tests** (`Database` collection): a part of an MRN and a part of an e-mail found; `%`, `_` and `[` taken as text in
+  an MRN, `%` and `_` in an e-mail. The assertion "an MRN is found whole, not by a part" of `PatientsApiTests` is
+  reversed with the rule.

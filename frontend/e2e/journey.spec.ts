@@ -58,11 +58,11 @@ async function signOut(page: Page) {
 
 /** Chooses the first record a picker finds for `text`. */
 async function pick(page: Page, label: string, kind: string, text: string) {
+  // The results open while the text is typed (Prompt 10.2b): nothing is pressed to find them.
   await page.getByLabel(label).fill(text);
-  await page.getByLabel(label).press('Enter');
   await page
-    .getByRole('list', { name: `${kind} found` })
-    .getByRole('button')
+    .getByRole('listbox', { name: `${kind} found` })
+    .getByRole('option')
     .first()
     .click();
 }

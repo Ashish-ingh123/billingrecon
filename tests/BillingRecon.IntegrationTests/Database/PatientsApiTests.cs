@@ -308,7 +308,7 @@ public sealed class PatientsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
     }
 
     [Fact]
-    public async Task Searching_finds_a_patient_by_the_whole_mrn_or_by_part_of_the_name_without_regard_to_case()
+    public async Task Searching_finds_a_patient_by_a_part_of_the_mrn_or_of_the_name_without_regard_to_case()
     {
         using var factory = new DatabaseApiFactory(SqlServer);
         using var client = factory.CreateClientFor(await NewApiTenantAsync(), "BillingClerk");
@@ -317,7 +317,9 @@ public sealed class PatientsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
 
         (await SearchAsync(client, "sharma")).ShouldBe(["Priya Sharma"]);
         (await SearchAsync(client, "mrn-xy-200")).ShouldBe(["Rahul Verma"]);
-        (await SearchAsync(client, "MRN-XY")).ShouldBeEmpty("an MRN is found whole, not by a part");
+        (await SearchAsync(client, "xy-2")).ShouldBe(["Rahul Verma"], "a part of an MRN finds it (Prompt 10.2b)");
+        (await SearchAsync(client, "MRN-")).ShouldBe(["Priya Sharma", "Rahul Verma"]);
+        (await SearchAsync(client, "MRN-ZZ")).ShouldBeEmpty();
     }
 
     [Fact]
@@ -332,6 +334,22 @@ public sealed class PatientsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
 
         (await SearchAsync(client, "100%")).ShouldBe(["Ram 100% Kumar"]);
         (await SearchAsync(client, "A_B")).ShouldBe(["A_B Shah"]);
+    }
+
+    [Fact]
+    public async Task A_search_matches_the_wildcards_of_like_literally_in_an_mrn()
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        using var client = factory.CreateClientFor(await NewApiTenantAsync(), "BillingClerk");
+        await client.RegisterPatientAsync(TestData.NewPatient() with { Mrn = "OP_100%A", FullName = "Asha Rao" });
+        await client.RegisterPatientAsync(TestData.NewPatient() with { Mrn = "OPX1000A", FullName = "Bina Rao" });
+        await client.RegisterPatientAsync(TestData.NewPatient() with { Mrn = "IP[7]", FullName = "Chitra Rao" });
+        await client.RegisterPatientAsync(TestData.NewPatient() with { Mrn = "IP7", FullName = "Divya Rao" });
+
+        (await SearchAsync(client, "P_1")).ShouldBe(["Asha Rao"]);
+        (await SearchAsync(client, "00%")).ShouldBe(["Asha Rao"]);
+        (await SearchAsync(client, "[7]")).ShouldBe(["Chitra Rao"]);
+        (await SearchAsync(client, "%")).ShouldBe(["Asha Rao"]);
     }
 
     [Fact]

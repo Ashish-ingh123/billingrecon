@@ -8,9 +8,9 @@ using Microsoft.EntityFrameworkCore;
 namespace BillingRecon.Infrastructure.Payers;
 
 /// <summary>
-/// Reads patients without tracking them, filtered by the tenant of the request's context. A search compares the whole
-/// MRN, or a part of the name; Entity Framework passes the search as a parameter and escapes the wildcards of LIKE, so
-/// a <c>%</c> or <c>_</c> in it matches itself. Both comparisons follow the case-insensitive collation of the database.
+/// Reads patients without tracking them, filtered by the tenant of the request's context. A search compares a part
+/// of the MRN or a part of the name (ADR 0018, amended 2026-11-25); the search is a parameter with the wildcards of LIKE
+/// escaped, so a <c>%</c> or <c>_</c> in it matches itself. Both comparisons follow the case-insensitive collation of the database.
 /// </summary>
 public sealed class PatientReadService(BillingReconDbContext context) : IPatientReadService
 {
@@ -37,9 +37,12 @@ public sealed class PatientReadService(BillingReconDbContext context) : IPatient
         var search = query.Search?.Trim();
         if (!string.IsNullOrEmpty(search))
         {
-            patients = Mrn.TryOf(search, out var mrn)
-                ? patients.Where(patient => patient.Mrn == mrn || patient.FullName.Contains(search))
-                : patients.Where(patient => patient.FullName.Contains(search));
+            // The MRN is a value object stored through a converter, which has no Contains to translate: the cast names
+            // its column, and LIKE compares the stored text. The search text is data, never a pattern.
+            var pattern = LikePattern.Containing(search);
+            patients = patients.Where(patient =>
+                EF.Functions.Like((string)(object)patient.Mrn, pattern, LikePattern.Escape)
+                || EF.Functions.Like(patient.FullName, pattern, LikePattern.Escape));
         }
 
         var totalCount = await patients.CountAsync(ct);

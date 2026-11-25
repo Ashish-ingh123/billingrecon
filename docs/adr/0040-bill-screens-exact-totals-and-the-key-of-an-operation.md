@@ -95,3 +95,25 @@ Built as decided, with no package. What the build found:
   quantity (a `PATCH` and then a `PUT`), posted it as BIL/26-27/000001 with the trail Drafted, Header updated, Lines
   replaced, Posted; sent a bill of 9,000 for approval (202), and voided a draft with its reason; a Viewer saw the list
   with names and statuses, a bill with no action, and no access to a new bill.
+
+## Amended 2026-11-25 (Prompt 10.2b)
+
+The record picker (`RecordPicker`: the patient, the payer and the catalogue line of a bill, the payer of the money forms
+and of a report) asked the user to type and press Find or Enter. On the owner's request it is an autocomplete.
+
+- **The combobox pattern of WAI-ARIA**: the box is `role="combobox"` with `aria-autocomplete="list"`, `aria-expanded`,
+  `aria-controls` and `aria-activedescendant`; the results are a `listbox` of `option`s. The focus stays in the box.
+- **The results open while the text is typed**, after the pause and from the minimum of every search (300 ms, 2
+  characters; `useLiveSearch.ts` holds both). A search a later key made stale is cancelled, and the results on screen
+  stay until the next arrive.
+- **Keys:** the arrows move through the results and wrap; Enter chooses the marked one, or, with none marked, searches
+  at once; Escape closes the results and keeps the text; Enter never submits the form around the box.
+- **Pointer and touch:** a result is chosen at the press, with the focus kept in the box.
+- **Nothing moves:** the results, and the notes "Searching…", "No active … matches." and a refusal, lie over the page
+  under the box, on `--surface-popover` and `--border-strong`. The marked option has a ground and a bar, not a colour
+  alone.
+- **Announced:** one `role="status"` per picker says how many were found, that nothing matches, or the refusal.
+- **The Find button is gone.** `find` takes the abort signal as its second argument.
+- **Tests:** `RecordPicker.test.tsx` (by the keyboard alone, by the pointer, Enter and the form, one character, the
+  stale answer, the notes) and `e2e/search.spec.ts` (keyboard, a tap on a phone, axe with the results open, both
+  themes, no layout shift); `Bills.test.tsx` and the journey choose from the options instead of pressing a button.

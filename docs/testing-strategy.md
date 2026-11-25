@@ -206,6 +206,11 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   every screenshot kept in `test-results`. `frontend/e2e/print.spec.ts`: a bill, a statement and a report printed to A4
   in both themes (no shell, dark on white, the hospital and the day, no row cut in two); forced colours and
   prefers-contrast; the keyboard's first stop.
+- **Searching while typing** (Prompt 10.2b; ADR 0039 and ADR 0040, amended 2026-11-25): `LiveSearch.test.tsx` and
+  `RecordPicker.test.tsx` with real timers (nothing before the pause and one request after it, one character sends
+  nothing, a stale request cancelled and its answer dropped, the address replaced and Back, page 1, the picker by the
+  keyboard alone and by the pointer), and `frontend/e2e/search.spec.ts` on the same helper: a list in both themes with no
+  layout shift, the picker by the keyboard with axe while its results are open, and by a tap on a phone.
 - **The budgets of the build** (Prompt 9.4b), `npm run budgets` after `npm run build`, in CI: the first visit to the
   sign-in page and every route's chunk, compressed, against their budgets.
 - **The browser journey**, `frontend/e2e/journey.spec.ts` (Playwright, Chromium or an installed Edge or Chrome): a

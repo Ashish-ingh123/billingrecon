@@ -248,9 +248,12 @@ export function PayerFilter({ payerId, onChange }: { payerId: string; onChange: 
         hint="Leave it empty for every payer."
         selected={payerId === '' ? null : (payer.data ?? null)}
         onSelect={(chosen) => onChange(chosen?.id ?? '')}
-        find={async (text) =>
-          (await answer(client.GET('/api/v1/payers', { params: { query: { Search: text, Page: 1, PageSize: 10 } } })))
-            .items
+        find={async (text, signal) =>
+          (
+            await answer(
+              client.GET('/api/v1/payers', { params: { query: { Search: text, Page: 1, PageSize: 10 } }, signal }),
+            )
+          ).items
         }
         describe={(chosen) => `${chosen.name} (${kindLabel(chosen.kind)})`}
         keyOf={(chosen) => chosen.id}
