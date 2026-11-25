@@ -471,7 +471,7 @@ kept by each instance of the API in memory, so a restart forgets them and two in
 ## 8. Deferred verification: the running list for the personal machine
 
 **Since Prompt 10.0 the whole list runs as one command**, from the repository root with Docker Desktop running and
-`.env` in place: `powershell -ExecutionPolicy Bypass -File deployerifypersonal-machine.ps1` (`-SkipLoad` leaves out the
+`.env` in place: `powershell -ExecutionPolicy Bypass -File deploy\verify\personal-machine.ps1` (`-SkipLoad` leaves out the
 10,000-bill load). It runs A, C and D below (D three rounds), the frontend's gates, the one-command run afresh with the
 checks of section 2 and row 8.1, the load of row 8.2, every browser suite through nginx, and the backup of row 8.3, and
 writes everything to `verify-10.0.log`, which is sent back. What it cannot do is listed at its end: the event in Seq,
@@ -630,51 +630,45 @@ dotnet test --filter "FullyQualifiedName~DatabasePermissionsOnSqlServerTests"
 
 **What that run has to show, because nothing here could** (the office machine has .NET 9 and LocalDB 2019 only):
 
-**Run on the personal machine on 2026-11-24, by the owner's report (no output sent):** on the tip with Prompt 8.1, `dotnet
-test` with Docker passed, the `Database` collection on SQL Server 2022 included; and `docker compose up --build` with the
-demo, after two fixes to the images (ADR 0045 built note). Until the output of C comes back (the summary line of each test
-project), the rows below stay as they are, except row 8.1, which keeps only what that run did not check. D's repeated runs
-were not part of it.
+**First run of the whole list: 2026-11-24, on the personal machine, by `deploy/verify/personal-machine.ps1` at commit
+`4c2e75f` (Prompt 10.2), with its `verify-10.0.log` sent back.** SDK 10.0.404, Docker 29.8.1, SQL Server 2022 CU27 in
+Docker, Node 22.12.0. What it showed:
+
+- **A and C.** `dotnet tool restore`, the strict build and the format gate clean. `dotnet test`: Domain 652,
+  Application 431 and Architecture 132 green; Integration 1277 green of 1280, the `Database` collection on SQL Server
+  2022 included, with the reconciliation after every test. The three failures were the long values of `PiiMaskerTests`,
+  which crossed the 250 ms match timeout on a busy machine; fixed in `17af1e5`, to be seen green in the second run.
+- **D.** Three rounds of the concurrency classes, 291 tests each, all green.
+- **Section 2 and row 8.1.** Every container healthy, `/health/ready` 200, 503 while SQL Server was stopped and 200
+  again after; the page's headers with the policy, `frame-ancestors 'none'` and `nosniff`; http://localhost answering
+  301 to https.
+- **Row 8.3.** The backup, the `.bak` copied out, the restore under another name with `CHECKSUM`, `DBCC CHECKDB` and
+  the 21 migrations in the restored database.
+- **The browser suites through nginx.** 283 of 288 green: `cashier`, `dashboard`, `money`, `print`, `shell` and
+  `signin` whole, and `routes` but two tests.
+- **Red, and why.** The demo seed and the load test, refused by the forced password change of Prompt 10.1 (the journey
+  and the full-size load with them; fixed in `a6cf3c3` and `fc7c07d`); two tests of `routes.spec.ts` that named a
+  heading shown only while loading (`c85f539`); the last query of the backup step, a fault of the script (`f89c96b`);
+  `npm ci` and the component tests, because that machine's Node is older than 22.22.
+
+That run proved the rows of Prompts 2.2 to 6.3 and 8.1, which are gone from the table. What follows is what a second
+run of the script, the owner's own eyes, or CI still have to show.
 
 | Prompt | Not proven anywhere yet |
 |---|---|
-| 1.3 | Steps 3, 7, 8 and 10 of section 2 ("Verify on a Docker machine"), recorded there: both containers healthy; `/health/ready` 200 against SQL Server 2022; readiness 503 while SQL Server is stopped and 200 again after; the request's event found in Seq by its correlation id. |
+| 1.3 | The request's event found in Seq by its correlation id (step 9c of the script sends it; the owner looks for `3f2504e0-4f89-11d3-9a0c-0305e82c3301` at http://localhost:5341). |
 | 1.5 | The first green run of `.github/workflows/ci.yml` on GitHub (the API job with the `Database` collection, the image built and smoke-run, the frontend job); then a pull request that breaks one assertion goes red and is closed unmerged (ADR 0017). The repository has a GitHub remote with `main` and `phase-2-billing` pushed; whether CI ran there is not recorded. |
-| 2.2 | The run itself, with the output of `dotnet --list-sdks` on that machine. |
-| 2.3 | The `LIKE` search on the service item code translates on EF Core 10. |
-| 2.4 | Ten simultaneous changes of the lines of one bill, on SQL Server 2022. |
-| 3.1 | Fifty parallel takers of a number series, on SQL Server 2022. |
-| 3.2 | The response buffering of the idempotency filter on ASP.NET Core 10. |
-| 3.4 | The before and after images of `EntitySnapshot` on EF Core 10. |
-| 3.3 | The typed-id foreign key convention on EF Core 10 (migrations `0003` to `0007` must hold the same keys as before it; `0008` the four new ones). The locked change of `PayerBalances` and twenty simultaneous postings for one payer, on SQL Server 2022. The computed column `NetOutstanding`. The reconciliation statement. |
-| 3.5 | That `BillConfiguration` can leave five properties out of the model and `BillPostingConfiguration` put them back, on EF Core 10 (the split of `0004` and `0009` depends on it). Twenty bills posted at once, two posts of one bill at once, and a posting held open while its key is sent again, on SQL Server 2022. The failure injected at each step of a posting. |
-| 3.6 | Two aggregates, the bill and its approval request, saved and audited by one commit on EF Core 10. Two checkers deciding at once, and an approval that fails after the number is taken, on SQL Server 2022. The 202 answer and the optional body of `approve` on ASP.NET Core 10. |
-| 4.1 | Twenty payments recorded at once for one payer, and a recording held open while its key is sent again, on SQL Server 2022. The failure injected at the number, the ledger, the audit record and the save, there. The 201 answer of an idempotent POST, replayed with its `Location` and `ETag`, on ASP.NET Core 10. |
-| 4.2 | That `PaymentConfiguration` can take the allocations out of the model and `PaymentWithAllocationsConfiguration` put them back, on EF Core 10 (the split of `0011` and `0012` depends on it). Two cashiers on the last rupee of one bill, with and without the gate, and ten payments allocated at once across overlapping bills of one payer, on SQL Server 2022. The refusal of the ledger under its lock, there. The failure injected at the ledger, the audit record and the save. |
-| 4.3 | Three aggregates (the credit note, its bill and the approval request) saved and audited by one commit on EF Core 10, and a credit note loaded with two collections by a split query there. Two credit notes approved at once against a paid bill that only one fits, on SQL Server 2022: this is the test that proves the caps are read again under the lock. The failure injected after the second ledger posting and after the audit record. |
-| 5.4 | The two test logins and the role on SQL Server 2022 on Linux: the fixture creates the logins with `CHECK_POLICY = OFF`, migrates as the migrator's four roles and runs every API test as the application's login; `DatabasePermissionsOnSqlServerTests` there, including `READ_COMMITTED_SNAPSHOT` on the database the fixture creates. |
-| 5.4b | The API image built from the Dockerfile and its smoke run in CI (`AllowedHosts=localhost`, no `Server` header, 400 `https_required` for an API request over plain HTTP); the per-account sign-in limit in `AuthApiTests` on SQL Server 2022. The smoke run's checks passed on the office machine against the published API on Kestrel, not in a container. |
-| 6.1 | `ReportsApiTests` on SQL Server 2022: the joins across modules, the comparisons of `Money` with zero and the order by a `Money` column, as Entity Framework 10 translates them there. |
-| 6.2 | The whole `Database` collection on SQL Server 2022 with the reconciliation after every test (`NumberSeriesGap` included): a test that passes on LocalDB but leaves drift there fails. `ReconciliationApiTests` and `BillAuditTrailApiTests`. |
-| 6.3 | `DashboardApiTests` on SQL Server 2022: the two statements of `LedgerMovementsQuery` (a `date` parameter, sums grouped by business date read back as `DateOnly`), the payment register ordered newest first, and the IST midnight boundary of a payment recorded at 23:59 and 00:01 in India. |
-| 7.1 | The frontend job of CI (not seen to run; see row 1.5); `npm ci` and `npm test` in `frontend/` on the personal machine, whose Node version is not recorded (22.22 or later is needed); `OpenApiSnapshotTests` there, which also proves the document is the same on that machine's SDK. |
-| 7.2 | The frontend job of CI on Linux, which is also the first proof that `OpenApiSnapshotTests` gives the same document there now that it writes every line break of a description as LF (ADR 0039, built note). |
-| 7.3 | The frontend job of CI with the bill screens; and `LineCalculatorSharedCasesTests` there, which reads `frontend/src/bills/lineCases.json` from the checkout. |
-| 7.4 | The frontend job of CI with the cashier screens. |
-| 7.5 | `ReportsApiTests` on SQL Server 2022, with the two fields the pending approvals report gained (the allocation's payment and the application's credit note, joined in the same query); `OpenApiSnapshotTests`; the frontend job of CI with the inbox, credit note and adjustment screens. |
-| 7.5b | The frontend job of CI with the report screens; a CSV of each report opened in a spreadsheet by the owner. |
-| 7.6 | The frontend job of CI with the dashboard and Recharts 3.10.1; the dashboard at a phone width. |
-| 8.1 | Run on 2026-11-24 (above): the images built, `migrate` and `demo-seed` ran to their end, `api` and `frontend` up, https://localhost signed in as `supervisor@demo.local` and showed the dashboard, `DemoTenantSeederTests` in the suite. **Still owed:** the page's headers carry the policy, `frame-ancestors 'none'` and `nosniff`; http://localhost redirects to https. |
-| 8.2 | The load test of section 14 at full size (10,000 bills) through nginx on SQL Server 2022, with `SERVER_TIMING=true` and at least 2 GB free: every target met, no drift (send the whole output); the stress figure with no pause. The browser journey of section 14 against https://localhost, which is also the first check in a browser of nginx's content security policy (no console error); the frontend job of CI with `@playwright/test` in the lock file and the step that runs `deploy/load/stats.test.mjs`; `ServerTimingApiTests` and the new test of `IdempotencyKeysOnSqlServerTests` on SQL Server 2022. The office machine ran the load on LocalDB at 2,000 bills only (ADR 0046, built note). |
-| 8.3 | The backup and its check of section 15 in the `sql` container (`docker compose cp`, the two scripts, the `.bak` copied out), and the recovery model of the compose database (`FULL` expected). The scripts ran on LocalDB 2019 only. `TraceabilityTests` in the suite. |
-| 10.2 | `TenantOnboardingOnSqlServerTests` and `DemoTenantSeederTests` on SQL Server 2022, and the whole `Database` collection through the new tenant gate; with Compose (`API_ENVIRONMENT=Production`, `DEMO_ENABLED=false`): `docker compose run --rm api tenant create ...` as in section 17.1, the administrator signs in at https://localhost and must change the password; `tenant suspend` refuses that user within 30 seconds, `tenant resume` lets them in; then `API_ENVIRONMENT=Demo` with the demo as before. |
-| 10.1 | The `Database` collection with migration `0021_PasswordChange` on SQL Server 2022 (`AuthApiTests`, `PermissionMatrixApiTests`, `MigrationsOnSqlServerTests`, `DatabasePermissionsOnSqlServerTests`); through nginx at https://localhost: the demo's administrator creates a user, that user signs in with the first password, is taken to "Set a password of your own" and reaches no screen before changing it; a reset does the same; the settings saved and a prefix change requested, then approved by a second administrator in the inbox; both themes on a desktop and a phone. |
-| 9.4b | Through nginx at https://localhost: the reports (the index, a report's filters, its totals in view, Export CSV with its progress), a bill, a statement and a report printed from the browser on A4 (no shell, the hospital and the day at the top), and `routes.spec.ts` and `print.spec.ts` there with the API's answers given by the test. |
-| 9.4 | The dashboard through nginx at https://localhost: the six cards, the two charts and the four panels in both themes on a desktop and a phone, the tooltips by mouse, keyboard and tap (a phone), no content security policy refusal in the console; `dashboard.spec.ts` there with the API's answers given by the test. |
-| 9.3b | The cashier's screens and the inbox through nginx at https://localhost: a payment recorded and allocated with the meter, a refund, a payer's statement and the inbox, in both themes on a desktop and a phone, no content security policy refusal in the console; `cashier.spec.ts` there with the API's answers given by the test; and in Seq, no "severe error" from the database during the journey (backlog B35). |
-| 9.3 | The money screens through nginx at https://localhost: a bill drafted, edited and posted, a credit note and an adjustment, in both themes on a desktop and a phone, the totals card in view while the lines scroll, no content security policy refusal in the console; `money.spec.ts` there with the API's answers given by the test. |
-| 9.2 | The shell through nginx at https://localhost: the sidebar, the rail and the drawer, the theme pill, the patients, payers and service items in both themes on a desktop and a phone, no content security policy refusal in the console; `shell.spec.ts` there with the API's answers given by the test. |
-| 9.1 | The sign-in page through nginx at https://localhost in both themes: nothing refused by the content security policy in the console (the office machine applied the policy in a test, without nginx), the typeface served from `/assets/`, the favicon, and the whole browser suite of section 14 there (`signin.spec.ts` and the journey). The frontend image built with `SUPPORT_EMAIL` set and unset. The frontend job of CI with `@fontsource-variable/inter` in the lock file. |
+| 5.4b | The API image's smoke run in CI (`AllowedHosts=localhost`, no `Server` header, 400 `https_required` for an API request over plain HTTP). |
+| 7.1 | `npm ci` and `npm test` in `frontend/` on the personal machine with Node 22.22 or later (steps 7a and 7g; the first run had Node 22.12.0). |
+| 7.1 to 7.6, 8.2, 9.1 | The frontend job of CI (see row 1.5), on Linux: the lock file with `@playwright/test`, Recharts 3.10.1 and `@fontsource-variable/inter`, the step that runs `deploy/load/stats.test.mjs`, and on the API job `OpenApiSnapshotTests` and `LineCalculatorSharedCasesTests` there. |
+| 7.5b | A CSV of each report opened in a spreadsheet by the owner. |
+| 1.2 | `PiiMaskerTests` green in the whole `dotnet test` of the second run (step 5). |
+| 8.2 | The load test of section 14 at full size (10,000 bills) through nginx on SQL Server 2022, with `SERVER_TIMING=true` and at least 2 GB free: every target met, no drift (the whole output is in the log); the stress figure with no pause. The browser journey of section 14 against https://localhost (three tests of `journey.spec.ts`). The office machine ran the load on LocalDB at 2,000 bills only (ADR 0046, built note). |
+| 8.3 | The recovery model of the compose database (`FULL` expected) and `is_read_committed_snapshot_on` = 1, the last query of step 12. |
+| 10.2 | With Compose (`API_ENVIRONMENT=Production`, `DEMO_ENABLED=false`): `docker compose run --rm api tenant create ...` as in section 17.1, the administrator signs in at https://localhost and must change the password; `tenant suspend` refuses that user within 30 seconds, `tenant resume` lets them in; then `API_ENVIRONMENT=Demo` with the demo as before. By hand: the script does not run it. |
+| 10.1 | Through nginx at https://localhost, by hand: the demo's administrator creates a user, that user signs in with the first password, is taken to "Set a password of your own" and reaches no screen before changing it; a reset does the same; the settings saved and a prefix change requested, then approved by a second administrator in the inbox; both themes on a desktop and a phone. |
+| 9.4b | `routes.spec.ts` whole through nginx (step 11b). By the owner's eyes: the reports (the index, a report's filters, its totals in view, Export CSV with its progress), and a bill, a statement and a report printed from the browser on A4. |
+| 9.1 to 9.4 | By the owner's eyes at https://localhost, in both themes on a desktop and a phone, with no content security policy refusal in the console: the sign-in page (the typeface from `/assets/`, the favicon), the shell, the money screens, the cashier's screens and the inbox, the dashboard with its tooltips by mouse, keyboard and tap. The frontend image built with `SUPPORT_EMAIL` set and unset. In Seq, no "severe error" from the database during the journey (backlog B35). |
 
 A red result is reported as it is, with its output; the fix is its own commit on top, never an edit of history.
 

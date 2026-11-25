@@ -957,10 +957,14 @@ Kept here so they survive between sessions. Remove an item when it is done.
 Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two documents, and this section points at them:
 
 1. **What a machine with Docker still has to run:** `docs/runbook.md` section 8, its lettered steps and one row per
-   prompt (1.3, 1.5, 2.2 to 8.3). On 2026-11-24 the owner reported `docker compose up --build` with the demo and
-   `dotnet test` with Docker green on the personal machine; its output is not sent yet, so the rows stay until it is.
-   Owed in particular: the full-size load test and the browser journey through nginx (row 8.2), the backup in the
-   container (row 8.3), the first green run of the CI workflow on GitHub (row 1.5), the container checklist (row 1.3).
+   prompt still owed. The first run of `deploy/verify/personal-machine.ps1` (2026-11-24, at `4c2e75f`, log sent back)
+   proved the build, the format gate and every backend test on SQL Server 2022 but three of `PiiMaskerTests`, the
+   concurrency classes three times, the containers' health, the headers, the backup and its restore, and 283 of 288
+   browser tests through nginx; the rows of Prompts 2.2 to 6.3 and 8.1 are gone. Its red steps were five defects, each
+   fixed in its own commit on `phase-10-golive` (`a6cf3c3` to `17af1e5`), and that machine's Node 22.12 (22.22 or later
+   is needed). Owed: a second run with Node 24, which must show the journey and the full-size load test (row 8.2), the
+   whole routes suite, the component tests and the recovery model; what only the owner's eyes can check; and the first
+   green run of the CI workflow on GitHub (row 1.5).
 2. **Everything else still open:** `docs/backlog.md`, 32 rows (B1 to B35 but B18, B21 and B24): owner questions, recorded deviations,
    accepted limitations, follow-ups and small fixes, each with its origin and when it is due. Three are marked
    *R1 review*, for the owner: B3 (three credit-note choices), B19 (adjustments by kind), B33 (the stale `0002_Payers`
@@ -995,8 +999,9 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    10.2 onboarding a hospital by an operator's command; 10.3 the hospital's records and opening balances; 10.4 printed
    documents; 10.5 production; 10.6 operations; 10.7 readiness. Six inputs from the client come first (the list is at the
    top of Phase 10); 10.3 and 10.4 stop without them. ADR numbers 0051 to 0056 are theirs. **10.0 started** on branch
-   `phase-10-golive`: `deploy/verify/personal-machine.ps1` (commit `0cc7c1e`) waits for the owner's run and its
-   `verify-10.0.log`. **10.1 is written (ADR 0051, amending ADR 0030 point 3):** the users and settings screens under
+   `phase-10-golive`: `deploy/verify/personal-machine.ps1` (commit `0cc7c1e`) ran once on the personal machine
+   (item 1); its defects are fixed, and it waits for the second run, then the merge to `main` (every phase branch is an
+   ancestor of the next, so each merge is a fast-forward) and CI. **10.1 is written (ADR 0051, amending ADR 0030 point 3):** the users and settings screens under
    `/administration` and a forced password change after creation and after a reset (`Users.PasswordChangeDue`, migration
    `0021_PasswordChange`; while due, the token carries `pwd_change`, lives 15 minutes and opens only
    `POST /api/v1/auth/password`, every other endpoint answering 403 `password_change_required`); owed: the `Database`
