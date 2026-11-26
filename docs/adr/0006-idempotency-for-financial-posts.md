@@ -151,3 +151,42 @@ one key; and the two bill endpoints. The idempotency and number series tests ran
 failure. Still to do on the machine with .NET 10 and Docker: scaffold `0006_IdempotencyKeys` with EF Core 10 and
 run the same tests against SQL Server 2022. One thing only that run can show: the response buffering of the filter
 on ASP.NET Core 10, which the tests exercise through the test server on ASP.NET Core 9 here.
+
+## Amended 2026-11-26 (Prompt 10.8, review finding R2): a new key no longer makes the same receipt a new payment
+
+The key makes a retry: a request sent again under its key is answered from the store and does nothing twice. That
+stands. What the independent review of 2026-11 found (`docs/review-2026-11.md`, R2) is the case the key cannot see: a
+payment is recorded, its answer is lost or the tab is reloaded, and the cashier types it again. The browser keeps the
+key in memory only, so the second request carries a new one, and until today the server recorded a second payment:
+double the cash on the payer's account, either copy refundable, undone only by a reversal a second person approves.
+`PaymentsApiTests` even held the old behaviour as a rule ("the key, not the content, makes a retry").
+
+Decided with the owner on 2026-11-26:
+
+1. **A payer has at most one payment that was not reversed for a method and a reference** (BR-301). Recording another
+   is 422 `payment_reference_already_recorded`, whose message names the payment that holds the reference. It is asked
+   before a number is taken, so a refusal leaves no gap.
+2. **Behind it a filtered unique index**, `UX_Payments_TenantId_PayerId_Method_Reference` (where the reference is not
+   null, the method is not Cash and the status is not Reversed; migration `0027_PaymentReferenceOnce`). Two requests at
+   the same instant both pass the read; the index lets one commit, and the other is answered the same 422.
+3. **Per payer, not per hospital:** two members of a family may pay from one cheque. A payment recorded against the
+   wrong payer is therefore not caught by this rule.
+4. **Cash is never compared.** It has no reference that names the money, and two equal cash payments in a row are
+   ordinary. The duplicate of a cash payment after a lost answer is still possible; the cashier's shift of Prompt 11.2
+   (counted against expected cash) is where it would show.
+5. **After a reversal the reference is free again:** a reversed payment has left the index.
+6. **The reference is compared as the database compares text** (its collation: on SQL Server's default, without regard
+   to case), after trimming.
+
+**Expected behaviour changed, and one test with it:** `BR803_a_replayed_recording_returns_the_same_response_and_records_once`
+now expects the same payment under a new key to be refused, where it expected a second payment. Three fixture helpers
+of the database tests give each payment a reference of its own, and two tests that send one request twice build it
+once: each recorded several payments for one payer with one fixed reference.
+
+**A database with data:** the migration fails if such duplicates exist. Before applying it to a database that holds
+payments, look for them (runbook section 8, row 10.8) and reverse the copies first. The demo seed and the load test
+record none.
+
+Verified on the office machine: Application 483 tests, the `Database` collection, 540, on LocalDB 2019 in a copy
+(`PaymentReferenceApiTests`: the finding's sequence, the other-money cases, ten rounds of two requests at once). SQL
+Server 2022 is owed.

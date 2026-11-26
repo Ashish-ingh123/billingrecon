@@ -132,7 +132,7 @@ report for their daily work.
 
 | Id | Rule |
 |---|---|
-| **BR-301** | A payment has `Amount > 0`, a method in {Cash, Card, UPI, BankTransfer, Cheque}, a payment date per BR-205, and an external reference (UPI id, card auth, UTR, cheque number) that is required for every method except Cash. |
+| **BR-301** | A payment has `Amount > 0`, a method in {Cash, Card, UPI, BankTransfer, Cheque}, a payment date per BR-205, and an external reference (UPI id, card auth, UTR, cheque number) that is required for every method except Cash. Since 2026-11-26 (review finding R2): a payer has at most one payment that was not reversed for a method and a reference, so the same receipt is recorded once, under whatever idempotency key; cash is never compared. |
 | **BR-302** | A payment is posted the moment it is recorded (there is no draft payment): it takes the next gapless payment number, posts `Dr Cash / Cr UnappliedCash(payment)` and sets `UnappliedAmount = Amount`. |
 | **BR-303** | An allocation applies part of a payment to a posted bill of the same payer: `Amount > 0`, `Amount ≤ Payment.UnappliedAmount`, `Amount ≤ Bill.BalanceDue`. It posts the paired entry `Dr UnappliedCash(payment) / Cr Receivable(bill)` and decreases both `Payment.UnappliedAmount` and `Bill.BalanceDue` in the same transaction. This is the one use case that changes two aggregates at once (see `domain-model.md` §6). |
 | **BR-304** | A payment may be allocated to many bills and a bill may receive many allocations. Partial allocation is normal; unapplied cash may remain indefinitely and is reported (BR-901). |

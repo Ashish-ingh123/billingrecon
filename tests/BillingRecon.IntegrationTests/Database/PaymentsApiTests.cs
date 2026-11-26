@@ -289,8 +289,9 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
         var (_, payer) = await client.NewBillPartiesAsync();
         var key = Guid.NewGuid();
 
-        using var first = await client.PostJsonAsync(Payments, Upi(payer, 126m), key);
-        using var replay = await client.PostJsonAsync(Payments, Upi(payer, 126m), key);
+        var request = Upi(payer, 126m);
+        using var first = await client.PostJsonAsync(Payments, request, key);
+        using var replay = await client.PostJsonAsync(Payments, request, key);
 
         first.StatusCode.ShouldBe(HttpStatusCode.Created);
         replay.StatusCode.ShouldBe(HttpStatusCode.Created);
@@ -302,7 +303,18 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
         (await CountAsync("SELECT COUNT(*) AS [Value] FROM dbo.LedgerPostings")).ShouldBe(1);
         (await BalanceAsync(cashier, payer)).UnappliedCash.ShouldBe(Money.Of(126m));
 
-        // The same payment sent under a new key is a second payment: the key, not the content, makes a retry (BR-803).
+        // EXPECTED BEHAVIOUR CHANGED on 2026-11-26 (review finding R2, approved by the owner; BR-301). Until then this
+        // test held that the same payment sent under a new key was a second payment ("the key, not the content, makes a
+        // retry"). The key still makes the retry (BR-803); but the same reference for the same payer and method under a
+        // new key is now refused, because that is what a receipt typed again after a lost answer looks like.
+        using (var again = await client.PostJsonAsync(Payments, request))
+        {
+            await again.ShouldBeProblemAsync(HttpStatusCode.UnprocessableEntity, PaymentsErrors.PaymentReferenceAlreadyRecordedCode);
+        }
+
+        (await CountAsync("SELECT COUNT(*) AS [Value] FROM dbo.Payments")).ShouldBe(1);
+
+        // Other money, with a reference of its own, is a second payment under its own key, with the next number.
         (await RecordedAsync(client, Upi(payer, 126m))).Number.ShouldBe("PAY/26-27/000002");
         await ShouldHaveNoDriftAndAGaplessSeriesAsync(cashier);
     }
@@ -323,9 +335,11 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
         var (_, payer) = await client.NewBillPartiesAsync();
         var key = Guid.NewGuid();
 
-        var first = client.PostJsonAsync(Payments, Upi(payer, 126m), key);
+        // One request, sent twice: since 2026-11-26 each call of Upi carries a reference of its own (BR-301).
+        var request = Upi(payer, 126m);
+        var first = client.PostJsonAsync(Payments, request, key);
         await gate.Entered.Task.WaitAsync(TimeSpan.FromSeconds(30));
-        using var second = await client.PostJsonAsync(Payments, Upi(payer, 126m), key);
+        using var second = await client.PostJsonAsync(Payments, request, key);
         gate.Release.SetResult();
         using var firstResponse = await first;
 
@@ -467,8 +481,14 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
 
     private static Uri Payment(Guid id) => new($"/api/v1/payments/{id}", UriKind.Relative);
 
+    // Since 2026-11-26 a payer's reference is recorded once (BR-301, review finding R2): each payment these tests record
+    // is other money, and so carries a reference of its own.
+    private static int _references;
+
+    private static string NextReference() => (400_000_000_000L + Interlocked.Increment(ref _references)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
     private static RecordPaymentRequest Upi(PayerDto payer, decimal amount)
-        => new() { PayerId = payer.Id, PaymentDate = Today, Method = PaymentMethod.UPI, Reference = "412345678901", Amount = amount };
+        => new() { PayerId = payer.Id, PaymentDate = Today, Method = PaymentMethod.UPI, Reference = NextReference(), Amount = amount };
 
     private static async Task<PaymentDto> RecordedAsync(HttpClient client, RecordPaymentRequest request)
     {

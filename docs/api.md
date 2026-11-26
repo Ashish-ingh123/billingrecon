@@ -482,7 +482,7 @@ not at all (BR-007). A payment is never edited or deleted (BR-006). Allocating i
 
 | Method and path | Success | Failures |
 |---|---|---|
-| `POST /api/v1/payments` (needs `Idempotency-Key`) | 201, the payment, `Location`, `ETag` | 400; 404 `payer_not_found`; 409 `idempotency_in_progress`; 422 `payer_inactive`, `payment_date_in_future`, `payment_date_too_old`, `idempotency_key_reuse` |
+| `POST /api/v1/payments` (needs `Idempotency-Key`) | 201, the payment, `Location`, `ETag` | 400; 404 `payer_not_found`; 409 `idempotency_in_progress`; 422 `payer_inactive`, `payment_date_in_future`, `payment_date_too_old`, `payment_reference_already_recorded`, `idempotency_key_reuse` |
 | `GET /api/v1/payments/{id}` | 200, the payment, `ETag` | 404 `payment_not_found` |
 | `POST /api/v1/payments/{id}/allocations` (needs `Idempotency-Key` and `If-Match`) | 200, the payment with its allocations, `ETag` | 400; 404 `payment_not_found`, `bill_not_found`; 409 `concurrency_conflict`, `idempotency_in_progress`; 422 `allocation_exceeds_unapplied`, `allocation_exceeds_balance_due`, `allocation_payer_mismatch`, `bill_not_posted`, `idempotency_key_reuse`; 428 |
 | `GET /api/v1/payments/{id}/allocations` | 200, the payment with its allocations, `ETag` | 404 `payment_not_found` |
@@ -1309,6 +1309,7 @@ For a failure no use case reported: routing, model binding, content negotiation,
 | Code | Status | Message |
 |---|---|---|
 | `payment_not_found` | 404 | The payment does not exist. |
+| `payment_reference_already_recorded` | 422 | A payment of this payer by this method with this reference is recorded already and was not reversed; the message names it. Cash is never compared (BR-301; review finding R2). |
 | `payment_date_in_future` | 422 | The payment date cannot be in the future (BR-205). |
 | `payment_date_too_old` | 422 | The payment date cannot be earlier than …, the earliest date this hospital allows (BR-205). |
 | `allocation_exceeds_unapplied` | 422 | Payment … has … unapplied; more than that cannot be allocated (BR-303). |

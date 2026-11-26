@@ -59,6 +59,16 @@ public sealed class RecordPaymentHandler(
             return payer.Error;
         }
 
+        // The same receipt is not recorded twice (BR-301 as amended 2026-11-26; review finding R2): a request whose
+        // answer was lost and that is typed again carries a new key, and only its reference tells it from new money.
+        // Cash has no reference to compare, and two equal cash payments in a row are ordinary.
+        var reference = command.Reference?.Trim();
+        if (method != PaymentMethod.Cash && !string.IsNullOrEmpty(reference)
+            && await repository.FindNumberByReferenceAsync(command.PayerId, method, reference, ct) is { Length: > 0 } recordedAs)
+        {
+            return PaymentsErrors.PaymentReferenceAlreadyRecorded(recordedAs);
+        }
+
         // Last, after every check: from here on the series of the fiscal year is locked until the commit (BR-801).
         var number = await numbers.NextAsync(DocumentType.Payment, FiscalYear.FromDate(paymentDate), ct);
 
@@ -82,6 +92,14 @@ public sealed class RecordPaymentHandler(
 
         var committed = await unitOfWork.CommitAsync(ct);
 
-        return committed.IsSuccess ? payment.ToDto() : committed.Error;
+        if (committed.IsFailure)
+        {
+            // Two requests with one reference at the same instant: the unique index let one through, and this is the other.
+            return committed.Error.Code == CommonErrors.DuplicateKeyCode && method != PaymentMethod.Cash
+                ? PaymentsErrors.PaymentReferenceAlreadyRecorded(null)
+                : committed.Error;
+        }
+
+        return payment.ToDto();
     }
 }

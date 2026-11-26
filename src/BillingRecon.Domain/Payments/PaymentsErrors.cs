@@ -6,6 +6,9 @@ namespace BillingRecon.Domain.Payments;
 public static class PaymentsErrors
 {
     public const string PaymentNotFoundCode = "payment_not_found";
+
+    /// <summary>Code of <see cref="PaymentReferenceAlreadyRecorded"/>.</summary>
+    public const string PaymentReferenceAlreadyRecordedCode = "payment_reference_already_recorded";
     public const string PaymentDateInFutureCode = "payment_date_in_future";
     public const string PaymentDateTooOldCode = "payment_date_too_old";
     public const string AllocationExceedsUnappliedCode = "allocation_exceeds_unapplied";
@@ -30,6 +33,18 @@ public static class PaymentsErrors
 
     /// <summary>No payment with that id exists for the tenant. Another tenant's payment gets the same answer.</summary>
     public static Error PaymentNotFound() => Error.NotFound(PaymentNotFoundCode, "The payment does not exist.");
+
+    /// <summary>
+    /// A payment of this payer by this method with this reference is recorded already and was not reversed (BR-301 as
+    /// amended 2026-11-26; review finding R2): the same receipt is not recorded twice. <paramref name="number"/> is the
+    /// payment that holds the reference, when it is known.
+    /// </summary>
+    public static Error PaymentReferenceAlreadyRecorded(string? number)
+        => Error.BusinessRule(
+            PaymentReferenceAlreadyRecordedCode,
+            number is null
+                ? "A payment of this payer with this method and reference is recorded already. Open the payer's payments before recording it again."
+                : $"This reference is recorded already for this payer, as payment {number}. If this is other money, give it its own reference; if {number} was a mistake, ask for its reversal.");
 
     /// <summary>The payment date is after today in India (BR-205).</summary>
     public static Error PaymentDateInFuture() => Error.BusinessRule(PaymentDateInFutureCode, "The payment date cannot be in the future (BR-205).");

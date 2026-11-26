@@ -146,11 +146,61 @@ public sealed class RecordPaymentTests
     [Fact]
     public async Task A_commit_that_fails_answers_its_error()
     {
+        // Since 2026-11-26 a duplicate key of a payment with a reference has a rule of its own (the next tests): the
+        // failure that still passes through as it is, for every method, is any other, and a duplicate key of cash.
+        _unitOfWork = TestDoubles.UnitOfWork(CommonErrors.ConcurrencyConflict());
+        (await Handler().HandleAsync(Upi(), CancellationToken.None)).Error.Code.ShouldBe(CommonErrors.ConcurrencyConflictCode);
+
+        _unitOfWork = TestDoubles.UnitOfWork(CommonErrors.DuplicateKey());
+        var cash = await Handler().HandleAsync(Upi() with { Method = PaymentMethod.Cash, Reference = null }, CancellationToken.None);
+        cash.Error.Code.ShouldBe(CommonErrors.DuplicateKeyCode);
+    }
+
+    [Fact]
+    public async Task BR301_a_reference_already_recorded_for_the_payer_and_method_is_refused_before_a_number_is_taken()
+    {
+        // Review 2026-11, R2: the same receipt typed again after a lost answer carries a new idempotency key.
+        _repository.FindNumberByReferenceAsync(Payer, PaymentMethod.UPI, "412345678901", Arg.Any<CancellationToken>()).Returns("PAY/26-27/000007");
+
+        var result = await Handler().HandleAsync(Upi() with { Reference = "  412345678901 " }, CancellationToken.None);
+
+        result.Error.Code.ShouldBe(PaymentsErrors.PaymentReferenceAlreadyRecordedCode);
+        result.Error.Kind.ShouldBe(ErrorKind.BusinessRule);
+        result.Error.Message.ShouldContain("PAY/26-27/000007");
+        await NothingWasTakenOrWrittenAsync();
+    }
+
+    [Fact]
+    public async Task BR301_cash_is_never_compared_by_its_reference_and_another_method_or_payer_is_another_receipt()
+    {
+        _settings.GetDocumentSettingsAsync(Arg.Any<CancellationToken>()).Returns(new TenantDocumentSettings(MaxBackdateDays: 7, DefaultDueDays: 15));
+        _payers.EnsureActiveAsync(Payer, Arg.Any<CancellationToken>()).Returns(Result.Success());
+        _numbers.NextAsync(DocumentType.Payment, Fy, Arg.Any<CancellationToken>()).Returns(DocumentNumber.Create(DocumentType.Payment, Fy, "PAY", 8));
+        _ledger.PostAsync(Arg.Any<PostingTemplate>(), Arg.Any<CancellationToken>()).Returns((Result<LedgerPostingId>)Posting);
+        _repository.FindNumberByReferenceAsync(Payer, PaymentMethod.UPI, "412345678901", Arg.Any<CancellationToken>()).Returns("PAY/26-27/000007");
+
+        // Cash, even with the same text as its reference: recorded, and the repository is not asked.
+        var cash = await Handler().HandleAsync(Upi() with { Method = PaymentMethod.Cash }, CancellationToken.None);
+        cash.IsSuccess.ShouldBeTrue();
+        await _repository.DidNotReceive().FindNumberByReferenceAsync(Arg.Any<PayerId>(), PaymentMethod.Cash, Arg.Any<string>(), Arg.Any<CancellationToken>());
+
+        // The same reference by card is another receipt.
+        (await Handler().HandleAsync(Upi() with { Method = PaymentMethod.Card }, CancellationToken.None)).IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task BR301_two_requests_with_one_reference_at_once_give_the_loser_the_rule_and_not_a_bare_duplicate()
+    {
+        _settings.GetDocumentSettingsAsync(Arg.Any<CancellationToken>()).Returns(new TenantDocumentSettings(MaxBackdateDays: 7, DefaultDueDays: 15));
+        _payers.EnsureActiveAsync(Payer, Arg.Any<CancellationToken>()).Returns(Result.Success());
+        _numbers.NextAsync(DocumentType.Payment, Fy, Arg.Any<CancellationToken>()).Returns(DocumentNumber.Create(DocumentType.Payment, Fy, "PAY", 8));
+        _ledger.PostAsync(Arg.Any<PostingTemplate>(), Arg.Any<CancellationToken>()).Returns((Result<LedgerPostingId>)Posting);
+        // Nothing was recorded when this request looked; the unique index refuses it at the commit.
         _unitOfWork = TestDoubles.UnitOfWork(CommonErrors.DuplicateKey());
 
         var result = await Handler().HandleAsync(Upi(), CancellationToken.None);
 
-        result.Error.Code.ShouldBe(CommonErrors.DuplicateKeyCode);
+        result.Error.Code.ShouldBe(PaymentsErrors.PaymentReferenceAlreadyRecordedCode);
     }
 
     [Fact]

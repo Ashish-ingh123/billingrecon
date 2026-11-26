@@ -10,6 +10,12 @@ public interface IPaymentRepository
     public Task<Payment?> GetAsync(PaymentId id, CancellationToken ct);
 
     /// <summary>Adds a new payment to the unit of work, which gives it its id.</summary>
+    /// <summary>
+    /// The number of a payment of the payer by that method with that reference that was not reversed; null when there
+    /// is none (BR-301 as amended 2026-11-26). The reference is compared as the database compares text.
+    /// </summary>
+    public Task<string?> FindNumberByReferenceAsync(PayerId payerId, PaymentMethod method, string reference, CancellationToken ct);
+
     public void Add(Payment payment);
 
     /// <summary>

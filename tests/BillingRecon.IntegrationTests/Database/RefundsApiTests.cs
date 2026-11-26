@@ -572,9 +572,15 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
         return await response.ReadAsAsync<RefundDto>();
     }
 
+    // Since 2026-11-26 a payer's reference is recorded once (BR-301, review finding R2): each payment these tests record
+    // is other money, and so carries a reference of its own.
+    private static int _references;
+
+    private static string NextReference() => (400_000_000_000L + Interlocked.Increment(ref _references)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
     private static async Task<PaymentDto> RecordedAsync(HttpClient client, PayerDto payer, decimal amount)
     {
-        using var response = await client.PostJsonAsync(Payments, new RecordPaymentRequest { PayerId = payer.Id, PaymentDate = Today, Method = PaymentMethod.Cheque, Reference = "000123", Amount = amount });
+        using var response = await client.PostJsonAsync(Payments, new RecordPaymentRequest { PayerId = payer.Id, PaymentDate = Today, Method = PaymentMethod.Cheque, Reference = NextReference(), Amount = amount });
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync());
 

@@ -2058,6 +2058,11 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .IsUnique()
                         .HasDatabaseName("UX_Payments_TenantId_Origin_FiscalYear_SequenceNumber");
 
+                    b.HasIndex("TenantId", "PayerId", "Method", "Reference")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Payments_TenantId_PayerId_Method_Reference")
+                        .HasFilter("[Reference] IS NOT NULL AND [Method] <> 'Cash' AND [Status] <> 'Reversed'");
+
                     b.ToTable("Payments", null, t =>
                         {
                             t.HasCheckConstraint("CK_Payments_Amount", "[Amount] > 0");

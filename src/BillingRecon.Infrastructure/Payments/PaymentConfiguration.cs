@@ -79,6 +79,13 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             .HasFilter("[LegacyNumber] IS NOT NULL")
             .HasDatabaseName("UX_Payments_TenantId_LegacyNumber");
 
+        // The same receipt is recorded once (BR-301 as amended 2026-11-26; review finding R2): one payment that was not
+        // reversed for a payer, a method and a reference. Cash is left out: it has no reference that names the money.
+        builder.HasIndex(payment => new { payment.TenantId, payment.PayerId, payment.Method, payment.Reference })
+            .IsUnique()
+            .HasFilter("[Reference] IS NOT NULL AND [Method] <> 'Cash' AND [Status] <> 'Reversed'")
+            .HasDatabaseName("UX_Payments_TenantId_PayerId_Method_Reference");
+
         // The payments of a payer with what is left of each, without reading the rows.
         builder.HasIndex(payment => new { payment.TenantId, payment.PayerId, payment.Status })
             .IncludeProperties(payment => new { payment.UnappliedAmount })

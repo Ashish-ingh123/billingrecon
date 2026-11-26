@@ -14,6 +14,14 @@ public sealed class PaymentRepository(BillingReconDbContext context) : IPaymentR
         => context.Set<Payment>().Include(payment => payment.Allocations).SingleOrDefaultAsync(payment => payment.Id == id, ct);
 
     /// <inheritdoc />
+    /// <inheritdoc />
+    public Task<string?> FindNumberByReferenceAsync(PayerId payerId, PaymentMethod method, string reference, CancellationToken ct)
+        => context.Set<Payment>()
+            .AsNoTracking()
+            .Where(payment => payment.PayerId == payerId && payment.Method == method && payment.Reference == reference && payment.Status != PaymentStatus.Reversed)
+            .Select(payment => (string?)payment.Number)
+            .FirstOrDefaultAsync(ct);
+
     public void Add(Payment payment) => context.Set<Payment>().Add(payment);
 
     /// <inheritdoc />

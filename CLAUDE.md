@@ -1146,4 +1146,8 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    **10.8, the independent review (stage 4), is in `docs/review-2026-11.md`** (2026-11-26; a separate agent, reading only;
    14 findings, none Critical, two High). Its fixes go one commit each on the owner's approval. **R1 is fixed:** a credit
    note's cap counts the bill's posted adjustments (`IBillAdjustments`, a contract of Adjustments' Application layer that
-   Billing asks; `CreditNoteCaps`; ADR 0025 "Amended 2026-11-26"; BR-210). **R5 is accepted and recorded** (`docs/security.md`, row R3; 11.3 weighs it). The other eight of its ten wait for the owner.
+   Billing asks; `CreditNoteCaps`; ADR 0025 "Amended 2026-11-26"; BR-210). **R5 is accepted and recorded** (`docs/security.md`, row R3; 11.3 weighs it). **R2 is fixed:** a payer has at most one
+   payment that was not reversed for a method and a reference (422 `payment_reference_already_recorded`, the index
+   `UX_Payments_TenantId_PayerId_Method_Reference`, migration `0027_PaymentReferenceOnce`; cash is never compared; ADR 0006
+   "Amended 2026-11-26"; BR-301). A database test that records several payments for one payer gives each a reference of
+   its own. The other seven of its ten wait for the owner.
