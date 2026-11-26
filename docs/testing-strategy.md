@@ -274,6 +274,31 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   tests; no fixed waits. Any error a page writes to the console fails the step, so a script the content security
   policy of nginx refuses fails it too.
 
+### Two requests "at once" are put in order by a gate (review 2026-11, finding R11)
+
+Two requests started together with `Task.WhenAll` mostly run one after the other: the test then passes whether or not
+the guard under the lock works, and it had to accept two answers for the loser (409 or 422). Since 2026-11-26 a test
+of a race holds the requests at a `RaceGate` (`tests/BillingRecon.IntegrationTests/Support`): the winner is held where
+it has taken its lock and has not committed, the loser is let in only then and says when it has read, and only then
+does the winner commit. The loser's answer is then one answer, asserted exactly. The gate is a decorator of one
+service of the test host (`GateNumbersOf` a document type, `GatePostingsOf` some ledger kinds, `GateCommits`); the
+product's service does the work, and no product code knows of it.
+
+| Test | Gate | The loser | What refuses it |
+| --- | --- | --- | --- |
+| `CreditNotesApiTests.BR210_two_credit_notes_approved_at_once...` | the credit note's number | 409 `concurrency_conflict` | the caps of the bill, checked again after the ledger posting |
+| `RefundsApiTests.BR804_two_refunds_of_one_payment_approved_at_once...` | the refund's number | 409 | the ledger (the unapplied balance would go below zero) |
+| `AdjustmentsApiTests.BR804_an_adjustment_and_a_payment_for_the_last_rupees...` | the two ledger postings | 409 (the allocation) | the ledger (the receivable would go below zero) |
+| `BillPostingApiTests.BR804_two_simultaneous_posts_of_the_same_bill...` | the bill's number | 409 | the row version of the bill |
+| `CreditApplicationReversalsApiTests.BR804_two_checkers_deciding_the_same_reversal_at_once...` | the commit (the rejection waits in front of its save) | 409 (the rejection) | the row version of the credit note |
+| `PaymentReferenceApiTests.BR301_two_recordings_of_one_reference_at_the_same_instant...` | the payment's number | 422 `payment_reference_already_recorded` | the unique index |
+
+Each was seen to fail with its guard taken out, in a scratch copy on 2026-11-26: the second check of the caps skipped,
+the ledger's refusal no longer told as 409 (twice), the duplicate key no longer told as the reference, and, for the
+two that the row version guards, a save that forgets the version it read. **A new test of two requests at once uses
+the gate and asserts one answer for the loser;** a test that accepts either of two answers is not a test of the race.
+The older private gates (`PaymentAllocationsApiTests`, `BillPostingApiTests`, `PaymentsApiTests`) stay as they are.
+
 ## 6. CI quality gates (Prompt 1.5, to come)
 
 Build with warnings as errors; `dotnet format --verify-no-changes`; every test including the

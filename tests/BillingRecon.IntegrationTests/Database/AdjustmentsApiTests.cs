@@ -294,7 +294,8 @@ public sealed class AdjustmentsApiTests(SqlServerFixture sqlServer) : DatabaseTe
     [Fact]
     public async Task BR804_an_adjustment_and_a_payment_for_the_last_rupees_of_one_bill_at_once_give_exactly_one_success()
     {
-        using var factory = new DatabaseApiFactory(SqlServer);
+        var gate = new RaceGate();
+        using var factory = new DatabaseApiFactory(SqlServer, configure: services => services.GatePostingsOf(gate, LedgerPostingKind.AdjustmentPosted, LedgerPostingKind.PaymentAllocated));
         var (maker, checker) = await NewMakerAndCheckerAsync();
         using var clerk = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
@@ -303,17 +304,16 @@ public sealed class AdjustmentsApiTests(SqlServerFixture sqlServer) : DatabaseTe
         var waiting = await SubmittedAsync(clerk, await DraftedAsync(clerk, bill, AdjustmentKind.WriteOff, 126m));
         var payment = await RecordedAsync(clerk, payer, 126m);
 
-        var responses = await Task.WhenAll(
-            Task.Run(() => supervisor.SendWithIfMatchAsync(HttpMethod.Post, Adjustment(waiting.Id, "approve"), body: null, PayersApi.ETag(waiting.Version))),
-            Task.Run(() => AllocateAsync(clerk, payment, bill, 126m)));
+        // Held at the gate (review 2026-11, R11): the allocation has read the bill with 126.00 due while the approval
+        // holds the balances of the payer and has not committed. What it read is stale when it gets there: 409.
+        var responses = await gate.RaceAsync(
+            () => supervisor.SendWithIfMatchAsync(HttpMethod.Post, Adjustment(waiting.Id, "approve"), body: null, PayersApi.ETag(waiting.Version)),
+            () => AllocateAsync(clerk, payment, bill, 126m));
 
         try
         {
-            // The loser read the bill before the winner committed (409) or after (422). Both are correct; a second
-            // success would settle the bill twice.
-            responses.Count(response => response.StatusCode == HttpStatusCode.OK).ShouldBe(1);
-            responses.Single(response => response.StatusCode != HttpStatusCode.OK).StatusCode
-                .ShouldBeOneOf(HttpStatusCode.Conflict, HttpStatusCode.UnprocessableEntity);
+            responses[0].StatusCode.ShouldBe(HttpStatusCode.OK, await responses[0].Content.ReadAsStringAsync());
+            await responses[1].ShouldBeProblemAsync(HttpStatusCode.Conflict, CommonErrors.ConcurrencyConflictCode);
         }
         finally
         {

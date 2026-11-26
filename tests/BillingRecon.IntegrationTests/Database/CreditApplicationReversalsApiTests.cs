@@ -217,7 +217,8 @@ public sealed class CreditApplicationReversalsApiTests(SqlServerFixture sqlServe
     [Fact]
     public async Task BR804_two_checkers_deciding_the_same_reversal_at_once_give_exactly_one_decision()
     {
-        using var factory = new DatabaseApiFactory(SqlServer);
+        var gate = new RaceGate();
+        using var factory = new DatabaseApiFactory(SqlServer, configure: services => services.GateCommits(gate));
         var (maker, checker) = await NewMakerAndCheckerAsync();
         using var clerk = factory.CreateClientFor(maker, "BillingClerk");
         using var supervisor = factory.CreateClientFor(checker, "Supervisor");
@@ -225,18 +226,18 @@ public sealed class CreditApplicationReversalsApiTests(SqlServerFixture sqlServe
         var scene = await AppliedAsync(factory, clerk, supervisor);
         var waiting = await RequestedAsync(clerk, scene.CreditNote, scene.Later.Id, "Applied to the wrong bill");
 
-        var decisions = await Task.WhenAll(
-            Task.Run(() => supervisor.SendWithIfMatchAsync(HttpMethod.Post, Application(waiting.Id, scene.Later.Id, "approve-reversal"), body: null, PayersApi.ETag(waiting.Version))),
-            Task.Run(() => second.SendWithIfMatchAsync(HttpMethod.Post, Application(waiting.Id, scene.Later.Id, "reject-reversal"), new RejectCreditApplicationReversalRequest { Comment = "No" }, PayersApi.ETag(waiting.Version))));
+        // Held at the gate (review 2026-11, R11): the rejection has read the credit note and waits in front of its
+        // save while the approval runs from start to end. The version it read is stale when it saves: 409.
+        var decisions = await gate.OvertakeAsync(
+            () => supervisor.SendWithIfMatchAsync(HttpMethod.Post, Application(waiting.Id, scene.Later.Id, "approve-reversal"), body: null, PayersApi.ETag(waiting.Version)),
+            () => second.SendWithIfMatchAsync(HttpMethod.Post, Application(waiting.Id, scene.Later.Id, "reject-reversal"), new RejectCreditApplicationReversalRequest { Comment = "No" }, PayersApi.ETag(waiting.Version)));
 
         bool approvalWon;
         try
         {
-            // Exactly one decision stands. The other read the credit note before the winner committed (409 from the
-            // version, or from the request that is no longer pending) or after it (the application no longer waits).
-            decisions.Count(response => response.StatusCode == HttpStatusCode.OK).ShouldBe(1, string.Join(" | ", await Task.WhenAll(decisions.Select(response => response.Content.ReadAsStringAsync()))));
-            decisions.Single(response => response.StatusCode != HttpStatusCode.OK).StatusCode.ShouldBeOneOf(HttpStatusCode.Conflict, HttpStatusCode.UnprocessableEntity);
-            approvalWon = decisions[0].StatusCode == HttpStatusCode.OK;
+            decisions[0].StatusCode.ShouldBe(HttpStatusCode.OK, await decisions[0].Content.ReadAsStringAsync());
+            await decisions[1].ShouldBeProblemAsync(HttpStatusCode.Conflict, CommonErrors.ConcurrencyConflictCode);
+            approvalWon = true;
         }
         finally
         {

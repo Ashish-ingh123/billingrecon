@@ -2,6 +2,7 @@ using System.Net;
 using BillingRecon.Api.Payments;
 using BillingRecon.Application.Payers;
 using BillingRecon.Application.Payments;
+using BillingRecon.Domain.Common;
 using BillingRecon.Domain.Payments;
 using BillingRecon.IntegrationTests.Support;
 using Microsoft.EntityFrameworkCore;
@@ -94,37 +95,36 @@ public sealed class PaymentReferenceApiTests(SqlServerFixture sqlServer) : Datab
     [Fact]
     public async Task BR301_two_recordings_of_one_reference_at_the_same_instant_record_exactly_one()
     {
-        using var factory = new DatabaseApiFactory(SqlServer);
+        var gate = new RaceGate();
+        using var factory = new DatabaseApiFactory(SqlServer, configure: services => services.GateNumbersOf(gate, DocumentType.Payment));
         var cashier = await NewApiTenantAsync();
         using var client = factory.CreateClientFor(cashier, "Cashier", "BillingClerk");
         var (_, payer) = await client.NewBillPartiesAsync();
 
-        // Ten rounds, each of two requests started together under two keys: whichever way they meet (one after the
-        // other, or both past the read before either commits, where the unique index decides), one is recorded.
-        for (var round = 0; round < 10; round++)
-        {
-            var reference = $"RACE-{round}";
-            var answers = await Task.WhenAll(
-                Task.Run(() => client.PostJsonAsync(Payments, Upi(payer, reference), Guid.NewGuid())),
-                Task.Run(() => client.PostJsonAsync(Payments, Upi(payer, reference), Guid.NewGuid())));
+        // Held at the gate (review 2026-11, R11): the second recording has looked for the reference and found none
+        // while the first holds the series and has not committed. Only the unique index can refuse it, and it is told
+        // what the read would have told it.
+        var answers = await gate.RaceAsync(
+            () => client.PostJsonAsync(Payments, Upi(payer, "RACE-1"), Guid.NewGuid()),
+            () => client.PostJsonAsync(Payments, Upi(payer, "RACE-1"), Guid.NewGuid()));
 
-            try
+        try
+        {
+            answers[0].StatusCode.ShouldBe(HttpStatusCode.Created, await answers[0].Content.ReadAsStringAsync());
+            await answers[1].ShouldBeProblemAsync(HttpStatusCode.UnprocessableEntity, PaymentsErrors.PaymentReferenceAlreadyRecordedCode);
+        }
+        finally
+        {
+            foreach (var answer in answers)
             {
-                answers.Count(answer => answer.StatusCode == HttpStatusCode.Created).ShouldBe(1, $"round {round}");
-                var loser = answers.Single(answer => answer.StatusCode != HttpStatusCode.Created);
-                await loser.ShouldBeProblemAsync(HttpStatusCode.UnprocessableEntity, PaymentsErrors.PaymentReferenceAlreadyRecordedCode);
-            }
-            finally
-            {
-                foreach (var answer in answers)
-                {
-                    answer.Dispose();
-                }
+                answer.Dispose();
             }
         }
 
+        // One payment; the number the loser had taken went back with it.
         await using var context = ApiContext(cashier);
-        var numbers = await context.Set<Payment>().AsNoTracking().OrderBy(payment => payment.SequenceNumber).Select(payment => payment.SequenceNumber).ToListAsync();
-        numbers.ShouldBe(Enumerable.Range(1, 10), "ten payments, numbered without a gap: a loser leaves none");
+        (await context.Set<Payment>().AsNoTracking().Select(payment => payment.SequenceNumber).ToListAsync()).ShouldBe([1]);
+        using var next = await client.PostJsonAsync(Payments, Upi(payer, "RACE-2"));
+        (await next.ReadAsAsync<PaymentDto>()).Number.ShouldBe("PAY/26-27/000002", "a refused recording leaves no gap");
     }
 }

@@ -400,7 +400,8 @@ public sealed class CreditNotesApiTests(SqlServerFixture sqlServer) : DatabaseTe
     [Fact]
     public async Task BR210_two_credit_notes_approved_at_once_against_a_bill_that_only_one_fits_give_exactly_one_posting()
     {
-        using var factory = new DatabaseApiFactory(SqlServer);
+        var gate = new RaceGate();
+        using var factory = new DatabaseApiFactory(SqlServer, configure: services => services.GateNumbersOf(gate, DocumentType.CreditNote));
         var (maker, checker) = await NewMakerAndCheckerAsync();
         var otherChecker = new FixedIdentity(maker.TenantId, new UserId(Guid.NewGuid()));
         using var clerk = factory.CreateClientFor(maker, "BillingClerk");
@@ -415,24 +416,16 @@ public sealed class CreditNotesApiTests(SqlServerFixture sqlServer) : DatabaseTe
         var one = await SubmittedAsync(clerk, await DraftedAsync(clerk, bill, WholeLine(bill, "Dressing")));
         var two = await SubmittedAsync(clerk, await DraftedAsync(clerk, bill, WholeLine(bill, "Dressing")));
 
-        var responses = await Task.WhenAll(
-            Task.Run(() => first.SendWithIfMatchAsync(HttpMethod.Post, CreditNote(one.Id, "approve"), body: null, PayersApi.ETag(one.Version))),
-            Task.Run(() => second.SendWithIfMatchAsync(HttpMethod.Post, CreditNote(two.Id, "approve"), body: null, PayersApi.ETag(two.Version))));
+        // Held at the gate (review 2026-11, R11): the second approval has read the caps of the bill while the first
+        // holds the series and has not committed, so only the check under the lock can stop it.
+        var responses = await gate.RaceAsync(
+            () => first.SendWithIfMatchAsync(HttpMethod.Post, CreditNote(one.Id, "approve"), body: null, PayersApi.ETag(one.Version)),
+            () => second.SendWithIfMatchAsync(HttpMethod.Post, CreditNote(two.Id, "approve"), body: null, PayersApi.ETag(two.Version)));
 
         try
         {
-            // The loser is told 409 when it had read the caps before the winner committed, 422 when after. Both are
-            // correct; a second posting never is.
-            responses.Count(response => response.StatusCode == HttpStatusCode.OK).ShouldBe(1);
-            var loser = responses.Single(response => response.StatusCode != HttpStatusCode.OK);
-            if (loser.StatusCode == HttpStatusCode.Conflict)
-            {
-                await loser.ShouldBeProblemAsync(HttpStatusCode.Conflict, CommonErrors.ConcurrencyConflictCode);
-            }
-            else
-            {
-                await loser.ShouldBeProblemAsync(HttpStatusCode.UnprocessableEntity, BillingErrors.CreditNoteExceedsBillTotalCode);
-            }
+            responses[0].StatusCode.ShouldBe(HttpStatusCode.OK, await responses[0].Content.ReadAsStringAsync());
+            await responses[1].ShouldBeProblemAsync(HttpStatusCode.Conflict, CommonErrors.ConcurrencyConflictCode);
         }
         finally
         {

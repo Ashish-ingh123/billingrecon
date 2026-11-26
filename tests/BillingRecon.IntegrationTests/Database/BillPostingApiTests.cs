@@ -321,15 +321,17 @@ public sealed class BillPostingApiTests(SqlServerFixture sqlServer) : DatabaseTe
     [Fact]
     public async Task BR804_two_simultaneous_posts_of_the_same_bill_give_one_success_and_one_conflict_and_use_one_number()
     {
-        using var factory = new DatabaseApiFactory(SqlServer);
+        var race = new RaceGate();
+        using var factory = new DatabaseApiFactory(SqlServer, configure: services => services.GateNumbersOf(race, DocumentType.Bill));
         var clerk = await NewApiTenantAsync();
         using var client = factory.CreateClientFor(clerk, "BillingClerk");
         var (patient, payer) = await client.NewBillPartiesAsync();
         var line = BillingApi.FreeTextLine("Dressing", 2m, 60m, 5m);
         var draft = await client.CreateBillAsync(NewBill(patient, payer, line));
 
-        // Two clerks, two keys, the same version.
-        var responses = await Task.WhenAll(PostAsync(client, draft), PostAsync(client, draft));
+        // Two clerks, two keys, the same version. Held at the gate (review 2026-11, R11): the second has read the draft
+        // while the first holds the series and has not committed.
+        var responses = await race.RaceAsync(() => PostAsync(client, draft), () => PostAsync(client, draft));
 
         try
         {

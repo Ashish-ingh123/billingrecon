@@ -326,7 +326,8 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
     [Fact]
     public async Task BR804_two_refunds_of_one_payment_approved_at_once_that_do_not_both_fit_give_exactly_one_posting()
     {
-        using var factory = new DatabaseApiFactory(SqlServer);
+        var gate = new RaceGate();
+        using var factory = new DatabaseApiFactory(SqlServer, configure: services => services.GateNumbersOf(gate, DocumentType.Refund));
         var (maker, checker) = await NewMakerAndCheckerAsync();
         using var cashier = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
         using var first = factory.CreateClientFor(checker, "Supervisor");
@@ -336,16 +337,16 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
         var one = await SubmittedAsync(cashier, await DraftedAsync(cashier, new CreateRefundRequest { PaymentId = payment.Id, Amount = 200m, Method = PaymentMethod.Cash, Reason = "One" }));
         var two = await SubmittedAsync(cashier, await DraftedAsync(cashier, new CreateRefundRequest { PaymentId = payment.Id, Amount = 200m, Method = PaymentMethod.Cash, Reason = "Two" }));
 
-        var responses = await Task.WhenAll(
-            Task.Run(() => first.SendWithIfMatchAsync(HttpMethod.Post, Refund(one.Id, "approve"), body: null, PayersApi.ETag(one.Version))),
-            Task.Run(() => second.SendWithIfMatchAsync(HttpMethod.Post, Refund(two.Id, "approve"), body: null, PayersApi.ETag(two.Version))));
+        // Held at the gate (review 2026-11, R11): the second approval has read the payment with 300.00 on it while the
+        // first holds the series and has not committed. What it read is stale when it gets there: 409, never 422.
+        var responses = await gate.RaceAsync(
+            () => first.SendWithIfMatchAsync(HttpMethod.Post, Refund(one.Id, "approve"), body: null, PayersApi.ETag(one.Version)),
+            () => second.SendWithIfMatchAsync(HttpMethod.Post, Refund(two.Id, "approve"), body: null, PayersApi.ETag(two.Version)));
 
         try
         {
-            // The loser read the payment before the winner committed (409) or after it (422). A second posting never.
-            var bodies = string.Join(" | ", await Task.WhenAll(responses.Select(response => response.Content.ReadAsStringAsync())));
-            responses.Count(response => response.StatusCode == HttpStatusCode.OK).ShouldBe(1, bodies);
-            responses.Single(response => response.StatusCode != HttpStatusCode.OK).StatusCode.ShouldBeOneOf([HttpStatusCode.Conflict, HttpStatusCode.UnprocessableEntity], bodies);
+            responses[0].StatusCode.ShouldBe(HttpStatusCode.OK, await responses[0].Content.ReadAsStringAsync());
+            await responses[1].ShouldBeProblemAsync(HttpStatusCode.Conflict, CommonErrors.ConcurrencyConflictCode);
         }
         finally
         {
