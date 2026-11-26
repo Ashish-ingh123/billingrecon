@@ -40,6 +40,9 @@ public sealed record UpdateLetterheadRequest
     /// <summary>The line under the place of a signature.</summary>
     public string? Signatory { get; init; }
 
+    /// <summary>The signatory's designation.</summary>
+    public string? SignatoryDesignation { get; init; }
+
     /// <summary>The command, for the version of the settings the client read.</summary>
     public UpdateLetterheadCommand ToCommand(string expectedVersion) => new()
     {
@@ -53,6 +56,7 @@ public sealed record UpdateLetterheadRequest
         Email = Email,
         Gstin = Gstin,
         Signatory = Signatory,
+        SignatoryDesignation = SignatoryDesignation,
         ExpectedVersion = expectedVersion,
     };
 }

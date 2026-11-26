@@ -80,7 +80,7 @@ public sealed class PrintedDocumentsApiTests(SqlServerFixture sqlServer) : Datab
         after.Version.ShouldNotBe(settings.Version, "the letterhead shares the version of the settings");
         after.Letterhead.ShouldBe(new LetterheadDto(
             empty.Name, "Northfield Care Hospital Private Limited", "12 Example Road", null, "Pune", "Maharashtra", "411001", "+91 00000 00000",
-            "accounts@northfield.example", "27AAAAA0000A1Z5", "Authorised signatory"));
+            "accounts@northfield.example", "27AAAAA0000A1Z5", "Authorised signatory", null, null, null));
 
         // The version that was read before is stale now, and the cashier reads what was set.
         using (var stale = await administrator.SendWithIfMatchAsync(HttpMethod.Put, Letterhead, Northfield with { City = "Nashik" }, PayersApi.ETag(settings.Version)))

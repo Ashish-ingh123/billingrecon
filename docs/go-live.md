@@ -17,6 +17,7 @@ so every line below is open until a real hospital exists, and its date is "befor
 | G4 | **Where production runs, the domain, and who holds the secrets** | The shape is decided and built (ADR 0055): one Linux server with Docker Compose, SQL Server 2022 Standard with TDE, Let's Encrypt, secrets as files held by the operator. The provider, its Indian region, the domain, the SQL Server licence and the off-site remote are not chosen | The owner | Before the first deploy |
 | G5 | **The deployment has never run.** Staging deployed by the pipeline from a tag, a backup restored from it, and the deploy and rollback procedures walked (runbook section 19; section 8, row 10.5) | Written and checked by tests of its files only | The owner, on a staging server | Before go-live |
 | G6 | **The DPDP review.** Where personal data is held and how it is encrypted is written in `docs/security.md` section 8; whether that meets the Act for this hospital is a legal reading | Not reviewed | The hospital's counsel or data protection officer | Before go-live |
+| G7 | **A scanned signature on a tax invoice.** Whether the image of the signatory's signature, printed by the application on a Tax Invoice, a receipt and a refund voucher (and on their duplicates), is a signature in law for this hospital, or whether the documents must be signed by hand or digitally | ADR 0059 prints the uploaded image; it decides nothing about what it is worth | The hospital's chartered accountant, with G1 | Before go-live |
 
 ## Still to be written by Prompt 10.7
 

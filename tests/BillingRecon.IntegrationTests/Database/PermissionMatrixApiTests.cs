@@ -184,6 +184,12 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
 
         ("GET", "api/v1/settings/letterhead", "signed in"),
         ("PUT", "api/v1/settings/letterhead", "users, settings, prefixes"),
+        ("GET", "api/v1/settings/letterhead/logo", "signed in"),
+        ("GET", "api/v1/settings/letterhead/signature", "signed in"),
+        ("PUT", "api/v1/settings/letterhead/logo", "users, settings, prefixes"),
+        ("PUT", "api/v1/settings/letterhead/signature", "users, settings, prefixes"),
+        ("POST", "api/v1/settings/letterhead/logo/remove", "users, settings, prefixes"),
+        ("POST", "api/v1/settings/letterhead/signature/remove", "users, settings, prefixes"),
         ("POST", "api/v1/bills/{id:guid}/prints", "bills: read"),
         ("POST", "api/v1/payments/{id:guid}/prints", "payments: read"),
         ("POST", "api/v1/refunds/{id:guid}/prints", "refunds: read"),

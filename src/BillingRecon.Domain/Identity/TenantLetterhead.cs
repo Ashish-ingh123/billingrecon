@@ -36,4 +36,7 @@ public sealed record TenantLetterhead
 
     /// <summary>The line under the place of a signature, such as "Authorised signatory".</summary>
     public string? Signatory { get; init; }
+
+    /// <summary>The signatory's designation, printed under the name (ADR 0059).</summary>
+    public string? SignatoryDesignation { get; init; }
 }

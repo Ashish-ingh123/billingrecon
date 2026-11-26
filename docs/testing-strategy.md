@@ -234,6 +234,16 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   fields against its record, the three titles of a bill, Original then Duplicate with the dialog opened only after the
   record, a refused print opening none, what is not printed) and `frontend/e2e/printed.spec.ts` (each document recorded,
   marked and printed to an A4 PDF in both themes with no shell and dark text on white, a phone, axe).
+- **The logo and the signature** (Prompt 10.4c; ADR 0059): `LetterheadImagesTests` (Domain: each of the three formats
+  told by its bytes with its size, an SVG and every other file refused, every file cut short refused, the limits of
+  size, the tenant's hashes with one event a change), `LetterheadImageHandlerTests` (Application: stored once, a stale
+  version, every refusal with its reason, a removal, a read), `LetterheadImagesApiTests` (the `Database` collection:
+  upload, replace, remove and read; a wrong type, an oversized file and an SVG refused with nothing stored; another
+  hospital reading and removing nothing of this one; four audit records with the hashes and no image), the two
+  `LetterheadImages.test.tsx` of the frontend (the cards of the Settings screen; the sheets with and without images,
+  Print waiting for them, a duplicate signed like the original) and `frontend/e2e/letterhead.spec.ts` (the three sheets
+  with real images in both themes under nginx's policy, nothing moving when an image arrives, an A4 PDF, a phone, axe,
+  and the upload on the Settings screen). The test images are drawn by the tests (`png` of `e2e/stubbed.ts`).
 - **Signing out** (Prompt 10.2c; ADR 0057): `Shell.test.tsx` holds that Sign out sends `POST /api/v1/auth/logout` with
   the token of the session that ends, signs out here all the same when the API refuses or cannot be reached, tells the
   other tabs who signed out and keeps nothing of it, and that a tab signs out when another says the same user did. On

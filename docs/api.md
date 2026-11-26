@@ -447,7 +447,7 @@ The actions, by `entityType`, each one state change (every state change raises o
 | `Refund` | `Drafted`, `Updated`, `Voided`, `SubmittedForApproval`, `ReturnedToDraft`, `Posted` |
 | `ApprovalRequest` | `Opened`, `Approved`, `Rejected` |
 | `User` | `Created`, `Updated`, `RolesReplaced`, `Disabled`, `Enabled`, `PasswordReset`, `PasswordChanged`, `SignedIn`, `SignedOut` |
-| `Tenant` | `Onboarded`, `SettingsChanged`, `LetterheadChanged` (ADR 0054), `PrefixChanged`, `Suspended`, `Resumed` (the last three of the operator's command, ADR 0052, with no user) |
+| `Tenant` | `Onboarded`, `SettingsChanged`, `LetterheadChanged` (ADR 0054), `LetterheadImageChanged` (ADR 0059), `PrefixChanged`, `Suspended`, `Resumed` (the last three of the operator's command, ADR 0052, with no user) |
 | `PrefixChange` | `Requested`, `Approved`, `Rejected` |
 | `OpeningBatch` | `Submitted`, `Approved`, `Rejected` (ADR 0053; the images never hold the files) |
 | `NumberSeries` | `PrefixChanged` |
@@ -1073,6 +1073,12 @@ What a printed document needs beyond the document itself. The printed pages are 
 |---|---|---|---|
 | `GET /api/v1/settings/letterhead` | Anyone signed in (`SignedIn`) | 200 | |
 | `PUT /api/v1/settings/letterhead` | TenantAdmin (`ManageTenant`) | 200, the settings | 400; 409 `concurrency_conflict`; 428 |
+| `GET /api/v1/settings/letterhead/logo` | Anyone signed in (`SignedIn`) | 200, the image, `ETag` its SHA-256 | 404 `letterhead_image_not_found` |
+| `GET /api/v1/settings/letterhead/signature` | Anyone signed in (`SignedIn`) | 200, the image, `ETag` its SHA-256 | 404 `letterhead_image_not_found` |
+| `PUT /api/v1/settings/letterhead/logo` | TenantAdmin (`ManageTenant`) | 200, the settings | 400; 409 `concurrency_conflict`; 428 |
+| `PUT /api/v1/settings/letterhead/signature` | TenantAdmin (`ManageTenant`) | 200, the settings | 400; 409 `concurrency_conflict`; 428 |
+| `POST /api/v1/settings/letterhead/logo/remove` | TenantAdmin (`ManageTenant`) | 200, the settings | 409 `concurrency_conflict`; 428 |
+| `POST /api/v1/settings/letterhead/signature/remove` | TenantAdmin (`ManageTenant`) | 200, the settings | 409 `concurrency_conflict`; 428 |
 | `POST /api/v1/bills/{id}/prints` | Who reads bills (`ReadBills`) | 201 | 400; 404 `bill_not_found`; 409; 422 `document_not_printable` |
 | `POST /api/v1/payments/{id}/prints` | Who reads payments (`ReadPayments`) | 201 | 400; 404 `payment_not_found`; 409; 422 `document_not_printable` |
 | `POST /api/v1/refunds/{id}/prints` | Who reads refunds (`ReadRefunds`) | 201 | 400; 404 `refund_not_found`; 409; 422 `document_not_printable` |
@@ -1084,6 +1090,20 @@ part but the name is optional and null until it is set. `PUT` sends every part, 
 it needs `If-Match` with the version of the settings, which the letterhead shares, and answers the settings
 (`GET /api/v1/settings` now carries `letterhead` too). The state is the place of supply of every document. Whether a
 GSTIN is a real registration the API cannot know. In the audit trail of the tenant: `LetterheadChanged`.
+
+**The logo and the signature (ADR 0059, Prompt 10.4c).** The letterhead also answers `signatoryDesignation` (set with
+the other parts by `PUT`), and `logoSha256` and `signatureSha256`: the SHA-256 of each image the hospital prints now,
+null when it has none. The images themselves are read and written at their own paths. `PUT .../logo` and
+`PUT .../signature` take **the file itself as the body**, not JSON, with its media type as the `Content-Type`: a PNG,
+JPEG or WebP image, told by its own bytes (the signature at its start and the size its header states), at most 256 KB
+for the logo and 128 KB for the signature, and at most 2000 pixels a side. An SVG, any other file, a file that is too
+large and a `Content-Type` that is not what the bytes are get 400 `validation_failed` with the reason under `content`;
+Both need `If-Match` with the version of the settings and answer
+the settings. `POST .../remove` takes the image off the letterhead (there is no `DELETE` in this API); the stored bytes
+stay, so that a hash in the audit trail still finds its image, and the same bytes uploaded again are the row there is.
+`GET` answers the bytes with their media type, for anyone signed in, and only ever the caller's own hospital's: the
+path names no hospital. In the audit trail of the tenant: `LetterheadImageChanged`, whose event and images carry the
+hash before and after and never the image.
 
 **The SAC code** of a service item (`sacCode`, six digits, optional) is sent with its other details on
 `POST /api/v1/service-items` and `PATCH /api/v1/service-items/{id}` and answered with them. A bill line answers the
@@ -1165,6 +1185,7 @@ For a failure no use case reported: routing, model binding, content negotiation,
 | `user_last_tenant_admin` | 422 | This is the last active tenant administrator; make another user a TenantAdmin first. |
 | `user_cannot_disable_self` | 422 | You cannot disable your own user; another administrator can. |
 | `prefix_change_not_found` | 404 | The prefix change does not exist. |
+| `letterhead_image_not_found` | 404 | The letterhead has no such image. |
 | `prefix_change_not_pending` | 422 | The prefix change has been decided already; a decision is final. |
 | `prefix_change_pending` | 409 | A change of the prefix of this document type already waits for a decision. |
 | `prefix_unchanged` | 422 | The document type has this prefix already. |

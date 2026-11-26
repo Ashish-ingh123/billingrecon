@@ -35,6 +35,9 @@ public sealed record UpdateLetterheadCommand
     /// <summary>The line under the place of a signature.</summary>
     public string? Signatory { get; init; }
 
+    /// <summary>The signatory's designation.</summary>
+    public string? SignatoryDesignation { get; init; }
+
     /// <summary>The version of the settings the client read.</summary>
     public required string ExpectedVersion { get; init; }
 }

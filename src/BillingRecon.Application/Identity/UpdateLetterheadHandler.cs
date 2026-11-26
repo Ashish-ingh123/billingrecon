@@ -43,6 +43,7 @@ public sealed class UpdateLetterheadHandler(
             Email = command.Email,
             Gstin = SettingsRules.NormalizePrefix(command.Gstin),
             Signatory = command.Signatory,
+            SignatoryDesignation = command.SignatoryDesignation,
         });
         if (!changed)
         {

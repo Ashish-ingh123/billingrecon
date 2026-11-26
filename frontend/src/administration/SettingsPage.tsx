@@ -16,6 +16,7 @@ import { useRecordForm } from '../components/useRecordForm';
 import { formatMoney } from '../format';
 import { AdministrationTabs } from './AdministrationTabs';
 import { LetterheadForm } from './LetterheadForm';
+import { LetterheadImages } from './LetterheadImages';
 import {
   documentTypes,
   requestPrefixChange,
@@ -39,7 +40,7 @@ const settingsFields = ['postingApprovalThreshold', 'maxBackdateDays', 'defaultD
 export function SettingsPage() {
   const settings = useSettings();
   // The two forms save the same row under one version (ADR 0054): when one saves, the other is given the new version
-  // by being made anew.
+  // by being made anew. An image of the letterhead is saved under that version too (ADR 0059), and renews both.
   const [made, setMade] = useState({ settings: 0, letterhead: 0 });
 
   return (
@@ -62,6 +63,10 @@ export function SettingsPage() {
             key={`letterhead-${String(made.letterhead)}`}
             initial={settings.data}
             onSaved={() => setMade((now) => ({ ...now, settings: now.settings + 1 }))}
+          />
+          <LetterheadImages
+            settings={settings.data}
+            onSaved={() => setMade((now) => ({ settings: now.settings + 1, letterhead: now.letterhead + 1 }))}
           />
           <Prefixes settings={settings.data} />
         </>

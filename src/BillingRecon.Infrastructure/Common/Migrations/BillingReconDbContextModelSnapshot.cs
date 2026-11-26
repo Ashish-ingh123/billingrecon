@@ -1336,6 +1336,12 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("LogoSha256")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .IsFixedLength();
+
                     b.Property<int>("MaxBackdateDays")
                         .HasColumnType("int");
 
@@ -1380,6 +1386,16 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("SignatoryDesignation")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SignatureSha256")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .IsFixedLength();
+
                     b.Property<string>("State")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -1417,6 +1433,68 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                             t.HasCheckConstraint("CK_Tenants_RefundPrefix", "LEN([RefundPrefix]) BETWEEN 1 AND 3 AND [RefundPrefix] NOT LIKE '%[^A-Z0-9]%' COLLATE Latin1_General_BIN2");
 
                             t.HasCheckConstraint("CK_Tenants_Status", "[Status] IN ('Active', 'Suspended')");
+                        });
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Identity.TenantImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("StoredAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Kind", "Sha256")
+                        .IsUnique()
+                        .HasDatabaseName("UX_TenantImages_TenantId_Kind_Sha256");
+
+                    b.ToTable("TenantImages", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_TenantImages_Content", "DATALENGTH([Content]) BETWEEN 1 AND 262144");
+
+                            t.HasCheckConstraint("CK_TenantImages_Format", "[Format] IN ('Png', 'Jpeg', 'Webp')");
+
+                            t.HasCheckConstraint("CK_TenantImages_Height", "[Height] BETWEEN 1 AND 2000");
+
+                            t.HasCheckConstraint("CK_TenantImages_Kind", "[Kind] IN ('Logo', 'Signature')");
+
+                            t.HasCheckConstraint("CK_TenantImages_Width", "[Width] BETWEEN 1 AND 2000");
                         });
                 });
 
@@ -2758,6 +2836,16 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("FK_PrefixChanges_UpdatedByUserId");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Identity.TenantImage", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_TenantImages_TenantId");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Identity.User", b =>

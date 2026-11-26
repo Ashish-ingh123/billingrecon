@@ -1107,6 +1107,22 @@ Built 2026-11-25 (Prompt 10.4).
 - **Grants:** `DocumentPrints` is insert-only for the application's role, `DENY UPDATE, DELETE`, written at the end of
   the migration like the ledger's and the audit trail's (section 7).
 
+### 5.10 The images of a letterhead (ADR 0059, migration `0025_LetterheadImages`)
+
+Built 2026-11-26 (Prompt 10.4c).
+
+- **`Tenants`** gains three nullable columns: `SignatoryDesignation nvarchar(200)`, and `LogoSha256` and
+  `SignatureSha256 char(64)`, the SHA-256 (lower-case hexadecimal) of the logo and of the signature the hospital
+  prints now, null when it has none. They share the row's `RowVersion` with the settings and the letterhead.
+- **`TenantImages`**: `Id`, `TenantId`, `Kind varchar(20)` (`Logo`, `Signature`), `Format varchar(10)` (`Png`, `Jpeg`,
+  `Webp`), `Content varbinary(max)` (the file as it was uploaded; `CK_TenantImages_Content`: 1 to 262,144 bytes),
+  `Sha256 char(64)`, `Width int` and `Height int` (`CK_TenantImages_Width`, `CK_TenantImages_Height`: 1 to 2000),
+  `StoredAtUtc`. `UX_TenantImages_TenantId_Kind_Sha256` makes a file a hospital uploads twice one row. No audit
+  columns and no row version: a row is written once. No key from `Tenants` to it: the tenant names an image by its
+  hash, which the unique index finds.
+- **Grants:** `TenantImages` is insert-only for the application's role, `DENY UPDATE, DELETE`, written at the end of
+  the migration. An image a hospital replaced or removed stays; only an administrator of the database deletes a row.
+
 ## 6. Idempotency store (ADR 0006)
 
 Lifecycle of a row in `IdempotencyKeys` for a financial POST:

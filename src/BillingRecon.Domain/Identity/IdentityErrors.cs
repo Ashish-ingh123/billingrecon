@@ -45,6 +45,9 @@ public static class IdentityErrors
     /// <summary>Code of <see cref="PrefixChangeNotFound"/>.</summary>
     public const string PrefixChangeNotFoundCode = "prefix_change_not_found";
 
+    /// <summary>Code of <see cref="LetterheadImageNotFound"/>.</summary>
+    public const string LetterheadImageNotFoundCode = "letterhead_image_not_found";
+
     /// <summary>Code of <see cref="PrefixChangeNotPending"/>.</summary>
     public const string PrefixChangeNotPendingCode = "prefix_change_not_pending";
 
@@ -139,6 +142,9 @@ public static class IdentityErrors
 
     /// <summary>No prefix change with that id exists for the tenant. Another tenant's gets the same answer.</summary>
     public static Error PrefixChangeNotFound() => Error.NotFound(PrefixChangeNotFoundCode, "The prefix change does not exist.");
+
+    /// <summary>The hospital has no logo, or no signature, on its letterhead (ADR 0059).</summary>
+    public static Error LetterheadImageNotFound() => Error.NotFound(LetterheadImageNotFoundCode, "The letterhead has no such image.");
 
     /// <summary>Deciding a prefix change that was decided already (BR-605).</summary>
     public static Error PrefixChangeNotPending()

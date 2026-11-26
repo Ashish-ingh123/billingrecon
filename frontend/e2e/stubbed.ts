@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { crc32, deflateSync } from 'node:zlib';
 import { expect, type Page } from '@playwright/test';
 
 // What the browser tests of the screens share (Prompts 9.3 and 9.3b, ADR 0049): a session put in the tab, the API's answers
@@ -74,6 +75,9 @@ export const letterhead = {
   email: null,
   gstin: '27AAAAA0000A1Z5',
   signatory: 'Authorised signatory',
+  signatoryDesignation: null,
+  logoSha256: null,
+  signatureSha256: null,
 };
 export const lines = [
   {
@@ -212,8 +216,74 @@ export const trail = (entityId: string, actions: string[]) => ({
 });
 export const pageOf = (items: object[]) => ({ items, page: 1, pageSize: 20, totalCount: items.length });
 
+/** An image as the API answers it (ADR 0059): an answer of this kind is sent as its bytes, not as JSON. */
+export class ImageBody {
+  readonly contentType: string;
+  readonly bytes: Buffer;
+
+  constructor(contentType: string, bytes: Buffer) {
+    this.contentType = contentType;
+    this.bytes = bytes;
+  }
+}
+
+/**
+ * A PNG drawn here, so that the suites have real images a browser decodes without a file in the repository: each pixel
+ * is what `paint` answers for it, as red, green, blue and alpha.
+ */
+export function png(
+  width: number,
+  height: number,
+  paint: (x: number, y: number) => readonly [number, number, number, number],
+): Buffer {
+  const chunk = (type: string, data: Buffer) => {
+    const head = Buffer.alloc(8);
+    head.writeUInt32BE(data.length, 0);
+    head.write(type, 4, 'latin1');
+    const tail = Buffer.alloc(4);
+    tail.writeUInt32BE(crc32(Buffer.concat([head.subarray(4), data])), 0);
+    return Buffer.concat([head, data, tail]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 6, 0, 0, 0], 8);
+  const rows = Buffer.alloc(height * (1 + width * 4));
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      rows.set(paint(x, y), y * (1 + width * 4) + 1 + x * 4);
+    }
+  }
+
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header),
+    chunk('IDAT', deflateSync(rows)),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+/** A logo for the tests: a plain block with a cross, twice as wide as it is high. */
+export const logoImage = new ImageBody(
+  'image/png',
+  png(360, 180, (x, y) => {
+    const cross = (Math.abs(x - 90) < 14 && Math.abs(y - 90) < 54) || (Math.abs(y - 90) < 14 && Math.abs(x - 90) < 54);
+    const bar = x > 170 && x < 330 && ((y > 60 && y < 84) || (y > 100 && y < 116));
+    return cross || bar ? [255, 255, 255, 255] : [16, 86, 148, 255];
+  }),
+);
+
+/** A signature for the tests: a dark stroke on nothing, as a scanned signature with its ground removed is. */
+export const signatureImage = new ImageBody(
+  'image/png',
+  png(320, 96, (x, y) => {
+    const stroke = 48 + 26 * Math.sin(x / 14) * Math.cos(x / 53);
+    return x > 12 && x < 308 && Math.abs(y - stroke) < 2.2 ? [20, 24, 40, 255] : [0, 0, 0, 0];
+  }),
+);
+
 /** The API's answers, by method and path; anything else is a request the screens did not send before. */
-export type Answers = Record<string, (url: URL) => object>;
+export type Answers = Record<string, (url: URL) => object | Promise<object>>;
 
 type Probe = { violations: string[]; shift: number; moved: string[] };
 
@@ -237,7 +307,20 @@ export async function open(
       return;
     }
 
-    await route.fulfill({ json: answer(url), headers: { etag: '"AAAAAAAACAA="' } });
+    // An answer may come late, when a test holds it back.
+    const body = await answer(url);
+    if (body instanceof ImageBody) {
+      // As the API answers an image of the letterhead (ADR 0059): the bytes, their type, and never kept.
+      await route.fulfill({
+        status: 200,
+        contentType: body.contentType,
+        body: body.bytes,
+        headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' },
+      });
+      return;
+    }
+
+    await route.fulfill({ json: body, headers: { etag: '"AAAAAAAACAA="' } });
   });
   await page.route('**/*', async (route) => {
     if (route.request().resourceType() !== 'document') {

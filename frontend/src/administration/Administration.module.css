@@ -110,3 +110,76 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* The logo and the signature of the letterhead (ADR 0059): two cards, each with the image as it prints, in a box of a
+   fixed size on the white of paper in both themes, so that a dark signature is seen in the dark theme too. */
+.images {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--space-4);
+}
+
+.imageCard {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  padding: var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+}
+
+.imageCard h3 {
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.imagePreview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 6rem;
+  padding: var(--space-2);
+  background: var(--paper);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+}
+
+.imagePreview img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.imageNone {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--paper-ink);
+}
+
+.imageField {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.imageField label {
+  font-weight: 600;
+}
+
+.imageField input {
+  max-width: 100%;
+  color: var(--text);
+}
+
+.imageHint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.imageError {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--danger);
+}

@@ -39,6 +39,9 @@ const settings: TenantSettings = {
     email: null,
     gstin: null,
     signatory: null,
+    signatoryDesignation: null,
+    logoSha256: null,
+    signatureSha256: null,
   },
   version: 'AAAAAAAAC1E=',
 };
@@ -249,6 +252,7 @@ describe('the settings of the hospital (ADR 0033, ADR 0051)', () => {
       email: null,
       gstin: '27AAAAA0000A1Z5',
       signatory: null,
+      signatoryDesignation: null,
     });
 
     // The settings above share the row: their next save sends the version the letterhead's save answered.

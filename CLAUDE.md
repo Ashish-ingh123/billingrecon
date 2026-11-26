@@ -478,7 +478,9 @@ frontend/                      React + TypeScript + Vite (ADR 0038): index.html 
                                src/imports (api.ts, FileField, Findings with findingsCsv.ts, the index, the two imports, a
                                batch's page) and e2e/imports.spec.ts (ADR 0053, amended).
                                src/printing (api.ts, PrintSheet, PrintLink, the three printed pages, tax.ts, words.ts) and
-                               e2e/printed.spec.ts (ADR 0054, amended).
+                               e2e/printed.spec.ts (ADR 0054, amended). src/administration/LetterheadImages.tsx (the
+                               upload cards), the image helpers of src/printing/api.ts and e2e/letterhead.spec.ts
+                               (ADR 0059).
                                src/administration (api.ts, the users list, a user's page, the user forms with
                                RoleChoices, the settings with the prefix request) and src/auth/ChangePasswordPage.tsx
                                (ADR 0051).
@@ -641,7 +643,7 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
     raises one**, raised only when something really changed. The unit of work dispatches the events
     before it saves, and the generic `AuditSubscriber`, the only subscriber, writes one `AuditRecord`
     per event into the same save. The before and after images are the stored row with its children.
-    An entity marked `IAppendOnly` (only `AuditRecord` so far) cannot be updated or deleted through
+    An entity marked `IAppendOnly` (`AuditRecord`, the ledger's two, `DocumentPrint` and, since ADR 0059, `TenantImage`) cannot be updated or deleted through
     the context. A new use case that changes state needs its event and a test that counts one record.
 
 12. **TenantId from the JWT only** (ADR 0009, ADR 0015; BR-002, BR-602). The tenant comes from the
@@ -921,6 +923,11 @@ a release pipeline from a tag (Accepted on the owner's answers and approval of t
 0058 Phase 10 is built against a reference hospital: `docs/reference-hospital.md` stands in for the client, with a
 generated export, both tax documents and hosting left to the owner (Accepted on the owner's request and approval of
 2026-11-25; it amends the six inputs of Phase 10).
+0059 the logo and the signature of a letterhead: images in the database as insert-only rows named on the tenant by their
+SHA-256, PNG, JPEG or WebP told by their bytes and SVG refused, uploaded as the file itself under the settings' version,
+removed by a POST action, audited by the hash, shown as `data:` URLs with no change of nginx's policy, and a duplicate
+that carries the signature (Accepted on the owner's approval of the Prompt 10.4c plan, 2026-11-26; it amends ADR 0054;
+0056 stays with Prompt 10.6).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1099,3 +1106,16 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    (`DatabaseSettingsProbe`, a `SqlConnection` of its own reading the server's catalogue, not a raw-SQL file of ADR 0021).
    Runbook section 19. **Nothing of the deployment has run:** no server, domain or registry exists (runbook section 8,
    row 10.5; `docs/go-live.md`, G4 to G6).
+   **10.4c-1 is written (2026-11-26, ADR 0059, amending ADR 0054), the first part of stage 2 of the owner's eight stages:**
+   the hospital's logo and its signatory's signature. A TenantAdmin uploads each as the file itself (`PUT
+   /api/v1/settings/letterhead/logo` and `/signature`, `If-Match` with the settings' version; `POST .../remove` takes it
+   off), a PNG, JPEG or WebP told by its own bytes (`LetterheadImageInspector`), at most 256 KB and 128 KB and 2000 pixels
+   a side, an SVG refused. The bytes are insert-only rows of `TenantImages`; the tenant names the one it prints by its
+   SHA-256 (`LogoSha256`, `SignatureSha256`), so a replacement is a new row, a removal clears the name, and the audit
+   carries the hash and never the image. Migration `0025_LetterheadImages`, with `SignatoryDesignation`. The browser reads
+   an image with the token and shows it as a `data:` URL, which nginx's policy already admits (no change of the policy);
+   the three sheets carry the logo and the signature block in boxes of a fixed size, Print waits for the images, and a
+   duplicate is signed like the original. Two tokens, `paper` and `paper-ink`. A new table that is append-only joins the
+   lists of `AppendOnlyGuardTests` and `TenantQueryFilterTests`, and its `DENY` goes at the end of its migration. Owed:
+   runbook section 8, row 10.4c, and `docs/go-live.md`, G7 (whether a scanned signature is enough). **Next: 10.4c-2**, the
+   print settings per document with their preview, then the proposal of a "Download PDF".

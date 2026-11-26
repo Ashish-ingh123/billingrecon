@@ -143,6 +143,7 @@ public static class InfrastructureServiceCollectionExtensions
         // The tenant's settings, its prefix changes, and the series whose prefix an approved change sets (BR-607,
         // BR-802, ADR 0033). Numbers are still taken by INumberSeries alone.
         services.AddScoped<ITenantRepository, TenantRepository>();
+        services.AddScoped<ITenantImageRepository, TenantImageRepository>();
         services.AddScoped<IPrefixChangeRepository, PrefixChangeRepository>();
         services.AddScoped<IPrefixChangeReadService, PrefixChangeReadService>();
         services.AddScoped<IPrefixUsage, PrefixUsage>();

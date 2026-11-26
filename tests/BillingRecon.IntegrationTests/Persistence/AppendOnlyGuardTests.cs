@@ -1,5 +1,6 @@
 using BillingRecon.Domain.Audit;
 using BillingRecon.Domain.Common;
+using BillingRecon.Domain.Identity;
 using BillingRecon.Domain.Payers;
 using BillingRecon.Domain.Receivables;
 using BillingRecon.Infrastructure.Common.Persistence;
@@ -73,8 +74,9 @@ public sealed class AppendOnlyGuardTests
         var appendOnly = context.Model.GetEntityTypes().Select(entityType => entityType.ClrType).Where(type => typeof(IAppendOnly).IsAssignableFrom(type));
 
         // The audit trail (BR-702) and the ledger (BR-402). The cached balances of a payer are not: the ledger moves them.
-        // Since Prompt 10.4 (ADR 0054) the record of a print too: it is its own trail.
-        appendOnly.ShouldBe([typeof(AuditRecord), typeof(LedgerPosting), typeof(LedgerEntry), typeof(DocumentPrint)], ignoreOrder: true);
+        // Since Prompt 10.4 (ADR 0054) the record of a print too: it is its own trail. Since Prompt 10.4c (ADR 0059) an
+        // uploaded image of a letterhead: a replacement is a new row, so the hash in the audit trail finds its bytes.
+        appendOnly.ShouldBe([typeof(AuditRecord), typeof(LedgerPosting), typeof(LedgerEntry), typeof(DocumentPrint), typeof(TenantImage)], ignoreOrder: true);
     }
 
     [Theory]

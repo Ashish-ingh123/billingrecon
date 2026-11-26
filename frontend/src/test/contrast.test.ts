@@ -142,3 +142,22 @@ describe('the contrast formula', () => {
     expect(contrast('#ffffff', '#ffffff')).toBe(1);
   });
 });
+
+// Since Prompt 10.4c (ADR 0059): the paper on which the letterhead's images are shown, the same in both themes.
+describe.each(Object.entries(themes))('the %s theme, since the letterhead images of 10.4c', (_, tokens) => {
+  it('what is written on paper is at least 4.5:1 against it', () => {
+    expect(contrast(tokens['paper-ink'] ?? '', tokens.paper ?? '')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // The sheet is told from the card it lies on by its own ground, or, where both are white, by its edge.
+  it('the paper is told from the card it lies on, by its ground or by its edge, at 3:1', () => {
+    const byGround = contrast(tokens.paper ?? '', tokens['surface-raised'] ?? '');
+    const byEdge = contrast(tokens['border-strong'] ?? '', tokens.paper ?? '');
+
+    expect(Math.max(byGround, byEdge)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('paper is white, as a printed sheet is', () => {
+    expect(tokens.paper).toBe('#ffffff');
+  });
+});

@@ -51,6 +51,10 @@ public sealed class TenantsSchemaTests : IDisposable
 
                 // Since Prompt 10.4: the letterhead of the printed documents (migration 0024_PrintedDocuments).
                 "LegalName", "AddressLine1", "AddressLine2", "City", "State", "PinCode", "Phone", "Email", "Gstin", "Signatory",
+
+                // Since Prompt 10.4c: the signatory's designation and the hashes of the logo and the signature
+                // (migration 0025_LetterheadImages).
+                "SignatoryDesignation", "LogoSha256", "SignatureSha256",
             ],
             ignoreOrder: true);
     }

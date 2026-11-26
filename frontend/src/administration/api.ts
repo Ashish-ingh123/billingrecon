@@ -203,6 +203,7 @@ export interface LetterheadValues {
   email: string;
   gstin: string;
   signatory: string;
+  signatoryDesignation: string;
 }
 
 export const letterheadFields = [
@@ -216,6 +217,7 @@ export const letterheadFields = [
   'email',
   'gstin',
   'signatory',
+  'signatoryDesignation',
 ] as const satisfies readonly (keyof LetterheadValues)[];
 
 export function letterheadValues(settings: TenantSettings): LetterheadValues {
@@ -231,6 +233,7 @@ export function letterheadValues(settings: TenantSettings): LetterheadValues {
     email: letterhead.email ?? '',
     gstin: letterhead.gstin ?? '',
     signatory: letterhead.signatory ?? '',
+    signatoryDesignation: letterhead.signatoryDesignation ?? '',
   };
 }
 
@@ -254,6 +257,7 @@ export function updateLetterhead(
         email: part(values.email),
         gstin: part(values.gstin)?.toUpperCase() ?? null,
         signatory: part(values.signatory),
+        signatoryDesignation: part(values.signatoryDesignation),
       },
       headers: ifMatch(version),
     }),
@@ -270,5 +274,68 @@ export function requestPrefixChange(
     client.POST('/api/v1/settings/prefix-changes', {
       body: { documentType, prefix: prefix.trim(), comment: comment.trim() === '' ? null : comment.trim() },
     }),
+  );
+}
+
+/** What an image of the letterhead may be (ADR 0059); the API checks the same, by the file's own bytes. */
+export const letterheadImageRules = {
+  logo: { maxKb: 256, types: ['image/png', 'image/jpeg', 'image/webp'] },
+  signature: { maxKb: 128, types: ['image/png', 'image/jpeg', 'image/webp'] },
+} as const;
+
+/** Why a chosen file is not sent, or null when it may be: its type and its size, before a request carries it. */
+export function letterheadImageRefusal(
+  kind: 'logo' | 'signature',
+  file: { type: string; size: number },
+): string | null {
+  const rules = letterheadImageRules[kind];
+  if (!(rules.types as readonly string[]).includes(file.type)) {
+    return file.type === 'image/svg+xml'
+      ? 'An SVG is not accepted. Choose a PNG, JPEG or WebP image.'
+      : 'Choose a PNG, JPEG or WebP image.';
+  }
+
+  if (file.size > rules.maxKb * 1024) {
+    return `The file is too large: at most ${String(rules.maxKb)} KB.`;
+  }
+
+  return null;
+}
+
+const letterheadImagePaths = {
+  logo: '/api/v1/settings/letterhead/logo',
+  signature: '/api/v1/settings/letterhead/signature',
+} as const;
+
+/**
+ * Sends the file itself as the body, with its type as the Content-Type and the version of the settings (ADR 0059).
+ * The API's document describes no body for this request, so the body is given past the client's types.
+ */
+export function uploadLetterheadImage(
+  client: ApiClient,
+  kind: 'logo' | 'signature',
+  version: string,
+  file: File,
+): Promise<TenantSettings> {
+  const raw = { body: file, bodySerializer: (body: unknown) => body as Blob };
+  return answer(
+    client.PUT(letterheadImagePaths[kind], {
+      headers: { ...ifMatch(version), 'Content-Type': file.type },
+      ...(raw as object),
+    }),
+  );
+}
+
+/** Takes the image off the letterhead, under the version of the settings; the stored file stays in the API (ADR 0059). */
+export function removeLetterheadImage(
+  client: ApiClient,
+  kind: 'logo' | 'signature',
+  version: string,
+): Promise<TenantSettings> {
+  const options = { headers: ifMatch(version) };
+  return answer(
+    kind === 'logo'
+      ? client.POST('/api/v1/settings/letterhead/logo/remove', options)
+      : client.POST('/api/v1/settings/letterhead/signature/remove', options),
   );
 }

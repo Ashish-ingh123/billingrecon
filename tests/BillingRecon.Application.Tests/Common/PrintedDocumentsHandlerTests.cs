@@ -104,7 +104,7 @@ public sealed class PrintedDocumentsHandlerTests
         var result = await handler.HandleAsync(Letterhead(RowVersionText.Of(_tenant)), CancellationToken.None);
 
         result.Value.Letterhead.ShouldBe(new LetterheadDto(
-            "Northfield Care Hospital", "Northfield Care Hospital Private Limited", null, null, "Pune", "Maharashtra", "411001", null, null, "27AAAAA0000A1Z5", "Authorised signatory"));
+            "Northfield Care Hospital", "Northfield Care Hospital Private Limited", null, null, "Pune", "Maharashtra", "411001", null, null, "27AAAAA0000A1Z5", "Authorised signatory", null, null, null));
         _tenant.DomainEvents.ShouldHaveSingleItem().ShouldBeOfType<TenantLetterheadChanged>();
         await unitOfWork.Received(1).CommitAsync(Arg.Any<CancellationToken>());
 

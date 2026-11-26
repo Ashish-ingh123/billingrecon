@@ -2,8 +2,10 @@ using BillingRecon.Api.Common;
 using BillingRecon.Api.Common.Authorization;
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Identity;
+using BillingRecon.Domain.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Net.Http.Headers;
 
 namespace BillingRecon.Api.Identity;
 
@@ -92,5 +94,157 @@ public sealed class SettingsController : ApiControllerBase
         var result = await handler.HandleAsync(request.ToCommand(version), ct);
 
         return result.IsSuccess ? OkWithVersion(result.Value, result.Value.Version) : Problem(result.Error);
+    }
+
+    /// <summary>
+    /// The hospital's logo (ADR 0059), for anyone who is signed in, as the letterhead is. 404 when it has none.
+    /// </summary>
+    [Authorize(Policy = Policies.SignedIn)]
+    [HttpGet("letterhead/logo")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public Task<IActionResult> GetLogoAsync(
+        [FromServices] IQueryHandler<GetLetterheadImageQuery, LetterheadImageDto> handler,
+        CancellationToken ct)
+        => ReadImageAsync(LetterheadImageKind.Logo, handler, ct);
+
+    /// <summary>
+    /// The signatory's signature (ADR 0059), for anyone who is signed in, as the letterhead is. 404 when there is none.
+    /// </summary>
+    [Authorize(Policy = Policies.SignedIn)]
+    [HttpGet("letterhead/signature")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public Task<IActionResult> GetSignatureAsync(
+        [FromServices] IQueryHandler<GetLetterheadImageQuery, LetterheadImageDto> handler,
+        CancellationToken ct)
+        => ReadImageAsync(LetterheadImageKind.Signature, handler, ct);
+
+    /// <summary>
+    /// Sets or replaces the logo (ADR 0059). The body is the file itself, a PNG, JPEG or WebP image of at most 256 KB and
+    /// 2000 pixels a side, with its media type as the Content-Type. Needs If-Match with the version of the settings;
+    /// answers the settings with their new version.
+    /// </summary>
+    [Authorize(Policy = Policies.ManageTenant)]
+    [HttpPut("letterhead/logo")]
+    [ProducesResponseType<TenantSettingsDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status428PreconditionRequired)]
+    public Task<IActionResult> SetLogoAsync(
+        [FromServices] ICommandHandler<SetLetterheadImageCommand, TenantSettingsDto> handler,
+        CancellationToken ct)
+        => SetImageAsync(LetterheadImageKind.Logo, handler, ct);
+
+    /// <summary>
+    /// Sets or replaces the signature (ADR 0059). The body is the file itself, a PNG, JPEG or WebP image of at most
+    /// 128 KB and 2000 pixels a side, with its media type as the Content-Type. Needs If-Match with the version of the
+    /// settings; answers the settings with their new version.
+    /// </summary>
+    [Authorize(Policy = Policies.ManageTenant)]
+    [HttpPut("letterhead/signature")]
+    [ProducesResponseType<TenantSettingsDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status428PreconditionRequired)]
+    public Task<IActionResult> SetSignatureAsync(
+        [FromServices] ICommandHandler<SetLetterheadImageCommand, TenantSettingsDto> handler,
+        CancellationToken ct)
+        => SetImageAsync(LetterheadImageKind.Signature, handler, ct);
+
+    /// <summary>Removes the logo from the letterhead (ADR 0059). Needs If-Match; answers the settings.</summary>
+    [Authorize(Policy = Policies.ManageTenant)]
+    [HttpPost("letterhead/logo/remove")]
+    [ProducesResponseType<TenantSettingsDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status428PreconditionRequired)]
+    public Task<IActionResult> RemoveLogoAsync(
+        [FromServices] ICommandHandler<RemoveLetterheadImageCommand, TenantSettingsDto> handler,
+        CancellationToken ct)
+        => RemoveImageAsync(LetterheadImageKind.Logo, handler, ct);
+
+    /// <summary>Removes the signature from the letterhead (ADR 0059). Needs If-Match; answers the settings.</summary>
+    [Authorize(Policy = Policies.ManageTenant)]
+    [HttpPost("letterhead/signature/remove")]
+    [ProducesResponseType<TenantSettingsDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status428PreconditionRequired)]
+    public Task<IActionResult> RemoveSignatureAsync(
+        [FromServices] ICommandHandler<RemoveLetterheadImageCommand, TenantSettingsDto> handler,
+        CancellationToken ct)
+        => RemoveImageAsync(LetterheadImageKind.Signature, handler, ct);
+
+    private async Task<IActionResult> ReadImageAsync(
+        LetterheadImageKind kind,
+        IQueryHandler<GetLetterheadImageQuery, LetterheadImageDto> handler,
+        CancellationToken ct)
+    {
+        var result = await handler.HandleAsync(new GetLetterheadImageQuery(kind), ct);
+        if (result.IsFailure)
+        {
+            return Problem(result.Error);
+        }
+
+        // The hash is the image's name: a client that holds it need not read the bytes again.
+        Response.Headers.ETag = EntityTags.Format(result.Value.Sha256);
+
+        return File(result.Value.Content, result.Value.ContentType);
+    }
+
+    private async Task<IActionResult> SetImageAsync(
+        LetterheadImageKind kind,
+        ICommandHandler<SetLetterheadImageCommand, TenantSettingsDto> handler,
+        CancellationToken ct)
+    {
+        if (!TryGetExpectedVersion(out var version, out var refusal))
+        {
+            return refusal;
+        }
+
+        var command = new SetLetterheadImageCommand
+        {
+            Kind = kind,
+            Content = await ReadBodyAsync(TenantImage.MaxBytesOf(kind), ct),
+            DeclaredContentType = MediaTypeHeaderValue.TryParse(Request.ContentType, out var declared) ? declared.MediaType.Value : null,
+            ExpectedVersion = version,
+        };
+        var result = await handler.HandleAsync(command, ct);
+
+        return result.IsSuccess ? OkWithVersion(result.Value, result.Value.Version) : Problem(result.Error);
+    }
+
+    private async Task<IActionResult> RemoveImageAsync(
+        LetterheadImageKind kind,
+        ICommandHandler<RemoveLetterheadImageCommand, TenantSettingsDto> handler,
+        CancellationToken ct)
+    {
+        if (!TryGetExpectedVersion(out var version, out var refusal))
+        {
+            return refusal;
+        }
+
+        var result = await handler.HandleAsync(new RemoveLetterheadImageCommand { Kind = kind, ExpectedVersion = version }, ct);
+
+        return result.IsSuccess ? OkWithVersion(result.Value, result.Value.Version) : Problem(result.Error);
+    }
+
+    // Reads the body up to one byte more than an image may have, and no further: the validator then refuses a file
+    // that is too large by its length, and a body of any size costs the server no more than that.
+    private async Task<byte[]> ReadBodyAsync(int maxBytes, CancellationToken ct)
+    {
+        var buffer = new byte[maxBytes + 1];
+        var read = 0;
+        while (read < buffer.Length)
+        {
+            var count = await Request.Body.ReadAsync(buffer.AsMemory(read), ct);
+            if (count == 0)
+            {
+                break;
+            }
+
+            read += count;
+        }
+
+        return buffer[..read];
     }
 }

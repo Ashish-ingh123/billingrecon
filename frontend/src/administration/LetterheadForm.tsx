@@ -42,7 +42,8 @@ export function LetterheadForm({ initial, onSaved }: { initial: TenantSettings; 
       { label: 'City', value: (value) => shown(value.letterhead.city) },
       { label: 'State', value: (value) => shown(value.letterhead.state) },
       { label: 'GSTIN', value: (value) => shown(value.letterhead.gstin) },
-      { label: 'Signatory line', value: (value) => shown(value.letterhead.signatory) },
+      { label: 'Signatory', value: (value) => shown(value.letterhead.signatory) },
+      { label: 'Designation', value: (value) => shown(value.letterhead.signatoryDesignation) },
     ],
     valuesOf: letterheadValues,
     reload: () => answer(client.GET('/api/v1/settings')),
@@ -177,11 +178,19 @@ export function LetterheadForm({ initial, onSaved }: { initial: TenantSettings; 
           />
           <TextField
             id="letterhead-signatory"
-            label="Signatory line"
-            hint="Printed under the place of a signature, for example Authorised signatory."
+            label="Signatory"
+            hint="The name printed under the signature, for example Dr A. Example. Left empty, the sheet says Authorised signatory."
             maxLength={200}
             error={errors.signatory?.message}
             {...register('signatory')}
+          />
+          <TextField
+            id="letterhead-designation"
+            label="Signatory's designation"
+            hint="Printed under the name, for example Medical Superintendent."
+            maxLength={200}
+            error={errors.signatoryDesignation?.message}
+            {...register('signatoryDesignation')}
           />
         </div>
         <div className={forms.actions}>

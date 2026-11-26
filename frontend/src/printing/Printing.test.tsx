@@ -25,6 +25,9 @@ const letterhead = {
   email: null,
   gstin: '27AAAAA0000A1Z5',
   signatory: 'Accounts Officer',
+  signatoryDesignation: null,
+  logoSha256: null,
+  signatureSha256: null,
 };
 const posted = bill({
   status: 'Posted',

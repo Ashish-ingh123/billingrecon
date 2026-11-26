@@ -42,7 +42,10 @@ public static class SettingsMapping
             Phone: tenant.Phone,
             Email: tenant.Email,
             Gstin: tenant.Gstin,
-            Signatory: tenant.Signatory);
+            Signatory: tenant.Signatory,
+            SignatoryDesignation: tenant.SignatoryDesignation,
+            LogoSha256: tenant.LogoSha256,
+            SignatureSha256: tenant.SignatureSha256);
     }
 
     /// <summary><paramref name="change"/>, with its version.</summary>

@@ -75,6 +75,11 @@ public sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant>
         builder.Property(tenant => tenant.Email).HasMaxLength(Tenant.LetterheadEmailMaxLength);
         builder.Property(tenant => tenant.Gstin).HasMaxLength(Tenant.GstinLength).IsFixedLength().IsUnicode(false);
         builder.Property(tenant => tenant.Signatory).HasMaxLength(Tenant.LetterheadLineMaxLength);
+        builder.Property(tenant => tenant.SignatoryDesignation).HasMaxLength(Tenant.LetterheadLineMaxLength);
+
+        // The images of the letterhead are named by their SHA-256 (ADR 0059); the bytes are rows of TenantImages.
+        builder.Property(tenant => tenant.LogoSha256).HasMaxLength(TenantImage.Sha256Length).IsFixedLength().IsUnicode(false);
+        builder.Property(tenant => tenant.SignatureSha256).HasMaxLength(TenantImage.Sha256Length).IsFixedLength().IsUnicode(false);
         builder.Ignore(tenant => tenant.Letterhead);
     }
 

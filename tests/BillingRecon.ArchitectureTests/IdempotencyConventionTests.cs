@@ -53,6 +53,9 @@ public sealed class IdempotencyConventionTests
         // an opening batch, which writes nothing.
         typeof(PartyImportsController),
         typeof(OpeningBatchChecksController),
+
+        // Since ADR 0059: removing an image of the letterhead, under If-Match; a second removal changes nothing.
+        typeof(SettingsController),
     ];
 
     private static readonly Type[] ControllersWithPosts =

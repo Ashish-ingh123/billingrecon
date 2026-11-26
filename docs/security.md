@@ -192,6 +192,7 @@ it.
 | T7 | Two changes of one record racing (a lost update) | Row versions and `If-Match` | Done (ADR 0007) |
 | T8 | A forged `Host` header poisoning links the API writes (`Location`) | `AllowedHosts`, required outside Development | Done (ADR 0035) |
 | T9 | A compromised or vulnerable package | NuGet audit on restore (any advisory stops it), the CI gate on High and Critical advisories, Dependabot, central package versions | Done for direct packages. No lock files (review finding 2.5): Accepted for R1 |
+| T10 | A file that is not an image uploaded as the logo or the signature: an SVG or HTML with script, to run in the browser of whoever prints | The file is told by its own bytes: only PNG, JPEG and WebP, with a size its header states, are stored, whatever the request calls it; the page gives an `<img>` a `data:` URL of those three types and nothing else, and an image runs no script; the API answers the bytes with their own type and `nosniff`; the page's policy runs no script but its own | Done (ADR 0059). The pixels are not decoded on the server: a damaged or polyglot file with a sound header is stored and shown as an image. Accepted |
 
 ### Repudiation
 
@@ -219,13 +220,14 @@ it.
 | I12 | Secrets in the repository | User-secrets and the environment; the Development key refused elsewhere | Done (section 7) |
 | I13 | Stolen backups | Backups and their protection | Prompt 8.3 (backup and restore in `docs/runbook.md`) |
 | I14 | Timings of the server read from its answers (how long a hospital's number series is waited for tells how busy it is) | `Server-Timing` only when `Diagnostics:ServerTiming` is true, which is off by default and set for a load test alone; only on the answer to a request that took a number, so only to a signed-in user of that hospital | Done (ADR 0046). Turning it on in a deployment is operational: Accepted, `docs/runbook.md` section 14 says never to |
+| I15 | Reading another hospital's logo or signature, to forge its documents | The image endpoints name no hospital: the tenant of the token decides, through the tenant filter of `TenantImages`; a hospital with no image is answered 404; a test reads and removes as another hospital | Done (ADR 0059). Any signed-in user of the hospital reads its signature, as they read its letterhead and print its documents: Accepted |
 
 ### Denial of service
 
 | # | Threat | What stops it | State |
 |---|---|---|---|
 | D1 | A flood of requests | No limit in the API but the sign-in's; the proxy's | Accepted for R1: the proxy's job |
-| D2 | Large or slow requests | Kestrel's defaults (30 MB a body, a minimum data rate) | Accepted for R1 |
+| D2 | Large or slow requests | Kestrel's defaults (30 MB a body, a minimum data rate) | Accepted for R1. An image upload is read to one byte past its limit (256 KB or 128 KB) and no further (ADR 0059), and nginx refuses a body above 1 MB |
 | D3 | Wearing the server out through the slow password hash | The limit per client address on the sign-in | Done (ADR 0035). From many addresses at once: Accepted, with D1 |
 | D4 | Keeping a user out | See S9 | Accepted |
 

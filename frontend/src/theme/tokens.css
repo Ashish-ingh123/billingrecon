@@ -23,6 +23,10 @@
  *                  mark's file is drawn for a light ground
  * shadow-*, radius-*, space-*, text-*, duration-*, ease-*   one scale each, for every screen
  * theme-color      what the browser's own chrome takes, read by the theme provider
+ *
+ * Since Prompt 10.4c (ADR 0059):
+ * paper, paper-ink a sheet of paper and what is written on it, the same in both themes: the ground on which the
+ *                  hospital's logo and signature are shown as they will print
  */
 
 :root {
@@ -75,6 +79,8 @@
   --surface: #eef3fc;
   --surface-raised: #ffffff;
   --surface-sunken: #e2eaf7;
+  --paper: #ffffff;
+  --paper-ink: #333a47;
   --text: #0d1b3e;
   --text-muted: #44557a;
   --placeholder: #5a6b8c;
@@ -148,6 +154,8 @@
   --surface: #0a1428;
   --surface-raised: #121f3a;
   --surface-sunken: #060d1c;
+  --paper: #ffffff;
+  --paper-ink: #333a47;
   --text: #e8eefc;
   --text-muted: #a9b6d3;
   --placeholder: #93a2c2;

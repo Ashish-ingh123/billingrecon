@@ -110,6 +110,15 @@ public sealed class Tenant : AggregateRoot<TenantId>, IHasRowVersion
     /// <summary>The line printed under the place of a signature.</summary>
     public string? Signatory { get; private set; }
 
+    /// <summary>The signatory's designation, printed under the name (ADR 0059).</summary>
+    public string? SignatoryDesignation { get; private set; }
+
+    /// <summary>The SHA-256 of the logo the hospital prints now; null when it has none (ADR 0059).</summary>
+    public string? LogoSha256 { get; private set; }
+
+    /// <summary>The SHA-256 of the signature the hospital prints now; null when it has none (ADR 0059).</summary>
+    public string? SignatureSha256 { get; private set; }
+
     /// <summary>The letterhead as one value.</summary>
     public TenantLetterhead Letterhead => new()
     {
@@ -123,6 +132,7 @@ public sealed class Tenant : AggregateRoot<TenantId>, IHasRowVersion
         Email = Email,
         Gstin = Gstin,
         Signatory = Signatory,
+        SignatoryDesignation = SignatoryDesignation,
     };
 
     /// <summary>How many days before today a business date may lie (BR-205).</summary>
@@ -205,6 +215,7 @@ public sealed class Tenant : AggregateRoot<TenantId>, IHasRowVersion
             Email = Field.Optional(letterhead.Email, LetterheadEmailMaxLength),
             Gstin = Field.Optional(letterhead.Gstin, GstinLength),
             Signatory = Field.Optional(letterhead.Signatory, LetterheadLineMaxLength),
+            SignatoryDesignation = Field.Optional(letterhead.SignatoryDesignation, LetterheadLineMaxLength),
         };
 
         if (next.Gstin is { } gstin && !IsGstin(gstin))
@@ -227,7 +238,48 @@ public sealed class Tenant : AggregateRoot<TenantId>, IHasRowVersion
         Email = next.Email;
         Gstin = next.Gstin;
         Signatory = next.Signatory;
+        SignatoryDesignation = next.SignatoryDesignation;
         AddDomainEvent(new TenantLetterheadChanged(LegalName, State, Gstin));
+
+        return true;
+    }
+
+    /// <summary>The hash of the image of <paramref name="kind"/> the hospital prints now; null when it has none.</summary>
+    public string? ImageSha256Of(LetterheadImageKind kind) => kind switch
+    {
+        LetterheadImageKind.Logo => LogoSha256,
+        LetterheadImageKind.Signature => SignatureSha256,
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "The kind is not one the enum defines."),
+    };
+
+    /// <summary>
+    /// A TenantAdmin sets, replaces or removes an image of the letterhead (ADR 0059): the tenant names the image by its
+    /// SHA-256, and null removes it. Returns false, and records nothing, when the hash is the one it has.
+    /// </summary>
+    /// <exception cref="ArgumentException">The hash is not 64 lower-case hexadecimal characters: a bug in the caller.</exception>
+    public bool ChangeLetterheadImage(LetterheadImageKind kind, string? sha256)
+    {
+        if (sha256 is not null && (sha256.Length != TenantImage.Sha256Length || !sha256.All(character => char.IsAsciiDigit(character) || character is >= 'a' and <= 'f')))
+        {
+            throw new ArgumentException("A SHA-256 has 64 lower-case hexadecimal characters.", nameof(sha256));
+        }
+
+        var previous = ImageSha256Of(kind);
+        if (previous == sha256)
+        {
+            return false;
+        }
+
+        if (kind == LetterheadImageKind.Logo)
+        {
+            LogoSha256 = sha256;
+        }
+        else
+        {
+            SignatureSha256 = sha256;
+        }
+
+        AddDomainEvent(new TenantLetterheadImageChanged(kind, previous, sha256));
 
         return true;
     }

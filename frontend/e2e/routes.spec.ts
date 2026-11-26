@@ -184,6 +184,9 @@ const settings = {
     email: null,
     gstin: null,
     signatory: 'Authorised signatory',
+    signatoryDesignation: null,
+    logoSha256: null,
+    signatureSha256: null,
   },
   version: 'AAAAAAAAC1E=',
 };

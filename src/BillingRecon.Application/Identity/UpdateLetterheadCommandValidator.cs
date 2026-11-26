@@ -23,6 +23,7 @@ public sealed class UpdateLetterheadCommandValidator : AbstractValidator<UpdateL
         RuleFor(command => command.City).OptionalText(Tenant.LetterheadPlaceMaxLength, "city");
         RuleFor(command => command.State).OptionalText(Tenant.LetterheadPlaceMaxLength, "state");
         RuleFor(command => command.Signatory).OptionalText(Tenant.LetterheadLineMaxLength, "signatory line");
+        RuleFor(command => command.SignatoryDesignation).OptionalText(Tenant.LetterheadLineMaxLength, "signatory's designation");
         RuleFor(command => command.Phone).OptionalText(Tenant.LetterheadPhoneMaxLength, "phone number");
 
         RuleFor(command => command.PinCode)
