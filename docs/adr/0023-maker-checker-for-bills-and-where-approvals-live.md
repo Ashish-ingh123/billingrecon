@@ -103,3 +103,32 @@ left open how the pieces meet over HTTP and what each party is told.
   the index of waiting bills, and neither `0004` nor `0009` held that index. The approval and posting tests, with
   two checkers deciding at once, ran eight times in a row without a failure. Still to do on the machine with
   .NET 10 and Docker: everything in `docs/runbook.md` section 8.
+
+## Amended 2026-11-26 (Prompt 10.8, review finding R9): who wrote the document does not approve it
+
+The maker of a request is whoever pressed submit. The independent review of 2026-11 (`docs/review-2026-11.md`, R9)
+gave the sequence that this leaves open: a Supervisor drafts a refund of 80,000.00, a Cashier asked to "send the ones
+in draft" submits it, and the Supervisor approves the payee and the amount they chose themselves. Two people were
+involved and neither checked the other. The owner approved the fix on 2026-11-26.
+
+1. **The approver of a bill, a credit note, an adjustment or a refund is a different user from the one who created
+   the document and from the one who changed it last** (`CreatedByUserId`, `UpdatedByUserId`), as well as from the
+   maker. `ApprovalRequest.Approve` takes those users from the use case; the request itself does not know its
+   document. The answer is the maker's: 403 `approval_checker_is_maker`, with a message of its own.
+2. **Such a user may still reject:** sending one's own draft back moves no money.
+3. **The other requests are as they were** (the reversals, the prefix change, the opening batch): what they ask for is
+   an action on a posted document, and whoever asks is its only author.
+
+**What this does not catch, said plainly.** Submitting a document is itself a change, so "changed it last" is the
+submitter, who is the maker already. The rule therefore adds one user to the maker: the creator. A user who neither
+created nor submitted the document but edited its amount in between (a clerk drafts, a supervisor changes the amount,
+the clerk submits) can still approve it. Closing that needs every user of the document's audit trail, not two columns;
+it is not built, and it is the owner's to ask for.
+
+**A hospital with one checker** who also drafts documents needs a second checker for those, as it does already for
+what that checker submits.
+
+Tests: `ApprovalRequestTests.BR603_who_wrote_the_document_cannot_approve_it_and_may_reject_it`, and one database test
+for each of the four documents (`BR603_who_wrote_a_..._cannot_approve_it_though_another_user_asked_and_a_second_checker_can`).
+No existing test changed. Verified on the office machine: Domain 715, the `Database` collection, 545, on LocalDB 2019
+in a copy. SQL Server 2022 is owed with the rest.

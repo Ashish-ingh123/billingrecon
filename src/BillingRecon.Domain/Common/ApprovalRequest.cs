@@ -120,16 +120,25 @@ public sealed class ApprovalRequest : AggregateRoot<ApprovalRequestId>, ITenantS
     /// The checker approves (BR-606). Fails, and changes nothing, when the request is already decided
     /// (<c>approval_already_decided</c>), the checker is the maker (<c>approval_checker_is_maker</c>, BR-603), or the
     /// checker holds neither Supervisor nor TenantAdmin among <paramref name="checkerRoles"/>
-    /// (<c>approval_checker_role</c>, BR-603, ADR 0032).
+    /// (<c>approval_checker_role</c>, BR-603, ADR 0032). Fails the same way as for the maker when the checker is one
+    /// of <paramref name="writers"/>: the users who wrote the document and changed it last, where the request is for
+    /// a document a user writes (review 2026-11, finding R9). A writer may still reject.
     /// </summary>
     /// <exception cref="ArgumentException">The checker's id is empty, or the comment is too long.</exception>
-    public Result Approve(UserId checker, IReadOnlyCollection<Role> checkerRoles, string? comment, DateTimeOffset decidedAtUtc)
+    public Result Approve(UserId checker, IReadOnlyCollection<Role> checkerRoles, string? comment, DateTimeOffset decidedAtUtc, params UserId?[] writers)
     {
+        ArgumentNullException.ThrowIfNull(writers);
+
         var note = Field.Optional(comment, CommentMaxLength);
 
         if (CheckDecision(checker, checkerRoles) is { } refused)
         {
             return refused;
+        }
+
+        if (writers.Contains(checker))
+        {
+            return CommonErrors.ApprovalCheckerIsMaker(wroteTheDocument: true);
         }
 
         Decide(ApprovalStatus.Approved, checker, note, decidedAtUtc);

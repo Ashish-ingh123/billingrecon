@@ -1156,4 +1156,7 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    2026-11-26"). A new aggregate needs its line there, or `AuditTrailPolicyTests` fails. **R11 is fixed** (tests
    only): a test of two requests at once holds them at a `RaceGate` (`IntegrationTests/Support`: `GateNumbersOf`,
    `GatePostingsOf`, `GateCommits`) and asserts the loser's one answer, never "409 or 422" (`docs/testing-strategy.md`).
-   The other four of its ten wait for the owner.
+   **R9 is fixed:** `ApprovalRequest.Approve` takes the document's writers (`CreatedByUserId`, `UpdatedByUserId`) from the
+   four document approvals and refuses them as it refuses the maker (403 `approval_checker_is_maker`); a writer may reject;
+   a user who only edited in between is not caught (ADR 0023 "Amended 2026-11-26"). The other three of its ten wait for
+   the owner.

@@ -126,6 +126,33 @@ public sealed class ApprovalRequestTests
     }
 
     [Fact]
+    public void BR603_who_wrote_the_document_cannot_approve_it_and_may_reject_it()
+    {
+        // Review 2026-11, finding R9: the checker did not ask, but wrote the document or changed it last.
+        var writer = new UserId(Guid.NewGuid());
+        var request = Pending();
+
+        foreach (var writers in new UserId?[][] { [writer, null], [null, writer], [Maker, writer] })
+        {
+            var refused = request.Approve(writer, AsSupervisor, null, DecidedAt, writers);
+
+            refused.Error.Code.ShouldBe(CommonErrors.ApprovalCheckerIsMakerCode);
+            refused.Error.Kind.ShouldBe(ErrorKind.Forbidden);
+            refused.Error.Message.ShouldContain("You wrote this document");
+        }
+
+        request.Status.ShouldBe(ApprovalStatus.Pending);
+        request.CheckerUserId.ShouldBeNull();
+
+        // Another checker approves a document that others wrote; a document with no writer on record has none.
+        Pending().Approve(Checker, AsSupervisor, null, DecidedAt, writer, Maker).IsSuccess.ShouldBeTrue();
+        Pending().Approve(Checker, AsSupervisor, null, DecidedAt, null, null).IsSuccess.ShouldBeTrue();
+
+        // Sending one's own draft back harms nothing.
+        request.Reject(writer, AsSupervisor, "Wrong amount", DecidedAt).IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
     public void BR603_the_maker_is_refused_as_the_maker_whatever_the_roles()
     {
         // Both rules fail for a clerk who decides their own request; the answer names the one about the maker.

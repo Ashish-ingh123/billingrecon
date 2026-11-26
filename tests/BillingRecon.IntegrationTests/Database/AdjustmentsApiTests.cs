@@ -217,6 +217,29 @@ public sealed class AdjustmentsApiTests(SqlServerFixture sqlServer) : DatabaseTe
     }
 
     [Fact]
+    public async Task BR603_who_wrote_an_adjustment_cannot_approve_it_though_another_user_asked_and_a_second_checker_can()
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var (maker, checker) = await NewMakerAndCheckerAsync();
+        using var clerk = factory.CreateClientFor(maker, "BillingClerk");
+        using var writer = factory.CreateClientFor(checker, "Supervisor", "Cashier", "BillingClerk");
+        using var second = factory.CreateClientFor(new FixedIdentity(maker.TenantId, new UserId(Guid.NewGuid())), "TenantAdmin");
+        var (patient, payer) = await clerk.NewBillPartiesAsync();
+        var bill = await PostedBillAsync(clerk, patient, payer, Dressing);
+        var waiting = await SubmittedAsync(clerk, await DraftedAsync(writer, bill, AdjustmentKind.Discount, 26m));
+
+        // Review 2026-11, finding R9: the supervisor chose the amount, a clerk pressed submit. The maker is the clerk,
+        // and the supervisor is still not a second person.
+        using var own = await writer.SendWithIfMatchAsync(HttpMethod.Post, Adjustment(waiting.Id, "approve"), body: null, PayersApi.ETag(waiting.Version));
+        var problem = await own.ShouldBeProblemAsync(HttpStatusCode.Forbidden, CommonErrors.ApprovalCheckerIsMakerCode);
+        problem.GetProperty("detail").GetString().ShouldNotBeNull().ShouldContain("You wrote this document");
+
+        using var approved = await second.SendWithIfMatchAsync(HttpMethod.Post, Adjustment(waiting.Id, "approve"), body: null, PayersApi.ETag(waiting.Version));
+        approved.StatusCode.ShouldBe(HttpStatusCode.OK, await approved.Content.ReadAsStringAsync());
+        (await approved.ReadAsAsync<AdjustmentDto>()).Status.ToString().ShouldBe("Posted");
+    }
+
+    [Fact]
     public async Task BR603_BR605_the_maker_cannot_decide_and_a_rejection_with_its_reason_makes_the_adjustment_a_draft_again()
     {
         using var factory = new DatabaseApiFactory(SqlServer);

@@ -104,6 +104,28 @@ public sealed class BillApprovalApiTests(SqlServerFixture sqlServer) : DatabaseT
     }
 
     [Fact]
+    public async Task BR603_who_wrote_a_bill_cannot_approve_it_though_another_user_asked_and_a_second_checker_can()
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var (maker, checker) = await NewTenantWithThresholdAsync(100m);
+        using var clerk = factory.CreateClientFor(maker, "BillingClerk");
+        using var writer = factory.CreateClientFor(checker, "Supervisor", "BillingClerk");
+        using var second = factory.CreateClientFor(new FixedIdentity(maker.TenantId, new UserId(Guid.NewGuid())), "TenantAdmin");
+        var (patient, payer) = await clerk.NewBillPartiesAsync();
+        var waiting = await SubmittedAsync(clerk, await writer.CreateBillAsync(NewBill(patient, payer)));
+
+        // Review 2026-11, finding R9: the supervisor wrote the bill, a clerk posted it over the threshold. The maker is
+        // the clerk, and the supervisor is still not a second person.
+        using var own = await writer.SendWithIfMatchAsync(HttpMethod.Post, BillingApi.Bill(waiting.Id, "approve"), body: null, PayersApi.ETag(waiting.Version));
+        var problem = await own.ShouldBeProblemAsync(HttpStatusCode.Forbidden, CommonErrors.ApprovalCheckerIsMakerCode);
+        problem.GetProperty("detail").GetString().ShouldNotBeNull().ShouldContain("You wrote this document");
+
+        using var approved = await second.SendWithIfMatchAsync(HttpMethod.Post, BillingApi.Bill(waiting.Id, "approve"), body: null, PayersApi.ETag(waiting.Version));
+        approved.StatusCode.ShouldBe(HttpStatusCode.OK, await approved.Content.ReadAsStringAsync());
+        (await approved.ReadAsAsync<BillDto>()).Status.ShouldBe(BillStatus.Posted);
+    }
+
+    [Fact]
     public async Task BR603_the_maker_can_neither_approve_nor_reject_their_own_bill()
     {
         using var factory = new DatabaseApiFactory(SqlServer);

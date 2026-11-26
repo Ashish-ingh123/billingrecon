@@ -104,7 +104,7 @@ with field errors lists the messages per field under `errors`, keyed by the JSON
 | 403 | Any endpoint but the change of one's own password, while a password change is due (section 8.12) | `password_change_required` |
 | 403 | Any endpoint that needs a user, when the user's hospital is suspended by the operator, also with a token issued before (ADR 0052) | `tenant_suspended` |
 | 403 | The user's roles do not allow the endpoint (section 2), or a trail that is the TenantAdmin's (section 8.5) for anyone else | `forbidden` |
-| 403 | A decision by the maker, or by a user who is neither Supervisor nor TenantAdmin (BR-603) | `approval_checker_is_maker`, `approval_checker_role` |
+| 403 | A decision by the maker, or by a user who is neither Supervisor nor TenantAdmin (BR-603). Since 2026-11-26 (review finding R9) also the approval of a bill, a credit note, an adjustment or a refund by the user who created it or changed it last, though another user asked: the same code, with a message that says so. Such a user may reject. | `approval_checker_is_maker`, `approval_checker_role` |
 | 404 | The record does not exist for the tenant (another tenant's included), also when a request only refers to it | `patient_not_found`, `payer_not_found`, `service_item_not_found`, `bill_not_found`, `payment_not_found`, `credit_note_not_found`, `adjustment_not_found`; `not_found` for an unknown route |
 | 409 | The record changed since it was read (BR-804) | `concurrency_conflict` |
 | 409 | The first request with this `Idempotency-Key` is still running (section 7) | `idempotency_in_progress` |
@@ -1215,7 +1215,7 @@ For a failure no use case reported: routing, model binding, content negotiation,
 | `idempotency_key_missing` | 400 | This request needs an Idempotency-Key header: one UUID that you generate for the operation and send again unchanged when you retry it (BR-803). |
 | `idempotency_in_progress` | 409 | A request with this Idempotency-Key is still being processed. Wait, then send the same request with the same key again (BR-803). |
 | `idempotency_key_reuse` | 422 | This Idempotency-Key was already used for a different request. A key belongs to one operation: generate a new key for a new one, also when you try again after a refusal (BR-803). |
-| `approval_checker_is_maker` | 403 | You asked for this yourself, so you cannot decide it: a second person has to approve or reject it (BR-603). |
+| `approval_checker_is_maker` | 403 | You asked for this yourself, so you cannot decide it: a second person has to approve or reject it (BR-603). For the user who wrote the document and did not ask: You wrote this document or changed it last, so you cannot approve it: a second person has to (BR-603). |
 | `approval_already_decided` | 409 | This request has already been decided. Read the document again. |
 | `approval_needs_user` | 403 | This action needs a signed-in user: an approval is asked for and given by people (BR-603). |
 | `approval_checker_role` | 403 | Only a Supervisor or a TenantAdmin may approve or reject (BR-603). |

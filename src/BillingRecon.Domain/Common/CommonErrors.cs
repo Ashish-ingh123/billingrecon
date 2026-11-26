@@ -72,10 +72,16 @@ public static class CommonErrors
             "This Idempotency-Key was already used for a different request. A key belongs to one operation: generate a new key for a new one, also when you try again after a refusal (BR-803).");
     /// <summary>
     /// The user who asked for an action tried to approve or reject it themselves (BR-603). The checker is always a
-    /// different user, whatever the roles.
+    /// different user, whatever the roles. So is the approver of a document a different user from the one who wrote
+    /// it or changed it last (review 2026-11, finding R9): who chose the amount does not approve it.
     /// </summary>
-    public static Error ApprovalCheckerIsMaker()
-        => Error.Forbidden(ApprovalCheckerIsMakerCode, "You asked for this yourself, so you cannot decide it: a second person has to approve or reject it (BR-603).");
+    /// <param name="wroteTheDocument">The checker did not ask, but wrote the document or changed it last.</param>
+    public static Error ApprovalCheckerIsMaker(bool wroteTheDocument = false)
+        => Error.Forbidden(
+            ApprovalCheckerIsMakerCode,
+            wroteTheDocument
+                ? "You wrote this document or changed it last, so you cannot approve it: a second person has to (BR-603)."
+                : "You asked for this yourself, so you cannot decide it: a second person has to approve or reject it (BR-603).");
 
     /// <summary>An approval request that a checker has already approved or rejected: a decision is final (BR-605).</summary>
     public static Error ApprovalAlreadyDecided()

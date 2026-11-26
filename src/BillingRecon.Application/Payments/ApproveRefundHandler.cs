@@ -87,7 +87,8 @@ public sealed class ApproveRefundHandler(
             return pending.Error;
         }
 
-        var decided = pending.Value.Approve(checker, currentUser.Roles, command.Comment, now);
+        // Who wrote the document, or changed it last, does not approve it either (BR-603; review 2026-11, R9).
+        var decided = pending.Value.Approve(checker, currentUser.Roles, command.Comment, now, refund.CreatedByUserId, refund.UpdatedByUserId);
         if (decided.IsFailure)
         {
             return decided.Error;

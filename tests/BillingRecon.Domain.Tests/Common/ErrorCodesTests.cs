@@ -93,6 +93,7 @@ public sealed class ErrorCodesTests
             var type when type == typeof(IReadOnlyDictionary<string, string[]>) => new Dictionary<string, string[]>(),
             var type when type == typeof(decimal) => 0m,
             var type when type == typeof(int) => 0,
+            var type when type == typeof(bool) => false,
             var type when type == typeof(DateOnly) => new DateOnly(2026, 11, 20),
             var type when type == typeof(Money) => Money.Of(100m),
             var type when type == typeof(BillingRecon.Domain.Identity.TenantStatus) => BillingRecon.Domain.Identity.TenantStatus.Suspended,

@@ -167,7 +167,7 @@ report for their daily work.
 |---|---|
 | **BR-601** | A user belongs to one tenant. E-mail is unique within the tenant. Roles are those in §1; a user may hold several. Disabled users cannot sign in. |
 | **BR-602** | The JWT carries the tenant id, user id and roles. It is validated on every request; the tenant context is resolved once per request from it (BR-002). |
-| **BR-603** | The checker of a maker-checker request must be a different user from the maker and must hold `Supervisor` or `TenantAdmin`. This is enforced server-side and cannot be bypassed by role. |
+| **BR-603** | The checker of a maker-checker request must be a different user from the maker and must hold `Supervisor` or `TenantAdmin`. This is enforced server-side and cannot be bypassed by role. Since 2026-11-26 (review finding R9): the approver of a bill, a credit note, an adjustment or a refund must also be a different user from the one who created the document and from the one who changed it last; such a user may still reject it. |
 | **BR-604** | Actions that require maker-checker: posting a credit note, posting an adjustment, posting a refund, reversing an allocation, reversing a payment, posting a bill at or above `Tenant.PostingApprovalThreshold` (BR-207), and changing a number-series prefix (BR-802). |
 | **BR-605** | A document has at most one pending approval request. Pending requests are listed for checkers. A rejection records the checker's comment and returns a draft document to `Draft`; a rejected reversal leaves the document as it was. |
 | **BR-606** | The checker's approval is the posting: number allocation, ledger entries, cache updates, status change and audit happen in the approval transaction. The maker's submission has no financial effect. |

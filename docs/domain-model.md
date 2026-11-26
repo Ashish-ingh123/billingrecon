@@ -336,7 +336,9 @@ document's `Post`/`Reverse`, and commits everything in one transaction (BR-606).
 never carries financial data.
 
 *Built 2026-11-20 (Prompt 3.6, ADR 0023).* The commands are `Open`, `Approve(checker, comment?, at)` and
-`Reject(checker, comment, at)`; a decision by the maker fails with `approval_checker_is_maker` (403) and a second
+`Reject(checker, comment, at)`; a decision by the maker fails with `approval_checker_is_maker` (403), so does, since 2026-11-26 (review finding
+R9), an approval by one of the `writers` the use case hands to `Approve` (who created the document, who changed it
+last), and a second
 decision with `approval_already_decided` (409). The events are named `ApprovalRequestOpened`,
 `ApprovalRequestApproved` and `ApprovalRequestRejected`, so that the audit trail derives `Opened`, `Approved` and
 `Rejected` from them (ADR 0020). There is no generic `ApproveRequestHandler`: the first use is the bill, with

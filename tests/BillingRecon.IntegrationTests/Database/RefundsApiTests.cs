@@ -248,6 +248,30 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
     }
 
     [Fact]
+    public async Task BR603_who_wrote_a_refund_cannot_approve_it_though_another_user_asked_and_a_second_checker_can()
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var (maker, checker) = await NewMakerAndCheckerAsync();
+        using var clerk = factory.CreateClientFor(maker, "Cashier", "BillingClerk");
+        using var writer = factory.CreateClientFor(checker, "Supervisor", "Cashier", "BillingClerk");
+        using var second = factory.CreateClientFor(new FixedIdentity(maker.TenantId, new UserId(Guid.NewGuid())), "TenantAdmin");
+        var (_, payer) = await clerk.NewBillPartiesAsync();
+        var payment = await RecordedAsync(clerk, payer, 200m);
+        var draft = await DraftedAsync(writer, new CreateRefundRequest { PaymentId = payment.Id, Amount = 50m, Method = PaymentMethod.Cash, Reason = "Paid twice" });
+        var waiting = await SubmittedAsync(clerk, draft);
+
+        // Review 2026-11, finding R9: the supervisor chose the amount, a clerk pressed submit. The maker is the clerk,
+        // and the supervisor is still not a second person.
+        using var own = await writer.SendWithIfMatchAsync(HttpMethod.Post, Refund(waiting.Id, "approve"), body: null, PayersApi.ETag(waiting.Version));
+        var problem = await own.ShouldBeProblemAsync(HttpStatusCode.Forbidden, CommonErrors.ApprovalCheckerIsMakerCode);
+        problem.GetProperty("detail").GetString().ShouldNotBeNull().ShouldContain("You wrote this document");
+
+        using var approved = await second.SendWithIfMatchAsync(HttpMethod.Post, Refund(waiting.Id, "approve"), body: null, PayersApi.ETag(waiting.Version));
+        approved.StatusCode.ShouldBe(HttpStatusCode.OK, await approved.Content.ReadAsStringAsync());
+        (await approved.ReadAsAsync<RefundDto>()).Status.ToString().ShouldBe("Posted");
+    }
+
+    [Fact]
     public async Task BR603_BR605_the_maker_cannot_decide_a_waiting_refund_is_locked_and_a_voided_draft_stays_void()
     {
         using var factory = new DatabaseApiFactory(SqlServer);

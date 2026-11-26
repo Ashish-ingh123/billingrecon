@@ -84,7 +84,8 @@ public sealed class ApproveAdjustmentHandler(
         }
 
         var request = pending.Value;
-        var decided = request.Approve(checker, currentUser.Roles, command.Comment, now);
+        // Who wrote the document, or changed it last, does not approve it either (BR-603; review 2026-11, R9).
+        var decided = request.Approve(checker, currentUser.Roles, command.Comment, now, adjustment.CreatedByUserId, adjustment.UpdatedByUserId);
         if (decided.IsFailure)
         {
             return decided.Error;
