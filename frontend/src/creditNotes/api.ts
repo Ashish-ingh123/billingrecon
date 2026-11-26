@@ -175,6 +175,8 @@ export const comparedCreditNoteFields: readonly ComparedField<CreditNote>[] = [
 ];
 
 export interface CreditNoteListParams {
+  /** The one search box of the list (Prompt 11.1): a part of the number, the patient or the payer, or an exact amount. */
+  search: string;
   status: CreditNoteStatus | undefined;
   billId: string;
   payerId: string;
@@ -311,6 +313,7 @@ export function useCreditNotes(params: CreditNoteListParams) {
               ...(params.status === undefined ? {} : { Status: params.status }),
               ...(params.billId === '' ? {} : { BillId: params.billId }),
               ...(params.payerId === '' ? {} : { PayerId: params.payerId }),
+              ...(params.search === '' ? {} : { Search: params.search }),
               Page: params.page,
               PageSize: pageSize,
             },

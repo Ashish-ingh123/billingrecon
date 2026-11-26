@@ -170,3 +170,12 @@ the owner on 2026-11-26:
 Tests: `DocumentSearchApiTests` (each field in part on each list; `%`, `_` and `[` as text; with the other filters and
 the paging; 501 documents found; another hospital's documents never), `DocumentSearchTests` (the text and the
 amount). The browser's search box is Prompt 11.1b.
+
+**Built 2026-11-26, Prompt 11.1b: the box on the five lists.** `DocumentSearchField` (frontend, components) is the
+box of every search (the lens, the spinner in its place, Clear; ADR 0039 and ADR 0040 as amended) with the label
+"Number, patient, payer or amount", first among the filters of the lists of bills, payments, credit notes, adjustments
+and refunds. It is sent while it is typed, after the pause and from two characters, at once on Enter and when the box
+is left; the address holds it as `search`, beside the other filters, and a search replaces the entry of the address so
+that Back leaves the list. Another filter keeps the search and goes to the first page. No screen was added and no
+package. Tests: `e2e/docsearch.spec.ts` (each of the five lists; one character not sent; Clear; Back; the address
+opening a list with its search; Tab; both themes; a phone; axe).

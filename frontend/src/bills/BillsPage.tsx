@@ -5,6 +5,7 @@ import buttons from '../components/buttons.module.css';
 import table from '../components/DataTable.module.css';
 import { Pagination } from '../components/ListControls';
 import listStyles from '../components/ListControls.module.css';
+import { DocumentSearchField } from '../components/DocumentSearchField';
 import { EmptyState } from '../components/EmptyState';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
@@ -15,11 +16,14 @@ import { billStatuses, billStatusLabels, useBills, type BillListParams, type Bil
 import { BillStatusBadge } from './BillStatusBadge';
 
 /** The bill list's filters and page, kept in the address (ADR 0039 point 1). */
-function useBillListParams(): BillListParams & { change: (next: Partial<BillListParams>) => void } {
+function useBillListParams(): BillListParams & {
+  change: (next: Partial<BillListParams>, options?: { replace?: boolean }) => void;
+} {
   const [params, setParams] = useSearchParams();
   const status = params.get('status');
   const page = Number.parseInt(params.get('page') ?? '1', 10);
   const current: BillListParams = {
+    search: params.get('search') ?? '',
     status: billStatuses.includes(status as BillStatus) ? (status as BillStatus) : undefined,
     from: params.get('from') ?? '',
     to: params.get('to') ?? '',
@@ -28,10 +32,11 @@ function useBillListParams(): BillListParams & { change: (next: Partial<BillList
     page: Number.isFinite(page) && page >= 1 ? page : 1,
   };
 
-  const change = (next: Partial<BillListParams>) => {
+  const change = (next: Partial<BillListParams>, options?: { replace?: boolean }) => {
     const merged = { ...current, ...next, page: next.page ?? 1 };
     const query = new URLSearchParams();
     for (const [name, value] of [
+      ['search', merged.search],
       ['patientId', merged.patientId],
       ['payerId', merged.payerId],
       ['status', merged.status ?? ''],
@@ -47,13 +52,13 @@ function useBillListParams(): BillListParams & { change: (next: Partial<BillList
       query.set('page', String(merged.page));
     }
 
-    setParams(query);
+    setParams(query, options);
   };
 
   return { ...current, change };
 }
 
-function BillFilters({ params }: { params: ReturnType<typeof useBillListParams> }) {
+function BillFilters({ params, busy }: { params: ReturnType<typeof useBillListParams>; busy: boolean }) {
   const [from, setFrom] = useState(params.from);
   const [to, setTo] = useState(params.to);
   const statusId = useId();
@@ -67,6 +72,11 @@ function BillFilters({ params }: { params: ReturnType<typeof useBillListParams> 
 
   return (
     <form className={listStyles.filters} role="search" onSubmit={submit}>
+      <DocumentSearchField
+        sent={params.search}
+        onSend={(text) => params.change({ search: text }, { replace: true })}
+        busy={busy}
+      />
       <div className={listStyles.field}>
         <label htmlFor={statusId}>Status</label>
         <select
@@ -156,7 +166,7 @@ export function BillsPage() {
           )
         }
       />
-      <BillFilters key={`${params.from}|${params.to}`} params={params} />
+      <BillFilters key={`${params.from}|${params.to}`} params={params} busy={bills.isFetching} />
       {bills.data === undefined ? (
         <LoadState error={bills.error} what="bills" />
       ) : bills.data.items.length === 0 ? (

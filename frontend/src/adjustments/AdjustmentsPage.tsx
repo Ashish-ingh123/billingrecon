@@ -6,6 +6,7 @@ import buttons from '../components/buttons.module.css';
 import table from '../components/DataTable.module.css';
 import { Pagination } from '../components/ListControls';
 import listStyles from '../components/ListControls.module.css';
+import { DocumentSearchField } from '../components/DocumentSearchField';
 import { EmptyState } from '../components/EmptyState';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
@@ -45,6 +46,7 @@ export function AdjustmentsPage() {
   const kind = query.get('kind') as AdjustmentKind | null;
   const page = Number.parseInt(query.get('page') ?? '1', 10);
   const params: AdjustmentListParams = {
+    search: query.get('search') ?? '',
     status: status !== null && adjustmentStatuses.includes(status) ? status : undefined,
     kind: kind !== null && adjustmentKinds.includes(kind) ? kind : undefined,
     billId: query.get('billId') ?? '',
@@ -53,9 +55,13 @@ export function AdjustmentsPage() {
   };
   const adjustments = useAdjustments(params);
 
-  const change = (next: Partial<AdjustmentListParams>) => {
+  const change = (next: Partial<AdjustmentListParams>, options?: { replace?: boolean }) => {
     const merged = { ...params, ...next, page: next.page ?? 1 };
     const search = new URLSearchParams();
+    if (merged.search !== '') {
+      search.set('search', merged.search);
+    }
+
     for (const [name, value] of [
       ['billId', merged.billId],
       ['payerId', merged.payerId],
@@ -71,7 +77,7 @@ export function AdjustmentsPage() {
       search.set('page', String(merged.page));
     }
 
-    setQuery(search);
+    setQuery(search, options);
   };
 
   const showAll = (
@@ -98,7 +104,12 @@ export function AdjustmentsPage() {
           )
         }
       />
-      <div className={listStyles.filters}>
+      <div className={listStyles.filters} role="search">
+        <DocumentSearchField
+          sent={params.search}
+          onSend={(text) => change({ search: text }, { replace: true })}
+          busy={adjustments.isFetching}
+        />
         <div className={listStyles.field}>
           <label htmlFor={statusId}>Status</label>
           <select

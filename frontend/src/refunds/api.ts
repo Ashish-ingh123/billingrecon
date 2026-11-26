@@ -69,6 +69,8 @@ export const comparedRefundFields: readonly ComparedField<Refund>[] = [
 ];
 
 export interface RefundListParams {
+  /** The one search box of the list (Prompt 11.1): a part of the number, the patient or the payer, or an exact amount. */
+  search: string;
   status: RefundStatus | undefined;
   payerId: string;
   page: number;
@@ -149,6 +151,7 @@ export function useRefunds(params: RefundListParams) {
             query: {
               ...(params.status === undefined ? {} : { Status: params.status }),
               ...(params.payerId === '' ? {} : { PayerId: params.payerId }),
+              ...(params.search === '' ? {} : { Search: params.search }),
               Page: params.page,
               PageSize: pageSize,
             },

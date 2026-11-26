@@ -5,6 +5,7 @@ import buttons from '../components/buttons.module.css';
 import table from '../components/DataTable.module.css';
 import { Pagination } from '../components/ListControls';
 import listStyles from '../components/ListControls.module.css';
+import { DocumentSearchField } from '../components/DocumentSearchField';
 import { EmptyState } from '../components/EmptyState';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
@@ -28,15 +29,20 @@ export function RefundsPage() {
   const status = query.get('status') as RefundStatus | null;
   const page = Number.parseInt(query.get('page') ?? '1', 10);
   const params: RefundListParams = {
+    search: query.get('search') ?? '',
     status: status !== null && refundStatuses.includes(status) ? status : undefined,
     payerId: query.get('payerId') ?? '',
     page: Number.isFinite(page) && page >= 1 ? page : 1,
   };
   const refunds = useRefunds(params);
 
-  const change = (next: Partial<RefundListParams>) => {
+  const change = (next: Partial<RefundListParams>, options?: { replace?: boolean }) => {
     const merged = { ...params, ...next, page: next.page ?? 1 };
     const search = new URLSearchParams();
+    if (merged.search !== '') {
+      search.set('search', merged.search);
+    }
+
     if (merged.payerId !== '') {
       search.set('payerId', merged.payerId);
     }
@@ -49,7 +55,7 @@ export function RefundsPage() {
       search.set('page', String(merged.page));
     }
 
-    setQuery(search);
+    setQuery(search, options);
   };
 
   return (
@@ -69,7 +75,12 @@ export function RefundsPage() {
           )
         }
       />
-      <div className={listStyles.filters}>
+      <div className={listStyles.filters} role="search">
+        <DocumentSearchField
+          sent={params.search}
+          onSend={(text) => change({ search: text }, { replace: true })}
+          busy={refunds.isFetching}
+        />
         <div className={listStyles.field}>
           <label htmlFor={statusId}>Status</label>
           <select

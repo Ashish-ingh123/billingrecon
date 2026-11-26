@@ -211,7 +211,7 @@ function BillView({ bill }: { bill: Bill }) {
 /** The credit notes and adjustments of a posted bill (ADR 0042): what corrected it, and what waits to. */
 function BillCorrections({ bill }: { bill: Bill }) {
   const canReadAdjustments = useCan('ReadAdjustments');
-  const creditNotes = useCreditNotes({ status: undefined, billId: bill.id, payerId: '', page: 1 });
+  const creditNotes = useCreditNotes({ search: '', status: undefined, billId: bill.id, payerId: '', page: 1 });
 
   return (
     <section className={forms.section} aria-labelledby="corrections-title">
@@ -242,7 +242,7 @@ function BillCorrections({ bill }: { bill: Bill }) {
 }
 
 function BillAdjustments({ billId }: { billId: string }) {
-  const adjustments = useAdjustments({ status: undefined, kind: undefined, billId, payerId: '', page: 1 });
+  const adjustments = useAdjustments({ search: '', status: undefined, kind: undefined, billId, payerId: '', page: 1 });
 
   return adjustments.data === undefined ? (
     <LoadState error={adjustments.error} what="the adjustments" />

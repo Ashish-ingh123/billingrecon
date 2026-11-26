@@ -157,6 +157,8 @@ export function lineField(apiField: string): `lines.${number}.${keyof BillLineVa
 }
 
 export interface BillListParams {
+  /** The one search box of the list (Prompt 11.1): a part of the number, the patient or the payer, or an exact amount. */
+  search: string;
   status: BillStatus | undefined;
   from: string;
   to: string;
@@ -239,6 +241,7 @@ export function useBills(params: BillListParams) {
               ...(params.to === '' ? {} : { BillDateTo: params.to }),
               ...(params.patientId === '' ? {} : { PatientId: params.patientId }),
               ...(params.payerId === '' ? {} : { PayerId: params.payerId }),
+              ...(params.search === '' ? {} : { Search: params.search }),
               Page: params.page,
               PageSize: pageSize,
             },

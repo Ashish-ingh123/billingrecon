@@ -6,6 +6,7 @@ import buttons from '../components/buttons.module.css';
 import table from '../components/DataTable.module.css';
 import { Pagination } from '../components/ListControls';
 import listStyles from '../components/ListControls.module.css';
+import { DocumentSearchField } from '../components/DocumentSearchField';
 import { EmptyState } from '../components/EmptyState';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
@@ -22,12 +23,15 @@ import {
   type PaymentStatus,
 } from './api';
 
-function usePaymentListParams(): PaymentListParams & { change: (next: Partial<PaymentListParams>) => void } {
+function usePaymentListParams(): PaymentListParams & {
+  change: (next: Partial<PaymentListParams>, options?: { replace?: boolean }) => void;
+} {
   const [params, setParams] = useSearchParams();
   const status = params.get('status') as PaymentStatus | null;
   const method = params.get('method') as PaymentMethod | null;
   const page = Number.parseInt(params.get('page') ?? '1', 10);
   const current: PaymentListParams = {
+    search: params.get('search') ?? '',
     status: status !== null && paymentStatuses.includes(status) ? status : undefined,
     method: method !== null && paymentMethods.includes(method) ? method : undefined,
     from: params.get('from') ?? '',
@@ -36,10 +40,11 @@ function usePaymentListParams(): PaymentListParams & { change: (next: Partial<Pa
     page: Number.isFinite(page) && page >= 1 ? page : 1,
   };
 
-  const change = (next: Partial<PaymentListParams>) => {
+  const change = (next: Partial<PaymentListParams>, options?: { replace?: boolean }) => {
     const merged = { ...current, ...next, page: next.page ?? 1 };
     const query = new URLSearchParams();
     for (const [name, value] of [
+      ['search', merged.search],
       ['payerId', merged.payerId],
       ['status', merged.status ?? ''],
       ['method', merged.method ?? ''],
@@ -55,13 +60,13 @@ function usePaymentListParams(): PaymentListParams & { change: (next: Partial<Pa
       query.set('page', String(merged.page));
     }
 
-    setParams(query);
+    setParams(query, options);
   };
 
   return { ...current, change };
 }
 
-function PaymentFilters({ params }: { params: ReturnType<typeof usePaymentListParams> }) {
+function PaymentFilters({ params, busy }: { params: ReturnType<typeof usePaymentListParams>; busy: boolean }) {
   const [from, setFrom] = useState(params.from);
   const [to, setTo] = useState(params.to);
   const ids = { status: useId(), method: useId(), from: useId(), to: useId() };
@@ -73,6 +78,11 @@ function PaymentFilters({ params }: { params: ReturnType<typeof usePaymentListPa
 
   return (
     <form className={listStyles.filters} role="search" onSubmit={submit}>
+      <DocumentSearchField
+        sent={params.search}
+        onSend={(text) => params.change({ search: text }, { replace: true })}
+        busy={busy}
+      />
       <div className={listStyles.field}>
         <label htmlFor={ids.status}>Status</label>
         <select
@@ -174,7 +184,7 @@ export function PaymentsPage() {
           )
         }
       />
-      <PaymentFilters key={`${params.from}|${params.to}`} params={params} />
+      <PaymentFilters key={`${params.from}|${params.to}`} params={params} busy={payments.isFetching} />
       {payments.data === undefined ? (
         <LoadState error={payments.error} what="payments" />
       ) : payments.data.items.length === 0 ? (

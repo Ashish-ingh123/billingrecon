@@ -1167,6 +1167,8 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    `PendingApprovalPolicyTests` fails. **R10 is fixed:** the import compares `legacy_number`, `legacy_reference` and
    `guarantor_ref` with `OrdinalIgnoreCase`, as the case-insensitive collation of their unique indexes does (ADR 0053
    "Amended 2026-11-26"); a new check against a unique text column compares the same way. All ten are closed.
+   **Prompt 11.1b:** the five list pages have `DocumentSearchField` (frontend `components`), first among their filters;
+   each list's params carry `search`, the address holds it, and a search replaces the entry of the address.
    **Prompt 11.1a (branch `phase-11-counter`):** `search` on the lists of bills, payments, credit notes, adjustments and
    refunds (`DocumentSearch` for the text and the amount; `IPartySearch` for the parties of another module;
    `DocumentSearchFilter` in each read service: each part of the search its own query joined by `Union`, never one `Where`

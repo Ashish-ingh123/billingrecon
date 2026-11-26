@@ -6,6 +6,7 @@ import buttons from '../components/buttons.module.css';
 import table from '../components/DataTable.module.css';
 import { Pagination } from '../components/ListControls';
 import listStyles from '../components/ListControls.module.css';
+import { DocumentSearchField } from '../components/DocumentSearchField';
 import { EmptyState } from '../components/EmptyState';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
@@ -40,6 +41,7 @@ export function CreditNotesPage() {
   const status = query.get('status') as CreditNoteStatus | null;
   const page = Number.parseInt(query.get('page') ?? '1', 10);
   const params: CreditNoteListParams = {
+    search: query.get('search') ?? '',
     status: status !== null && creditNoteStatuses.includes(status) ? status : undefined,
     billId: query.get('billId') ?? '',
     payerId: query.get('payerId') ?? '',
@@ -47,9 +49,13 @@ export function CreditNotesPage() {
   };
   const creditNotes = useCreditNotes(params);
 
-  const change = (next: Partial<CreditNoteListParams>) => {
+  const change = (next: Partial<CreditNoteListParams>, options?: { replace?: boolean }) => {
     const merged = { ...params, ...next, page: next.page ?? 1 };
     const search = new URLSearchParams();
+    if (merged.search !== '') {
+      search.set('search', merged.search);
+    }
+
     if (merged.billId !== '') {
       search.set('billId', merged.billId);
     }
@@ -66,7 +72,7 @@ export function CreditNotesPage() {
       search.set('page', String(merged.page));
     }
 
-    setQuery(search);
+    setQuery(search, options);
   };
 
   const showAll = (
@@ -93,7 +99,12 @@ export function CreditNotesPage() {
           )
         }
       />
-      <div className={listStyles.filters}>
+      <div className={listStyles.filters} role="search">
+        <DocumentSearchField
+          sent={params.search}
+          onSend={(text) => change({ search: text }, { replace: true })}
+          busy={creditNotes.isFetching}
+        />
         <div className={listStyles.field}>
           <label htmlFor={statusId}>Status</label>
           <select
