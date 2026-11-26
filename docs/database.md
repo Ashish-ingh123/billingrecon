@@ -1123,6 +1123,21 @@ Built 2026-11-26 (Prompt 10.4c).
 - **Grants:** `TenantImages` is insert-only for the application's role, `DENY UPDATE, DELETE`, written at the end of
   the migration. An image a hospital replaced or removed stays; only an administrator of the database deletes a row.
 
+### 5.11 Print settings (ADR 0059 as amended, migration `0026_PrintSettings`)
+
+Built 2026-11-26 (Prompt 10.4c-2).
+
+- **`PrintSettings`**: `Id`, `TenantId`, `DocumentType varchar(20)` (`Bill`, `Payment`, `Refund`), `Paper varchar(20)`
+  (`A4`, `A5`, `Roll80`), `MarginTopMm`, `MarginRightMm`, `MarginBottomMm`, `MarginLeftMm int` (each 5 to 25),
+  `LogoPosition varchar(20)` (`Left`, `Centre`, `Right`), `LogoSize varchar(20)` (`Small`, `Medium`, `Large`),
+  `PrePrintedStationery bit`, `StationeryTopMm int` (0 to 80), seven `bit` switches (`ShowPatientContact`, `ShowPayer`,
+  `ShowSacColumn`, `ShowTaxSplit`, `ShowAmountInWords`, `ShowSignatureBlock`, `ShowCashierName`), `FooterLine
+  nvarchar(200) NULL`, `Terms nvarchar(1000) NULL`, the audit columns and `RowVersion`.
+  `UX_PrintSettings_TenantId_DocumentType`: at most one row a hospital and kind; no row means the defaults.
+- **CHECK constraints** beside those of the enums and the ranges: `CK_PrintSettings_BillPaper` (a bill is not on a
+  roll) and `CK_PrintSettings_BillShowsTax` (a bill's `ShowSacColumn` and `ShowTaxSplit` are 1).
+- **Grants:** the schema's `SELECT, INSERT, UPDATE`; no line of its own.
+
 ## 6. Idempotency store (ADR 0006)
 
 Lifecycle of a row in `IdempotencyKeys` for a financial POST:

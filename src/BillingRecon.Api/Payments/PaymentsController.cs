@@ -51,6 +51,24 @@ public sealed class PaymentsController : ApiControllerBase
         return result.IsSuccess ? OkWithVersion(result.Value, result.Value.Payment.Version) : Problem(result.Error);
     }
 
+    /// <summary>
+    /// Who recorded the payment, by name, for a receipt whose print settings ask for it (ADR 0059); the name is null
+    /// when no user of the hospital recorded it.
+    /// </summary>
+    [Authorize(Policy = Policies.ReadPayments)]
+    [HttpGet("{id:guid}/recorder")]
+    [ProducesResponseType<DocumentRecorderDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetRecorderAsync(
+        Guid id,
+        [FromServices] IQueryHandler<GetPaymentRecorderQuery, DocumentRecorderDto> handler,
+        CancellationToken ct)
+    {
+        var result = await handler.HandleAsync(new GetPaymentRecorderQuery(new PaymentId(id)), ct);
+
+        return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
+    }
+
     /// <summary>Reads one payment with every allocation made from it, the oldest first.</summary>
     [Authorize(Policy = Policies.ReadPayments)]
     [HttpGet("{id:guid}/allocations")]

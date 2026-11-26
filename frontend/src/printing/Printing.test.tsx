@@ -1,7 +1,7 @@
 import { configure, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { json, renderApp, routedApi, sessionFor, type Handler } from '../test/app';
-import { allocation, bill, billLine, patient, payer, payment, problem, refund } from '../test/records';
+import { allocation, bill, billLine, patient, payer, payment, printSettings, problem, refund } from '../test/records';
 
 /**
  * The printed documents (Prompt 10.4b, ADR 0054), with the API faked: each page shows the fields of its document on the
@@ -39,6 +39,8 @@ const asha = patient();
 const ashasPayer = payer();
 const shared: Record<string, Handler> = {
   'GET /api/v1/settings/letterhead': () => json(200, letterhead),
+  // Since Prompt 10.4c the pages read how the hospital prints: here, as a hospital that set nothing.
+  'GET /api/v1/settings/print': () => json(200, printSettings()),
   [`GET /api/v1/patients/${asha.id}`]: () => json(200, asha),
   [`GET /api/v1/payers/${ashasPayer.id}`]: () => json(200, ashasPayer),
 };

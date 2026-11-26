@@ -150,6 +150,7 @@ public sealed class TypedIdForeignKeyTests
                 "FK_PrefixChanges_CreatedByUserId", "FK_PrefixChanges_UpdatedByUserId",
                 "FK_OpeningBatches_CreatedByUserId", "FK_OpeningBatches_UpdatedByUserId",
                 "FK_DocumentPrints_PrintedByUserId",
+                "FK_PrintSettings_CreatedByUserId", "FK_PrintSettings_UpdatedByUserId",
             ],
             ignoreOrder: true);
     }

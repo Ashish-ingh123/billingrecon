@@ -227,6 +227,144 @@
   margin: var(--space-1) 0;
 }
 
+/* The hospital's print settings (ADR 0059). The paper: how wide the sheet stands on the screen; the printer takes its
+   size and margins from the page rule the sheet adds (settings.ts). A roll is narrow, so its head stands in a column. */
+.paperA4 {
+  max-width: 50rem;
+}
+
+.paperA5 {
+  max-width: 35rem;
+}
+
+/* A5 is narrow for the nine columns of a tax invoice: its table is set small and close. A long description breaks onto
+   a second line; a figure never breaks inside itself, only between an amount and its rate. */
+.paperA5 .table {
+  font-size: 0.625rem;
+}
+
+.paperA5 .table th,
+.paperA5 .table td {
+  padding: var(--space-1) calc(var(--space-1) / 2);
+}
+
+.paperA5 .table td:nth-child(2) {
+  overflow-wrap: anywhere;
+}
+
+.paperA5 .table .number {
+  white-space: normal;
+}
+
+.paperRoll80 {
+  max-width: 20rem;
+  padding: var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.paperRoll80 .letterhead {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.paperRoll80 .facts div {
+  grid-template-columns: 6rem 1fr;
+}
+
+.paperRoll80 .signature {
+  margin-top: var(--space-5);
+}
+
+/* Where the logo stands: beside the name at the left or the right, or over it in the middle. */
+.logoCentre {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.logoCentre .logoBox {
+  justify-content: center;
+}
+
+.logoRight {
+  flex-direction: row-reverse;
+  justify-content: space-between;
+}
+
+.logoRight .logoBox {
+  justify-content: flex-end;
+}
+
+/* How large: the box the logo is fitted into. Medium is the box of 10.4c-1, which .logoBox sets. */
+.logoSmall {
+  width: 6rem;
+  height: 3rem;
+}
+
+.logoLarge {
+  width: 12rem;
+  height: 6rem;
+}
+
+/* Pre-printed stationery: the paper's own head takes this space, whose height the sheet's page rule sets. */
+.stationery {
+  border-bottom: 1px dashed var(--border-soft);
+}
+
+.terms {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+}
+
+.terms h3 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-sm);
+}
+
+.terms p {
+  margin: 0;
+  color: var(--text-muted);
+  white-space: pre-line;
+}
+
+.footerLine {
+  margin: var(--space-5) 0 0;
+  padding-top: var(--space-2);
+  font-size: var(--text-sm);
+  text-align: center;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-soft);
+}
+
+/* The preview of the settings: the sheet on the white of paper in either theme, with the paper's margins as its
+   padding (set by the sheet's rule), and its width following the paper. */
+.preview {
+  flex: none;
+  margin: 0;
+  background: var(--surface-raised);
+  color: var(--text);
+  box-shadow: none;
+}
+
+/* The preview keeps the width of its paper, so that its table lies as it will on the sheet; a narrow screen scrolls
+   the frame around it. */
+.preview.paperA4 {
+  width: 50rem;
+}
+
+.preview.paperA5 {
+  width: 35rem;
+}
+
+.preview.paperRoll80 {
+  width: 20rem;
+}
+
+.preview .tableWrap {
+  overflow: visible;
+}
+
 /* The way to the printed page, on a document's own page. */
 .printLink {
   margin: 0 0 var(--space-4);
@@ -254,5 +392,16 @@
 
   .signature {
     break-inside: avoid;
+  }
+
+  .stationery {
+    border-bottom: none;
+  }
+
+  .paperA4,
+  .paperA5,
+  .paperRoll80 {
+    max-width: none;
+    padding: 0;
   }
 }

@@ -449,6 +449,7 @@ The actions, by `entityType`, each one state change (every state change raises o
 | `User` | `Created`, `Updated`, `RolesReplaced`, `Disabled`, `Enabled`, `PasswordReset`, `PasswordChanged`, `SignedIn`, `SignedOut` |
 | `Tenant` | `Onboarded`, `SettingsChanged`, `LetterheadChanged` (ADR 0054), `LetterheadImageChanged` (ADR 0059), `PrefixChanged`, `Suspended`, `Resumed` (the last three of the operator's command, ADR 0052, with no user) |
 | `PrefixChange` | `Requested`, `Approved`, `Rejected` |
+| `PrintSettings` | `Changed` (ADR 0059), for the first save of a kind of document and for every later one |
 | `OpeningBatch` | `Submitted`, `Approved`, `Rejected` (ADR 0053; the images never hold the files) |
 | `NumberSeries` | `PrefixChanged` |
 
@@ -1116,6 +1117,56 @@ alone) and `printedAtUtc`; the printed page says "Original" or "Duplicate" from 
 printed: a posted bill (an opening receivable included), a payment that was not reversed, a posted refund. Anything
 else is 422 `document_not_printable`. The records are insert-only, like the audit trail; there is no endpoint that
 lists, changes or removes them.
+
+### 8.19 Print settings, and who recorded a document (ADR 0059)
+
+How the hospital prints each kind of document. Settings change the layout of a sheet and nothing else: no figure, and
+not the mark of the original or a duplicate.
+
+| Method and path | Who | Success | Failures |
+|---|---|---|---|
+| `GET /api/v1/settings/print` | Anyone signed in (`SignedIn`) | 200, three answers | |
+| `PUT /api/v1/settings/print/{documentType}` | TenantAdmin (`ManageTenant`) | 200, the settings, `ETag` | 400; 409 `concurrency_conflict`; 428 |
+
+`documentType` is `Bill`, `Payment` (its receipt) or `Refund` (its voucher). `GET` always answers the three, in that
+order; a kind the hospital never saved answers **the defaults**, which are the sheet as it was before there were
+settings, with the version `AAAAAAAAAAA=` (eight zero bytes). `PUT` sends every part and needs `If-Match` with the
+version read: the version of none for a first save, which makes the row, and the row's own after that. Each part:
+
+| Part | Values | Default |
+|---|---|---|
+| `paper` | `A4`, `A5`; `Roll80` (a roll 80 mm wide) for a receipt or a refund voucher only | `A4` |
+| `marginTopMm`, `marginRightMm`, `marginBottomMm`, `marginLeftMm` | 5 to 25 | 14, 12, 14, 12 |
+| `logoPosition` | `Left`, `Centre`, `Right` | `Left` |
+| `logoSize` | `Small`, `Medium`, `Large` | `Medium` |
+| `prePrintedStationery` | true: the paper carries the hospital's head, and the sheet prints none of its own | false |
+| `stationeryTopMm` | 0 to 80: the space left at the top for that head | 0 |
+| `showPatientContact` | the patient's phone and address | false |
+| `showPayer` | the payer | true |
+| `showSacColumn`, `showTaxSplit` | a bill's SAC column, and its tax as CGST and SGST | true |
+| `showAmountInWords` | the amount in words | true |
+| `showSignatureBlock` | the signature block | true |
+| `showCashierName` | who recorded a receipt or a refund voucher, by name | false |
+| `footerLine`, `terms` | plain text, at most 200 and 1000 characters; trimmed, a blank one is null | null |
+
+**What a bill may never switch off.** For `Bill`, `showSacColumn` and `showTaxSplit` are always true: a tax invoice must
+show the SAC code of each service and its tax in its halves (ADR 0054). Sending false, or `Roll80`, for a bill is 400
+`validation_failed` with the reason under the part's name; the table refuses the same by two CHECK constraints. For a
+receipt and a voucher the two switches mean nothing and are stored as sent.
+
+In the audit trail: entity `PrintSettings`, action `Changed`, with what the settings were and are.
+
+**Who recorded a document.**
+
+| Method and path | Who | Success | Failures |
+|---|---|---|---|
+| `GET /api/v1/payments/{id}/recorder` | Who reads payments (`ReadPayments`) | 200 | 404 `payment_not_found` |
+| `GET /api/v1/refunds/{id}/recorder` | Who reads refunds (`ReadRefunds`) | 200 | 404 `refund_not_found` |
+
+Each answers `{ "name": ... }`: the display name of the user who recorded the payment or drafted the refund, for a
+sheet whose settings ask for it (`showCashierName`), or null where no user of the hospital did. It is a read of its
+own, so that a payment and a refund answer the same wherever they are read. The name and nothing else of the user is
+answered, to whoever may read the document.
 
 ## 9. Error-code catalogue
 

@@ -5,6 +5,7 @@ import {
   creditNote,
   draft,
   letterhead,
+  printSettings,
   open,
   pageOf,
   patient,
@@ -247,6 +248,7 @@ const answers: Answers = {
   [`GET /api/v1/users/${colleague.id}`]: () => colleague,
   'GET /api/v1/settings': () => settings,
   'GET /api/v1/settings/letterhead': () => letterhead,
+  'GET /api/v1/settings/print': () => printSettings(),
   'GET /api/v1/opening-batches': () => pageOf([openingBatch]),
   [`GET /api/v1/opening-batches/${openingBatch.id}`]: () => openingBatch,
   'GET /api/v1/dashboard/summary': () => ({
@@ -341,6 +343,7 @@ const routes: readonly (readonly [string, string | RegExp])[] = [
   [`/administration/users/${colleague.id}/edit`, `Edit ${colleague.displayName}`],
   ['/administration/settings', 'Users and settings'],
   // Since Prompt 10.3b: bringing in a hospital's records and opening balances (ADR 0053).
+  ['/administration/print', 'Users and settings'],
   ['/administration/import', 'Users and settings'],
   ['/administration/import/patients', 'Import patients and guarantors'],
   ['/administration/import/opening-balances', 'Import opening balances'],

@@ -261,3 +261,21 @@
     --shadow-button: none;
   }
 }
+
+/*
+ * A sheet of paper on the screen (Prompt 10.4c, ADR 0059): the preview of a printed document takes the tokens of paper
+ * in either theme, the very values of the print styles above, so that what is seen is what prints: dark text on white,
+ * the quiet text and the lines as on paper, no shadow. A test holds each of these to the print block.
+ */
+[data-paper] {
+  color-scheme: light;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f2f4f7;
+  --text: #000000;
+  --text-muted: #333a47;
+  --border: #6b7a99;
+  --border-soft: #c9d1df;
+  --border-strong: #3f4f70;
+  --shadow-card: none;
+}

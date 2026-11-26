@@ -1,7 +1,7 @@
 import { configure, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { json, renderApp, routedApi, sessionFor, type Handler } from '../test/app';
-import { bill, billLine, patient, payer, payment, problem, refund } from '../test/records';
+import { bill, billLine, patient, payer, payment, printSettings, problem, refund } from '../test/records';
 import { imageDataUrl } from './api';
 
 /**
@@ -45,6 +45,7 @@ const posted = bill({
 const asha = patient();
 const ashasPayer = payer();
 const records: Record<string, Handler> = {
+  'GET /api/v1/settings/print': () => json(200, printSettings()),
   [`GET /api/v1/patients/${asha.id}`]: () => json(200, asha),
   [`GET /api/v1/payers/${ashasPayer.id}`]: () => json(200, ashasPayer),
   [`GET /api/v1/bills/${posted.id}`]: () => json(200, posted),
@@ -197,6 +198,7 @@ describe('a sheet of a hospital with a logo and a signature', () => {
     const paid = payment();
     const repaid = refund({ status: 'Posted', number: 'REF/26-27/000004', fiscalYear: '2026-27' });
     const images: Record<string, Handler> = {
+      'GET /api/v1/settings/print': () => json(200, printSettings()),
       [`GET /api/v1/payers/${ashasPayer.id}`]: () => json(200, ashasPayer),
       'GET /api/v1/settings/letterhead': () => json(200, withImages),
       'GET /api/v1/settings/letterhead/logo': image('image/jpeg'),

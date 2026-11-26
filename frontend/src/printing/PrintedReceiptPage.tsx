@@ -3,14 +3,12 @@ import { useBill } from '../bills/api';
 import { Banner } from '../components/Banner';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
-import { formatDate, formatMoney } from '../format';
-import { paiseOfServer } from '../money';
 import { usePayer } from '../payers/api';
-import { methodLabels, usePaymentWithAllocations, type PaymentWithAllocations } from '../payments/api';
-import { useLetterhead, type Letterhead } from './api';
-import styles from './Printing.module.css';
+import { usePaymentWithAllocations, type PaymentWithAllocations } from '../payments/api';
+import { stillReading, useLetterhead, usePatientOfPayer, useRecorder, type Letterhead } from './api';
 import { PrintSheet } from './PrintSheet';
-import { amountInWords } from './words';
+import { ReceiptBody } from './ReceiptBody';
+import { settingsOf, usePrintSettings, type PrintLayout } from './settings';
 
 function BillNumber({ id }: { id: string }) {
   const bill = useBill(id);
@@ -19,18 +17,20 @@ function BillNumber({ id }: { id: string }) {
 
 /**
  * The receipt of a payment (Prompt 10.4b, ADR 0054): from whom, how much in figures and in words, how and when it was
- * paid, and the bills it was applied to with what is left unapplied. A reversed payment has no receipt.
+ * paid, and the bills it was applied to with what is left unapplied. A reversed payment has no receipt. Since Prompt
+ * 10.4c it is laid out by the hospital's print settings for a receipt (ADR 0059).
  */
 export function PrintedReceiptPage() {
   const { id = '' } = useParams();
   const payment = usePaymentWithAllocations(id);
   const letterhead = useLetterhead();
+  const settings = usePrintSettings();
 
-  if (payment.data === undefined || letterhead.data === undefined) {
+  if (payment.data === undefined || letterhead.data === undefined || settings.data === undefined) {
     return (
       <section aria-labelledby="page-title">
         <PageHeader title="Print a receipt" back={{ to: `/payments/${id}`, label: 'the payment' }} />
-        <LoadState error={payment.error ?? letterhead.error} what="the payment" />
+        <LoadState error={payment.error ?? letterhead.error ?? settings.error} what="the payment" />
       </section>
     );
   }
@@ -43,91 +43,50 @@ export function PrintedReceiptPage() {
           The payment was reversed: it holds no money, so no receipt is printed for it.
         </Banner>
       ) : (
-        <ReceiptSheet record={payment.data} letterhead={letterhead.data} />
+        <ReceiptSheet
+          record={payment.data}
+          letterhead={letterhead.data}
+          layout={settingsOf(settings.data, 'Payment').layout}
+        />
       )}
     </section>
   );
 }
 
-function ReceiptSheet({ record, letterhead }: { record: PaymentWithAllocations; letterhead: Letterhead }) {
+function ReceiptSheet({
+  record,
+  letterhead,
+  layout,
+}: {
+  record: PaymentWithAllocations;
+  letterhead: Letterhead;
+  layout: PrintLayout;
+}) {
   const { payment } = record;
   const payer = usePayer(payment.payerId);
-  const applied = record.allocations.filter((allocation) => allocation.status !== 'Reversed');
-  const opening = payment.origin === 'Opening';
+  // Read only when the settings ask for them, and waited for before a print.
+  const recorder = useRecorder('payments', payment.id, layout.showCashierName);
+  const patient = usePatientOfPayer(payer.data?.patientId, layout.showPatientContact);
 
   return (
     <PrintSheet
       kind="payments"
       id={payment.id}
       back={{ to: `/payments/${payment.id}`, label: 'the payment' }}
-      title={opening ? 'Statement of Opening Advance' : 'Receipt'}
+      title={payment.origin === 'Opening' ? 'Statement of Opening Advance' : 'Receipt'}
       letterhead={letterhead}
+      layout={layout}
+      waiting={stillReading(recorder) || stillReading(patient)}
     >
-      <dl className={styles.facts}>
-        <div>
-          <dt>{opening ? 'Reference' : 'Receipt number'}</dt>
-          <dd>{payment.number}</dd>
-        </div>
-        <div>
-          <dt>Date</dt>
-          <dd>{formatDate(payment.paymentDate)}</dd>
-        </div>
-        <div>
-          <dt>Received from</dt>
-          <dd>{payer.data?.name ?? '…'}</dd>
-        </div>
-        <div>
-          <dt>Paid by</dt>
-          <dd>
-            {methodLabels[payment.method]}
-            {payment.reference !== null && `, reference ${payment.reference}`}
-          </dd>
-        </div>
-      </dl>
-
-      <dl className={styles.totals}>
-        <div className={styles.grand}>
-          <dt>Amount received</dt>
-          <dd>{formatMoney(payment.amount)}</dd>
-        </div>
-      </dl>
-      <p className={styles.words}>
-        <strong>In words:</strong> {amountInWords(paiseOfServer(payment.amount))}
-      </p>
-
-      {applied.length > 0 && (
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th scope="col">Applied to bill</th>
-                <th scope="col" className={styles.number}>
-                  Amount
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {applied.map((allocation) => (
-                <tr key={allocation.id}>
-                  <td>
-                    <BillNumber id={allocation.billId} />
-                  </td>
-                  <td className={styles.number}>{formatMoney(allocation.amount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <p className={styles.small}>
-        Not yet applied to a bill, as of this print: {formatMoney(payment.unappliedAmount)}.
-      </p>
-      {opening && (
-        <p className={styles.small}>
-          This amount was held for the payer before {letterhead.name} began billing in this system. It is a statement of
-          that advance, not a receipt for money received now.
-        </p>
-      )}
+      <ReceiptBody
+        record={record}
+        letterhead={letterhead}
+        layout={layout}
+        payerName={payer.data?.name}
+        contact={patient.data}
+        cashierName={recorder.data?.name}
+        billNumber={(billId) => <BillNumber id={billId} />}
+      />
     </PrintSheet>
   );
 }

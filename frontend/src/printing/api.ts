@@ -125,3 +125,44 @@ export function useLetterheadImage(kind: LetterheadImageKind, sha256: string | n
 export function imagePending(sha256: string | null, query: { isPending: boolean }): boolean {
   return sha256 !== null && query.isPending;
 }
+
+/**
+ * Who recorded a payment or drafted a refund, by name, for a sheet whose settings ask for it (ADR 0059); idle while
+ * they do not. The name is null where no user of the hospital did.
+ */
+export function useRecorder(kind: 'payments' | 'refunds', id: string, wanted: boolean) {
+  const client = useApiClient();
+
+  return useQuery({
+    queryKey: ['recorder', kind, id],
+    queryFn: ({ signal }) => {
+      const options = { params: { path: { id } }, signal };
+      return answer(
+        kind === 'payments'
+          ? client.GET('/api/v1/payments/{id}/recorder', options)
+          : client.GET('/api/v1/refunds/{id}/recorder', options),
+      );
+    },
+    enabled: wanted,
+  });
+}
+
+/**
+ * The patient a payer pays for, for a receipt or a voucher whose settings ask for the patient's phone and address
+ * (ADR 0059); idle while they do not, or while the payer is no patient's.
+ */
+export function usePatientOfPayer(patientId: string | null | undefined, wanted: boolean) {
+  const client = useApiClient();
+  const id = patientId ?? '';
+
+  return useQuery({
+    queryKey: ['patient-of-payer', id],
+    queryFn: ({ signal }) => answer(client.GET('/api/v1/patients/{id}', { params: { path: { id } }, signal })),
+    enabled: wanted && id !== '',
+  });
+}
+
+/** Whether a read a sheet asked for is still on its way: the sheet is not printed until it is here or has failed. */
+export function stillReading(query: { isPending: boolean; fetchStatus: string }): boolean {
+  return query.isPending && query.fetchStatus !== 'idle';
+}

@@ -1227,6 +1227,138 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BillingRecon.Domain.Identity.PrintSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("FooterLine")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("LogoPosition")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("LogoSize")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int>("MarginBottomMm")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MarginLeftMm")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MarginRightMm")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MarginTopMm")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Paper")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<bool>("PrePrintedStationery")
+                        .HasColumnType("bit");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<bool>("ShowAmountInWords")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ShowCashierName")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ShowPatientContact")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ShowPayer")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ShowSacColumn")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ShowSignatureBlock")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ShowTaxSplit")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("StationeryTopMm")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Terms")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "DocumentType")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PrintSettings_TenantId_DocumentType");
+
+                    b.ToTable("PrintSettings", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PrintSettings_BillPaper", "[DocumentType] <> 'Bill' OR [Paper] <> 'Roll80'");
+
+                            t.HasCheckConstraint("CK_PrintSettings_BillShowsTax", "[DocumentType] <> 'Bill' OR ([ShowSacColumn] = 1 AND [ShowTaxSplit] = 1)");
+
+                            t.HasCheckConstraint("CK_PrintSettings_DocumentType", "[DocumentType] IN ('Bill', 'Payment', 'Refund')");
+
+                            t.HasCheckConstraint("CK_PrintSettings_LogoPosition", "[LogoPosition] IN ('Left', 'Centre', 'Right')");
+
+                            t.HasCheckConstraint("CK_PrintSettings_LogoSize", "[LogoSize] IN ('Small', 'Medium', 'Large')");
+
+                            t.HasCheckConstraint("CK_PrintSettings_MarginBottomMm", "[MarginBottomMm] BETWEEN 5 AND 25");
+
+                            t.HasCheckConstraint("CK_PrintSettings_MarginLeftMm", "[MarginLeftMm] BETWEEN 5 AND 25");
+
+                            t.HasCheckConstraint("CK_PrintSettings_MarginRightMm", "[MarginRightMm] BETWEEN 5 AND 25");
+
+                            t.HasCheckConstraint("CK_PrintSettings_MarginTopMm", "[MarginTopMm] BETWEEN 5 AND 25");
+
+                            t.HasCheckConstraint("CK_PrintSettings_Paper", "[Paper] IN ('A4', 'A5', 'Roll80')");
+
+                            t.HasCheckConstraint("CK_PrintSettings_StationeryTopMm", "[StationeryTopMm] BETWEEN 0 AND 80");
+                        });
+                });
+
             modelBuilder.Entity("BillingRecon.Domain.Identity.RoleDefinition", b =>
                 {
                     b.Property<string>("Code")
@@ -2836,6 +2968,28 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("FK_PrefixChanges_UpdatedByUserId");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Identity.PrintSettings", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_PrintSettings_CreatedByUserId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_PrintSettings_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_PrintSettings_UpdatedByUserId");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Identity.TenantImage", b =>

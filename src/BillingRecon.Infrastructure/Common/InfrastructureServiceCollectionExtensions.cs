@@ -144,6 +144,8 @@ public static class InfrastructureServiceCollectionExtensions
         // BR-802, ADR 0033). Numbers are still taken by INumberSeries alone.
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ITenantImageRepository, TenantImageRepository>();
+        services.AddScoped<IPrintSettingsRepository, PrintSettingsRepository>();
+        services.AddScoped<IUserNames, UserNames>();
         services.AddScoped<IPrefixChangeRepository, PrefixChangeRepository>();
         services.AddScoped<IPrefixChangeReadService, PrefixChangeReadService>();
         services.AddScoped<IPrefixUsage, PrefixUsage>();

@@ -12,6 +12,9 @@ public interface IPaymentReadService
     /// <summary>The payment with every allocation made from it, the oldest first; null when the tenant has no payment with that id.</summary>
     public Task<PaymentAllocationsDto?> GetWithAllocationsAsync(PaymentId id, CancellationToken ct);
 
+    /// <summary>The user who recorded the payment; null when the tenant has no such payment or no user recorded it.</summary>
+    public Task<UserId?> FindRecorderAsync(PaymentId id, CancellationToken ct);
+
     /// <summary>One page of the payments that match <paramref name="query"/>, the newest payment date first.</summary>
     public Task<PageOf<PaymentDto>> ListAsync(ListPaymentsQuery query, CancellationToken ct);
 }

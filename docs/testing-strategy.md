@@ -244,6 +244,15 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   Print waiting for them, a duplicate signed like the original) and `frontend/e2e/letterhead.spec.ts` (the three sheets
   with real images in both themes under nginx's policy, nothing moving when an image arrives, an A4 PDF, a phone, axe,
   and the upload on the Settings screen). The test images are drawn by the tests (`png` of `e2e/stubbed.ts`).
+- **The print settings** (Prompt 10.4c-2; ADR 0059, amended): `PrintSettingsTests` (Domain: the default is the sheet as
+  it was, every limit, a roll for no bill, the two a bill never switches off), `PrintSettingsHandlerTests` (the first
+  save and its version of none, a change, two first saves at once, every refusal at its field, who recorded a
+  document), `PrintSettingsApiTests` (the `Database` collection: read, save, audit, the CHECK constraints, another
+  hospital, the recorder reads), `PrintSettings.test.tsx` (each sheet at each paper, logo place and size, stationery,
+  every switch; the same figures and mark whatever the settings; no `style` attribute; the preview equal to the print,
+  part for part), `PrintSettingsPage.test.tsx` (the Print tab) and `frontend/e2e/printsettings.spec.ts` (the PDF's
+  page box for A4, A5 and the roll, the rules under nginx's policy, no inline style, the A5 table within its sheet
+  with no figure broken, the preview on paper in both themes, a phone, axe).
 - **Signing out** (Prompt 10.2c; ADR 0057): `Shell.test.tsx` holds that Sign out sends `POST /api/v1/auth/logout` with
   the token of the session that ends, signs out here all the same when the API refuses or cannot be reached, tells the
   other tabs who signed out and keeps nothing of it, and that a tab signs out when another says the same user did. On

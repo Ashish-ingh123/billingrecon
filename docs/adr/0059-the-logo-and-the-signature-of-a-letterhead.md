@@ -116,3 +116,68 @@ and the page's content security policy admits images from the app's own origin a
 - Two of the new tests were corrected while they were written, before they had ever passed: a JPEG's size is stated
   36 bytes in, not 37; and the paper's edge is asked for only where the paper's own ground does not already tell it
   from the card (the dark theme).
+
+## Amended 2026-11-26 (Prompt 10.4c-2): print settings for each kind of document
+
+The owner approved the plan of 10.4c-2 on 2026-11-26 "with name" (the cashier's name on a receipt and a voucher). It
+amends ADR 0054 point 8 and its amendment's point 1: a sheet is no longer one fixed layout on A4.
+
+1. **One row for each hospital and kind of document**, table `PrintSettings` (`Bill`, `Payment` for its receipt,
+   `Refund` for its voucher), with its own row version, made by the first save of that kind. **A kind with no row
+   prints by the defaults, which are the sheet as it was** (`PrintLayout.Default`): A4, margins 14 and 12 mm, the logo
+   at the left, medium; the payer, the SAC column, the tax split, the amount in words and the signature block shown;
+   the patient's contact and the cashier's name not shown; no footer line, no terms. Migration `0026_PrintSettings`.
+2. **What can be set:** the paper (A4, A5; an 80 mm roll for a receipt or a voucher); four margins of 5 to 25 mm; the
+   logo at the left, centre or right and small, medium or large, or **pre-printed stationery** with 0 to 80 mm left
+   empty at the top and no head printed; seven switches; a footer line (200 characters) and terms (1000), plain text.
+3. **What a bill may never switch off.** ADR 0054 names no field "mandatory"; the owner approved this list on
+   2026-11-26, pending an accountant (`docs/go-live.md`, G1): for a bill, the SAC column and the tax split are always
+   on (the validator refuses false with the reason, two CHECK constraints refuse it for whatever writes the table, and
+   the sheet shows both on a bill that carries tax whatever a row says); a bill is not printed on a roll. The number,
+   the date, the totals and the mark of the original or a duplicate have no switch at all.
+4. **Settings change the layout only.** No figure is computed or shown differently; the print is recorded and marked as
+   before. A test prints each sheet by the defaults and by a changed layout and holds every figure and the mark equal.
+5. **The API.** `GET /api/v1/settings/print` for anyone signed in (three answers, the defaults for a kind never saved,
+   whose version is eight zero bytes); `PUT /api/v1/settings/print/{documentType}` for the TenantAdmin with `If-Match`
+   (the version of none for a first save), audited as `PrintSettings` `Changed` with what the settings were and are.
+6. **No inline style, and no change of nginx's policy.** Paper, logo place and size are fixed classes. The margins,
+   the paper's size for the printer and the stationery's space are numbers: the sheet writes them into one stylesheet
+   object of the page (`adoptedStyleSheets`, `settings.ts`), built from numbers rounded and held within their limits
+   and from three fixed words, never from text a user typed. Verified in Edge under the policy of `nginx.conf`
+   (`style-src 'self'`): the rules apply, nothing is refused, and no element of the page carries a `style` attribute.
+7. **The preview is the sheet.** `SheetFrame` and the three bodies (`BillBody`, `ReceiptBody`, `RefundBody`) are pure:
+   the printed page gives them the document, the preview a sample. A test renders both from the same settings and
+   holds the markup equal but for the mark ("Preview"). The preview stands on the tokens of paper in either theme
+   (`[data-paper]` in `tokens.css`, held equal to the print block by a test).
+8. **The cashier's name is a read of its own**, `GET /api/v1/payments/{id}/recorder` and
+   `GET /api/v1/refunds/{id}/recorder`, under the read policy of its document, answering the display name alone; asked
+   of Identity through a new contract, `IUserNames`, so Payments names no user entity. **Not a field of the payment and
+   refund answers, as the plan first said:** built that way, nine existing tests failed, which hold that a document
+   reads the same as the change that made it answered; the plan was wrong and the tests were right. The sheet reads the
+   name only when its settings ask, and Print waits for it.
+9. **The roll** is given to the printer as 80 mm by 297 mm: CSS cannot say "as long as the content"; the printer's own
+   driver cuts the paper. Held by a test of the PDF's page box.
+
+### Consequences of the amendment
+
+- A tax invoice has nine columns. On A5 its table is set at 10 px with close padding and only the description wraps;
+  it fits with side margins of 12 mm (tested) and may not with the widest margins. The form says so. A figure is never
+  broken inside itself.
+- Text typed into a form and not saved is kept while the document is switched only if it is saved first: each kind has
+  a form of its own.
+- A closing slip (Prompt 11.2) will be a fourth kind of document: a value of `PrintedDocumentType` and of two CHECK
+  constraints.
+
+### Built note of the amendment
+
+- Verified on the office machine: the strict build and the format gate; Domain 713, Application 478, Architecture 138
+  and Integration 798 tests without a database; the `Database` collection, 534 tests, on LocalDB 2019 in a copy; the
+  frontend's gates and 614 component tests; in Edge against the built app under nginx's policy, 359 browser tests
+  (351 before the A5 table and the form's note were changed, then the 30 of the three print suites and the 52 of the
+  settings and print routes again).
+- **Not verified:** SQL Server 2022, nginx itself, and paper: A5 and an 80 mm roll on real printers, and real
+  pre-printed stationery (runbook section 8, row 10.4c).
+- Existing tests: `Printing.test.tsx` and two browser suites gained one route in their faked API (the settings read,
+  answering the defaults); no assertion changed. Defects the new tests found and the code then fixed: a measure that
+  was no number written into a rule; the form rebuilt after a save, so that "Saved" never showed; the preview's quiet
+  text in the dark theme; the tabs and the preview wider than a phone; figures broken mid-number on A5.

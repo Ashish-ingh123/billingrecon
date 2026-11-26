@@ -4,12 +4,13 @@ import { Link } from 'react-router';
 import { problemOf } from '../api/call';
 import { useApiClient } from '../api/ApiClientContext';
 import { useIdempotentRequest } from '../api/useIdempotentRequest';
-import { BrandMark } from '../brand/BrandMark';
 import buttons from '../components/buttons.module.css';
 import { ProblemAlert } from '../components/ProblemAlert';
 import { formatInstant } from '../format';
-import { addressLines, imagePending, recordPrint, useLetterheadImage, type Letterhead, type PrintedKind } from './api';
+import { imagePending, recordPrint, useLetterheadImage, type Letterhead, type PrintedKind } from './api';
 import styles from './Printing.module.css';
+import { paperLabels, useLayoutRules, type PrintLayout } from './settings';
+import { SheetFrame } from './SheetFrame';
 
 /**
  * The sheet of a printed document (Prompt 10.4b, ADR 0054): the hospital's letterhead, the document's title and which
@@ -23,7 +24,9 @@ import styles from './Printing.module.css';
  * Since Prompt 10.4c (ADR 0059) the hospital's logo stands at the head, in place of the product's mark, and its
  * signatory's signature, name and designation at the foot, each image in a box of a fixed size so that nothing moves
  * when it arrives. Print is offered only once the images the letterhead names are here or have failed, and the dialog
- * opens only when the browser has decoded them. A letterhead that names no image prints as it did before.
+ * opens only when the browser has decoded them. The sheet is laid out by the hospital's print settings for this kind
+ * of document (`SheetFrame`), which also give the printer its paper and margins; a hospital with no settings and no
+ * image prints as it did before.
  */
 export function PrintSheet({
   kind,
@@ -31,6 +34,8 @@ export function PrintSheet({
   back,
   title,
   letterhead,
+  layout,
+  waiting = false,
   children,
 }: {
   kind: PrintedKind;
@@ -38,6 +43,9 @@ export function PrintSheet({
   back: { to: string; label: string };
   title: string;
   letterhead: Letterhead;
+  layout: PrintLayout;
+  /** Whether something the settings ask the sheet to show is still being read: Print waits for it as for the images. */
+  waiting?: boolean;
   children: ReactNode;
 }) {
   const client = useApiClient();
@@ -47,11 +55,14 @@ export function PrintSheet({
   });
   const record = printing.data;
 
-  const logo = useLetterheadImage('logo', letterhead.logoSha256);
-  const signature = useLetterheadImage('signature', letterhead.signatureSha256);
-  const waitingForImages =
-    imagePending(letterhead.logoSha256, logo) || imagePending(letterhead.signatureSha256, signature);
+  // A sheet on pre-printed stationery shows no logo; a sheet without its signature block shows no signature.
+  const logoSha256 = layout.prePrintedStationery ? null : letterhead.logoSha256;
+  const signatureSha256 = layout.showSignatureBlock ? letterhead.signatureSha256 : null;
+  const logo = useLetterheadImage('logo', logoSha256);
+  const signature = useLetterheadImage('signature', signatureSha256);
+  const waitingForImages = waiting || imagePending(logoSha256, logo) || imagePending(signatureSha256, signature);
   const sheet = useRef<HTMLElement>(null);
+  useLayoutRules(layout, 'print');
 
   // The dialog opens once the page says which print it is, and the browser has decoded the images of the sheet.
   useEffect(() => {
@@ -101,72 +112,28 @@ export function PrintSheet({
       </div>
       <p className={styles.barNote}>
         The first print of a document is marked Original and every later one Duplicate. Use the browser&apos;s dialog to
-        print on A4 or to save as PDF.
+        print on {layout.paper === 'Roll80' ? 'the 80 mm roll' : paperLabels[layout.paper]} or to save as PDF.
       </p>
       {printing.error !== null && <ProblemAlert problem={problemOf(printing.error)} />}
 
-      <article ref={sheet} className={styles.sheet} aria-labelledby="sheet-title">
-        <header className={styles.letterhead}>
-          {letterhead.logoSha256 === null ? (
-            <BrandMark className={styles.mark} />
-          ) : (
-            <div className={styles.logoBox}>
-              {logo.data !== undefined && <img className={styles.logo} src={logo.data} alt="" />}
-            </div>
-          )}
-          <div>
-            <p className={styles.hospital}>{letterhead.legalName ?? letterhead.name}</p>
-            {addressLines(letterhead).map((line) => (
-              <p key={line} className={styles.address}>
-                {line}
-              </p>
-            ))}
-            {letterhead.gstin !== null && <p className={styles.address}>GSTIN {letterhead.gstin}</p>}
-          </div>
-        </header>
-
-        <div className={styles.titleRow}>
-          <h2 id="sheet-title" className={styles.title}>
-            {title}
-          </h2>
-          <p className={styles.copy} aria-live="polite">
+      <SheetFrame
+        frameRef={sheet}
+        title={title}
+        letterhead={letterhead}
+        layout={layout}
+        logo={logo.data}
+        signature={signature.data}
+        mark={
+          <>
             {mark}
             {record !== undefined && (
               <span className={styles.printedAt}> · printed {formatInstant(record.printedAtUtc)}</span>
             )}
-          </p>
-        </div>
-
+          </>
+        }
+      >
         {children}
-
-        <footer className={styles.signature}>
-          {letterhead.signatureSha256 === null ? (
-            <>
-              <div className={styles.signatureLine} />
-              <p>{letterhead.signatory ?? 'Authorised signatory'}</p>
-            </>
-          ) : (
-            <>
-              <p className={styles.signatureLabel}>Authorised signatory</p>
-              <div className={styles.signatureBox}>
-                {signature.data !== undefined && (
-                  <img
-                    className={styles.signatureImage}
-                    src={signature.data}
-                    alt={`Signature of ${letterhead.signatory ?? 'the authorised signatory'}`}
-                  />
-                )}
-              </div>
-              <div className={styles.signatureLine} />
-              {letterhead.signatory !== null && <p>{letterhead.signatory}</p>}
-            </>
-          )}
-          {letterhead.signatoryDesignation !== null && (
-            <p className={styles.address}>{letterhead.signatoryDesignation}</p>
-          )}
-          <p className={styles.address}>For {letterhead.legalName ?? letterhead.name}</p>
-        </footer>
-      </article>
+      </SheetFrame>
     </>
   );
 }

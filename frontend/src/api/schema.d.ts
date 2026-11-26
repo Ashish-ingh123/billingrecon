@@ -2034,6 +2034,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/payments/{id}/recorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Who recorded the payment, by name, for a receipt whose print settings ask for it (ADR 0059); the name is null
+         *     when no user of the hospital recorded it.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["DocumentRecorderDto"];
+                        "application/json": components["schemas"]["DocumentRecorderDto"];
+                        "text/json": components["schemas"]["DocumentRecorderDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/payments": {
         parameters: {
             query?: never;
@@ -2388,6 +2442,60 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refunds/{id}/recorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Who drafted the refund, by name, for a voucher whose print settings ask for it (ADR 0059); the name is null when
+         *     no user of the hospital drafted it.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["DocumentRecorderDto"];
+                        "application/json": components["schemas"]["DocumentRecorderDto"];
+                        "text/json": components["schemas"]["DocumentRecorderDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4953,6 +5061,129 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/print": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How the hospital prints its bills, receipts and refund vouchers (ADR 0059), for anyone who is signed in, as the
+         *     letterhead is: three answers, a kind with no saved settings answering the defaults.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PrintSettingsDto"][];
+                        "application/json": components["schemas"]["PrintSettingsDto"][];
+                        "text/json": components["schemas"]["PrintSettingsDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/print/{documentType}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Sets how one kind of document is printed (ADR 0059): Bill, Payment (its receipt) or Refund (its voucher). Every
+         *     part is sent. Needs If-Match with the version read, which for settings never saved is the one the read answered.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    documentType: components["schemas"]["PrintedDocumentType"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdatePrintSettingsRequest"];
+                    "text/json": components["schemas"]["UpdatePrintSettingsRequest"];
+                    "application/*+json": components["schemas"]["UpdatePrintSettingsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PrintSettingsDto"];
+                        "application/json": components["schemas"]["PrintSettingsDto"];
+                        "text/json": components["schemas"]["PrintSettingsDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Precondition Required */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -9683,6 +9914,13 @@ export interface components {
             printedAtUtc: string;
         };
         /**
+         * @description Who recorded a payment or drafted a refund, by name, for the sheet that prints it (ADR 0059). Name
+         *     is null when no user of the hospital did: an opening advance brought in by a batch, or the operator's work.
+         */
+        DocumentRecorderDto: {
+            name: null | string;
+        };
+        /**
          * @description The kinds of document that are numbered (BR-801): each has its own gapless series per tenant and fiscal year, and
          *     its own default prefix among the tenant's settings (BR-802). The member names are stored as text
          *     (docs/database.md, section 3.6), so renaming one is a data migration.
@@ -9765,6 +10003,16 @@ export interface components {
             /** @description The password. */
             password?: null | string;
         };
+        /**
+         * @description Where the logo stands at the head of a printed document (ADR 0059).
+         * @enum {unknown}
+         */
+        LogoPosition: "Left" | "Centre" | "Right";
+        /**
+         * @description How large the logo is printed (ADR 0059): the size of the box it stands in.
+         * @enum {unknown}
+         */
+        LogoSize: "Small" | "Medium" | "Large";
         /**
          * @description What the files of an opening batch would bring in (ADR 0053), and every row that stops them. bool OpeningBatchCheckDto.Accepted
          *     is true when nothing is rejected and the totals are those of the trial balance: only then can the batch be submitted.
@@ -10034,6 +10282,11 @@ export interface components {
             /** Format: int32 */
             totalCount: number | string;
         };
+        /**
+         * @description The paper a document is printed on (ADR 0059).
+         * @enum {unknown}
+         */
+        PaperSize: "A4" | "A5" | "Roll80";
         /**
          * @description What an import of patients and guarantors did, or with a dry run would do (ADR 0053). bool PartyImportDto.Written is true
          *     only when it was no dry run and no row was rejected: one rejected row writes nothing at all.
@@ -10321,6 +10574,43 @@ export interface components {
          * @enum {unknown}
          */
         PrefixChangeStatus: "Pending" | "Approved" | "Rejected";
+        /**
+         * @description The kinds of document that are printed for a patient or a payer (ADR 0054). The member names are stored as text.
+         * @enum {unknown}
+         */
+        PrintedDocumentType: "Bill" | "Payment" | "Refund";
+        /**
+         * @description How the hospital prints one kind of document (ADR 0059; docs/api.md section 8.19). A kind the hospital has saved no
+         *     settings for answers the defaults with string PrintSettingsMapping.NoVersion as its version, which is what
+         *     its first save sends in `If-Match`.
+         */
+        PrintSettingsDto: {
+            documentType: components["schemas"]["PrintedDocumentType"];
+            paper: components["schemas"]["PaperSize"];
+            /** Format: int32 */
+            marginTopMm: number | string;
+            /** Format: int32 */
+            marginRightMm: number | string;
+            /** Format: int32 */
+            marginBottomMm: number | string;
+            /** Format: int32 */
+            marginLeftMm: number | string;
+            logoPosition: components["schemas"]["LogoPosition"];
+            logoSize: components["schemas"]["LogoSize"];
+            prePrintedStationery: boolean;
+            /** Format: int32 */
+            stationeryTopMm: number | string;
+            showPatientContact: boolean;
+            showPayer: boolean;
+            showSacColumn: boolean;
+            showTaxSplit: boolean;
+            showAmountInWords: boolean;
+            showSignatureBlock: boolean;
+            showCashierName: boolean;
+            footerLine: null | string;
+            terms: null | string;
+            version: string;
+        };
         ProblemDetails: {
             type?: null | string;
             title?: null | string;
@@ -10907,6 +11197,60 @@ export interface components {
             phone?: null | string;
             /** @description An e-mail address. */
             email?: null | string;
+        };
+        /** @description How one kind of document is printed (ADR 0059): every part is sent. Unknown members are refused. */
+        UpdatePrintSettingsRequest: {
+            /** @description The paper: A4, A5, or Roll80 for a receipt or a refund voucher. */
+            paper: components["schemas"]["PaperSize"];
+            /**
+             * Format: int32
+             * @description The top margin in millimetres, 5 to 25.
+             */
+            marginTopMm: number | string;
+            /**
+             * Format: int32
+             * @description The right margin in millimetres, 5 to 25.
+             */
+            marginRightMm: number | string;
+            /**
+             * Format: int32
+             * @description The bottom margin in millimetres, 5 to 25.
+             */
+            marginBottomMm: number | string;
+            /**
+             * Format: int32
+             * @description The left margin in millimetres, 5 to 25.
+             */
+            marginLeftMm: number | string;
+            /** @description Where the logo stands: Left, Centre or Right. */
+            logoPosition: components["schemas"]["LogoPosition"];
+            /** @description How large the logo is: Small, Medium or Large. */
+            logoSize: components["schemas"]["LogoSize"];
+            /** @description Whether the paper carries the hospital's head already. */
+            prePrintedStationery: boolean;
+            /**
+             * Format: int32
+             * @description The space left at the top for pre-printed stationery, in millimetres, 0 to 80.
+             */
+            stationeryTopMm: number | string;
+            /** @description Whether the patient's phone and address are printed. */
+            showPatientContact: boolean;
+            /** @description Whether the payer is printed. */
+            showPayer: boolean;
+            /** @description Whether the SAC column is printed; always true for a bill. */
+            showSacColumn: boolean;
+            /** @description Whether the tax is printed in its halves; always true for a bill. */
+            showTaxSplit: boolean;
+            /** @description Whether the amount is printed in words. */
+            showAmountInWords: boolean;
+            /** @description Whether the signature block is printed. */
+            showSignatureBlock: boolean;
+            /** @description Whether who recorded a receipt or a refund voucher is named. */
+            showCashierName: boolean;
+            /** @description A line at the foot of the sheet, at most 200 characters. */
+            footerLine?: null | string;
+            /** @description Terms printed above the foot, plain text, at most 1000 characters. */
+            terms?: null | string;
         };
         /** @description The body of `PUT /api/v1/refunds/{id}`: every value of the draft again; the source cannot change. Unknown members are refused. */
         UpdateRefundRequest: {

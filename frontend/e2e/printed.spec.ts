@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { letterhead, open, patient, payer, posted, sessionOf, type Answers } from './stubbed';
+import { letterhead, open, patient, payer, posted, printSettings, sessionOf, type Answers } from './stubbed';
 
 // The printed bill, receipt and refund voucher in a real browser (Prompt 10.4b, ADR 0054), with no API behind them:
 // Print records the print and only then opens the dialog, and the sheet says Original; on paper there is no application
@@ -66,6 +66,8 @@ const original = { copyNumber: 1, original: true, printedAtUtc: '2026-11-25T06:3
 
 const answers: Answers = {
   'GET /api/v1/settings/letterhead': () => letterhead,
+  // Since Prompt 10.4c the pages read how the hospital prints: here, as a hospital that set nothing.
+  'GET /api/v1/settings/print': () => printSettings(),
   [`GET /api/v1/bills/${posted.id}`]: () => posted,
   [`GET /api/v1/patients/${patient.id}`]: () => patient,
   [`GET /api/v1/payers/${payer.id}`]: () => payer,

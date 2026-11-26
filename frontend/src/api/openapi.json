@@ -3142,6 +3142,67 @@
         }
       }
     },
+    "/api/v1/payments/{id}/recorder": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Who recorded the payment, by name, for a receipt whose print settings ask for it (ADR 0059); the name is null\nwhen no user of the hospital recorded it.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRecorderDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRecorderDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRecorderDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/payments": {
       "post": {
         "tags": [
@@ -3754,6 +3815,67 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/refunds/{id}/recorder": {
+      "get": {
+        "tags": [
+          "Refunds"
+        ],
+        "summary": "Who drafted the refund, by name, for a voucher whose print settings ask for it (ADR 0059); the name is null when\nno user of the hospital drafted it.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRecorderDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRecorderDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRecorderDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "text/plain": {
                 "schema": {
@@ -7720,6 +7842,165 @@
               "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantSettingsDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Precondition Required",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/print": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "How the hospital prints its bills, receipts and refund vouchers (ADR 0059), for anyone who is signed in, as the\nletterhead is: three answers, a kind with no saved settings answering the defaults.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PrintSettingsDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PrintSettingsDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PrintSettingsDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/print/{documentType}": {
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Sets how one kind of document is printed (ADR 0059): Bill, Payment (its receipt) or Refund (its voucher). Every\npart is sent. Needs If-Match with the version read, which for settings never saved is the one the read answered.",
+        "parameters": [
+          {
+            "name": "documentType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PrintedDocumentType"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePrintSettingsRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePrintSettingsRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePrintSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintSettingsDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintSettingsDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintSettingsDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -16559,6 +16840,21 @@
         },
         "description": "One recorded print of a document (ADR 0054): the how-manieth it is, whether that makes it the original, and when. A\nprinted page shows \"Original\" for the first and \"Duplicate\" for every later one."
       },
+      "DocumentRecorderDto": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Who recorded a payment or drafted a refund, by name, for the sheet that prints it (ADR 0059). Name\nis null when no user of the hospital did: an opening advance brought in by a batch, or the operator's work."
+      },
       "DocumentType": {
         "enum": [
           "Bill",
@@ -16818,6 +17114,22 @@
         },
         "additionalProperties": false,
         "description": "The body of `POST /api/v1/auth/login`: the hospital's code, the e-mail address and the password. Unknown members are refused."
+      },
+      "LogoPosition": {
+        "enum": [
+          "Left",
+          "Centre",
+          "Right"
+        ],
+        "description": "Where the logo stands at the head of a printed document (ADR 0059)."
+      },
+      "LogoSize": {
+        "enum": [
+          "Small",
+          "Medium",
+          "Large"
+        ],
+        "description": "How large the logo is printed (ADR 0059): the size of the box it stands in."
       },
       "OpeningBatchCheckDto": {
         "required": [
@@ -17628,6 +17940,14 @@
           }
         },
         "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
+      },
+      "PaperSize": {
+        "enum": [
+          "A4",
+          "A5",
+          "Roll80"
+        ],
+        "description": "The paper a document is printed on (ADR 0059)."
       },
       "PartyImportDto": {
         "required": [
@@ -18441,6 +18761,133 @@
           "Rejected"
         ],
         "description": "Where a prefix change stands (ADR 0033)."
+      },
+      "PrintedDocumentType": {
+        "enum": [
+          "Bill",
+          "Payment",
+          "Refund"
+        ],
+        "description": "The kinds of document that are printed for a patient or a payer (ADR 0054). The member names are stored as text."
+      },
+      "PrintSettingsDto": {
+        "required": [
+          "documentType",
+          "paper",
+          "marginTopMm",
+          "marginRightMm",
+          "marginBottomMm",
+          "marginLeftMm",
+          "logoPosition",
+          "logoSize",
+          "prePrintedStationery",
+          "stationeryTopMm",
+          "showPatientContact",
+          "showPayer",
+          "showSacColumn",
+          "showTaxSplit",
+          "showAmountInWords",
+          "showSignatureBlock",
+          "showCashierName",
+          "footerLine",
+          "terms",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "documentType": {
+            "$ref": "#/components/schemas/PrintedDocumentType"
+          },
+          "paper": {
+            "$ref": "#/components/schemas/PaperSize"
+          },
+          "marginTopMm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "marginRightMm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "marginBottomMm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "marginLeftMm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoPosition": {
+            "$ref": "#/components/schemas/LogoPosition"
+          },
+          "logoSize": {
+            "$ref": "#/components/schemas/LogoSize"
+          },
+          "prePrintedStationery": {
+            "type": "boolean"
+          },
+          "stationeryTopMm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "showPatientContact": {
+            "type": "boolean"
+          },
+          "showPayer": {
+            "type": "boolean"
+          },
+          "showSacColumn": {
+            "type": "boolean"
+          },
+          "showTaxSplit": {
+            "type": "boolean"
+          },
+          "showAmountInWords": {
+            "type": "boolean"
+          },
+          "showSignatureBlock": {
+            "type": "boolean"
+          },
+          "showCashierName": {
+            "type": "boolean"
+          },
+          "footerLine": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "terms": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "description": "How the hospital prints one kind of document (ADR 0059; docs/api.md section 8.19). A kind the hospital has saved no\nsettings for answers the defaults with string PrintSettingsMapping.NoVersion as its version, which is what\nits first save sends in `If-Match`."
       },
       "ProblemDetails": {
         "type": "object",
@@ -20196,6 +20643,134 @@
         },
         "additionalProperties": false,
         "description": "The body of `PATCH /api/v1/payers/{id}`: the name and every contact detail, and a contact detail left out is\ncleared. The kind, the patient link and the status cannot be changed here: a body that names them, or any member the\nAPI does not know, is refused with 400."
+      },
+      "UpdatePrintSettingsRequest": {
+        "required": [
+          "paper",
+          "marginTopMm",
+          "marginRightMm",
+          "marginBottomMm",
+          "marginLeftMm",
+          "logoPosition",
+          "logoSize",
+          "prePrintedStationery",
+          "stationeryTopMm",
+          "showPatientContact",
+          "showPayer",
+          "showSacColumn",
+          "showTaxSplit",
+          "showAmountInWords",
+          "showSignatureBlock",
+          "showCashierName"
+        ],
+        "type": "object",
+        "properties": {
+          "paper": {
+            "description": "The paper: A4, A5, or Roll80 for a receipt or a refund voucher.",
+            "$ref": "#/components/schemas/PaperSize"
+          },
+          "marginTopMm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The top margin in millimetres, 5 to 25.",
+            "format": "int32"
+          },
+          "marginRightMm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The right margin in millimetres, 5 to 25.",
+            "format": "int32"
+          },
+          "marginBottomMm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The bottom margin in millimetres, 5 to 25.",
+            "format": "int32"
+          },
+          "marginLeftMm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The left margin in millimetres, 5 to 25.",
+            "format": "int32"
+          },
+          "logoPosition": {
+            "description": "Where the logo stands: Left, Centre or Right.",
+            "$ref": "#/components/schemas/LogoPosition"
+          },
+          "logoSize": {
+            "description": "How large the logo is: Small, Medium or Large.",
+            "$ref": "#/components/schemas/LogoSize"
+          },
+          "prePrintedStationery": {
+            "type": "boolean",
+            "description": "Whether the paper carries the hospital's head already."
+          },
+          "stationeryTopMm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The space left at the top for pre-printed stationery, in millimetres, 0 to 80.",
+            "format": "int32"
+          },
+          "showPatientContact": {
+            "type": "boolean",
+            "description": "Whether the patient's phone and address are printed."
+          },
+          "showPayer": {
+            "type": "boolean",
+            "description": "Whether the payer is printed."
+          },
+          "showSacColumn": {
+            "type": "boolean",
+            "description": "Whether the SAC column is printed; always true for a bill."
+          },
+          "showTaxSplit": {
+            "type": "boolean",
+            "description": "Whether the tax is printed in its halves; always true for a bill."
+          },
+          "showAmountInWords": {
+            "type": "boolean",
+            "description": "Whether the amount is printed in words."
+          },
+          "showSignatureBlock": {
+            "type": "boolean",
+            "description": "Whether the signature block is printed."
+          },
+          "showCashierName": {
+            "type": "boolean",
+            "description": "Whether who recorded a receipt or a refund voucher is named."
+          },
+          "footerLine": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "A line at the foot of the sheet, at most 200 characters."
+          },
+          "terms": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Terms printed above the foot, plain text, at most 1000 characters."
+          }
+        },
+        "additionalProperties": false,
+        "description": "How one kind of document is printed (ADR 0059): every part is sent. Unknown members are refused."
       },
       "UpdateRefundRequest": {
         "type": "object",

@@ -2,6 +2,7 @@ using BillingRecon.Api.Common;
 using BillingRecon.Api.Common.Authorization;
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Identity;
+using BillingRecon.Domain.Common;
 using BillingRecon.Domain.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -173,6 +174,50 @@ public sealed class SettingsController : ApiControllerBase
         [FromServices] ICommandHandler<RemoveLetterheadImageCommand, TenantSettingsDto> handler,
         CancellationToken ct)
         => RemoveImageAsync(LetterheadImageKind.Signature, handler, ct);
+
+    /// <summary>
+    /// How the hospital prints its bills, receipts and refund vouchers (ADR 0059), for anyone who is signed in, as the
+    /// letterhead is: three answers, a kind with no saved settings answering the defaults.
+    /// </summary>
+    [Authorize(Policy = Policies.SignedIn)]
+    [HttpGet("print")]
+    [ProducesResponseType<IReadOnlyList<PrintSettingsDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPrintSettingsAsync(
+        [FromServices] IQueryHandler<GetPrintSettingsQuery, IReadOnlyList<PrintSettingsDto>> handler,
+        CancellationToken ct)
+    {
+        var result = await handler.HandleAsync(new GetPrintSettingsQuery(), ct);
+
+        return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
+    }
+
+    /// <summary>
+    /// Sets how one kind of document is printed (ADR 0059): Bill, Payment (its receipt) or Refund (its voucher). Every
+    /// part is sent. Needs If-Match with the version read, which for settings never saved is the one the read answered.
+    /// </summary>
+    [Authorize(Policy = Policies.ManageTenant)]
+    [HttpPut("print/{documentType}")]
+    [ProducesResponseType<PrintSettingsDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status428PreconditionRequired)]
+    public async Task<IActionResult> UpdatePrintSettingsAsync(
+        PrintedDocumentType documentType,
+        UpdatePrintSettingsRequest request,
+        [FromServices] ICommandHandler<UpdatePrintSettingsCommand, PrintSettingsDto> handler,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (!TryGetExpectedVersion(out var version, out var refusal))
+        {
+            return refusal;
+        }
+
+        var result = await handler.HandleAsync(request.ToCommand(documentType, version), ct);
+
+        return result.IsSuccess ? OkWithVersion(result.Value, result.Value.Version) : Problem(result.Error);
+    }
 
     private async Task<IActionResult> ReadImageAsync(
         LetterheadImageKind kind,

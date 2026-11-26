@@ -316,3 +316,33 @@ export function page<T>(items: T[], totalCount = items.length, pageNumber = 1) {
 export function problem(status: number, errorCode: string, detail: string, errors?: Record<string, string[]>) {
   return { title: detail, status, detail, errorCode, correlationId: 'c0ffee00-0000-4000-8000-000000000000', errors };
 }
+
+/**
+ * How a hospital that saved no print settings prints each kind of document, as `GET /api/v1/settings/print` answers it
+ * (ADR 0059): the defaults, which are the sheet as it was before there were settings.
+ */
+export function printSettings(overrides: Partial<Record<'Bill' | 'Payment' | 'Refund', object>> = {}) {
+  return (['Bill', 'Payment', 'Refund'] as const).map((documentType) => ({
+    documentType,
+    paper: 'A4',
+    marginTopMm: 14,
+    marginRightMm: 12,
+    marginBottomMm: 14,
+    marginLeftMm: 12,
+    logoPosition: 'Left',
+    logoSize: 'Medium',
+    prePrintedStationery: false,
+    stationeryTopMm: 0,
+    showPatientContact: false,
+    showPayer: true,
+    showSacColumn: true,
+    showTaxSplit: true,
+    showAmountInWords: true,
+    showSignatureBlock: true,
+    showCashierName: false,
+    footerLine: null,
+    terms: null,
+    version: 'AAAAAAAAAAA=',
+    ...overrides[documentType],
+  }));
+}

@@ -161,3 +161,28 @@ describe.each(Object.entries(themes))('the %s theme, since the letterhead images
     expect(tokens.paper).toBe('#ffffff');
   });
 });
+
+// Since Prompt 10.4c (ADR 0059): a sheet previewed on the screen is paper, in either theme.
+describe('a sheet of paper on the screen', () => {
+  const onPaper = tokensOf('[data-paper]');
+  const printed = tokensOf('@media print');
+
+  it('takes the very tokens of the print styles, so that the preview is what prints', () => {
+    expect(Object.keys(onPaper).length).toBeGreaterThanOrEqual(8);
+    for (const [name, value] of Object.entries(onPaper)) {
+      expect(printed[name], name).toBe(value);
+    }
+  });
+
+  it.each(['text', 'text-muted'])('%s is at least 4.5:1 on the sheet and on what is sunk into it', (text) => {
+    for (const ground of ['surface', 'surface-raised', 'surface-sunken']) {
+      expect(contrast(onPaper[text] ?? '', onPaper[ground] ?? '')).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('the lines that carry meaning are at least 3:1 on the sheet', () => {
+    for (const line of ['border', 'border-strong']) {
+      expect(contrast(onPaper[line] ?? '', onPaper['surface-raised'] ?? '')).toBeGreaterThanOrEqual(3);
+    }
+  });
+});

@@ -209,6 +209,12 @@ export const routes: RouteObject[] = [
             'ReadRefunds',
             async () => (await import('./printing/PrintedRefundPage')).PrintedRefundPage,
           ),
+          // How the hospital's documents are printed (Prompt 10.4c, ADR 0059).
+          guarded(
+            '/administration/print',
+            'ManageTenant',
+            async () => (await import('./administration/PrintSettingsPage')).PrintSettingsPage,
+          ),
           // Bringing in a hospital's records and opening balances (Prompt 10.3b, ADR 0053).
           guarded(
             '/administration/import',

@@ -480,7 +480,9 @@ frontend/                      React + TypeScript + Vite (ADR 0038): index.html 
                                src/printing (api.ts, PrintSheet, PrintLink, the three printed pages, tax.ts, words.ts) and
                                e2e/printed.spec.ts (ADR 0054, amended). src/administration/LetterheadImages.tsx (the
                                upload cards), the image helpers of src/printing/api.ts and e2e/letterhead.spec.ts
-                               (ADR 0059).
+                               (ADR 0059). src/printing also settings.ts, SheetFrame, the three bodies, PrintPreview and
+                               samples.ts, src/administration/PrintSettingsPage.tsx and e2e/printsettings.spec.ts
+                               (ADR 0059, amended).
                                src/administration (api.ts, the users list, a user's page, the user forms with
                                RoleChoices, the settings with the prefix request) and src/auth/ChangePasswordPage.tsx
                                (ADR 0051).
@@ -1117,5 +1119,18 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    the three sheets carry the logo and the signature block in boxes of a fixed size, Print waits for the images, and a
    duplicate is signed like the original. Two tokens, `paper` and `paper-ink`. A new table that is append-only joins the
    lists of `AppendOnlyGuardTests` and `TenantQueryFilterTests`, and its `DENY` goes at the end of its migration. Owed:
-   runbook section 8, row 10.4c, and `docs/go-live.md`, G7 (whether a scanned signature is enough). **Next: 10.4c-2**, the
-   print settings per document with their preview, then the proposal of a "Download PDF".
+   runbook section 8, row 10.4c, and `docs/go-live.md`, G7 (whether a scanned signature is enough).
+   **10.4c-2 is written (2026-11-26, ADR 0059 "Amended 2026-11-26"):** print settings for each hospital and kind of
+   document (`PrintSettings`, one row a kind made by its first save, migration `0026_PrintSettings`; `GET
+   /api/v1/settings/print` for anyone signed in, `PUT .../print/{documentType}` for the TenantAdmin with `If-Match`, the
+   version of none `AAAAAAAAAAA=` for a first save). Paper A4, A5 or `Roll80` (never for a bill), margins 5 to 25 mm, the
+   logo's place and size or pre-printed stationery, seven switches, a footer line and terms. `PrintLayout.Default` is the
+   sheet as it was. For a bill the SAC column and the tax split cannot be switched off (validator, two CHECK constraints,
+   and the sheet itself). In the frontend a sheet is `SheetFrame` with a pure body (`BillBody`, `ReceiptBody`,
+   `RefundBody`), drawn alike by the printed page and by the preview of the Print tab (`/administration/print`); the
+   margins and the paper reach the page through one stylesheet object (`useLayoutRules` in `printing/settings.ts`), so no
+   inline style is written and nginx's policy is unchanged; a preview takes the tokens of paper (`[data-paper]`). The
+   cashier's name is its own read, `GET /api/v1/{payments|refunds}/{id}/recorder`, through the Identity contract
+   `IUserNames`: a payment and a refund answer the same wherever they are read, which nine tests hold. Owed: runbook
+   section 8, row 10.4c (SQL Server 2022, nginx, and paper: A5, the roll, real stationery). **Next:** the proposal of a
+   "Download PDF" (10.4c, part C), then 10.4d.

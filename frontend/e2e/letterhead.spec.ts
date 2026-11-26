@@ -9,6 +9,7 @@ import {
   patient,
   payer,
   posted,
+  printSettings,
   screenshots,
   sessionOf,
   signatureImage,
@@ -79,6 +80,7 @@ const original = { copyNumber: 1, original: true, printedAtUtc: '2026-11-26T06:3
 
 const answers: Answers = {
   'GET /api/v1/settings/letterhead': () => signed,
+  'GET /api/v1/settings/print': () => printSettings(),
   'GET /api/v1/settings/letterhead/logo': () => logoImage,
   'GET /api/v1/settings/letterhead/signature': () => signatureImage,
   [`GET /api/v1/bills/${posted.id}`]: () => posted,

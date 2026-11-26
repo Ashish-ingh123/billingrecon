@@ -14,6 +14,10 @@ namespace BillingRecon.Infrastructure.Payments;
 public sealed class PaymentReadService(BillingReconDbContext context) : IPaymentReadService
 {
     /// <inheritdoc />
+    public Task<UserId?> FindRecorderAsync(PaymentId id, CancellationToken ct)
+        => context.Set<Payment>().Where(payment => payment.Id == id).Select(payment => payment.CreatedByUserId).SingleOrDefaultAsync(ct);
+
+    /// <inheritdoc />
     public async Task<PaymentDto?> GetAsync(PaymentId id, CancellationToken ct)
     {
         var payment = await Payments().SingleOrDefaultAsync(candidate => candidate.Id == id, ct);

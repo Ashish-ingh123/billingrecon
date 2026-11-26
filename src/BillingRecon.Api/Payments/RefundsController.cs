@@ -46,6 +46,24 @@ public sealed class RefundsController : ApiControllerBase
             : Problem(result.Error);
     }
 
+    /// <summary>
+    /// Who drafted the refund, by name, for a voucher whose print settings ask for it (ADR 0059); the name is null when
+    /// no user of the hospital drafted it.
+    /// </summary>
+    [Authorize(Policy = Policies.ReadRefunds)]
+    [HttpGet("{id:guid}/recorder")]
+    [ProducesResponseType<DocumentRecorderDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetRecorderAsync(
+        Guid id,
+        [FromServices] IQueryHandler<GetRefundRecorderQuery, DocumentRecorderDto> handler,
+        CancellationToken ct)
+    {
+        var result = await handler.HandleAsync(new GetRefundRecorderQuery(new RefundId(id)), ct);
+
+        return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
+    }
+
     /// <summary>Reads one refund.</summary>
     [Authorize(Policy = Policies.ReadRefunds)]
     [HttpGet("{id:guid}", Name = GetRefundRoute)]

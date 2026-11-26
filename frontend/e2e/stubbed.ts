@@ -79,6 +79,35 @@ export const letterhead = {
   logoSha256: null,
   signatureSha256: null,
 };
+/**
+ * How a hospital prints each kind of document, as `GET /api/v1/settings/print` answers it (ADR 0059): the defaults of a
+ * hospital that saved nothing, with what a test sets for a kind laid over them.
+ */
+export function printSettings(overrides: Partial<Record<'Bill' | 'Payment' | 'Refund', object>> = {}) {
+  return (['Bill', 'Payment', 'Refund'] as const).map((documentType) => ({
+    documentType,
+    paper: 'A4',
+    marginTopMm: 14,
+    marginRightMm: 12,
+    marginBottomMm: 14,
+    marginLeftMm: 12,
+    logoPosition: 'Left',
+    logoSize: 'Medium',
+    prePrintedStationery: false,
+    stationeryTopMm: 0,
+    showPatientContact: false,
+    showPayer: true,
+    showSacColumn: true,
+    showTaxSplit: true,
+    showAmountInWords: true,
+    showSignatureBlock: true,
+    showCashierName: false,
+    footerLine: null,
+    terms: null,
+    version: 'AAAAAAAAAAA=',
+    ...overrides[documentType],
+  }));
+}
 export const lines = [
   {
     id: 'd4000000-0000-4000-8000-000000000001',
