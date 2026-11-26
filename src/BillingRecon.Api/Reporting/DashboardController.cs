@@ -14,7 +14,7 @@ namespace BillingRecon.Api.Reporting;
 /// reused. For a TenantAdmin, a Supervisor or a Viewer.
 /// </summary>
 [Route(ApiRoutes.V1 + "/dashboard")]
-public sealed class DashboardController : ApiControllerBase
+public sealed class DashboardController(IAuthorizationService authorization) : ApiControllerBase
 {
     /// <summary>The six cards: billed, collected, outstanding dues, unapplied cash, pending approvals and drift, each against the previous period.</summary>
     [Authorize(Policy = Policies.Dashboard)]
@@ -71,14 +71,21 @@ public sealed class DashboardController : ApiControllerBase
         CancellationToken ct)
         => Answer(await handler.HandleAsync(new DashboardRecentPaymentsQuery { From = from, To = to }, ct));
 
-    /// <summary>The three oldest requests that wait for a checker, from the pending-approvals report.</summary>
+    /// <summary>The three oldest requests that wait for a checker, from the pending-approvals report, of the kinds the caller may read.</summary>
     [Authorize(Policy = Policies.Dashboard)]
     [HttpGet("pending-approvals")]
     [ProducesResponseType<ReportPage<PendingApprovalDto, PendingApprovalsTotalsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> PendingApprovalsAsync(
         [FromServices] IQueryHandler<PendingApprovalsQuery, ReportPage<PendingApprovalDto, PendingApprovalsTotalsDto>> handler,
         CancellationToken ct)
-        => Answer(await handler.HandleAsync(new PendingApprovalsQuery { Page = Paging.FirstPage, PageSize = 3 }, ct));
+        => Answer(await handler.HandleAsync(
+            new PendingApprovalsQuery
+            {
+                Page = Paging.FirstPage,
+                PageSize = 3,
+                VisibleDocumentTypes = await PendingApprovalPolicies.VisibleToAsync(authorization, User),
+            },
+            ct));
 
     /// <summary>The first three drift rows of the reconciliation, with its totals; none when the caches equal the ledger.</summary>
     [Authorize(Policy = Policies.Dashboard)]

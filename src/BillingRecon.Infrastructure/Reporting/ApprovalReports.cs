@@ -23,6 +23,13 @@ public sealed class ApprovalReports(BillingReconDbContext context, IClock clock)
         ArgumentNullException.ThrowIfNull(query);
 
         var pending = context.Set<ApprovalRequest>().AsNoTracking().Where(request => request.Status == ApprovalStatus.Pending);
+
+        // Before the count and the oldest: the totals are of what the caller is shown (review 2026-11, finding R8).
+        if (query.VisibleDocumentTypes is { } visible)
+        {
+            pending = pending.Where(request => visible.Contains(request.DocumentType));
+        }
+
         if (query.DocumentType is { } documentType)
         {
             pending = pending.Where(request => request.DocumentType == documentType);

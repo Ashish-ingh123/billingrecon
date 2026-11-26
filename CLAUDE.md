@@ -1161,4 +1161,7 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    a user who only edited in between is not caught (ADR 0023 "Amended 2026-11-26"). **R3 is fixed:** a reservation older
    than `IdempotencyKey.AbandonedAfter` (five minutes) is taken over by a retry of the same request, and
    `IdempotencyKeySweeper` (the first hosted background work) deletes expired keys once a day through `IdempotencyKeySweep`,
-   tenant by tenant, without raw SQL (ADR 0006 "Amended 2026-11-26"). The other two of its ten wait for the owner.
+   tenant by tenant, without raw SQL (ADR 0006 "Amended 2026-11-26"). **R8 is fixed:** the pending-approvals report and
+   the dashboard panel filter their rows and totals by `Api/Reporting/PendingApprovalPolicies` (each
+   `ApprovalDocumentType` with its read policy; deciders see all). A new kind of approval request needs its line there, or
+   `PendingApprovalPolicyTests` fails. The last of its ten, R10, waits.

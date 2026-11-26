@@ -240,6 +240,44 @@ public sealed class AdjustmentsApiTests(SqlServerFixture sqlServer) : DatabaseTe
     }
 
     [Fact]
+    public async Task US42_a_waiting_adjustment_is_in_the_pending_approvals_of_who_may_read_it_and_of_no_other_role()
+    {
+        // Review 2026-11, finding R8: the report and the panel of the dashboard showed every role every waiting request.
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var (maker, checker) = await NewMakerAndCheckerAsync();
+        using var clerk = factory.CreateClientFor(maker, "BillingClerk");
+        var (patient, payer) = await clerk.NewBillPartiesAsync();
+        var bill = await PostedBillAsync(clerk, patient, payer, Dressing);
+        await SubmittedAsync(clerk, await DraftedAsync(clerk, bill, AdjustmentKind.Discount, 26m));
+        _ = checker;
+
+        async Task ShouldSeeAsync(int expected, params string[] roles)
+        {
+            using var reader = factory.CreateClientFor(new FixedIdentity(maker.TenantId, new UserId(Guid.NewGuid())), roles);
+
+            // The dashboard is open to fewer roles (TenantAdmin, Supervisor, Viewer); its panel is asked where it is.
+            var opensDashboard = roles.Any(role => role is "TenantAdmin" or "Supervisor" or "Viewer");
+            string[] paths = opensDashboard ? ["/api/v1/reports/pending-approvals", "/api/v1/reports/pending-approvals?documentType=Adjustment", "/api/v1/dashboard/pending-approvals"] : ["/api/v1/reports/pending-approvals", "/api/v1/reports/pending-approvals?documentType=Adjustment"];
+
+            foreach (var path in paths)
+            {
+                using var response = await reader.GetAsync(new Uri(path, UriKind.Relative));
+                response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+                var page = await response.ReadAsAsync<BillingRecon.Application.Reporting.ReportPage<BillingRecon.Application.Reporting.PendingApprovalDto, BillingRecon.Application.Reporting.PendingApprovalsTotalsDto>>();
+
+                // The rows and the count: a count of what is not shown would say that it is there.
+                (page.Items.Count, page.TotalCount).ShouldBe((expected, expected), $"{string.Join(',', roles)} at {path}");
+            }
+        }
+
+        await ShouldSeeAsync(0, "Cashier");
+        foreach (var role in new[] { "BillingClerk", "Viewer", "Supervisor", "TenantAdmin" })
+        {
+            await ShouldSeeAsync(1, role);
+        }
+    }
+
+    [Fact]
     public async Task BR603_BR605_the_maker_cannot_decide_and_a_rejection_with_its_reason_makes_the_adjustment_a_draft_again()
     {
         using var factory = new DatabaseApiFactory(SqlServer);

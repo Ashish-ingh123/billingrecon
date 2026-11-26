@@ -12,6 +12,12 @@ public sealed record PendingApprovalsQuery : IPagedQuery
     /// <summary>Only the requests about this kind of document.</summary>
     public ApprovalDocumentType? DocumentType { get; init; }
 
+    /// <summary>
+    /// The kinds of document whose requests the caller is shown, decided by the API from the caller's roles (review
+    /// 2026-11, finding R8); null shows every kind. Never read from the request.
+    /// </summary>
+    public IReadOnlyCollection<ApprovalDocumentType>? VisibleDocumentTypes { get; init; }
+
     /// <inheritdoc />
     public int Page { get; init; } = Paging.FirstPage;
 

@@ -16,7 +16,7 @@ namespace BillingRecon.Api.Reporting;
 /// the highest severity (CLAUDE.md section 4, rule 4).
 /// </summary>
 [Route(ApiRoutes.V1 + "/reports")]
-public sealed class ReportsController(ILogger<ReportsController> logger) : ApiControllerBase
+public sealed class ReportsController(ILogger<ReportsController> logger, IAuthorizationService authorization) : ApiControllerBase
 {
     /// <summary>
     /// The drift between the cached balances and the ledger, and every number series that is not gapless (US-41): an
@@ -165,7 +165,10 @@ public sealed class ReportsController(ILogger<ReportsController> logger) : ApiCo
         return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
     }
 
-    /// <summary>The maker-checker requests that wait for a decision, the oldest first, with how long each has waited.</summary>
+    /// <summary>
+    /// The maker-checker requests that wait for a decision, the oldest first, with how long each has waited: those of
+    /// the kinds of document the caller's role may read, and all of them for who may decide.
+    /// </summary>
     [Authorize(Policy = Policies.Reports)]
     [HttpGet("pending-approvals")]
     [ProducesResponseType<ReportPage<PendingApprovalDto, PendingApprovalsTotalsDto>>(StatusCodes.Status200OK)]
@@ -177,7 +180,9 @@ public sealed class ReportsController(ILogger<ReportsController> logger) : ApiCo
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var result = await handler.HandleAsync(request.ToQuery(), ct);
+        // A row names a document, its payer and its amount: the caller is shown the kinds its role may read (R8).
+        var visible = await PendingApprovalPolicies.VisibleToAsync(authorization, User);
+        var result = await handler.HandleAsync(request.ToQuery() with { VisibleDocumentTypes = visible }, ct);
 
         return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
     }

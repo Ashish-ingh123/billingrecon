@@ -281,7 +281,7 @@
         "tags": [
           "Dashboard"
         ],
-        "summary": "The three oldest requests that wait for a checker, from the pending-approvals report.",
+        "summary": "The three oldest requests that wait for a checker, from the pending-approvals report, of the kinds the caller may read.",
         "responses": {
           "200": {
             "description": "OK",
@@ -1040,7 +1040,7 @@
         "tags": [
           "Reports"
         ],
-        "summary": "The maker-checker requests that wait for a decision, the oldest first, with how long each has waited.",
+        "summary": "The maker-checker requests that wait for a decision, the oldest first, with how long each has waited: those of\nthe kinds of document the caller's role may read, and all of them for who may decide.",
         "parameters": [
           {
             "name": "DocumentType",

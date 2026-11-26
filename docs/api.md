@@ -909,7 +909,7 @@ date. A report reads committed rows and takes no lock.
 | `GET /api/v1/reports/payers/{payerId}/balance` | one payer's balances (US-40); 404 `payer_not_found` | |
 | `GET /api/v1/reports/unapplied-cash` | page of payments that hold unapplied cash, the oldest first | `payerId` |
 | `GET /api/v1/reports/available-credit` | page of posted credit notes that hold available credit, the oldest first | `payerId` |
-| `GET /api/v1/reports/pending-approvals` | page of the requests that wait for a checker, the oldest first | `documentType` |
+| `GET /api/v1/reports/pending-approvals` | page of the requests that wait for a checker, the oldest first. Since 2026-11-26 (review finding R8) the rows, the count and the oldest are of the kinds of document the caller's role may read (a Cashier is shown no waiting adjustment, a BillingClerk no waiting refund; a prefix change and an opening batch are shown to who may decide), and of every kind for a Supervisor or TenantAdmin. A `documentType` the caller may not read answers an empty page, not 403 | `documentType` |
 | `GET /api/v1/reports/reconciliation` | page of drift rows (US-41), by identity and reference | |
 
 **Periods.** A register covers `from` to `to` (`yyyy-MM-dd`, business dates in India), both included: both given or
@@ -971,7 +971,7 @@ queries. Amounts are exact decimals with two places; nothing is rounded to lakh 
 | `GET /api/v1/dashboard/ageing` | the balance due of posted bills by days past due, as of today in India | |
 | `GET /api/v1/dashboard/top-payers` | the first 5 rows of the outstanding-by-payer report, with its totals | |
 | `GET /api/v1/dashboard/recent-payments` | the 5 newest payments of the period, from the payment register, with its totals | `from`, `to` |
-| `GET /api/v1/dashboard/pending-approvals` | the 3 oldest rows of the pending-approvals report, with its totals | |
+| `GET /api/v1/dashboard/pending-approvals` | the 3 oldest rows of the pending-approvals report, with its totals, filtered as the report is (the three roles of the dashboard read every kind today) | |
 | `GET /api/v1/dashboard/drift` | the first 3 rows of the reconciliation report, with its totals | |
 
 **The period** is `from` to `to`, business dates in India, both included: both given or neither, the end not before the

@@ -244,7 +244,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The three oldest requests that wait for a checker, from the pending-approvals report. */
+        /** The three oldest requests that wait for a checker, from the pending-approvals report, of the kinds the caller may read. */
         get: {
             parameters: {
                 query?: never;
@@ -773,7 +773,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The maker-checker requests that wait for a decision, the oldest first, with how long each has waited. */
+        /**
+         * The maker-checker requests that wait for a decision, the oldest first, with how long each has waited: those of
+         *     the kinds of document the caller's role may read, and all of them for who may decide.
+         */
         get: {
             parameters: {
                 query?: {

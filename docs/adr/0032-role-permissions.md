@@ -135,3 +135,24 @@ is asserted to be refused. No screen changed: each shows the trail of the record
 
 Verified on the office machine: Architecture 141, the `Database` collection, 541, on LocalDB 2019 in a copy. SQL
 Server 2022 is owed with the rest.
+
+## Amended 2026-11-26 (Prompt 10.8, review finding R8): a waiting request is shown to who may read its document
+
+The inbox of the checker (`GET /api/v1/approval-requests`) needs `Decide`. The pending-approvals report needed only
+`Reports`, which all five roles hold, and named for each request its document, payer and amount: a Cashier listed the
+waiting adjustments, a BillingClerk the waiting refunds, both blank cells of the matrix (`docs/review-2026-11.md`, R8).
+
+1. **The report stays open to every role, and its rows are filtered.** A maker sees what waits of the documents they
+   may read; closing the report to the deciders would have taken that from them. `PendingApprovalPolicies` (Api,
+   Reporting) names the read policy of each kind of document a request can be for; who may decide is shown every kind.
+2. **The count and the oldest are of what is shown:** a count of rows that are not shown would say that they exist.
+3. A prefix change and an opening batch are shown to who may decide.
+4. The panel of the dashboard takes the same filter. Its three roles (TenantAdmin, Supervisor, Viewer) read every kind
+   today, so nothing changes there; it is filtered so that a role added to the dashboard later is not a new hole.
+5. **Not changed:** the figure "pending approvals" of the dashboard summary and trend is a count of all requests, with
+   no document named, for the same three roles.
+
+Tests: `PendingApprovalPolicyTests` (every kind named, with a read policy or `Decide`), and one database test each in
+`AdjustmentsApiTests` and `RefundsApiTests` (`US42_a_waiting_..._is_in_the_pending_approvals_of_who_may_read_it_and_of_no_other_role`).
+The OpenAPI snapshot changed in two descriptions only. Verified on the office machine: the `Database` collection, 549,
+on LocalDB 2019 in a copy; Architecture 143. SQL Server 2022 is owed with the rest.
