@@ -201,7 +201,7 @@ it.
 |---|---|---|---|
 | R1 | A user denies a change they made | An append-only audit record per change, with the user, the instant, the correlation id and both images, in the transaction of the change; `DENY UPDATE, DELETE` at the database | Done (ADR 0020, ADR 0034) |
 | R2 | A maker approves their own request | Maker and checker differ, checked by the decision and a CHECK constraint; the checker holds Supervisor or TenantAdmin | Done (ADR 0023, ADR 0032) |
-| R3 | A TenantAdmin creates a second user and approves their own requests with it | The audit trail shows who created the user and who approved | Accepted for R1: shown, not prevented; a hospital's TenantAdmin is trusted with its users |
+| R3 | A TenantAdmin creates a second user and approves their own requests with it | The audit trail shows who created the user and who approved | Accepted for R1: shown, not prevented; a hospital's TenantAdmin is trusted with its users. **Accepted again on 2026-11-26, in its full form** (review finding R5, `docs/review-2026-11.md`): a TenantAdmin can also be the maker, then create a Supervisor or reset one's password, sign in as that user and approve, for every kind of document; maker-checker holds between people, not against the one who administers the users. The control is the audit trail, which shows the user's creation or reset, the sign-in and the approval. To be narrowed by Prompt 11.3: with a second step required of a Supervisor, a reset password alone no longer signs in as them (the administrator's reset of the second step is itself audited) |
 
 ### Information disclosure
 

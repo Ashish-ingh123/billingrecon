@@ -1146,4 +1146,4 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    **10.8, the independent review (stage 4), is in `docs/review-2026-11.md`** (2026-11-26; a separate agent, reading only;
    14 findings, none Critical, two High). Its fixes go one commit each on the owner's approval. **R1 is fixed:** a credit
    note's cap counts the bill's posted adjustments (`IBillAdjustments`, a contract of Adjustments' Application layer that
-   Billing asks; `CreditNoteCaps`; ADR 0025 "Amended 2026-11-26"; BR-210). R2 to R11 of its ten wait for the owner.
+   Billing asks; `CreditNoteCaps`; ADR 0025 "Amended 2026-11-26"; BR-210). **R5 is accepted and recorded** (`docs/security.md`, row R3; 11.3 weighs it). The other eight of its ten wait for the owner.
