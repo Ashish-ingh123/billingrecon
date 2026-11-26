@@ -244,6 +244,12 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   Print waiting for them, a duplicate signed like the original) and `frontend/e2e/letterhead.spec.ts` (the three sheets
   with real images in both themes under nginx's policy, nothing moving when an image arrives, an A4 PDF, a phone, axe,
   and the upload on the Settings screen). The test images are drawn by the tests (`png` of `e2e/stubbed.ts`).
+- **The lens and Tab in a search** (Prompt 10.4d; ADR 0039 and ADR 0040, amended 2026-11-26): `SearchTab.test.tsx` (the
+  lens on every search box, drawn and not read; the spinner in its place; Clear; a list's search sent when its box is
+  left and not when unchanged; a picker by Tab with one result, several, none, a late answer and a late answer after
+  typing again, by Shift+Tab, by the pointer and by Enter; the single match of a payment's payer) and
+  `frontend/e2e/searchtab.spec.ts` (the lens's place and size held when the spinner takes it, a bill and a payment
+  filled by letters and Tab, axe, both themes).
 - **The print settings** (Prompt 10.4c-2; ADR 0059, amended): `PrintSettingsTests` (Domain: the default is the sheet as
   it was, every limit, a roll for no bill, the two a bill never switches off), `PrintSettingsHandlerTests` (the first
   save and its version of none, a change, two first saves at once, every refusal at its field, who recorded a

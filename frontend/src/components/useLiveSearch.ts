@@ -16,6 +16,9 @@ export function isSearchable(text: string): boolean {
  * list shows now (the address holds it); `send` is called with the trimmed text once the typing has rested for
  * {@link searchPause}, from {@link searchMinimum} characters or when the box is emptied, and at once on Enter. A text
  * that is already the one sent is not sent again.
+ *
+ * Since 2026-11-26: leaving the box (Tab, Shift+Tab, a click elsewhere) sends what it holds at once, without the pause,
+ * when it is long enough and not the search already shown; and `onClear` empties the box and the search.
  */
 export function useLiveSearch(sent: string, send: (text: string) => void) {
   const [text, setText] = useState(sent);
@@ -55,6 +58,18 @@ export function useLiveSearch(sent: string, send: (text: string) => void) {
       if (isSearchable(wanted)) {
         timer.current = setTimeout(() => sendNow(wanted), searchPause);
       }
+    },
+    /** Leaving the box sends what it holds at once, if it is a search and not the one already shown. */
+    onBlur: () => {
+      const wanted = text.trim();
+      if (wanted.length >= searchMinimum) {
+        sendNow(wanted);
+      }
+    },
+    /** The Clear button: the box and the search are emptied at once, and the whole list is shown again. */
+    onClear: () => {
+      setText('');
+      sendNow('');
     },
     /** Enter sends what the box holds at once, and never submits a form around it. */
     onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => {

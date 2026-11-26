@@ -122,3 +122,22 @@ alternative. The owner reversed it: no Search or Find button is pressed before a
 - **Tests:** `LiveSearch.test.tsx` (nothing before the pause and one request after it; one character sends nothing; an
   emptied box; Enter; the rows kept; a stale request cancelled and its answer dropped; the address replaced and Back;
   page 1; the users and the outstanding report) and `e2e/search.spec.ts` in a browser, both themes.
+
+## Amended 2026-11-26 (Prompt 10.4d): the lens, Clear, and leaving a search box
+
+The owner approved the plan of Prompt 10.4d on 2026-11-26. No package, no change of the API or of nginx's policy.
+
+1. **Every search box is one component, `SearchInput`**: the lists of patients, payers, service items and users, the
+   outstanding report, and the record picker (ADR 0040). At its start stands **a lens**: our own inline SVG in
+   `currentColor` (`Icon` "search"), in a span that is `aria-hidden` and is no button; it says that the box searches.
+   **While a search of the box is in flight the small spinner stands in the lens's place**, in the same span of the
+   same size (18 px), so nothing shifts. There is still no Search or Find button.
+2. **"Clear search"**, a button at the end of the box while it holds text: it empties the box and the search (the
+   address with it) at once and leaves the focus in the box. It is **not a stop of the Tab key**: Tab from a search box
+   goes to the next field in one press, and the keyboard clears a box by deleting its text. The browser's own cross of
+   a search field is hidden, so there is one.
+3. **Leaving a list's box sends its search at once.** On Tab, Shift+Tab or a click elsewhere, what the box holds is
+   sent without the 300 ms pause if it has 2 characters or more and is not the search already shown. A text that is
+   unchanged, or one character, sends nothing.
+
+Tests: `SearchTab.test.tsx` and `e2e/searchtab.spec.ts`; the tests of 10.2b stand as they were for a list.

@@ -30,7 +30,7 @@ export function ServiceItemsPage() {
           )
         }
       />
-      <ListFilters params={params} onChange={params.change} searchLabel="Code or name" />
+      <ListFilters params={params} onChange={params.change} searchLabel="Code or name" busy={items.isFetching} />
       {items.data === undefined ? (
         <LoadState error={items.error} what="service items" />
       ) : items.data.items.length === 0 ? (

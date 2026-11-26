@@ -79,7 +79,11 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(box).toHaveAttribute('aria-expanded', 'true');
     expect((await view.probe()).shift - before, 'layout shift when the results open').toBeLessThan(0.01);
 
-    await page.keyboard.press('ArrowDown');
+    // Since 2026-11-26 (ADR 0040, amended) the first result is the marked one as soon as the results open.
+    await expect(list.getByRole('option', { name: 'Asha Verma (MRN MRN-1001)' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
     await page.keyboard.press('ArrowDown');
     await expect(list.getByRole('option', { name: 'Ravi Verma (MRN MRN-2002)' })).toHaveAttribute(
       'aria-selected',
@@ -92,7 +96,8 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(box).toHaveValue('verma');
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Enter');
-    await expect(page.getByText('Asha Verma (MRN MRN-1001)')).toBeVisible();
+    // The record itself, not the announcement that names it for a screen reader (since 2026-11-26).
+    await expect(page.getByText('Asha Verma (MRN MRN-1001)', { exact: true })).toBeVisible();
     // Enter chose the patient and did not submit the form: the page is still the new bill.
     await expect(page).toHaveURL(/\/bills\/new$/);
     expect(await seriousFindings(page), 'axe after the choice').toEqual([]);

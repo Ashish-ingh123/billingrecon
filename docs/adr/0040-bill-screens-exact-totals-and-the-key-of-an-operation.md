@@ -117,3 +117,41 @@ and of a report) asked the user to type and press Find or Enter. On the owner's 
 - **Tests:** `RecordPicker.test.tsx` (by the keyboard alone, by the pointer, Enter and the form, one character, the
   stale answer, the notes) and `e2e/search.spec.ts` (keyboard, a tap on a phone, axe with the results open, both
   themes, no layout shift); `Bills.test.tsx` and the journey choose from the options instead of pressing a button.
+
+## Amended 2026-11-26 (Prompt 10.4d): a form is filled by a few letters and Tab
+
+The owner approved the plan of Prompt 10.4d on 2026-11-26, with choosing only on a single match for the payer of a
+payment. It changes the picker of the amendment of 2026-11-25 in two points, and adds the rest.
+
+1. **The first result is the marked one as soon as the results open** (it was: none until an arrow is pressed). The
+   arrows go round from it; Enter chooses the marked one.
+2. **Tab chooses it and moves on in the same press**, and so does Shift+Tab, backwards. The record is taken as the box
+   loses the focus, so the browser has already moved to the next field. **If the answer has not arrived**, the search
+   is sent at once, without the pause, and its first result is chosen when it arrives, **unless the user came back and
+   typed again**. **With no result** the box keeps its text and is marked invalid with "No record chosen", and the
+   focus has moved on all the same. Text shorter than a search is marked the same way.
+3. **Leaving by the pointer** closes the results and chooses nothing, as before. **Enter chooses and stays**: the focus
+   goes to "Change" of the record just chosen.
+4. **The chosen record shows its name and its code** (a patient's MRN, a service item's code; a payer has no code and
+   shows its kind) **and is said aloud** ("Chosen: ..." in a status region): after Tab the user is in the next field.
+5. **Where the first result is unsafe: the payer of a payment.** Money recorded for a payer is posted at once, and a
+   wrong one is undone only by a reversal that a second person approves. There (`chooseOnTab="single"`) Tab chooses a
+   payer **only when one alone matches**; with several it chooses none, marks the field "No record chosen: n match.
+   Choose one from the list.", and the focus still moves on. Enter and the pointer choose as everywhere. A refund has
+   no payer picker: it is drawn from its payment or credit note. A bill's patient, payer and lines take the first
+   result: a bill is a draft, seen whole and corrected before it is posted.
+6. **A box replaced from outside keeps the focus in its field.** When a bill's payer is set with its patient while the
+   focus stands in the payer's box, the focus goes to that record's "Change", not to nowhere.
+7. The picker's box is `SearchInput` (ADR 0039, amended the same day): the lens, the spinner, Clear.
+
+**Tests changed because behaviour changed, none loosened:** in `RecordPicker.test.tsx` and `e2e/search.spec.ts` the
+keyboard test now expects the first result marked at once and one arrow, not two, to reach the second; the helper that
+finds a picker's announcement looks one element further up, since the box stands inside the frame of its lens; and one
+locator asks for a record's text exactly, since the announcement now names the record too.
+
+**Found while building, and fixed:** Tab landed on the Clear button, not the next field (point 2 of ADR 0039's
+amendment); and the picker's box, 4 px lower in the shared component, pushed an existing small shift of the bill editor
+on a phone over its threshold, so the box keeps its 44 px.
+
+**Risk kept:** after a Tab that waits for a late answer, the record appears in a field the user has left; the
+announcement and the shown record are what tell them, and the payer of a payment never takes one of several this way.

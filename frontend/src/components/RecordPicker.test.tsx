@@ -20,7 +20,7 @@ const patients = '/api/v1/patients';
 
 /** What the picker of this box announces: each picker of the form has an announcement of its own. */
 function announcementOf(box: HTMLElement): HTMLElement {
-  return within(box.parentElement ?? box).getByRole('status');
+  return within(box.parentElement?.parentElement ?? box).getByRole('status');
 }
 
 function rest(ms: number): Promise<void> {
@@ -71,17 +71,21 @@ describe('the record picker, an autocomplete', () => {
 
     await user.type(box, 'verma');
     const options = within(await screen.findByRole('listbox')).getAllByRole('option');
-    expect(box).not.toHaveAttribute('aria-activedescendant');
-
-    await user.keyboard('{ArrowDown}');
+    // Since 2026-11-26 (ADR 0040, amended) the first result is the marked one as soon as the results open.
     expect(box).toHaveAttribute('aria-activedescendant', options[0]?.id);
     expect(options[0]).toHaveAttribute('aria-selected', 'true');
+
     await user.keyboard('{ArrowDown}');
     expect(box).toHaveAttribute('aria-activedescendant', options[1]?.id);
     expect(options[0]).toHaveAttribute('aria-selected', 'false');
+    expect(options[1]).toHaveAttribute('aria-selected', 'true');
     await user.keyboard('{ArrowDown}');
     expect(box).toHaveAttribute('aria-activedescendant', options[0]?.id);
     await user.keyboard('{ArrowUp}');
+    expect(box).toHaveAttribute('aria-activedescendant', options[1]?.id);
+    await user.keyboard('{ArrowUp}');
+    expect(box).toHaveAttribute('aria-activedescendant', options[0]?.id);
+    await user.keyboard('{ArrowDown}');
     expect(box).toHaveAttribute('aria-activedescendant', options[1]?.id);
 
     // Escape closes the results and keeps the text; an arrow opens them again.

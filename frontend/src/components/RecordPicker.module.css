@@ -15,6 +15,10 @@
   display: flex;
 }
 
+.search > span {
+  flex: 1;
+}
+
 .popup,
 .popupNote,
 .popupError {
@@ -51,25 +55,10 @@
   white-space: nowrap;
 }
 
-.input {
-  flex: 1;
-  font: inherit;
-  padding: 0.4375rem 0.625rem;
-  color: var(--text);
-  background: var(--surface-raised);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-md);
-  /* As tall as it stood beside the Find button it had until Prompt 10.2b, so no form built around it moves. */
+/* The box is the shared search field (SearchInput), as tall as the picker's box always stood (beside the Find button it
+   had until Prompt 10.2b), so no form built around it moves. */
+.tall {
   min-height: 2.75rem;
-}
-
-.input:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 1px;
-}
-
-.input[aria-invalid='true'] {
-  border-color: var(--danger);
 }
 
 .chosen {

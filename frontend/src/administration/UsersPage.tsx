@@ -9,6 +9,7 @@ import { Pagination } from '../components/ListControls';
 import listStyles from '../components/ListControls.module.css';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
+import { SearchInput } from '../components/SearchInput';
 import { useLiveSearch } from '../components/useLiveSearch';
 import { formatInstant } from '../format';
 import { AdministrationTabs } from './AdministrationTabs';
@@ -60,7 +61,7 @@ export function UsersPage() {
       >
         <div className={listStyles.field}>
           <label htmlFor={emailId}>E-mail address</label>
-          <input id={emailId} className={listStyles.input} type="search" autoComplete="off" {...email} />
+          <SearchInput id={emailId} type="search" busy={users.isFetching} {...email} />
         </div>
         <div className={listStyles.field}>
           <label htmlFor={statusId}>Status</label>

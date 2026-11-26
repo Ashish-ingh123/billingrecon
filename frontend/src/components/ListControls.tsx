@@ -2,6 +2,7 @@ import { useId } from 'react';
 import buttons from './buttons.module.css';
 import styles from './ListControls.module.css';
 import { pageSize, type ListParams, type StatusFilter } from './listParams';
+import { SearchInput } from './SearchInput';
 import { useLiveSearch } from './useLiveSearch';
 
 /**
@@ -12,10 +13,13 @@ export function ListFilters({
   params,
   onChange,
   searchLabel,
+  busy = false,
 }: {
   params: ListParams;
   onChange: (next: Partial<ListParams>, options?: { replace?: boolean }) => void;
   searchLabel: string;
+  /** Whether the list is reading: the search box shows its spinner in the lens's place. */
+  busy?: boolean;
 }) {
   // A search replaces the entry of the address, so Back leaves the list and does not walk through every key.
   const search = useLiveSearch(params.search, (text) => onChange({ search: text }, { replace: true }));
@@ -26,7 +30,7 @@ export function ListFilters({
     <form className={styles.filters} role="search" onSubmit={(event) => event.preventDefault()}>
       <div className={styles.field}>
         <label htmlFor={searchId}>{searchLabel}</label>
-        <input id={searchId} className={styles.input} type="search" autoComplete="off" {...search} />
+        <SearchInput id={searchId} type="search" busy={busy} {...search} />
       </div>
       <div className={styles.field}>
         <label htmlFor={statusId}>Status</label>

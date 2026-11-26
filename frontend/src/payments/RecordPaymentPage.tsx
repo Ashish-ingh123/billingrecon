@@ -115,6 +115,8 @@ function RecordPaymentForm({ initialPayer }: { initialPayer: Payer | null }) {
         <div className={forms.grid}>
           <div className={forms.wide}>
             <PayerPicker
+              // Money recorded for a payer is posted at once: Tab chooses a payer only when one alone matches.
+              chooseOnTab="single"
               selected={payer}
               onSelect={(chosen) => {
                 setPayer(chosen);

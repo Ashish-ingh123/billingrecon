@@ -46,7 +46,8 @@ export type IconName =
   | 'ban'
   | 'plus'
   | 'half'
-  | 'stamp';
+  | 'stamp'
+  | 'search';
 
 const outline = {
   fill: 'none',
@@ -300,6 +301,13 @@ const shapes: Record<IconName, ReactNode> = {
     <g {...outline}>
       <path d="M9.5 13 9 8.5a3 3 0 1 1 6 0l-.5 4.5" />
       <path d="M5 13h14v4H5zM6.5 20h11" />
+    </g>
+  ),
+  // The lens of a search box (ADR 0039, amended 2026-11-26): drawn here, in the stroke of the set.
+  search: (
+    <g {...outline}>
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="m15.5 15.5 5 5" />
     </g>
   ),
   spinner: (

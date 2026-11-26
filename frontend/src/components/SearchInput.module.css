@@ -1,0 +1,102 @@
+/* The box of a search (ADR 0039 and ADR 0040, amended 2026-11-26): the lens or the spinner in one fixed place at its
+   start, the text, and the way to clear it at its end. From the tokens. */
+
+.box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: min(14rem, 100%);
+}
+
+/* One place for the lens and for the spinner that takes its turn: the same size, so nothing shifts. */
+.lead {
+  position: absolute;
+  left: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  font-size: 1.125rem;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.spinner {
+  animation: turn 0.8s linear infinite;
+}
+
+@keyframes turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+.input {
+  width: 100%;
+  min-height: 2.5rem;
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: normal;
+  /* Room for the lens before the text and for the clear button after it, whether or not it is shown. */
+  padding: 0.4375rem 2.5rem 0.4375rem 2.375rem;
+  color: var(--text);
+  background: var(--surface-raised);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+  border-color: var(--focus);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+/* The browser's own cross of a search field would stand beside ours. */
+.input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.clear {
+  position: absolute;
+  right: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  font-size: 1rem;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.clear:hover {
+  color: var(--text);
+  background: var(--surface-sunken);
+}
+
+.clear:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+@media print {
+  .lead,
+  .clear {
+    display: none;
+  }
+}

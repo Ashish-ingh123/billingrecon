@@ -30,7 +30,7 @@ export function PatientsPage() {
           )
         }
       />
-      <ListFilters params={params} onChange={params.change} searchLabel="MRN or name" />
+      <ListFilters params={params} onChange={params.change} searchLabel="MRN or name" busy={patients.isFetching} />
       {patients.data === undefined ? (
         <LoadState error={patients.error} what="patients" />
       ) : patients.data.items.length === 0 ? (

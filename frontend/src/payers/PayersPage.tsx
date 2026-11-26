@@ -29,7 +29,7 @@ export function PayersPage() {
           )
         }
       />
-      <ListFilters params={params} onChange={params.change} searchLabel="Name" />
+      <ListFilters params={params} onChange={params.change} searchLabel="Name" busy={payers.isFetching} />
       {payers.data === undefined ? (
         <LoadState error={payers.error} what="payers" />
       ) : payers.data.items.length === 0 ? (

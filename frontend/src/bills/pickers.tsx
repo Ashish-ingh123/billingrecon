@@ -14,6 +14,8 @@ interface PickerProps<T> {
   onSelect: (record: T | null) => void;
   error?: string | undefined;
   disabled?: boolean;
+  /** What Tab chooses: the first result, or only a single match (the payer of a payment; ADR 0040, amended 2026-11-26). */
+  chooseOnTab?: 'first' | 'single';
 }
 
 /** Chooses an active patient by MRN or name: a bill is raised only for an active patient (BR-102). */

@@ -6,6 +6,7 @@ import listStyles from '../components/ListControls.module.css';
 import { pageSize } from '../components/listParams';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
+import { SearchInput } from '../components/SearchInput';
 import { useLiveSearch } from '../components/useLiveSearch';
 import { readOutstanding, useReport } from './api';
 import { outstandingColumns, outstandingTotals, outstandingIsWhole } from './columns';
@@ -41,7 +42,7 @@ export function OutstandingPage() {
         <form className={listStyles.filters} role="search" onSubmit={(event) => event.preventDefault()}>
           <div className={listStyles.field}>
             <label htmlFor={searchId}>Payer name</label>
-            <input id={searchId} className={listStyles.input} type="search" autoComplete="off" {...search} />
+            <SearchInput id={searchId} type="search" busy={report.isFetching} {...search} />
           </div>
         </form>
         <ExportButton
