@@ -178,7 +178,7 @@ public sealed class ImportPartiesHandler(
             return rows;
         }
 
-        var seen = new Dictionary<string, int>(StringComparer.Ordinal);
+        var seen = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in table.Rows)
         {
             var reasons = new List<string>();

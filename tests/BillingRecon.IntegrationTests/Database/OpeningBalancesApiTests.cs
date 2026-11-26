@@ -299,6 +299,52 @@ public sealed class OpeningBalancesApiTests(SqlServerFixture sqlServer) : Databa
     }
 
     [Fact]
+    public async Task ADR0053_old_numbers_and_guarantor_references_are_the_same_whatever_their_case_as_the_database_holds_them()
+    {
+        // Review 2026-11, finding R10: the checks compared by case and the unique indexes do not. Two numbers that
+        // differ in case passed the dry run and the submission, and the batch could then never be approved (409
+        // duplicate_key, no row named); a guarantor written in another case was "not a guarantor here".
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var admin = await NewApiTenantAsync();
+        using var maker = factory.CreateClientFor(admin, "TenantAdmin");
+        using var checker = factory.CreateClientFor(new FixedIdentity(admin.TenantId, new UserId(Guid.NewGuid())), "TenantAdmin");
+        await ImportAsync(maker, Patients, Guarantors, dryRun: false);
+
+        // A guarantor file that names one guarantor twice, in two cases, is told so.
+        var twice = await ImportAsync(maker, Patients, "guarantor_ref,name,phone\nG-7,Mohan Rao,\ng-7,Mohan Rao,", dryRun: true);
+        twice.Rejected.ShouldHaveSingleItem().Reason.ShouldContain("is on line 2 too");
+
+        // The guarantor of the files in small letters is the guarantor that was imported.
+        var small = Files(bills: Bills.Replace("G-1", "g-1", StringComparison.Ordinal), advances: Advances.Replace("G-1", "g-1", StringComparison.Ordinal));
+        var check = await CheckAsync(maker, small);
+        check.Rejected.ShouldBeEmpty();
+        check.Accepted.ShouldBeTrue();
+
+        // Two rows of one number in two cases are named by the dry run, each file for itself.
+        var doubled = await CheckAsync(maker, Files(
+            bills: "legacy_number,mrn,bill_date,outstanding_amount\nOB-1,NF-1,2026-08-10,1000.00\nob-1,NF-1,2026-08-11,5.00",
+            advances: "legacy_reference,mrn,guarantor_ref,received_date,amount,method,kind\nADV-1,NF-1,,2026-09-20,300.00,UPI,\nadv-1,NF-1,,2026-09-21,1.00,UPI,",
+            trialBalance: "account,amount\nReceivable,1005.00\nAdvance,301.00\nCredit,0.00"));
+        doubled.Rejected.Select(finding => $"{finding.File}:{finding.Line}").ShouldBe(["bills.csv:3", "advances.csv:3"], ignoreOrder: true);
+        doubled.Rejected.ShouldAllBe(finding => finding.Reason.Contains("is on line 2 too", StringComparison.Ordinal));
+
+        // And what was brought in is found again in any case: the batch in small letters posts, and its numbers in
+        // capitals are then "brought in before".
+        var batch = await SubmitAsync(maker, small);
+        using (var approved = await checker.SendWithIfMatchAsync(HttpMethod.Post, Batch(batch.Id, "approve"), body: null, PayersApi.ETag(batch.Version)))
+        {
+            approved.StatusCode.ShouldBe(HttpStatusCode.OK, await approved.Content.ReadAsStringAsync());
+        }
+
+        var again = await CheckAsync(maker, Files(
+            bills: "legacy_number,mrn,bill_date,outstanding_amount\nold-1,NF-1,2026-08-10,1000.00",
+            advances: "legacy_reference,mrn,guarantor_ref,received_date,amount,method,kind\nadv-1,NF-1,,2026-09-20,300.00,UPI,",
+            trialBalance: "account,amount\nReceivable,1000.00\nAdvance,300.00\nCredit,0.00"));
+        again.Rejected.Count.ShouldBe(2);
+        again.Rejected.ShouldAllBe(finding => finding.Reason.Contains("was brought in before", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ADR0053_an_opening_receivable_is_settled_by_a_payment_and_an_opening_advance_is_applied_but_never_reversed()
     {
         using var factory = new DatabaseApiFactory(SqlServer);

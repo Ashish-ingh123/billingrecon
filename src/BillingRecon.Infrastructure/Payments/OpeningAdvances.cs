@@ -23,10 +23,10 @@ public sealed class OpeningAdvances(BillingReconDbContext context) : IOpeningAdv
     {
         ArgumentNullException.ThrowIfNull(legacyNumbers);
 
-        var wanted = legacyNumbers.Distinct(StringComparer.Ordinal).ToList();
+        var wanted = legacyNumbers.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (wanted.Count == 0)
         {
-            return new HashSet<string>(StringComparer.Ordinal);
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
         var found = await context.Set<Payment>()
@@ -35,7 +35,7 @@ public sealed class OpeningAdvances(BillingReconDbContext context) : IOpeningAdv
             .Select(payment => payment.LegacyNumber!)
             .ToListAsync(ct);
 
-        return found.ToHashSet(StringComparer.Ordinal);
+        return found.ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc />

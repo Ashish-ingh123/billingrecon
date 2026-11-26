@@ -1164,4 +1164,6 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    tenant by tenant, without raw SQL (ADR 0006 "Amended 2026-11-26"). **R8 is fixed:** the pending-approvals report and
    the dashboard panel filter their rows and totals by `Api/Reporting/PendingApprovalPolicies` (each
    `ApprovalDocumentType` with its read policy; deciders see all). A new kind of approval request needs its line there, or
-   `PendingApprovalPolicyTests` fails. The last of its ten, R10, waits.
+   `PendingApprovalPolicyTests` fails. **R10 is fixed:** the import compares `legacy_number`, `legacy_reference` and
+   `guarantor_ref` with `OrdinalIgnoreCase`, as the case-insensitive collation of their unique indexes does (ADR 0053
+   "Amended 2026-11-26"); a new check against a unique text column compares the same way. All ten are closed.

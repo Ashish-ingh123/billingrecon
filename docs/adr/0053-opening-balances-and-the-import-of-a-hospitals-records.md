@@ -128,3 +128,26 @@ The owner approved the plan of Prompt 10.3b with its three choices.
 5. **Verified** in Edge against the built app with a stubbed API (both themes, a desktop and a phone, axe, the keyboard,
    no layout shift, nginx's content security policy applied); through nginx against a real import it is owed
    (runbook section 8, row 10.3b). Backlog B37 is closed.
+
+## Amended 2026-11-26 (Prompt 10.8, review finding R10): old numbers and guarantor references are compared without case
+
+The checks of the import compared `legacy_number`, `legacy_reference` and `guarantor_ref` by case; the unique indexes
+behind them (`UX_Bills_TenantId_LegacyNumber`, `UX_Payments_TenantId_LegacyNumber`,
+`UX_Payers_TenantId_LegacyReference`) compare by the collation of the column, which is the database's:
+`SQL_Latin1_General_CP1_CI_AS`, without case. The review (`docs/review-2026-11.md`, R10) could not confirm the
+collation by reading; it was read from the columns on 2026-11-26 and is as the review feared.
+
+What that gave: a bills file with `OB-1` and `ob-1` passed the dry run and the submission, and the batch could then
+never be approved (409 `duplicate_key`, no row named); a row whose `guarantor_ref` was written in another case than
+the guarantor was imported in was rejected as not a guarantor here.
+
+**Now the code is as strict as the index:** the sets of the checker (`OpeningBatchChecker`, `ImportPartiesHandler`)
+and the lookups (`OpeningReceivables`, `OpeningAdvances`, `ImportParties`) compare with `OrdinalIgnoreCase`. The MRN
+was compared so already. Accents are still compared as written (the collation is accent-sensitive too). A value is
+stored as the file writes it.
+
+Tests: `OpeningBatchCheckerTests.ADR0053_two_old_numbers_that_differ_only_in_case...` and
+`OpeningBalancesApiTests.ADR0053_old_numbers_and_guarantor_references_are_the_same_whatever_their_case...` (seen to
+fail with the comparisons put back, in a scratch copy). Verified on the office machine on LocalDB 2019. **A database
+created with a case-sensitive collation would compare otherwise in the index than in the code; the runbook's check of
+a new database names the collation.**

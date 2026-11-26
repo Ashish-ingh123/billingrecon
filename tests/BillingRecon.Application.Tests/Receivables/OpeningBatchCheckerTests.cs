@@ -158,6 +158,19 @@ public sealed class OpeningBatchCheckerTests
     }
 
     [Fact]
+    public async Task ADR0053_two_old_numbers_that_differ_only_in_case_are_one_number_as_the_database_holds_them()
+    {
+        // Review 2026-11, finding R10: the unique indexes compare without case, so the dry run must.
+        var check = await CheckAsync(
+            bills: "legacy_number,mrn,guarantor_ref,bill_date,due_date,outstanding_amount\nOB-1,NF-1,,2027-01-10,,1000.00\nob-1,NF-1,,2027-01-11,,250.50",
+            advances: "legacy_reference,mrn,guarantor_ref,received_date,amount,method,kind\nADV-1,NF-1,,2027-03-01,300.00,upi,\nadv-1,NF-1,,2027-03-02,75.25,upi,",
+            trialBalance: "account,amount\nReceivable,1250.50\nAdvance,375.25\nCredit,0.00");
+
+        check.Findings.Select(finding => $"{finding.File}:{finding.Line}").ShouldBe(["bills.csv:3", "advances.csv:3"], ignoreOrder: true);
+        check.Findings.ShouldAllBe(finding => finding.Reason.Contains("is on line 2 too", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ADR0053_an_old_number_that_was_brought_in_before_is_rejected()
     {
         _receivables.FindBroughtForwardAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>()).Returns(new HashSet<string> { "OLD-2" });

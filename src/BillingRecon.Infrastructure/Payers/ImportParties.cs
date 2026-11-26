@@ -52,10 +52,10 @@ public sealed class ImportParties(BillingReconDbContext context) : IImportPartie
     {
         ArgumentNullException.ThrowIfNull(references);
 
-        var wanted = references.Distinct(StringComparer.Ordinal).ToList();
+        var wanted = references.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (wanted.Count == 0)
         {
-            return new Dictionary<string, KnownGuarantor>(StringComparer.Ordinal);
+            return new Dictionary<string, KnownGuarantor>(StringComparer.OrdinalIgnoreCase);
         }
 
         var rows = await context.Set<Payer>()
@@ -64,6 +64,6 @@ public sealed class ImportParties(BillingReconDbContext context) : IImportPartie
             .Select(payer => new { payer.Id, payer.LegacyReference, payer.Name, payer.Status })
             .ToListAsync(ct);
 
-        return rows.ToDictionary(row => row.LegacyReference!, row => new KnownGuarantor(row.Id, row.Name, row.Status == PayerStatus.Active), StringComparer.Ordinal);
+        return rows.ToDictionary(row => row.LegacyReference!, row => new KnownGuarantor(row.Id, row.Name, row.Status == PayerStatus.Active), StringComparer.OrdinalIgnoreCase);
     }
 }

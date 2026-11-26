@@ -17,10 +17,10 @@ public sealed class OpeningReceivables(BillingReconDbContext context) : IOpening
     {
         ArgumentNullException.ThrowIfNull(legacyNumbers);
 
-        var wanted = legacyNumbers.Distinct(StringComparer.Ordinal).ToList();
+        var wanted = legacyNumbers.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (wanted.Count == 0)
         {
-            return new HashSet<string>(StringComparer.Ordinal);
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
         var found = await context.Set<Bill>()
@@ -29,7 +29,7 @@ public sealed class OpeningReceivables(BillingReconDbContext context) : IOpening
             .Select(bill => bill.LegacyNumber!)
             .ToListAsync(ct);
 
-        return found.ToHashSet(StringComparer.Ordinal);
+        return found.ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc />

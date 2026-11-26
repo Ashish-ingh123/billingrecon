@@ -34,14 +34,14 @@ public sealed class OpeningBatchChecker(IImportParties parties, IOpeningReceivab
         var advances = Table(files.AdvancesCsv, OpeningBatchFiles.AdvancesFile, AdvanceColumns, findings);
 
         var mrns = Values(bills, "mrn").Concat(Values(advances, "mrn")).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        var references = Values(bills, "guarantor_ref").Concat(Values(advances, "guarantor_ref")).Distinct(StringComparer.Ordinal).ToArray();
+        var references = Values(bills, "guarantor_ref").Concat(Values(advances, "guarantor_ref")).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         var patients = await parties.FindPatientsAsync(mrns, ct);
         var guarantors = await parties.FindGuarantorsAsync(references, ct);
         var billsBefore = await openingReceivables.FindBroughtForwardAsync([.. Values(bills, "legacy_number")], ct);
         var advancesBefore = await openingAdvances.FindBroughtForwardAsync([.. Values(advances, "legacy_reference")], ct);
 
         var receivables = new List<OpeningReceivable>();
-        var seenBills = new Dictionary<string, int>(StringComparer.Ordinal);
+        var seenBills = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in bills?.Rows ?? [])
         {
             var reasons = new List<string>();
@@ -67,7 +67,7 @@ public sealed class OpeningBatchChecker(IImportParties parties, IOpeningReceivab
         }
 
         var broughtAdvances = new List<OpeningAdvance>();
-        var seenAdvances = new Dictionary<string, int>(StringComparer.Ordinal);
+        var seenAdvances = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in advances?.Rows ?? [])
         {
             var reasons = new List<string>();
