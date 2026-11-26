@@ -52,6 +52,7 @@ is left; their numbering is mine, not the blueprint's.
 | 9.4 The dashboard and its tooltips | Written on 2026-11-24 (ADR 0050), on `phase-9-interface`, after the owner split 9.4: one tooltip component on two new tokens, opened and closed by pointer, keyboard and tap, on the cards, sparklines, line chart (crosshair by the arrow keys), donut (drawn here) and the top payers' bars; a table for every chart; the period as a segmented control; no inline style; no layout shift. 448 component tests and 60 browser tests in the installed Edge, the 8.2 journey. Not seen through nginx |
 | 9.4b The reports, print, the finishing pass and the release | Written on 2026-11-24 (ADR 0050, amended), on `phase-9-interface`: every route on demand within budgets held in CI (backlog B21), the reports' cards, filter bar, framed table with its totals in view and the export's progress, print on A4, a browser suite over all 48 routes with axe (`@axe-core/playwright` 4.14.0, approved), the README. 449 component tests and 261 browser tests in the installed Edge, the 8.2 journey. Not seen through nginx; `v1.1.0` proposed |
 | 10.0 The verification debt | Started 2026-11-24 on `phase-10-golive`: `deploy/verify/personal-machine.ps1` runs every check of runbook section 8 and writes `verify-10.0.log`. First run on the personal machine 2026-11-24 at `4c2e75f`: the backend green on SQL Server 2022 but three timing failures of `PiiMaskerTests`, 283 of 288 browser tests through nginx; five defects fixed, one commit each (`a6cf3c3`, `fc7c07d`, `c85f539`, `f89c96b`, `17af1e5`). Waits for the second run with Node 22.22 or later (runbook section 8), then the merge to `main` and CI |
+| 10.0-close Record the verification, merge, push, CI | Given on 2026-11-26 as stage 1 of the owner's eight stages, not started: it waits for the output of the second run of `deploy/verify/personal-machine.ps1`, which the prompt names but did not carry (the only log on the office machine is the first run's, of 2026-11-24) |
 | 10.1 Users and settings screens | Written on 2026-11-24 (ADR 0051, amending ADR 0030), on `phase-10-golive`: the users and the settings under `/administration` for the TenantAdmin, the prefix change as a request, and a forced password change after creation and after a reset (`Users.PasswordChangeDue`, migration `0021_PasswordChange`, a 15-minute token good for `POST /api/v1/auth/password` alone). Backlog B18 and B24 closed. 461 frontend tests, the routes suite with the six new routes in Edge; the `Database` tests on LocalDB 2019 only (runbook section 8, row 10.1) |
 | 10.2 Tenant onboarding | Written on 2026-11-24 (ADR 0052, amending ADR 0045), on `phase-10-golive`: `tenant create`, `tenant suspend` and `tenant resume`, commands of the API's own binary run on the server, audited with no user; the first TenantAdmin with a one-time password and a forced change; a suspension that also refuses tokens issued before it (within 30 seconds); the one-command run in a `Demo` environment, the only one besides Development where the demo runs. Runbook section 17. No migration. The `Database` tests on LocalDB 2019 only (runbook section 8, row 10.2) |
 | 10.2b Live search and autocomplete | Written on 2026-11-25 at the owner's request (amending ADR 0039, ADR 0040 and ADR 0018), on `phase-10-golive`: every search box answers while the user types, after 300 ms and from 2 characters (`useLiveSearch`: the lists of patients, payers, service items and users, the outstanding report), the rows kept until the new ones arrive, a stale request cancelled, the address replaced; the record picker an autocomplete in the combobox pattern; no Search or Find button; the MRN and the user's e-mail matched in part (`LikePattern`). No migration, no package. Text search on the document lists is left for later. The `Database` tests on LocalDB 2019 only (runbook section 8, row 10.2b) |
@@ -60,8 +61,15 @@ is left; their numbering is mine, not the blueprint's.
 | 10.3b The import screens | Written on 2026-11-25 (ADR 0053, amended), on `phase-10-golive`: Users and settings gains a third tab, Import, for the TenantAdmin: the two steps and the batches, the import of patients and guarantors, the import of opening balances, and a batch's page. Files are checked before Import or Submit is offered, stay in the page only, and their findings can be downloaded. The API's file limits were lowered to what one request through the proxy carries (1 MB). Verified in Edge against the built app; through nginx it is owed (runbook section 8, row 10.3b) |
 | 10.4 Printed documents: their data | Written on 2026-11-25 (ADR 0054), on `phase-10-golive`, split by the owner into 10.4 and 10.4b: the hospital's letterhead on the tenant (`GET` and `PUT /api/v1/settings/letterhead`, a form on the Settings screen), the SAC code on a service item and kept on the bill line, and the record of each print (`POST .../prints` on bills, payments and refunds; the first is the original, later ones duplicates; table `DocumentPrints`, insert-only); migration `0024_PrintedDocuments`. The tax split, the kind of tax document and the amount in words are derived at print. `docs/go-live.md` begun, with the accountant's sign-off open. Verified here on LocalDB 2019 and in Edge (runbook section 8, row 10.4) |
 | 10.4b The printed pages | Written on 2026-11-25 (ADR 0054, amended), on `phase-10-golive`: `/bills/:id/print`, `/payments/:id/print` and `/refunds/:id/print` (`frontend/src/printing`), each a sheet with the letterhead, reached from its document's page. Print records the print, then opens the browser's dialog; the sheet says Original or Duplicate. The bill is a Tax Invoice (CGST and SGST from the stored tax), a Bill of Supply or a Statement of Opening Balance; the amount in words in lakh and crore. Verified in Edge against the built app; through nginx and on paper it is owed (runbook section 8, row 10.4b), and the accountant's sign-off is open (`docs/go-live.md`) |
+| 10.4c The logo, the signature and print settings | Given on 2026-11-26 as stage 2 of the owner's eight stages, not started |
+| 10.4d The search lens, and Tab in a search | Given on 2026-11-26 as stage 3 of the owner's eight stages, not started |
 | 10.5 Production deployment | Written on 2026-11-25 (ADR 0055), on `phase-10-golive`, on the owner's four answers: one Linux server with Docker Compose (`docker-compose.prod.yml`, `deploy/prod`), secrets as files of the host read by `SecretFiles`, SQL Server 2022 Standard with TDE, Let's Encrypt, nightly full and 15-minute log backups with an off-site copy and a monthly restore drill, and `.github/workflows/release.yml` (a tag builds, pushes and deploys staging; production by hand). The API refuses to start with `READ_COMMITTED_SNAPSHOT` off. Runbook section 19. **Nothing of the deployment has run**: there is no server yet (runbook section 8, row 10.5; `docs/go-live.md`, G4 and G5) |
-| 10.6 to 10.7 Go-live (operations; readiness) | Written as prompts on 2026-11-24 from the owner's draft, not started; since 2026-11-25 built against `docs/reference-hospital.md` (ADR 0058), as there is no client yet |
+| 10.6 to 10.7 Go-live (operations; readiness) | Written as prompts on 2026-11-24 from the owner's draft, not started; since 2026-11-25 built against `docs/reference-hospital.md` (ADR 0058), as there is no client yet. They come after the eight stages of 2026-11-26 |
+| 10.8 An independent review | Given on 2026-11-26 as stage 4 of the owner's eight stages, not started |
+| 11.1 Search on the document lists | Given on 2026-11-26 as stage 5 of the owner's eight stages, on a new branch `phase-11-counter`, not started |
+| 11.2 The cashier's shift and the day-end closing | Given on 2026-11-26 as stage 6 of the owner's eight stages, not started |
+| 11.3 Two-step sign-in and a forgotten password | Given on 2026-11-26 as stage 7 of the owner's eight stages, not started |
+| 11.4 The accountant's export | Given on 2026-11-26 as stage 8 of the owner's eight stages, not started |
 
 **Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. 5.3b (tenant settings and prefix changes) is written too, and `0019` is in the repository. ADR 0033 built note point 5 was decided on 2026-11-23 (the approval holds the series) and is built as its own commit. 5.4 was split with its plan: its first half, the database logins and grants, is written too, and `0020` is in the repository. 5.4b (HTTP hardening and `docs/security.md` in full) is written too, with no migration; Phase 5 is written to its end, and its merge to `main` is the owner's step. 6.1 (registers and balances), 6.2 (reconciliation and audit trail) and 6.3 (dashboard figures) are written too, with no migration, on `phase-2-billing` like the rest: the backend of R1 is written to its end, and its merge to `main` is the owner's step. 7.1 (the frontend's scaffold and sign-in) is written too, on the same branch, with Node 24 on the office machine. 7.2 (patients, payers and catalogue screens), 7.3 (bill screens), 7.4 (cashier screens) and 7.5 (the checker's inbox, credit notes and adjustments; split with its plan), 7.5b (reports) and 7.6 (dashboard) are written too: the frontend of R1 is written to its end. 8.1 (one-command local run) is written too, on `phase-8-delivery`, and so are 8.2 (performance and browser tests) and 8.3 (release R1, tagged `v1.0.0`): R1 is written to its end. On 2026-11-24 the owner reported the first run on the personal machine: `docker compose up --build` with the demo, and `dotnet test` with Docker, which passed; its output is still to be sent, so the rows of runbook section 8 stay until then. No prompt is left in R1. Phase 9, the interface, has begun: 9.1 (the brand, the tokens and the sign-in page) is written, without the photograph, which is still to come, and so are 9.2 (the shell and the shared components) and 9.3 (the money screens' shared components, bills, credit notes and adjustments); and 9.3b (payments, refunds, the statement and the inbox) is written too; and 9.4 (the dashboard and its tooltips) is written too; and so is 9.4b (the reports, print, the finishing pass and the release): Phase 9 is written, `v1.1.0` proposed; what else follows is in `docs/backlog.md` and the release plan of CLAUDE.md. What was decided for each built prompt is recorded under it below.**
 
@@ -1475,6 +1483,28 @@ stops. A real hospital's inputs replace that document when one exists.
 6. **No real patient's data outside production.** The client's export lives outside git; staging and tests use the
    synthetic records of `TestData` or an export with names, phones and addresses replaced.
 
+**The eight stages of 2026-11-26.** On 2026-11-26 the owner gave one prompt of eight stages, to be worked in order in
+one session, each stage planned, approved, built, committed and stopped before the next. That one prompt sets aside
+"one prompt per session" for these eight only; everything else of "How to use these prompts" holds. Their numbers here,
+in the order they run: **10.0-close** (stage 1), **10.4c** (stage 2), **10.4d** (stage 3), **10.8** (stage 4), then
+Phase 11 on a new branch, **11.1** to **11.4** (stages 5 to 8). 10.6 and 10.7 come after them. Each is written below at
+its number. The rules the owner set for all eight:
+
+```
+This prompt has eight stages. Work through them in order, in this one session. For every stage:
+show me a short plan (files, steps, tests, risks, migration, any package, any change of the API
+or of nginx's policy) and wait for my approval; build it; tell me plainly what was and was not
+verified; update the docs and ADRs it touches; propose one commit message; then STOP and wait
+for me to say "next". Never start a stage before the one before it is committed. If a stage's
+plan is too large for one commit, propose a split. "The bar of Phase 9" and "The bar of
+Phase 10" in docs/build-prompts.md hold for every stage. Migrations and ADRs take the next free
+number. No new package without asking. Never weaken or skip a test.
+Before stage 1, add these eight stages to docs/build-prompts.md with their numbers, so the
+status table can follow them.
+```
+
+The next free numbers on 2026-11-26: migration `0025`; ADR 0059 (0056 stays with Prompt 10.6).
+
 #### 10.0 Pay the verification debt
 
 ```
@@ -1495,6 +1525,31 @@ Update runbook section 8, CLAUDE.md sections 2 and 9, the status table at the to
 docs/build-prompts.md, and backlog rows B31 and B35.
 Done when: runbook section 8 is empty, every test has passed on SQL Server 2022, CI is green on main, and
 nothing is left unmerged.
+```
+
+#### 10.0-close Record the verification, merge, push, CI
+
+Stage 1 of the eight stages of 2026-11-26. It finishes 10.0 from the output of the second run on the personal machine.
+The prompt ended with a place for that output, which arrived empty; the stage waits for it.
+
+```
+I ran deploy/verify/personal-machine.ps1 on my personal machine with SQL Server 2022 in Docker
+and Node 22.22 or later; the output is at the end of this prompt. Build nothing new.
+1. Read the output against every row of docs/runbook.md section 8. Close each row it proves and
+   list plainly any row it does not prove (through nginx, on paper, the 10,000-bill load run,
+   the rows of 10.1 to 10.5). Do not close a row on my word alone.
+2. Fix real defects only, one commit each. If the timing failures of PiiMaskerTests recur, fix
+   their cause, not their limit.
+3. Give me the merge order into main with the exact commands, the tags v1.0.0 and v1.1.0 kept
+   on their commits, and the push commands for the branches and the tags.
+4. After I push, I send you the CI run. We fix it until it is green, the frontend job and the
+   image smoke run included.
+5. Update runbook section 8, CLAUDE.md sections 2 and 9, the status table of
+   docs/build-prompts.md (the early rows that still say "not committed" and "not built on
+   .NET 10" too), and backlog rows B31 and B35. Move the decisions recorded under each built
+   prompt to docs/build-history.md.
+Done when: section 8 has no row without a result or a named reason, main holds everything, the
+tags are pushed, and CI is green.
 ```
 
 #### 10.1 Users and settings screens
@@ -1630,6 +1685,83 @@ Write ADR 0054.
 Done when: the client's accountant signs off a printed sample of each, recorded in docs/go-live.md.
 ```
 
+#### 10.4c The logo, the signature and print settings
+
+Stage 2 of the eight stages of 2026-11-26.
+
+```
+Read ADR 0054 and its amendment, ADR 0047, frontend/deploy/nginx.conf, docs/security.md
+section 10.
+A. The letterhead of 10.4 holds text only. Add the hospital's logo, the signatory's name and
+   designation, and an image of the signature. Propose before coding: where the images are kept
+   (the database, within the 1 MB a request carries) and the formats (PNG, JPEG, WebP; SVG
+   refused; content checked by its bytes); how the browser shows them, since an <img> cannot
+   send the token (a blob, with img-src gaining blob: in nginx.conf and its test in the same
+   change, or a better way; nothing from another origin); who uploads (TenantAdmin, If-Match,
+   audited with a hash of the image, never the image); whether a duplicate carries the
+   signature. Whether a scanned signature is enough on a Tax Invoice is the accountant's call:
+   an open item in docs/go-live.md.
+   Build: upload, replace and remove with a preview on the Settings screen; the logo at the top
+   of the three sheets of 10.4b and the signature block ("Authorised signatory", image, name,
+   designation) at their foot, with fixed sizes so nothing shifts. Print waits for the images.
+   A sheet without them prints as today.
+B. Print settings per hospital and per document (bill, receipt, refund voucher), for the
+   TenantAdmin, with If-Match, audited, and a live preview drawn by the components that print:
+   paper A4 or A5 (and an 80 mm roll for the receipt and voucher if you can hold it in a test);
+   margins in mm within limits; the logo left, centre or right and small, medium or large, or
+   "pre-printed stationery" with a top space in mm; each of these on or off: the patient's
+   phone and address, the payer, the SAC column, the tax split, the amount in words, the
+   signature block, the cashier's name (a field ADR 0054 makes mandatory cannot be switched
+   off, and the form says why); a footer line and terms as plain text per document. The default
+   reproduces today's sheet exactly. Settings change layout only: no figure differs, the
+   Original and Duplicate rule and the print record stay, no inline style is written.
+C. Then propose and wait: a "Download PDF" beside Print. Give the ways (headless Chromium
+   rendering the built sheet; a .NET PDF library drawing it a second time), each with package,
+   version, licence, image size, the cost of keeping two layouts equal, and how a download is
+   recorded as a print. Recommend one. Crystal Reports is not an option: it does not run on
+   .NET 10 or in our Linux images.
+Tests: uploads refused for a wrong type, an oversized file and an SVG; another tenant never
+reads the image or the settings; the audit records; each sheet at each paper with and without
+logo, signature and each switch; a mandatory field cannot be switched off; the default equal to
+today's sheet; the preview equal to the print; dark text on white from both themes; the matrix
+test; the routes suite under nginx's policy.
+Update docs/api.md, docs/security.md, runbook section 8, docs/go-live.md, docs/ui/. An ADR
+amending ADR 0054.
+Done when: I set the logo, signature, paper and footer, see them in the preview, and a bill, a
+receipt and a refund voucher print that way.
+```
+
+#### 10.4d The search lens, and Tab in a search
+
+Stage 3 of the eight stages of 2026-11-26.
+
+```
+Read ADR 0048, the 2026-11-25 amendments of ADR 0039 and ADR 0040, and useLiveSearch. No
+package, no change of the API.
+A. The lens: a decorative icon at the start of every search field (the lists of patients,
+   payers, service items and users, the outstanding report, every record picker): our own
+   inline SVG in currentColor, aria-hidden, not a button. While a search is in flight the small
+   spinner takes its place, with no shift. A "Clear search" button at the end when the box
+   holds text. No Search or Find button returns; live search stays as it is.
+B. Leaving a search box (blur). A list's box: on Tab, Shift+Tab or a click elsewhere the search
+   is sent at once, without the 300 ms, if the text changed and has 2 characters or more. A
+   record picker: the first result is the active option while typing; Tab chooses it, closes
+   the list and moves to the next field in one press (Shift+Tab the same, backwards); if the
+   answer has not arrived, the search is sent at once and the first result chosen when it
+   arrives, unless the user came back and typed again; with no result the box keeps its text,
+   is marked invalid with "No record chosen", and focus still moves on. Leaving by the pointer
+   closes the list and chooses nothing. Enter chooses and stays. The chosen record shows its
+   name and code and is announced. Say where choosing the first result is unsafe (the payer of
+   a payment or a refund) and propose choosing only on a single match there.
+Tests: the lens everywhere and absent from the accessibility tree; Clear empties the box and
+the address; the search sent on blur before the pause, not sent when unchanged; the picker by
+Tab with one result, several, none and a late answer; focus on the next field every time; the
+10.2b tests unweakened; axe; the routes suite in both themes.
+Amend ADR 0039 and ADR 0040 ("Amended 2026-11-26"). Update docs/ui/.
+Done when: every search box shows the lens, and I fill the bill, payment and refund forms by
+typing a few letters and pressing Tab.
+```
+
 #### 10.5 Production deployment
 
 ```
@@ -1690,4 +1822,110 @@ Update the README, CLAUDE.md and the status table of docs/build-prompts.md. Prop
 Done when: every checklist item has an owner and a date, and the client has a date for acceptance testing.
 ```
 
+#### 10.8 An independent review
+
+Stage 4 of the eight stages of 2026-11-26. It runs before 10.6 and 10.7, after 10.4d.
+
+```
+Run this as a separate agent that has not seen this session's work, if you can; if you cannot,
+say so. It changes no file but docs/review-2026-11.md. For each finding: file and line, what
+goes wrong as a concrete sequence of requests, severity, the smallest fix. In this order:
+1. money: every path that changes a balance (post, allocate, credit, adjust, reverse, refund,
+   the opening batch): breaking a balance identity, passing a cap by two requests at once, a
+   number without a document, posting twice under two idempotency keys;
+2. tenancy: any read or write of another tenant's row, every IgnoreQueryFilters and raw SQL,
+   the image and import endpoints;
+3. authorisation: every endpoint against the matrix, maker equal to checker by any route, what
+   a disabled, suspended or signed-out user's token can still do;
+4. input: uploads, CSV import, search text, the letterhead's text on a sheet, the CSV formula
+   guard;
+5. tests: those that assert too little, pass by timing, or were loosened.
+No style findings. End with the ten to fix first. Then, in the main session, propose the fixes
+for those ten, one commit each, and wait for my approval before each.
+Done when: the review exists, I have read it, and the fixes I approved are committed.
+```
+
 Merge to `main`; the owner tags `v1.2.0`; go-live follows the plan in `docs/go-live.md`.
+
+### Phase 11. The counter (branch `phase-11-counter`)
+
+Stages 5 to 8 of the eight stages of 2026-11-26: what a hospital's cash counter and its accountant ask for beyond R1.
+The rules of those stages (under "The eight stages of 2026-11-26", Phase 10) and both bars hold. They run before 10.6
+and 10.7.
+
+#### 11.1 Search on the document lists
+
+```
+Read ADR 0018 with its amendment (LikePattern), ADR 0036, ADRs 0039 to 0042, docs/api.md.
+A search parameter on the lists of bills, payments, credit notes, adjustments and refunds: a
+part of the document's number, the patient's name or MRN, the payer's name, an exact amount;
+tenant-filtered, paged, combined with the existing filters. Say what each costs on 100,000
+documents and the index you propose. In the browser a search box on each list, with the lens,
+live search and the blur rule of stage 3, kept in the address.
+Tests: each field found in part on SQL Server; % and _ taken as text; another tenant's document
+never found; the matrix test; the lists' browser tests. A migration for the indexes. Update
+docs/api.md; amend ADR 0036.
+Done when: a cashier finds a payment by a patient's name or a part of its number in one box.
+```
+
+#### 11.2 The cashier's shift and the day-end closing
+
+```
+Read BR-301 to BR-309, ADR 0036, ADR 0041, the permission matrix. Propose the requirements
+first (user stories, BR ids, the matrix row) and wait. Raise before any design: whether a cash
+payment or refund needs an open shift; whether a difference between counted and expected cash
+is only recorded or posted to a new ledger account (and what that means for the reconciliation
+identities); who approves a closing with a difference.
+Recommended: a CashierShift a Cashier opens with a float and closes with a count by
+denomination; expected cash from that cashier's Cash entries in the shift, by method; the
+difference stored with a required reason; a closing with a difference approved by a Supervisor
+(maker-checker); a day-end report of every shift, tied to the daily collection of 6.1; a closed
+shift is not reopened. Screens for both roles and a printed closing slip through stage 2's
+print settings.
+Tests: expected cash equals the ledger's entries of the shift; a closing with a difference
+waits and its cashier cannot approve it; a second open shift for one cashier refused; zero
+drift; the day-end total equal to the daily collection. A migration and an ADR.
+Done when: a cashier closes a shift, a supervisor approves its difference, and the day-end
+report equals the daily collection.
+```
+
+#### 11.3 Two-step sign-in and a forgotten password
+
+```
+Read ADR 0030, 0031, 0035, 0051, 0057 and docs/security.md section 10. Propose first:
+- a second step at sign-in with a time-based code (TOTP, RFC 6238) on the BCL with no package:
+  enrolment with a QR code drawn in the page, recovery codes shown once and stored hashed, the
+  secret encrypted at rest (say with which key and where it lives), required for TenantAdmin
+  and Supervisor and offered to the rest, an administrator's reset of it, audited; what the
+  token carries between the two steps; the limits on wrong codes;
+- a forgotten password. The product sends no e-mail today: propose SMTP from the host's
+  secrets, a single-use link good for 30 minutes, the same answer whether or not the address
+  exists, the limits, and that with no mail server the administrator's reset stays the only way.
+Tests: codes of the neighbouring time steps accepted or refused as the RFC says; a code used
+twice refused; a recovery code good once; a checker without a second step cannot approve; the
+link good once and expired after 30 minutes; every session ended by a reset. Update the threat
+model. A migration and an ADR.
+Done when: a Supervisor approves nothing without the second step, and a user who forgot a
+password is back in without the administrator.
+```
+
+#### 11.4 The accountant's export
+
+```
+Read docs/database.md section 5, ADR 0036, ADR 0043. Raise first: what the accountant uses
+(Tally is likely) and whether they want vouchers per document or a summary per day. Do not
+decide the hospital's chart of accounts: propose a mapping in tenant settings from our seven
+ledger accounts and the payment methods to the accountant's ledger names.
+Build in Reporting (it never writes): an export of a period of business dates as a file the
+package imports (for Tally its XML voucher format: confirm it against Tally's own
+documentation before coding and say what you could not confirm), every voucher balanced and
+naming our document number, with a control total equal to the ledger's movements of the
+period. A missing mapping refuses the export and names the account.
+Tests: the vouchers of the Phase 4 scenario sum to the ledger's movements; each balances; a
+reversed payment appears as its mirror; the file is well formed; another tenant's postings
+never appear. An ADR. Add to docs/go-live.md: the accountant imports a sample and signs it off.
+Done when: the accountant imports a month and its totals equal ours.
+```
+
+After stage 8: the status table, CLAUDE.md and the README are updated, and the owner is told what is left before 10.6
+and 10.7.
