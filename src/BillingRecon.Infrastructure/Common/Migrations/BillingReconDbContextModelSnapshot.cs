@@ -118,6 +118,9 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("TenantId", "Amount")
+                        .HasDatabaseName("IX_Adjustments_TenantId_Amount");
+
                     b.HasIndex("TenantId", "Number")
                         .IsUnique()
                         .HasDatabaseName("UX_Adjustments_TenantId_Number")
@@ -362,6 +365,9 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasDatabaseName("IX_Bills_TenantId_Status")
                         .HasFilter("[Status] = 'PendingApproval'");
 
+                    b.HasIndex("TenantId", "Total")
+                        .HasDatabaseName("IX_Bills_TenantId_Total");
+
                     b.HasIndex("TenantId", "PayerId", "Status")
                         .HasDatabaseName("IX_Bills_TenantId_PayerId_Status");
 
@@ -599,6 +605,9 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                     b.HasIndex("TenantId", "PatientId")
                         .HasDatabaseName("IX_CreditNotes_TenantId_PatientId");
+
+                    b.HasIndex("TenantId", "Total")
+                        .HasDatabaseName("IX_CreditNotes_TenantId_Total");
 
                     b.HasIndex("TenantId", "BillId", "Status")
                         .HasDatabaseName("IX_CreditNotes_TenantId_BillId_Status");
@@ -2035,6 +2044,9 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("TenantId", "Amount")
+                        .HasDatabaseName("IX_Payments_TenantId_Amount");
+
                     b.HasIndex("TenantId", "LegacyNumber")
                         .IsUnique()
                         .HasDatabaseName("UX_Payments_TenantId_LegacyNumber")
@@ -2262,6 +2274,9 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Amount")
+                        .HasDatabaseName("IX_Refunds_TenantId_Amount");
 
                     b.HasIndex("TenantId", "Number")
                         .IsUnique()

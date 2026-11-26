@@ -14,6 +14,7 @@ public sealed class ListCreditNotesQueryValidator : AbstractValidator<ListCredit
         RuleLevelCascadeMode = CascadeMode.Stop;
 
         Include(new PagedQueryValidator());
+        RuleFor(query => query.Search).OptionalText(DocumentSearch.MaxLength, "search");
 
         RuleFor(query => query.BillId)
             .Must(billId => billId is null || billId.Value.Value != Guid.Empty)

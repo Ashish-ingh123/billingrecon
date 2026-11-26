@@ -65,6 +65,7 @@ public sealed class BillsOnSqlServerTests(SqlServerFixture sqlServer) : Database
                 "UX_Bills_TenantId_Origin_FiscalYear_SequenceNumber:TenantId:1:1",
                 "UX_Bills_TenantId_LegacyNumber:TenantId:1:1",
                 "IX_Bills_TenantId_Status:TenantId:0:1",
+                "IX_Bills_TenantId_Total:TenantId:0:0",
                 "UX_BillLines_TenantId_BillId_LineNo:TenantId:1:0",
             ],
             ignoreOrder: true);
@@ -130,7 +131,7 @@ public sealed class BillsOnSqlServerTests(SqlServerFixture sqlServer) : Database
         stored.TaxTotal.ShouldBe(Money.Of(50.98m));
         stored.Total.ShouldBe(Money.Of(1051.48m));
         stored.BalanceDue.ShouldBe(stored.Total);
-        (await new BillReadService(reader).GetAsync(billId, CancellationToken.None)).ShouldNotBeNull().Lines.Count.ShouldBe(2);
+        (await new BillReadService(reader, new BillingRecon.Infrastructure.Payers.PartySearch(reader)).GetAsync(billId, CancellationToken.None)).ShouldNotBeNull().Lines.Count.ShouldBe(2);
     }
 
     [Fact]

@@ -149,6 +149,15 @@ with field errors lists the messages per field under `errors`, keyed by the JSON
 - `search` finds a part of the text, as `LIKE '%text%'`, without regard to case. A `%`, `_` or `[` in it matches itself.
   The API accepts a search of one character; the screens send one from two characters, while it is typed (ADR 0018 and
   ADR 0039, amended 2026-11-25).
+- **The search of a list of documents** (Prompt 11.1; ADR 0036, amended 2026-11-26): `search` on the lists of bills,
+  payments, credit notes, adjustments and refunds is one box for four things. A document is found when the text is a
+  part of its number (for a bill or a payment brought forward, of its old number too), a part of its patient's name or
+  MRN, a part of its payer's name, or, when the text reads as an amount (`590`, `590.00`, `1,250.50`), exactly its
+  amount (the total of a bill or a credit note, the amount of the others). A bill and a credit note have their patient;
+  a payment, an adjustment and a refund are found by the patient of their payer. The search combines with every other
+  filter, and `totalCount` is of what it finds. At most 100 characters (400 beyond that); **a text of fewer than two
+  characters filters nothing**, where the lists of patients, payers and items search from one: one character is in
+  almost every number. The order of the list is unchanged.
 
 ## 7. Idempotency (BR-803, ADR 0006)
 
@@ -294,7 +303,7 @@ A bill is a draft until it is posted. A draft has no number and no ledger effect
 |---|---|---|
 | `POST /api/v1/bills` (needs `Idempotency-Key`, section 7) | 201, the bill | 400, also `idempotency_key_missing`; 404 `patient_not_found`, `payer_not_found`, `service_item_not_found`; 422 (see below) |
 | `GET /api/v1/bills/{id}` | 200, the bill with its lines | 404 `bill_not_found` |
-| `GET /api/v1/bills?patientId=&payerId=&status=&billDateFrom=&billDateTo=&page=&pageSize=` | 200, a page of bill summaries, newest bill date first | 400 |
+| `GET /api/v1/bills?search=&patientId=&payerId=&status=&billDateFrom=&billDateTo=&page=&pageSize=` | 200, a page of bill summaries, newest bill date first | 400 |
 | `PATCH /api/v1/bills/{id}` | 200, the bill | 400; 404; 409 `concurrency_conflict`, `bill_already_posted`; 422 `bill_not_draft` and the date rules; 428 |
 | `PUT /api/v1/bills/{id}/lines` | 200, the bill | 400; 404 `bill_not_found`, `service_item_not_found`; 409 `concurrency_conflict`, `bill_already_posted`; 422 `bill_not_draft`, `service_item_inactive` and the line rules; 428 |
 | `POST /api/v1/bills/{id}/void` (needs `Idempotency-Key`, section 7) | 200, the bill | 400, also `idempotency_key_missing`; 404; 409 `concurrency_conflict`, `bill_already_posted`; 422 `bill_not_draft`; 428 |
@@ -490,7 +499,7 @@ not at all (BR-007). A payment is never edited or deleted (BR-006). Allocating i
 | `GET /api/v1/payments/{id}` | 200, the payment, `ETag` | 404 `payment_not_found` |
 | `POST /api/v1/payments/{id}/allocations` (needs `Idempotency-Key` and `If-Match`) | 200, the payment with its allocations, `ETag` | 400; 404 `payment_not_found`, `bill_not_found`; 409 `concurrency_conflict`, `idempotency_in_progress`; 422 `allocation_exceeds_unapplied`, `allocation_exceeds_balance_due`, `allocation_payer_mismatch`, `bill_not_posted`, `idempotency_key_reuse`; 428 |
 | `GET /api/v1/payments/{id}/allocations` | 200, the payment with its allocations, `ETag` | 404 `payment_not_found` |
-| `GET /api/v1/payments?payerId=&method=&status=&paymentDateFrom=&paymentDateTo=&page=&pageSize=` | 200, a page of payments | 400 |
+| `GET /api/v1/payments?search=&payerId=&method=&status=&paymentDateFrom=&paymentDateTo=&page=&pageSize=` | 200, a page of payments | 400 |
 
 The body of a recording (unknown members are refused):
 
@@ -580,7 +589,7 @@ is left stays as `availableAmount` and can be applied to other posted bills of t
 |---|---|---|
 | `POST /api/v1/credit-notes` (needs `Idempotency-Key`) | 201, the credit note, `Location`, `ETag` | 400; 404 `bill_not_found`; 422 `bill_not_posted`, `credit_note_date_in_future`, `credit_note_date_too_old`, `credit_note_date_before_bill_date`, `credit_note_bill_line_not_found`, `credit_note_line_discount_exceeds_amount`, `credit_note_line_amount_too_large` |
 | `GET /api/v1/credit-notes/{id}` | 200, the credit note, `ETag` | 404 `credit_note_not_found` |
-| `GET /api/v1/credit-notes?billId=&payerId=&status=&page=&pageSize=` | 200, a page of credit notes without lines | 400 |
+| `GET /api/v1/credit-notes?search=&billId=&payerId=&status=&page=&pageSize=` | 200, a page of credit notes without lines | 400 |
 | `PATCH /api/v1/credit-notes/{id}` (needs `If-Match`) | 200 | 400; 404; 409 `concurrency_conflict`, `credit_note_pending_approval`, `credit_note_already_posted`; 422 `credit_note_not_draft` and the date codes; 428 |
 | `PUT /api/v1/credit-notes/{id}/lines` (needs `If-Match`) | 200 | as `PATCH`, and the line codes of `POST` |
 | `POST /api/v1/credit-notes/{id}/void` (needs `If-Match`, `Idempotency-Key`) | 200 | as `PATCH` |
@@ -662,7 +671,7 @@ and enters Dr Adjustments / Cr Receivable(bill). A posted adjustment is not reve
 |---|---|---|
 | `POST /api/v1/adjustments` (needs `Idempotency-Key`) | 201, the adjustment, `Location`, `ETag` | 400; 404 `bill_not_found`; 422 `bill_not_posted`, `adjustment_rounding_too_large`, `adjustment_date_in_future`, `adjustment_date_too_old`, `adjustment_date_before_bill_date` |
 | `GET /api/v1/adjustments/{id}` | 200, the adjustment, `ETag` | 404 `adjustment_not_found` |
-| `GET /api/v1/adjustments?billId=&payerId=&status=&kind=&page=&pageSize=` | 200, a page of adjustments | 400 |
+| `GET /api/v1/adjustments?search=&billId=&payerId=&status=&kind=&page=&pageSize=` | 200, a page of adjustments | 400 |
 | `PUT /api/v1/adjustments/{id}` (needs `If-Match`) | 200 | 400; 404; 409 `concurrency_conflict`, `adjustment_pending_approval`, `adjustment_already_posted`; 422 `adjustment_not_draft` and the codes of `POST`; 428 |
 | `POST /api/v1/adjustments/{id}/void` (needs `If-Match`, `Idempotency-Key`) | 200 | as `PUT` |
 | `POST /api/v1/adjustments/{id}/post` (needs `If-Match`, `Idempotency-Key`; no body) | **202**, the adjustment in `PendingApproval` | 403 `approval_needs_user`; 404; 409 as `PUT`; 422 `adjustment_not_draft`, `adjustment_exceeds_balance_due` and the date codes; 428 |
@@ -706,7 +715,7 @@ is never changed or reversed (BR-308): a refund made in error is corrected by re
 |---|---|---|
 | `POST /api/v1/refunds` (needs `Idempotency-Key`) | 201, the refund, `Location`, `ETag` | 400; 404 `payment_not_found`, `credit_note_not_found`; 409 `payment_pending_reversal`, `payment_reversed`; 422 `credit_note_not_posted`, `payer_inactive`, `refund_date_in_future`, `refund_date_too_old`, `refund_date_before_source_date` |
 | `GET /api/v1/refunds/{id}` | 200, the refund, `ETag` | 404 `refund_not_found` |
-| `GET /api/v1/refunds?payerId=&status=&paymentId=&creditNoteId=&page=&pageSize=` | 200, a page of refunds | 400 |
+| `GET /api/v1/refunds?search=&payerId=&status=&paymentId=&creditNoteId=&page=&pageSize=` | 200, a page of refunds | 400 |
 | `PUT /api/v1/refunds/{id}` (needs `If-Match`) | 200 | 400; 404; 409 `concurrency_conflict`, `refund_pending_approval`, `refund_already_posted` and the source codes of `POST`; 422 `refund_not_draft` and the date codes; 428 |
 | `POST /api/v1/refunds/{id}/void` (needs `If-Match`, `Idempotency-Key`) | 200 | 400; 404; 409 and 422 as `PUT`; 428 |
 | `POST /api/v1/refunds/{id}/post` (needs `If-Match`, `Idempotency-Key`; no body) | **202**, the refund in `PendingApproval` | 403 `approval_needs_user`; 404; 409 as `PUT`; 422 `refund_not_draft`, `refund_exceeds_available`, `credit_note_not_posted` and the date codes; 428 |

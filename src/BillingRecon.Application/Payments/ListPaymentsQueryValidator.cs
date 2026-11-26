@@ -11,6 +11,7 @@ public sealed class ListPaymentsQueryValidator : AbstractValidator<ListPaymentsQ
         RuleLevelCascadeMode = CascadeMode.Stop;
 
         Include(new PagedQueryValidator());
+        RuleFor(query => query.Search).OptionalText(DocumentSearch.MaxLength, "search");
 
         RuleFor(query => query.PayerId)
             .Must(payerId => payerId is null || payerId.Value.Value != Guid.Empty)

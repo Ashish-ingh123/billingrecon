@@ -56,6 +56,9 @@ public sealed class BillConfiguration : IEntityTypeConfiguration<Bill>
 
         builder.HasIndex(bill => new { bill.TenantId, bill.BillDate }).HasDatabaseName("IX_Bills_TenantId_BillDate");
 
+        // The search of the list by an exact amount (Prompt 11.1; ADR 0036, amended 2026-11-26).
+        builder.HasIndex(bill => new { bill.TenantId, bill.Total }).HasDatabaseName("IX_Bills_TenantId_Total");
+
         builder.Property(bill => bill.EncounterReference).HasMaxLength(Bill.EncounterReferenceMaxLength);
         builder.Property(bill => bill.Notes).HasMaxLength(Bill.NotesMaxLength);
         builder.Property(bill => bill.Status).HasMaxLength(StatusMaxLength);

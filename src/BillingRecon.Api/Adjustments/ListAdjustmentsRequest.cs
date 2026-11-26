@@ -20,6 +20,12 @@ public sealed record ListAdjustmentsRequest
     /// <summary>Discount, WriteOff or Rounding; all when left out.</summary>
     public AdjustmentKind? Kind { get; init; }
 
+    /// <summary>
+    /// Only the documents the text finds (Prompt 11.1): a part of the number, of the patient's name or MRN, of the
+    /// payer's name, or exactly the amount it states. Fewer than two characters filter nothing.
+    /// </summary>
+    public string? Search { get; init; }
+
     /// <summary>The page, from 1; the first when left out.</summary>
     public int? Page { get; init; }
 
@@ -33,6 +39,7 @@ public sealed record ListAdjustmentsRequest
         PayerId = PayerId is { } payerId ? new PayerId(payerId) : null,
         Status = Status,
         Kind = Kind,
+        Search = Search,
         Page = Page ?? Paging.FirstPage,
         PageSize = PageSize ?? Paging.DefaultPageSize,
     };

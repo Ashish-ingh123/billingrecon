@@ -20,6 +20,12 @@ public sealed record ListRefundsRequest
     /// <summary>Only the refunds from this credit note.</summary>
     public Guid? CreditNoteId { get; init; }
 
+    /// <summary>
+    /// Only the documents the text finds (Prompt 11.1): a part of the number, of the patient's name or MRN, of the
+    /// payer's name, or exactly the amount it states. Fewer than two characters filter nothing.
+    /// </summary>
+    public string? Search { get; init; }
+
     /// <summary>From 1; 1 when left out.</summary>
     public int? Page { get; init; }
 
@@ -33,6 +39,7 @@ public sealed record ListRefundsRequest
         Status = Status,
         PaymentId = PaymentId is { } paymentId ? new PaymentId(paymentId) : null,
         CreditNoteId = CreditNoteId is { } creditNoteId ? new CreditNoteId(creditNoteId) : null,
+        Search = Search,
         Page = Page ?? Paging.FirstPage,
         PageSize = PageSize ?? Paging.DefaultPageSize,
     };

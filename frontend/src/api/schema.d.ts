@@ -2112,6 +2112,11 @@ export interface paths {
                     PaymentDateFrom?: string;
                     /** @description Only payments dated on or before this day, `yyyy-MM-dd`. */
                     PaymentDateTo?: string;
+                    /**
+                     * @description Only the documents the text finds (Prompt 11.1): a part of the number, of the patient's name or MRN, of the
+                     *     payer's name, or exactly the amount it states. Fewer than two characters filter nothing.
+                     */
+                    Search?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */
@@ -2343,6 +2348,11 @@ export interface paths {
                     PaymentId?: string;
                     /** @description Only the refunds from this credit note. */
                     CreditNoteId?: string;
+                    /**
+                     * @description Only the documents the text finds (Prompt 11.1): a part of the number, of the patient's name or MRN, of the
+                     *     payer's name, or exactly the amount it states. Fewer than two characters filter nothing.
+                     */
+                    Search?: string;
                     /** @description From 1; 1 when left out. */
                     Page?: number | string;
                     /** @description From 1 to the largest page size; the default page size when left out. */
@@ -5876,6 +5886,11 @@ export interface paths {
                     BillDateFrom?: string;
                     /** @description Only the bills dated on or before this day (`yyyy-MM-dd`). */
                     BillDateTo?: string;
+                    /**
+                     * @description Only the documents the text finds (Prompt 11.1): a part of the number, of the patient's name or MRN, of the
+                     *     payer's name, or exactly the amount it states. Fewer than two characters filter nothing.
+                     */
+                    Search?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */
@@ -7085,6 +7100,11 @@ export interface paths {
                     PayerId?: string;
                     /** @description Draft, PendingApproval, Posted or Voided; all when left out. */
                     Status?: components["schemas"]["CreditNoteStatus"];
+                    /**
+                     * @description Only the documents the text finds (Prompt 11.1): a part of the number, of the patient's name or MRN, of the
+                     *     payer's name, or exactly the amount it states. Fewer than two characters filter nothing.
+                     */
+                    Search?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */
@@ -8407,6 +8427,11 @@ export interface paths {
                     Status?: components["schemas"]["AdjustmentStatus"];
                     /** @description Discount, WriteOff or Rounding; all when left out. */
                     Kind?: components["schemas"]["AdjustmentKind"];
+                    /**
+                     * @description Only the documents the text finds (Prompt 11.1): a part of the number, of the patient's name or MRN, of the
+                     *     payer's name, or exactly the amount it states. Fewer than two characters filter nothing.
+                     */
+                    Search?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */

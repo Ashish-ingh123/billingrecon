@@ -22,6 +22,12 @@ public sealed record ListAdjustmentsQuery : IPagedQuery
     /// <summary>Only the adjustments of this kind.</summary>
     public AdjustmentKind? Kind { get; init; }
 
+    /// <summary>
+    /// Only the documents the text finds (Prompt 11.1): a part of the number, of the patient's name or MRN, of the
+    /// payer's name, or exactly the amount it states. Fewer than two characters filter nothing.
+    /// </summary>
+    public string? Search { get; init; }
+
     /// <inheritdoc />
     public int Page { get; init; } = Paging.FirstPage;
 

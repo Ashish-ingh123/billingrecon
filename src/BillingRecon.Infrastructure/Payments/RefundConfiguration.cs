@@ -40,6 +40,9 @@ public sealed class RefundConfiguration : IEntityTypeConfiguration<Refund>
 
         builder.HasIndex(refund => new { refund.TenantId, refund.PayerId }).HasDatabaseName("IX_Refunds_TenantId_PayerId");
 
+        // The search of the list by an exact amount (Prompt 11.1; ADR 0036, amended 2026-11-26).
+        builder.HasIndex(refund => new { refund.TenantId, refund.Amount }).HasDatabaseName("IX_Refunds_TenantId_Amount");
+
         // The refunds of a payment or of a credit note by status with their amounts, without reading the rows: what the
         // reversal of a payment asks (BR-306), and what the reconciliation sums (identities 4 and 5).
         builder.HasIndex(refund => new { refund.TenantId, refund.SourcePaymentId })

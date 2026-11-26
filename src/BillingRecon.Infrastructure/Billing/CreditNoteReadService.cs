@@ -1,5 +1,6 @@
 using BillingRecon.Application.Billing;
 using BillingRecon.Application.Common;
+using BillingRecon.Application.Payers;
 using BillingRecon.Domain.Billing;
 using BillingRecon.Domain.Common;
 using BillingRecon.Infrastructure.Common.Persistence;
@@ -8,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace BillingRecon.Infrastructure.Billing;
 
 /// <summary>Reads credit notes through the request's context, untracked and filtered by its tenant.</summary>
-public sealed class CreditNoteReadService(BillingReconDbContext context) : ICreditNoteReadService
+public sealed class CreditNoteReadService(BillingReconDbContext context, IPartySearch parties) : ICreditNoteReadService
 {
     /// <inheritdoc />
     public async Task<CreditNoteDto?> GetAsync(CreditNoteId id, CancellationToken ct)
@@ -43,8 +44,25 @@ public sealed class CreditNoteReadService(BillingReconDbContext context) : ICred
             creditNotes = creditNotes.Where(creditNote => creditNote.Status == status);
         }
 
+        // One box (Prompt 11.1; ADR 0036, amended 2026-11-26). Each part of the search is a query of its own, so that
+        // each is answered by its own index, and the documents are those of any part: an OR over them reads every row.
+        int? fewFound = null;
+        if (DocumentSearchFilter.For(query.Search, parties.PatientsNamed, parties.PayersNamed) is { } search)
+        {
+            var filtered = creditNotes;
+            var found = filtered.Where(creditNote => EF.Functions.Like(creditNote.Number!, search.Pattern, LikePattern.Escape)).Select(creditNote => creditNote.Id)
+                .Union(filtered.Where(creditNote => search.Patients.Contains(creditNote.PatientId)).Select(creditNote => creditNote.Id))
+                .Union(filtered.Where(creditNote => search.Payers.Contains(creditNote.PayerId)).Select(creditNote => creditNote.Id));
+            if (search.Amount is { } amount)
+            {
+                found = found.Union(filtered.Where(creditNote => creditNote.Total == amount).Select(creditNote => creditNote.Id));
+            }
+
+            (creditNotes, fewFound) = await DocumentSearchFilter.NarrowAsync(CreditNotes(), found, filtered.Where(creditNote => found.Contains(creditNote.Id)), creditNote => creditNote.Id, ct);
+        }
+
         // The lines and the applications are not loaded: a list shows the summary of each credit note.
-        var totalCount = await creditNotes.CountAsync(ct);
+        var totalCount = fewFound ?? await creditNotes.CountAsync(ct);
         var page = await creditNotes
             .OrderByDescending(creditNote => creditNote.CreditNoteDate)
             .ThenByDescending(creditNote => creditNote.CreatedAtUtc)

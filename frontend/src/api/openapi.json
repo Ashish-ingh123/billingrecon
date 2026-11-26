@@ -3362,6 +3362,14 @@
             }
           },
           {
+            "name": "Search",
+            "in": "query",
+            "description": "Only the documents the text finds (Prompt 11.1): a part of the number, of the patient's name or MRN, of the\npayer's name, or exactly the amount it states. Fewer than two characters filter nothing.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Page",
             "in": "query",
             "description": "The page, from 1; the first when left out.",
@@ -3763,6 +3771,14 @@
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "name": "Search",
+            "in": "query",
+            "description": "Only the documents the text finds (Prompt 11.1): a part of the number, of the patient's name or MRN, of the\npayer's name, or exactly the amount it states. Fewer than two characters filter nothing.",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -9267,6 +9283,14 @@
             }
           },
           {
+            "name": "Search",
+            "in": "query",
+            "description": "Only the documents the text finds (Prompt 11.1): a part of the number, of the patient's name or MRN, of the\npayer's name, or exactly the amount it states. Fewer than two characters filter nothing.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Page",
             "in": "query",
             "description": "The page, from 1; the first when left out.",
@@ -11273,6 +11297,14 @@
             "description": "Draft, PendingApproval, Posted or Voided; all when left out.",
             "schema": {
               "$ref": "#/components/schemas/CreditNoteStatus"
+            }
+          },
+          {
+            "name": "Search",
+            "in": "query",
+            "description": "Only the documents the text finds (Prompt 11.1): a part of the number, of the patient's name or MRN, of the\npayer's name, or exactly the amount it states. Fewer than two characters filter nothing.",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -13480,6 +13512,14 @@
             "description": "Discount, WriteOff or Rounding; all when left out.",
             "schema": {
               "$ref": "#/components/schemas/AdjustmentKind"
+            }
+          },
+          {
+            "name": "Search",
+            "in": "query",
+            "description": "Only the documents the text finds (Prompt 11.1): a part of the number, of the patient's name or MRN, of the\npayer's name, or exactly the amount it states. Fewer than two characters filter nothing.",
+            "schema": {
+              "type": "string"
             }
           },
           {

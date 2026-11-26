@@ -1,5 +1,6 @@
 using BillingRecon.Application.Adjustments;
 using BillingRecon.Application.Common;
+using BillingRecon.Application.Payers;
 using BillingRecon.Domain.Adjustments;
 using BillingRecon.Domain.Common;
 using BillingRecon.Infrastructure.Common.Persistence;
@@ -8,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace BillingRecon.Infrastructure.Adjustments;
 
 /// <summary>Reads adjustments through the request's context, untracked and filtered by its tenant.</summary>
-public sealed class AdjustmentReadService(BillingReconDbContext context) : IAdjustmentReadService
+public sealed class AdjustmentReadService(BillingReconDbContext context, IPartySearch parties) : IAdjustmentReadService
 {
     /// <inheritdoc />
     public async Task<AdjustmentDto?> GetAsync(AdjustmentId id, CancellationToken ct)
@@ -44,7 +45,23 @@ public sealed class AdjustmentReadService(BillingReconDbContext context) : IAdju
             adjustments = adjustments.Where(adjustment => adjustment.Kind == kind);
         }
 
-        var totalCount = await adjustments.CountAsync(ct);
+        // One box (Prompt 11.1; ADR 0036, amended 2026-11-26). Each part of the search is a query of its own, so that
+        // each is answered by its own index, and the documents are those of any part: an OR over them reads every row.
+        int? fewFound = null;
+        if (DocumentSearchFilter.For(query.Search, parties.PatientsNamed, parties.PayersNamed) is { } search)
+        {
+            var filtered = adjustments;
+            var found = filtered.Where(adjustment => EF.Functions.Like(adjustment.Number!, search.Pattern, LikePattern.Escape)).Select(adjustment => adjustment.Id)
+                .Union(filtered.Where(adjustment => search.Payers.Contains(adjustment.PayerId)).Select(adjustment => adjustment.Id));
+            if (search.Amount is { } amount)
+            {
+                found = found.Union(filtered.Where(adjustment => adjustment.Amount == amount).Select(adjustment => adjustment.Id));
+            }
+
+            (adjustments, fewFound) = await DocumentSearchFilter.NarrowAsync(Adjustments(), found, filtered.Where(adjustment => found.Contains(adjustment.Id)), adjustment => adjustment.Id, ct);
+        }
+
+        var totalCount = fewFound ?? await adjustments.CountAsync(ct);
         var page = await adjustments
             .OrderByDescending(adjustment => adjustment.AdjustmentDate)
             .ThenByDescending(adjustment => adjustment.CreatedAtUtc)

@@ -96,6 +96,9 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             .IncludeProperties(payment => new { payment.Method, payment.Amount, payment.Status })
             .HasDatabaseName("IX_Payments_TenantId_PaymentDate");
 
+        // The search of the list by an exact amount (Prompt 11.1; ADR 0036, amended 2026-11-26).
+        builder.HasIndex(payment => new { payment.TenantId, payment.Amount }).HasDatabaseName("IX_Payments_TenantId_Amount");
+
         builder.Property(payment => payment.Method).HasMaxLength(MethodMaxLength);
         builder.Property(payment => payment.Status).HasMaxLength(StatusMaxLength);
         builder.Property(payment => payment.Reference).HasMaxLength(Payment.ReferenceMaxLength);

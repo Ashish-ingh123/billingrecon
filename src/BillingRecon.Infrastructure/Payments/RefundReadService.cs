@@ -1,4 +1,5 @@
 using BillingRecon.Application.Common;
+using BillingRecon.Application.Payers;
 using BillingRecon.Application.Payments;
 using BillingRecon.Domain.Common;
 using BillingRecon.Domain.Payments;
@@ -8,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace BillingRecon.Infrastructure.Payments;
 
 /// <summary>Reads refunds for the API, without tracking. The tenant filter of the context applies.</summary>
-public sealed class RefundReadService(BillingReconDbContext context) : IRefundReadService
+public sealed class RefundReadService(BillingReconDbContext context, IPartySearch parties) : IRefundReadService
 {
     /// <inheritdoc />
     public Task<UserId?> FindRecorderAsync(RefundId id, CancellationToken ct)
@@ -48,7 +49,23 @@ public sealed class RefundReadService(BillingReconDbContext context) : IRefundRe
             refunds = refunds.Where(refund => refund.SourceCreditNoteId == creditNoteId);
         }
 
-        var totalCount = await refunds.CountAsync(ct);
+        // One box (Prompt 11.1; ADR 0036, amended 2026-11-26). Each part of the search is a query of its own, so that
+        // each is answered by its own index, and the documents are those of any part: an OR over them reads every row.
+        int? fewFound = null;
+        if (DocumentSearchFilter.For(query.Search, parties.PatientsNamed, parties.PayersNamed) is { } search)
+        {
+            var filtered = refunds;
+            var found = filtered.Where(refund => EF.Functions.Like(refund.Number!, search.Pattern, LikePattern.Escape)).Select(refund => refund.Id)
+                .Union(filtered.Where(refund => search.Payers.Contains(refund.PayerId)).Select(refund => refund.Id));
+            if (search.Amount is { } amount)
+            {
+                found = found.Union(filtered.Where(refund => refund.Amount == amount).Select(refund => refund.Id));
+            }
+
+            (refunds, fewFound) = await DocumentSearchFilter.NarrowAsync(Refunds(), found, filtered.Where(refund => found.Contains(refund.Id)), refund => refund.Id, ct);
+        }
+
+        var totalCount = fewFound ?? await refunds.CountAsync(ct);
         var page = await refunds
             .OrderByDescending(refund => refund.RefundDate)
             .ThenByDescending(refund => refund.CreatedAtUtc)

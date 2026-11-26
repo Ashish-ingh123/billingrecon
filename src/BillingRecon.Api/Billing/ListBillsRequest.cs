@@ -26,6 +26,12 @@ public sealed record ListBillsRequest
     /// <summary>Only the bills dated on or before this day (<c>yyyy-MM-dd</c>).</summary>
     public DateOnly? BillDateTo { get; init; }
 
+    /// <summary>
+    /// Only the documents the text finds (Prompt 11.1): a part of the number, of the patient's name or MRN, of the
+    /// payer's name, or exactly the amount it states. Fewer than two characters filter nothing.
+    /// </summary>
+    public string? Search { get; init; }
+
     /// <summary>The page, from 1; the first when left out.</summary>
     public int? Page { get; init; }
 
@@ -40,6 +46,7 @@ public sealed record ListBillsRequest
         Status = Status,
         BillDateFrom = BillDateFrom,
         BillDateTo = BillDateTo,
+        Search = Search,
         Page = Page ?? Paging.FirstPage,
         PageSize = PageSize ?? Paging.DefaultPageSize,
     };

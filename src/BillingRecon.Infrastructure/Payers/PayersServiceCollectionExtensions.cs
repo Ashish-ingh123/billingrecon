@@ -16,6 +16,7 @@ public static class PayersServiceCollectionExtensions
         services.AddScoped<IPatientRepository, PatientRepository>();
         services.AddScoped<IPayerRepository, PayerRepository>();
         services.AddScoped<IPatientReadService, PatientReadService>();
+        services.AddScoped<IPartySearch, PartySearch>();
         services.AddScoped<IPayerReadService, PayerReadService>();
 
         // What other modules ask the Payers module, built on the read services above.

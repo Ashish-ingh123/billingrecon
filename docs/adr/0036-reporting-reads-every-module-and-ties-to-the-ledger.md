@@ -123,3 +123,50 @@ The owner approved the plan of Prompt 6.2 "as recommended". What it decided and 
 them (`1`, `200`), while every later image, read from the stored row, holds them at the column's scale (`1.000`,
 `200.0000`). The values are equal; a reader comparing the JSON as text sees a difference. `EntitySnapshot` could read
 the creation's image back after the insert, at the cost of a read per created row; left as it is for the owner to decide.
+
+## Amended 2026-11-26 (Prompt 11.1): one search box on the lists of documents
+
+The lists of bills, payments, credit notes, adjustments and refunds had filters (payer, status, dates) and no search:
+a cashier with a name or the last digits of a receipt had to go through the patient or the payer first. Decided with
+the owner on 2026-11-26:
+
+1. **One parameter, `search`, on the five lists**, for four things: a part of the number (and of the old number of a
+   document brought forward), a part of the patient's name or MRN, a part of the payer's name, and an amount, exactly,
+   when the text reads as one. Any of them finds the document. The text is data, never a pattern (ADR 0018,
+   `LikePattern`); at most 100 characters; fewer than two filter nothing (`DocumentSearch`, Application, Common).
+2. **A list reads the parties of another module through a contract**, as the reports do: `IPartySearch` (Application,
+   Payers) gives the patients and the payers a text names as queries, which the list of documents puts into its own.
+   The modules of the documents still know no table of the parties.
+3. **Each part of the search is a query of its own, joined by the ids** (`UNION`), not one `WHERE` with `OR`. Measured
+   on LocalDB 2019 with 100,000 payments, 100,000 bills and 5,000 patients of one hospital (2026-11-26): with `OR`,
+   SQL Server read every row for every search, 750 to 1,500 ms; joined, each part is answered by its own index.
+4. **A search that finds at most 500 documents reads them by their ids** (`DocumentSearchFilter.NarrowAsync`). The page
+   of a search that finds few documents took over a second when SQL Server walked the list in its order looking at
+   each document for a match; given the ids it takes milliseconds. A search that finds more is dense enough to be found
+   in the order of the list.
+5. **What it costs, as measured through the API** (the same data; the best of three, the whole request):
+
+   | Search | Payments | Bills |
+   | --- | --- | --- |
+   | none (the list as it was) | 253 ms | 109 ms |
+   | a part of a number, one document found | 66 ms | 74 ms |
+   | a patient's name, 20 documents found | 62 ms | 72 ms |
+   | an amount, about 40 found | 64 ms | 73 ms |
+   | nothing found | 61 ms | 69 ms |
+   | two characters of a number, 5,009 found | 206 ms | 218 ms |
+   | a first name, 12,500 found | 350 ms | 239 ms |
+   | the prefix of every number, 100,001 found | 383 ms | 217 ms |
+
+   A part of a number cannot seek (the text may be anywhere in it): it scans the hospital's numbers in the narrow
+   unique index of the number, about 90 ms of the above for 100,000. A name scans the hospital's patients and payers,
+   not its documents. An amount seeks.
+6. **Indexes** (migration `0028_DocumentSearch`): one per table for the amount, `IX_Bills_TenantId_Total`,
+   `IX_CreditNotes_TenantId_Total`, `IX_Payments_TenantId_Amount`, `IX_Adjustments_TenantId_Amount`,
+   `IX_Refunds_TenantId_Amount`. The number, the payer and the patient of each table had their indexes. **No
+   full-text index:** it is a feature of SQL Server that is installed apart, and the numbers above do not ask for it.
+7. **Not measured:** credit notes, adjustments and refunds at volume (they take the same shape and are fewer than
+   bills in a hospital); SQL Server 2022; more than one hospital in the database.
+
+Tests: `DocumentSearchApiTests` (each field in part on each list; `%`, `_` and `[` as text; with the other filters and
+the paging; 501 documents found; another hospital's documents never), `DocumentSearchTests` (the text and the
+amount). The browser's search box is Prompt 11.1b.
