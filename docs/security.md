@@ -49,8 +49,11 @@ rows S1 and S9).
 The permission matrix of `docs/requirements.md` section 1 is applied as named policies, one per capability; every
 action of the API names exactly one, and an architecture test keeps it so. A role a policy does not admit gets 403
 `forbidden`. A blank cell of the matrix is no access, not even reading, with one exception: a Cashier reads credit
-notes, to refund from one. The trail of a user in the audit is the TenantAdmin's alone, as the users are; so are the
-trails of the tenant, of its prefix changes and of its number series (ADR 0033), and the settings themselves. The
+notes, to refund from one. The trail of a record in the audit is read by whoever may read the record, and by no one
+else (since 2026-11-26, review finding R7: until then every role read every trail but four, and with it documents its
+role could not open): the trail of a user is the TenantAdmin's alone, as the users are; so are the trails of the
+tenant, of its prefix changes, of its number series (ADR 0033) and of its print settings, and the settings themselves;
+the trail of an approval request or an opening batch is read by who may decide. The
 dashboard is the TenantAdmin's, the Supervisor's and the Viewer's (US-44, ADR 0037); clerks and cashiers read the
 same figures in the reports, which every role may. The table
 of what each role may call is in `docs/api.md` section 2, and one table-driven test walks every endpoint with every

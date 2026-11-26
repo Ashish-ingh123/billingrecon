@@ -410,14 +410,18 @@ one record, in the transaction of the change. Nothing here can be created, chang
 
 | Method and path | Success | Failures |
 |---|---|---|
-| `GET /api/v1/audit-records?entityType=&entityId=&page=&pageSize=` | 200, a page of records, oldest first | 400 when `entityType` or `entityId` is missing, or the page is outside the limits; 403 for the trail of a user, unless the caller is a TenantAdmin |
+| `GET /api/v1/audit-records?entityType=&entityId=&page=&pageSize=` | 200, a page of records, oldest first | 400 when `entityType` or `entityId` is missing, or the page is outside the limits; 403 for the trail of a kind of record the caller's role may not read, and for a kind that is not audited |
 
 `entityType` is `Patient`, `Payer`, `ServiceItem`, `Bill`, `ApprovalRequest` or the type of any later record (`User`,
 `Payment`, ...); `entityId` is the id of that record. Both are required. A record of another tenant, like an id nobody
-has, has an empty trail: 200 with no items, never 404 or 403. Every role reads the trail (US-43), except the trails of a
-user (`entityType=User`), of the tenant (`Tenant`), of its prefix changes (`PrefixChange`) and of its number series
-(`NumberSeries`), in any case, which only a TenantAdmin reads: the users and the settings are the TenantAdmin's alone
-(ADR 0032, ADR 0033).
+has, has an empty trail: 200 with no items, never 404. **Since 2026-11-26 (review finding R7; ADR 0032, amended) a
+trail is read by whoever may read its record, and by no one else:** a trail holds the record before and after each
+change, whole, so it is the record. In any case of the letters: `Patient`, `Payer` and `ServiceItem` by who reads the
+reference data (every role); `Bill`, `CreditNote`, `Adjustment`, `Payment` and `Refund` by who reads that document (a
+Cashier reads no adjustment's trail, a BillingClerk no refund's); `ApprovalRequest` and `OpeningBatch` by who may decide
+(TenantAdmin, Supervisor), so not by the maker of a request; `User`, `Tenant`, `PrefixChange`, `NumberSeries` and
+`PrintSettings` by a TenantAdmin alone, as the users and the settings are (ADR 0032, ADR 0033). Anything else is 403: a
+kind that is not audited has no reader. Until that day every role read every trail but the four of the TenantAdmin.
 
 A record:
 

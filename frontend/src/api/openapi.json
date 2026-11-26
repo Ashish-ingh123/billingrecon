@@ -13223,7 +13223,7 @@
         "tags": [
           "AuditRecords"
         ],
-        "summary": "Lists the trail of one record, oldest first: `entityType` and `entityId` are required. 403 for the\ntrail of a user, unless the caller is a TenantAdmin.",
+        "summary": "Lists the trail of one record, oldest first: `entityType` and `entityId` are required. 403 for the\ntrail of a kind of record the caller's role may not read, and for a kind that is not audited.",
         "parameters": [
           {
             "name": "EntityType",

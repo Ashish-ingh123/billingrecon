@@ -109,3 +109,29 @@ Built as decided, on .NET 10 (SDK 10.0.404); the database tests ran in a throwaw
 
 Point 8: the roles are still those of the token, but a change of a user's roles now ends the user's sessions, so the
 token with the old roles is refused at once and the next sign-in carries the new ones.
+
+## Amended 2026-11-26 (Prompt 10.8, review finding R7): a trail is read by who may read its record
+
+Point 6 let every role read the audit trail, with four kinds held back for the TenantAdmin. The independent review of
+2026-11 (`docs/review-2026-11.md`, R7) showed what that gave away: a trail holds the record before and after each
+change, whole, so a Cashier, whose role reads no adjustment, read any adjustment's amount, kind and reason through its
+trail; a BillingClerk every refund; a Viewer the opening batches. The owner approved the fix on 2026-11-26.
+
+1. **A trail is read by whoever may read its record.** `AuditTrailPolicies` (Api, Audit) names, for each kind of
+   audited record, the read policy of its document; the one action of `AuditRecordsController` keeps `ReadAudit` as
+   its policy (every role may ask) and then authorises against the kind's own, as it did for the four.
+2. **What a checker decides is read by who may decide:** the trails of `ApprovalRequest` and `OpeningBatch` need
+   `Decide`. The maker of a request no longer reads its trail; the state of the request and the checker's comment are
+   on the document. The owner chose this.
+3. **A kind that is not named has no reader** (403), where it had an empty trail (200). An architecture test holds the
+   names to the aggregates of the domain, so a new audited record fails the build until its reader is decided.
+4. `PrintSettings` joins the TenantAdmin's kinds.
+
+Tests: `AuditTrailPolicyTests` (the map complete, its policies of the catalogue) and
+`US43_the_trail_of_a_record_is_read_by_who_may_read_the_record_and_by_no_one_else` (26 pairs of a role and a kind, the
+finding's three among them; an unknown kind; no kind). **One existing test changed with the behaviour:**
+`BillApprovalApiTests.US22...` read an approval request's trail as its maker; the checker reads it now, and the maker
+is asserted to be refused. No screen changed: each shows the trail of the record its reader may read.
+
+Verified on the office machine: Architecture 141, the `Database` collection, 541, on LocalDB 2019 in a copy. SQL
+Server 2022 is owed with the rest.

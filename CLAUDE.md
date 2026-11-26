@@ -1150,5 +1150,8 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    payment that was not reversed for a method and a reference (422 `payment_reference_already_recorded`, the index
    `UX_Payments_TenantId_PayerId_Method_Reference`, migration `0027_PaymentReferenceOnce`; cash is never compared; ADR 0006
    "Amended 2026-11-26"; BR-301). A database test that records several payments for one payer gives each a reference of
-   its own. **R6 is accepted and recorded** (`docs/security.md`, row R4). The other six of its ten wait
-   for the owner.
+   its own. **R6 is accepted and recorded** (`docs/security.md`, row R4). **R7 is fixed:** the trail of a
+   record is read by whoever may read the record (`Api/Audit/AuditTrailPolicies`: each audited kind with the read policy of
+   its document; `ApprovalRequest` and `OpeningBatch` need `Decide`; a kind that is not named is 403; ADR 0032 "Amended
+   2026-11-26"). A new aggregate needs its line there, or `AuditTrailPolicyTests` fails. The other five of its ten wait for
+   the owner.

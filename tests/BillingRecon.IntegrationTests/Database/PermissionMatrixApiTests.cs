@@ -285,6 +285,84 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
         }
     }
 
+    [Fact]
+    public async Task US43_the_trail_of_a_record_is_read_by_who_may_read_the_record_and_by_no_one_else()
+    {
+        // Review 2026-11, finding R7: until 2026-11-26 every role read the trail, with its whole before and after
+        // images, of any kind of record but four. Each line is a role, a kind, and whether that role reads that kind
+        // of record by the permission matrix (docs/requirements.md, section 1). The ids are nobody's: who is let in
+        // reads an empty trail, so the answer tells the permission and nothing else.
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var tenant = await NewApiTenantAsync();
+        var expected = new (Role Role, string Kind, bool Reads)[]
+        {
+            // The three sequences of the finding.
+            (Role.Cashier, "Adjustment", false),
+            (Role.BillingClerk, "Refund", false),
+            (Role.Viewer, "OpeningBatch", false),
+
+            // What each of them still reads, because its role reads the record.
+            (Role.Cashier, "Payment", true),
+            (Role.Cashier, "Refund", true),
+            (Role.Cashier, "Bill", true),
+            (Role.Cashier, "CreditNote", true),
+            (Role.BillingClerk, "Adjustment", true),
+            (Role.BillingClerk, "Bill", true),
+            (Role.Viewer, "Adjustment", true),
+            (Role.Viewer, "Refund", true),
+            (Role.Viewer, "Patient", true),
+
+            // What a checker decides is read by who decides.
+            (Role.Supervisor, "OpeningBatch", true),
+            (Role.Supervisor, "ApprovalRequest", true),
+            (Role.TenantAdmin, "ApprovalRequest", true),
+            (Role.BillingClerk, "ApprovalRequest", false),
+            (Role.Cashier, "ApprovalRequest", false),
+            (Role.Viewer, "ApprovalRequest", false),
+            (Role.BillingClerk, "OpeningBatch", false),
+
+            // The settings are the administrator's, the print settings with them.
+            (Role.TenantAdmin, "PrintSettings", true),
+            (Role.Supervisor, "PrintSettings", false),
+            (Role.Viewer, "PrintSettings", false),
+            (Role.Supervisor, "Tenant", false),
+            (Role.Supervisor, "NumberSeries", false),
+
+            // Whatever the case and the spaces, as the database compares the kind.
+            (Role.Cashier, " adjustment ", false),
+            (Role.Viewer, "ADJUSTMENT", true),
+        };
+
+        var wrong = new List<string>();
+        foreach (var (role, kind, reads) in expected)
+        {
+            using var client = factory.CreateClientFor(new FixedIdentity(tenant.TenantId, new UserId(Guid.NewGuid())), role.ToString());
+            using var answer = await client.GetAsync(Trail(kind, Guid.NewGuid()));
+
+            var want = reads ? HttpStatusCode.OK : HttpStatusCode.Forbidden;
+            if (answer.StatusCode != want)
+            {
+                wrong.Add($"{role} asking for the trail of '{kind}': {(int)answer.StatusCode}, expected {(int)want}");
+            }
+            else if (!reads)
+            {
+                (await ErrorCodeAsync(answer)).ShouldBe("forbidden");
+            }
+        }
+
+        wrong.ShouldBeEmpty();
+
+        // A kind that is not audited has no reader, the administrator included; a request with no kind is malformed.
+        foreach (var role in Everyone)
+        {
+            using var client = factory.CreateClientFor(new FixedIdentity(tenant.TenantId, new UserId(Guid.NewGuid())), role.ToString());
+            using var unknown = await client.GetAsync(Trail("Widget", Guid.NewGuid()));
+            unknown.StatusCode.ShouldBe(HttpStatusCode.Forbidden, $"{role} asking for the trail of a kind nobody audits");
+            using var noKind = await client.GetAsync(new Uri($"/api/v1/audit-records?entityId={Guid.NewGuid()}", UriKind.Relative));
+            noKind.StatusCode.ShouldBe(HttpStatusCode.BadRequest, $"{role} asking for a trail without a kind");
+        }
+    }
+
     private static Uri Trail(string entityType, Guid id)
         => new($"/api/v1/audit-records?entityType={Uri.EscapeDataString(entityType)}&entityId={id}", UriKind.Relative);
 

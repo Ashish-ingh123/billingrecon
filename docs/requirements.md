@@ -47,7 +47,7 @@ The checker must always be a different user from the maker (BR-603), whatever th
 *How the matrix is applied (ADR 0032, 2026-11-21):* a ✓ includes reading, and a blank cell is no access, not even
 reading, except that a Cashier reads credit notes (a refund may come from one). Applying a credit note's credit to
 another bill is in the credit notes' row; the checker's inbox of pending requests is in the checker's row; the audit
-trail is read by everyone (US-43), but the trail of a user by a TenantAdmin only. The dashboard (US-44, BR-902; added
+trail of a record is read by whoever may read the record (US-43; since 2026-11-26, review finding R7), the trail of a user and of the settings by a TenantAdmin only, and that of what a checker decides by who may decide. The dashboard (US-44, BR-902; added
 with Prompt 6.3 on 2026-11-23) is the overview of whoever runs or audits the hospital; clerks and cashiers keep every
 report for their daily work.
 

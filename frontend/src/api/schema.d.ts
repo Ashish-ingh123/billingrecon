@@ -8322,7 +8322,7 @@ export interface paths {
         };
         /**
          * Lists the trail of one record, oldest first: `entityType` and `entityId` are required. 403 for the
-         *     trail of a user, unless the caller is a TenantAdmin.
+         *     trail of a kind of record the caller's role may not read, and for a kind that is not audited.
          */
         get: {
             parameters: {

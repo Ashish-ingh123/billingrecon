@@ -93,7 +93,12 @@ public sealed class BillApprovalApiTests(SqlServerFixture sqlServer) : DatabaseT
             ("SubmittedForApproval", maker.UserId!.Value.Value),
             ("Posted", checker.UserId!.Value.Value),
         ]);
-        (await TrailAsync(clerk, "ApprovalRequest", request.Id)).Select(record => record.Action).ShouldBe(["Opened", "Approved"]);
+        // Since 2026-11-26 (review finding R7) the trail of an approval request is read by who may decide, not by its maker.
+        (await TrailAsync(supervisor, "ApprovalRequest", request.Id)).Select(record => record.Action).ShouldBe(["Opened", "Approved"]);
+        using (var makers = await clerk.GetAsync(new Uri($"/api/v1/audit-records?entityType=ApprovalRequest&entityId={request.Id}", UriKind.Relative)))
+        {
+            makers.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
 
         await ShouldHaveNoDriftAndAGaplessSeriesAsync(maker);
     }
