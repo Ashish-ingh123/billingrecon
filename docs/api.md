@@ -1295,7 +1295,7 @@ For a failure no use case reported: routing, model binding, content negotiation,
 | `credit_note_line_discount_exceeds_amount` | 422 | The discount of line … is more than the amount of the line (BR-211). |
 | `credit_note_line_amount_too_large` | 422 | The amount of line … is larger than a credit note line can hold. |
 | `credit_note_bill_line_not_found` | 422 | Line … names a line the bill does not have (BR-211). |
-| `credit_note_exceeds_bill_total` | 422 | The bill comes to … and … of it is credited already; this credit note would take the credits above the bill (BR-210). |
+| `credit_note_exceeds_bill_total` | 422 | The bill comes to … and … of it is credited already; this credit note would take the credits above the bill (BR-210). Since 2026-11-26 also when the bill's posted adjustments, with its credits, leave less than this credit note: the message then names what was taken off by adjustments. |
 | `credit_note_line_exceeds_bill_line` | 422 | Line … credits a bill line of …, of which … is credited already; that is more than the line (BR-211). |
 | `credit_exceeds_available` | 422 | Credit note … has … available; more than that cannot be applied (BR-213). |
 | `credit_application_not_found` | 404 | The credit note has no such application. |

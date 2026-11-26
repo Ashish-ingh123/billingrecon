@@ -1,3 +1,4 @@
+using BillingRecon.Application.Adjustments;
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Identity;
 using BillingRecon.Application.Receivables;
@@ -33,6 +34,7 @@ public sealed class ApproveCreditNoteHandler(
     ICurrentUser currentUser,
     IBillRepository bills,
     ICreditNoteRepository repository,
+    IBillAdjustments adjustments,
     IApprovalRequestRepository approvals,
     ITenantSettingsReader tenantSettings,
     INumberSeries numbers,
@@ -90,7 +92,7 @@ public sealed class ApproveCreditNoteHandler(
             return decided.Error;
         }
 
-        var withinBill = await CreditNoteCaps.CheckAsync(repository, creditNote, bill, ct);
+        var withinBill = await CreditNoteCaps.CheckAsync(repository, adjustments, creditNote, bill, ct);
         if (withinBill.IsFailure)
         {
             return withinBill.Error;
@@ -113,7 +115,7 @@ public sealed class ApproveCreditNoteHandler(
 
         // Every approval of a credit note of this payer waits for that lock, so what is read now is what holds at
         // the commit. A cap that fitted a moment ago and no longer does was taken by a request that committed first.
-        var stillWithinBill = await CreditNoteCaps.CheckAsync(repository, creditNote, bill, ct);
+        var stillWithinBill = await CreditNoteCaps.CheckAsync(repository, adjustments, creditNote, bill, ct);
         if (stillWithinBill.IsFailure)
         {
             return CommonErrors.ConcurrencyConflict();

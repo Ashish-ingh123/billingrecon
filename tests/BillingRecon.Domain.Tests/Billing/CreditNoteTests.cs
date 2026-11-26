@@ -174,6 +174,29 @@ public sealed class CreditNoteTests
     }
 
     [Fact]
+    public void BR210_what_adjustments_took_off_the_bill_counts_against_the_cap_like_a_credit()
+    {
+        // Review 2026-11, R1. This credit note is 126.00.
+        var creditNote = Draft();
+
+        // A bill of 716.00, 590.00 of it written off: exactly 126.00 is left to credit.
+        creditNote.CheckWithinBill(Money.Of(716m), Money.Zero, NoLines, NoLines, Money.Of(590m)).IsSuccess.ShouldBeTrue();
+        var refused = creditNote.CheckWithinBill(Money.Of(716m), Money.Zero, NoLines, NoLines, Money.Of(590.01m));
+        refused.Error.Code.ShouldBe(BillingErrors.CreditNoteExceedsBillTotalCode);
+        refused.Error.Message.ShouldContain("taken off by adjustments");
+
+        // Credits and adjustments together: 400 credited and 190 adjusted leave 126; one paisa more of either does not.
+        creditNote.CheckWithinBill(Money.Of(716m), Money.Of(400m), NoLines, NoLines, Money.Of(190m)).IsSuccess.ShouldBeTrue();
+        creditNote.CheckWithinBill(Money.Of(716m), Money.Of(400.01m), NoLines, NoLines, Money.Of(190m)).IsFailure.ShouldBeTrue();
+
+        // A bill wholly written off can be credited nothing.
+        creditNote.CheckWithinBill(Money.Of(126m), Money.Zero, NoLines, NoLines, Money.Of(126m)).IsFailure.ShouldBeTrue();
+
+        // With nothing adjusted the answer and its words are what they were.
+        creditNote.CheckWithinBill(Money.Of(125.99m), Money.Zero, NoLines, NoLines, Money.Zero).Error.Message.ShouldNotContain("adjustments");
+    }
+
+    [Fact]
     public void BR211_the_credits_of_one_line_of_the_bill_with_these_lines_do_not_exceed_that_line()
     {
         // Two lines of 63.00 each for the same line of the bill, whose total is 126.00.

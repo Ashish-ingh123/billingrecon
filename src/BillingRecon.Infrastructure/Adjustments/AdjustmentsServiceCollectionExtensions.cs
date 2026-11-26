@@ -14,6 +14,7 @@ public static class AdjustmentsServiceCollectionExtensions
     {
         services.AddScoped<IAdjustmentRepository, AdjustmentRepository>();
         services.AddScoped<IAdjustmentReadService, AdjustmentReadService>();
+        services.AddScoped<IBillAdjustments, BillAdjustments>();
 
         return services;
     }

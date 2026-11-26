@@ -178,9 +178,14 @@ public static class BillingErrors
     public static Error CreditNoteBillLineNotFound(int lineNo)
         => Error.BusinessRule(CreditNoteBillLineNotFoundCode, $"Line {lineNo} names a line the bill does not have (BR-211).");
 
-    /// <summary>The posted credit notes of a bill, with this one, would come to more than the bill (BR-210).</summary>
-    public static Error CreditNoteExceedsBillTotal(Money billTotal, Money alreadyCredited)
-        => Error.BusinessRule(CreditNoteExceedsBillTotalCode, $"The bill comes to {billTotal} and {alreadyCredited} of it is credited already; this credit note would take the credits above the bill (BR-210).");
+    /// <summary>
+    /// The posted credit notes of a bill, with this one, would come to more than the bill, or, since 2026-11-26, than
+    /// what was billed and not taken off by adjustments (BR-210; ADR 0025, amended): one failure, one code.
+    /// </summary>
+    public static Error CreditNoteExceedsBillTotal(Money billTotal, Money alreadyCredited, Money alreadyAdjusted = default)
+        => alreadyAdjusted == Money.Zero
+            ? Error.BusinessRule(CreditNoteExceedsBillTotalCode, $"The bill comes to {billTotal} and {alreadyCredited} of it is credited already; this credit note would take the credits above the bill (BR-210).")
+            : Error.BusinessRule(CreditNoteExceedsBillTotalCode, $"The bill comes to {billTotal}; {alreadyCredited} of it is credited already and {alreadyAdjusted} was taken off by adjustments. This credit note would credit more than is left of the bill (BR-210).");
 
     /// <summary>The credits for one line of the bill, with line <paramref name="lineNo"/>, would come to more than that line (BR-211).</summary>
     public static Error CreditNoteLineExceedsBillLine(int lineNo, Money billLineTotal, Money alreadyCredited)

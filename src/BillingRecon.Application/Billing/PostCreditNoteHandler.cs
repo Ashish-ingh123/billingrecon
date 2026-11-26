@@ -1,3 +1,4 @@
+using BillingRecon.Application.Adjustments;
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Identity;
 using BillingRecon.Domain.Billing;
@@ -23,6 +24,7 @@ public sealed class PostCreditNoteHandler(
     ICorrelationContext correlation,
     IBillRepository bills,
     ICreditNoteRepository repository,
+    IBillAdjustments adjustments,
     IApprovalRequestRepository approvals,
     ITenantSettingsReader tenantSettings,
     IUnitOfWork unitOfWork) : ICommandHandler<PostCreditNoteCommand, CreditNoteDto>
@@ -55,7 +57,7 @@ public sealed class PostCreditNoteHandler(
             return allowed.Error;
         }
 
-        var withinBill = await CreditNoteCaps.CheckAsync(repository, creditNote, bill, ct);
+        var withinBill = await CreditNoteCaps.CheckAsync(repository, adjustments, creditNote, bill, ct);
         if (withinBill.IsFailure)
         {
             return withinBill.Error;

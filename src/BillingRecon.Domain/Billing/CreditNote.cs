@@ -318,18 +318,24 @@ public sealed class CreditNote : AggregateRoot<CreditNoteId>, ITenantScoped, ICr
     /// <param name="alreadyCredited">The sum of the totals of the bill's other posted credit notes.</param>
     /// <param name="billLineTotals">The line total of every line of the bill.</param>
     /// <param name="alreadyCreditedByLine">What the other posted credit notes credit for each line of the bill they name.</param>
+    /// <param name="alreadyAdjusted">
+    /// What the bill's posted adjustments took off it (a write-off, a discount, a rounding). Since 2026-11-26 it counts
+    /// against the cap like a credit (ADR 0025, amended): what was written off was never paid, and a credit note for
+    /// it would be credit, and then cash, for money the hospital never received.
+    /// </param>
     public Result CheckWithinBill(
         Money billTotal,
         Money alreadyCredited,
         IReadOnlyDictionary<BillLineId, Money> billLineTotals,
-        IReadOnlyDictionary<BillLineId, Money> alreadyCreditedByLine)
+        IReadOnlyDictionary<BillLineId, Money> alreadyCreditedByLine,
+        Money alreadyAdjusted = default)
     {
         ArgumentNullException.ThrowIfNull(billLineTotals);
         ArgumentNullException.ThrowIfNull(alreadyCreditedByLine);
 
-        if (Total + alreadyCredited > billTotal)
+        if (Total + alreadyCredited + alreadyAdjusted > billTotal)
         {
-            return BillingErrors.CreditNoteExceedsBillTotal(billTotal, alreadyCredited);
+            return BillingErrors.CreditNoteExceedsBillTotal(billTotal, alreadyCredited, alreadyAdjusted);
         }
 
         foreach (var credited in _lines.Where(line => line.BillLineId is not null).OrderBy(line => line.LineNo).GroupBy(line => line.BillLineId!.Value))

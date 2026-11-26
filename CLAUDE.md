@@ -1142,4 +1142,8 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    Tab and Shift+Tab take it as the box is left, a late answer too unless the user typed again; with none the box is
    marked "No record chosen" and the focus still moves on; `chooseOnTab="single"` (the payer of a payment alone) takes a
    record only when one matches. The picker's box keeps its 44 px. No package, no change of the API. Owed: runbook section
-   8, row 10.4d. **Next: 10.8**, the independent review.
+   8, row 10.4d.
+   **10.8, the independent review (stage 4), is in `docs/review-2026-11.md`** (2026-11-26; a separate agent, reading only;
+   14 findings, none Critical, two High). Its fixes go one commit each on the owner's approval. **R1 is fixed:** a credit
+   note's cap counts the bill's posted adjustments (`IBillAdjustments`, a contract of Adjustments' Application layer that
+   Billing asks; `CreditNoteCaps`; ADR 0025 "Amended 2026-11-26"; BR-210). R2 to R11 of its ten wait for the owner.

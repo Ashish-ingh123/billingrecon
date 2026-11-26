@@ -1,3 +1,4 @@
+using BillingRecon.Application.Adjustments;
 using BillingRecon.Application.Billing;
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Identity;
@@ -31,6 +32,9 @@ public sealed class CreditNoteApprovalHandlerTests
     private readonly ITenantSettingsReader _settings = Substitute.For<ITenantSettingsReader>();
     private readonly IBillRepository _bills = Substitute.For<IBillRepository>();
     private readonly ICreditNoteRepository _repository = Substitute.For<ICreditNoteRepository>();
+
+    // What the bill's posted adjustments took off it; nothing, unless a test says otherwise.
+    private readonly IBillAdjustments _adjustments = Substitute.For<IBillAdjustments>();
     private readonly IApprovalRequestRepository _approvals = Substitute.For<IApprovalRequestRepository>();
     private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
     private readonly INumberSeries _numbers = Substitute.For<INumberSeries>();
@@ -159,6 +163,42 @@ public sealed class CreditNoteApprovalHandlerTests
     }
 
     [Fact]
+    public async Task BR210_what_the_bills_adjustments_took_off_cannot_be_credited_and_is_refused_before_a_number_is_taken()
+    {
+        // Review 2026-11, R1: a bill written off and then credited in full left credit, refundable as cash, for money
+        // the hospital never received. One paisa adjusted off a bill of 126.00 leaves 125.99 to credit, not 126.00.
+        PostedBill();
+        Waiting();
+        _adjustments.SumPostedAsync(BillId, Arg.Any<CancellationToken>()).Returns(Money.Of(0.01m));
+
+        var result = await Approve().HandleAsync(new ApproveCreditNoteCommand(Id, Version(), null), CancellationToken.None);
+
+        result.Error.Code.ShouldBe(BillingErrors.CreditNoteExceedsBillTotalCode);
+        result.Error.Kind.ShouldBe(ErrorKind.BusinessRule);
+        result.Error.Message.ShouldContain("taken off by adjustments");
+        await NothingWasTakenOrWrittenAsync();
+    }
+
+    [Fact]
+    public async Task BR210_an_adjustment_posted_while_the_approval_waited_for_the_lock_is_a_conflict_and_is_not_committed()
+    {
+        var bill = PostedBill();
+        Waiting();
+
+        // Nothing adjusted when the caps are first read; the whole bill written off once the ledger has the lock.
+        var reads = 0;
+        _adjustments.SumPostedAsync(BillId, Arg.Any<CancellationToken>()).Returns(_ => reads++ == 0 ? Money.Zero : Money.Of(126m));
+
+        var result = await Approve().HandleAsync(new ApproveCreditNoteCommand(Id, Version(), null), CancellationToken.None);
+
+        result.Error.Code.ShouldBe(CommonErrors.ConcurrencyConflictCode);
+        reads.ShouldBe(2, "the adjustments are read again under the lock");
+        _posted.ShouldHaveSingleItem().Kind.ShouldBe(LedgerPostingKind.CreditNotePosted, "the second posting was never asked for");
+        bill.BalanceDue.ShouldBe(Money.Of(126m));
+        await _unitOfWork.DidNotReceiveWithAnyArgs().CommitAsync(default);
+    }
+
+    [Fact]
     public async Task BR804_a_ledger_that_finds_the_payers_balance_going_below_zero_is_answered_as_a_conflict()
     {
         PostedBill();
@@ -206,7 +246,7 @@ public sealed class CreditNoteApprovalHandlerTests
     }
 
     private ApproveCreditNoteHandler Approve() => new(
-        new ApproveCreditNoteCommandValidator(), _clock, _currentUser, _bills, _repository, _approvals, _settings, _numbers, _ledger, _unitOfWork);
+        new ApproveCreditNoteCommandValidator(), _clock, _currentUser, _bills, _repository, _adjustments, _approvals, _settings, _numbers, _ledger, _unitOfWork);
 
     private static string Version() => Convert.ToBase64String(CurrentVersion);
 

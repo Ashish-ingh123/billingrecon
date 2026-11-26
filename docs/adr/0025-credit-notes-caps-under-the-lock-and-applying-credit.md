@@ -114,3 +114,34 @@ line (BR-211). Three things had to be settled beyond what ADRs 0022 to 0024 alre
   at once against a paid bill was checked against the code with point 2's second reading switched off: it failed six
   times out of six, and passes with it. Still to do on the machine with .NET 10 and Docker: everything in
   `docs/runbook.md` section 8.
+
+## Amended 2026-11-26 (Prompt 10.8, review finding R1): adjustments count against the cap
+
+The independent review of 2026-11 (`docs/review-2026-11.md`, R1) found that the cap of BR-210 looked at the bill's
+total and its other credit notes only. A bill of 1,000.00 that nobody paid could be written off in full (an adjustment,
+approved), then credited in full (a credit note, approved: none of it could go to the bill, whose balance was zero, so
+all of it stayed as available credit), and that credit refunded (approved): cash paid out for money never received,
+with every balance identity still holding. The owner approved the fix on 2026-11-26, with every kind of adjustment
+counting (write-off, discount, rounding): each lowers the bill.
+
+1. **The cap is what was billed and not taken off:** a credit note's total, with the bill's other posted credit notes
+   **and its posted adjustments**, is not more than the bill's total. BR-210 says so now. The cap for each line
+   (BR-211) is unchanged: an adjustment names no line.
+2. **Asked where the cap is asked** (points 2 and 3 above): when the maker submits, when the checker approves, and
+   again under the ledger's lock, where an adjustment that committed a moment ago is seen and answered as a conflict.
+   Posting an adjustment takes the same lock of the payer's balances, so the two cannot pass each other.
+3. **Billing asks Adjustments through a contract of Adjustments' Application layer**, `IBillAdjustments`
+   (`SumPostedAsync`), the mirror of `IBillSettlement` (ADR 0026): no entity of Adjustments is named by Billing and no
+   module exception is added.
+4. **One error code:** `credit_note_exceeds_bill_total`, whose message names what adjustments took off when they did.
+
+**Not done, and why:** the reviewer also proposed a reconciliation row for this cap. The reconciliation is one of the
+sanctioned raw-SQL files (ADR 0021); a new identity is a change of its own, left for the owner to ask for.
+
+**A hospital with data:** a bill already credited beyond what its adjustments left is not changed by this; no query was
+run here to look for one, as there is no live data.
+
+Verified on the office machine: Domain 714 and Application 480 tests, and the `Database` collection, 537, on LocalDB
+2019 in a copy, with `CreditNoteAfterAdjustmentApiTests` (the finding's own sequence refused at its third step; a part
+write-off; a credit note that waited while its bill was written off). No existing test was changed but the wiring of
+one handler's constructor. SQL Server 2022 is owed with the rest (runbook section 8).
