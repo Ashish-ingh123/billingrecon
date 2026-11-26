@@ -181,3 +181,17 @@ amends ADR 0054 point 8 and its amendment's point 1: a sheet is no longer one fi
   answering the defaults); no assertion changed. Defects the new tests found and the code then fixed: a measure that
   was no number written into a rule; the form rebuilt after a save, so that "Saved" never showed; the preview's quiet
   text in the dark theme; the tabs and the preview wider than a phone; figures broken mid-number on A5.
+
+## Decided 2026-11-26 (Prompt 10.4c, part C): no "Download PDF" now
+
+The owner chose, on the proposal of part C: **no server-made PDF for now.** The browser's print dialog saves a PDF of
+the sheet, laid out by the hospital's settings and carrying the recorded mark; tests hold that PDF's page size for A4,
+A5 and the roll. ADR 0054 point 8 stands.
+
+- **Headless Chromium rendering the built sheet** (a container beside the API) keeps one layout but puts a browser on
+  the server that must load the app as the user. It is the way to take if something must make a PDF with no person at
+  a browser (a bill sent by e-mail, a patient portal): backlog B37.
+- **A .NET PDF library drawing the sheet a second time** was refused: every paper, margin, switch and the nine columns
+  of a tax invoice would be built twice, with no test that holds the two equal part for part.
+- Either way a download would be recorded by the existing `POST .../prints` before the PDF is made, and carry its mark.
+- The versions, licences and image sizes of the candidates were not looked up: nothing was chosen that needs them.

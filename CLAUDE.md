@@ -1015,7 +1015,7 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    owner saw and, for every other row, why it is open (the 10,000-bill load, the journey and the browser suites through
    nginx, `PiiMaskerTests` after its fix, the recovery model: no second run; the `Database` tests of 10.1 to 10.4 on
    SQL Server 2022: the first CI run). A row is never closed on a report alone where a machine can show it.
-2. **Everything else still open:** `docs/backlog.md`, 33 rows (B1 to B36 but B18, B21 and B24): owner questions, recorded deviations,
+2. **Everything else still open:** `docs/backlog.md`, 34 rows (B1 to B37 but B18, B21 and B24): owner questions, recorded deviations,
    accepted limitations, follow-ups and small fixes, each with its origin and when it is due. Three are marked
    *R1 review*, for the owner: B3 (three credit-note choices), B19 (adjustments by kind), B33 (the stale `0002_Payers`
    in two ADRs). B18 and B24 were closed by Prompt 10.1.
@@ -1132,5 +1132,5 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    inline style is written and nginx's policy is unchanged; a preview takes the tokens of paper (`[data-paper]`). The
    cashier's name is its own read, `GET /api/v1/{payments|refunds}/{id}/recorder`, through the Identity contract
    `IUserNames`: a payment and a refund answer the same wherever they are read, which nine tests hold. Owed: runbook
-   section 8, row 10.4c (SQL Server 2022, nginx, and paper: A5, the roll, real stationery). **Next:** the proposal of a
-   "Download PDF" (10.4c, part C), then 10.4d.
+   section 8, row 10.4c (SQL Server 2022, nginx, and paper: A5, the roll, real stationery). Part C was decided on 2026-11-26: no
+   server-made "Download PDF" now (ADR 0059, backlog B37). **Next: 10.4d**, the search lens and Tab in a search.
