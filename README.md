@@ -97,4 +97,5 @@ browser journey) are in [docs/runbook.md](docs/runbook.md). Continuous integrati
 - [docs/testing-strategy.md](docs/testing-strategy.md), [docs/runbook.md](docs/runbook.md)
 - [docs/backlog.md](docs/backlog.md): open questions and follow-ups after R1
 - [docs/build-prompts.md](docs/build-prompts.md): how R1 was built, prompt by prompt
+- [docs/build-history.md](docs/build-history.md): what was decided for each built prompt
 - [docs/adr/](docs/adr/): Architecture Decision Records, 0000 to 0046
