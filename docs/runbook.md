@@ -654,6 +654,33 @@ Docker, Node 22.12.0. What it showed:
 That run proved the rows of Prompts 2.2 to 6.3 and 8.1, which are gone from the table. What follows is what a second
 run of the script, the owner's own eyes, or CI still have to show.
 
+**State on 2026-11-26 (Prompt 10.0-close).** The second run of the script was not made: the owner copied the tree to
+the personal machine, ran the stack with Docker and tested by hand, and sent no output. So nothing below is closed by a
+log. What the owner reported that day as done and working is recorded as **seen by the owner**, on the owner's report
+alone; what a machine has to show waits for CI or stays open with its reason. Each row of the table after this one
+describes its check in full.
+
+| Row | Result on 2026-11-26, or the reason it is open |
+|---|---|
+| 1.3 | Seen by the owner: a request's event found in Seq by its correlation id. |
+| 1.5, 5.4b, 7.1 to 7.6, 8.2 and 9.1 in CI | Open: waits for the first CI run on `main`, after the push. |
+| 7.1 on the personal machine | Open: the second run of the script was not made. CI (Node 24) runs `npm ci` and `npm test`. |
+| 7.5b | Seen by the owner: a report's CSV opened in a spreadsheet (one report, not each of the eight). |
+| 1.2 | Open: `PiiMaskerTests` after `17af1e5` has not been seen in a whole `dotnet test` on that machine; CI runs it. |
+| 8.2 | Open: the second run was not made, so the 10,000-bill load and `journey.spec.ts` through nginx have no output. |
+| 8.3 | Open: the same reason; the recovery model and the snapshot setting have not been read. |
+| 10.5 | Open: no server, domain or registry exists (`docs/go-live.md`, G4 to G6). |
+| 10.4b | Seen by the owner: a bill, a receipt and a refund voucher printed, Original and then Duplicate. Open: `printed.spec.ts` through nginx (no second run); the accountant's sign-off (`docs/go-live.md`, G1). |
+| 10.4 | Seen by the owner: the letterhead saved. Open: the `Database` collection on SQL Server 2022 with `0024` waits for CI; a service item given a SAC code was not reported. |
+| 10.3b | Seen by the owner: the reference export imported and the opening batch approved. Open: a patients' file of 5,000 rows through nginx was not reported; `imports.spec.ts` through nginx (no second run). |
+| 10.3 | Seen by the owner: as 10.3b. Open: the `Database` collection with `0023` and `generate-export.mjs --check` wait for CI; the migration applied to a database that already holds documents was not reported. |
+| 10.2c | Seen by the owner: a sign-out on one tab signs the other out. Open: the `Database` collection with `0022` waits for CI; the load test with the read per request (no second run); the copied token answering 401 was not reported. |
+| 10.2b | Seen by the owner: the screens walked in both themes on a desktop and a phone width. Open: the `Database` collection waits for CI; `search.spec.ts` through nginx (no second run). |
+| 10.2 | Seen by the owner: `tenant create`, `tenant suspend` and `tenant resume` under Compose. |
+| 10.1 | Seen by the owner: a user created, the forced password change, the settings saved, a prefix change approved. |
+| 9.4b | Seen by the owner: the screens and the prints. Open: `routes.spec.ts` whole through nginx (no second run). |
+| 9.1 to 9.4 | Seen by the owner: signed in at https://localhost, the screens in both themes on a desktop and a phone width; no "severe error" in Seq (backlog B35). The image built with `SUPPORT_EMAIL` set and unset was not reported. |
+
 | Prompt | Not proven anywhere yet |
 |---|---|
 | 1.3 | The request's event found in Seq by its correlation id (step 9c of the script sends it; the owner looks for `3f2504e0-4f89-11d3-9a0c-0305e82c3301` at http://localhost:5341). |

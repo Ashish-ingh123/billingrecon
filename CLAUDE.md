@@ -138,7 +138,9 @@ Personal machine, recorded 2026-10-17 from the build outputs it produced and the
 - Docker Desktop, with the compose containers set up (per the owner; the checklist results are not recorded yet).
 - First build and test run on .NET 10 on 2026-10-17: clean build, 493 tests green (1 Application, 79 Domain,
   74 Architecture, 339 Integration).
-- Node and Docker versions: still to record.
+- Recorded from the first run of `deploy/verify/personal-machine.ps1` (2026-11-24): SDKs 8.0.428, 10.0.400, 10.0.401
+  and 10.0.404; Docker 29.8.1; Node 22.12.0 and npm 10.9.0 (22.22 or later is needed; whether it was upgraded is not
+  recorded, as no second run of the script was made, 2026-11-26).
 
 Office machine:
 
@@ -999,7 +1001,11 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    fixed in its own commit on `phase-10-golive` (`a6cf3c3` to `17af1e5`), and that machine's Node 22.12 (22.22 or later
    is needed). Owed: a second run with Node 24, which must show the journey and the full-size load test (row 8.2), the
    whole routes suite, the component tests and the recovery model; what only the owner's eyes can check; and the first
-   green run of the CI workflow on GitHub (row 1.5).
+   green run of the CI workflow on GitHub (row 1.5). **2026-11-26 (Prompt 10.0-close): that second run was not made.**
+   The owner tested by hand on the personal machine and sent no output; section 8 has a table of that day with what the
+   owner saw and, for every other row, why it is open (the 10,000-bill load, the journey and the browser suites through
+   nginx, `PiiMaskerTests` after its fix, the recovery model: no second run; the `Database` tests of 10.1 to 10.4 on
+   SQL Server 2022: the first CI run). A row is never closed on a report alone where a machine can show it.
 2. **Everything else still open:** `docs/backlog.md`, 33 rows (B1 to B36 but B18, B21 and B24): owner questions, recorded deviations,
    accepted limitations, follow-ups and small fixes, each with its origin and when it is due. Three are marked
    *R1 review*, for the owner: B3 (three credit-note choices), B19 (adjustments by kind), B33 (the stale `0002_Payers`
@@ -1007,7 +1013,10 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
 3. **The release:** R1 is tagged `v1.0.0`, an annotated tag on the 8.3 commit of `phase-8-delivery`, local and not
    pushed. Merging to `main` and pushing are the owner's steps; `main` (`03c42fb`) is an ancestor of
    `phase-8-delivery`, so `git merge --ff-only phase-8-delivery` keeps the tag on `main`. The GitHub remote `origin`
-   holds `main` and `phase-2-billing` so far.
+   holds `main` and `phase-2-billing` so far. Since 2026-11-26 the commands of the merge are with the owner: every
+   phase branch is an ancestor of `phase-10-golive`, so `main` fast-forwards to it; `v1.1.0` did not exist and is to be
+   an annotated tag on `65e33ec` (the tip of `phase-9-interface`). Neither tag starts `release.yml`, which is not in
+   their commits. The decisions under each built prompt are in `docs/build-history.md` since that day.
 4. **History:** the items 1 to 45 of this section (Prompts 1.4 to 8.2: what each built, decided and verified) are in
    CLAUDE.md at commit `4741c7f` (`git show 4741c7f:CLAUDE.md`); the ADRs and `docs/build-prompts.md` cite them by number.
    Every ADR is Accepted since 2026-11-24 (section 7). `docs/traceability.md` proves every user story (Prompt 8.3).
