@@ -1170,8 +1170,9 @@ Only 2xx and 4xx responses are stored; a 5xx leaves no `Completed` row.
   also runs when storing or committing a success fails; the client is then answered 500.
 - A second request with the key while the first is between its UPDATE and its COMMIT waits for the row and is
   then given the stored response.
-- No job deletes expired rows yet; `docs/runbook.md` section 7 has the manual procedure, and the one for a row left
-  `InProgress` by a process that died.
+- Since 2026-11-26 (review finding R3) expired rows are deleted once a day by `IdempotencyKeySweeper`, tenant by
+  tenant, and a row left `InProgress` by a process that died is taken over by a retry of the same request after five
+  minutes (`IdempotencyKey.AbandonedAfter`). `docs/runbook.md` section 7 keeps the manual procedures.
 
 ---
 

@@ -384,10 +384,15 @@ docker build -f src/BillingRecon.Api/Dockerfile --build-arg SDK_TAG=10.0.402 -t 
 
 ## 7. Idempotency keys: retention and a key that is stuck
 
-Every financial POST leaves a row in `IdempotencyKeys` (BR-803, ADR 0006; `docs/database.md` section 6). Nothing
-deletes these rows on a schedule yet. Until the sweep is built, the two clean-ups below are run by hand, as the
-migrator login or `sa`, when the table has grown or a client reports a key that answers 409 for ever. Both delete
-only what the application itself is allowed to delete; neither touches a financial record.
+Every financial POST leaves a row in `IdempotencyKeys` (BR-803, ADR 0006; `docs/database.md` section 6).
+
+**Since 2026-11-26 (review finding R3) the application does both clean-ups itself.** `IdempotencyKeySweeper` deletes
+the expired keys once a day, tenant by tenant, 500 at a time; its first run is five minutes after the start, and each
+run writes one line to the log (`Deleted N expired idempotency keys`, or an error and the run is tried again the next
+day). A key left `InProgress` is taken over by the next retry of the same request once it is older than five minutes.
+The two procedures below remain for the case that the application does not run long enough to sweep, or that a key has
+to be cleared sooner. They are run by hand, as the migrator login or `sa`. Both delete only what the application
+itself is allowed to delete; neither touches a financial record.
 
 **Expired keys.** A key is kept for 30 days (`ExpiresAtUtc`). After that a retry with it is no longer expected, and
 the row can go. Run it in batches, so that the delete never holds a long lock on a table every posting writes to:
@@ -403,11 +408,12 @@ END
 ```
 
 The index of the table leads with the tenant, so this statement scans. That is acceptable for an occasional manual
-run; the scheduled sweep will go tenant by tenant.
+run; the scheduled sweep goes tenant by tenant.
 
 **A key stuck in progress.** If the API process dies between reserving a key and answering, the row stays
 `InProgress` and every retry with that key is answered 409 `idempotency_in_progress`. The business transaction of
-the dead request was rolled back by SQL Server, so nothing of it was saved. First make sure the request is not
+the dead request was rolled back by SQL Server, so nothing of it was saved. After five minutes a retry of the same
+request takes the key over without anyone's help; to clear it sooner, first make sure the request is not
 simply still running (a row younger than a few minutes may be), then look at it and remove it:
 
 ```sql

@@ -53,17 +53,26 @@ public sealed class IdempotencyStore(
             throw new InvalidOperationException("An idempotency key was reserved in a scope that has no tenant.");
         }
 
-        await using (var own = NewContext())
+        for (var attempt = 1; ; attempt++)
         {
+            await using var own = NewContext();
             own.Add(IdempotencyKey.Reserve(key, currentUser.UserId, method, path, requestHash, clock.UtcNow));
 
             try
             {
                 await own.SaveChangesAsync(ct);
+
+                break;
             }
             catch (DbUpdateException exception)
                 when (exception.InnerException is SqlException { Number: DuplicateInUniqueConstraint or DuplicateInUniqueIndex })
             {
+                // Once: a reservation that its process left behind is removed, and this request reserves the key anew.
+                if (attempt == 1 && await RemoveAbandonedAsync(key, requestHash, ct))
+                {
+                    continue;
+                }
+
                 return await DecideAsync(key, requestHash, ct);
             }
         }
@@ -125,6 +134,33 @@ public sealed class IdempotencyStore(
             own.Remove(row);
             await own.SaveChangesAsync(ct);
         }
+    }
+
+    // A process that dies between reserving and answering leaves the key in progress for good, and every retry of the
+    // request was answered 409 for ever (review 2026-11, finding R3). What it did was rolled back with its connection:
+    // only the reservation is left, and after IdempotencyKey.AbandonedAfter the same request may take it over.
+    private async Task<bool> RemoveAbandonedAsync(Guid key, byte[] requestHash, CancellationToken ct)
+    {
+        await using var own = NewContext();
+        var row = await own.Set<IdempotencyKey>().SingleOrDefaultAsync(candidate => candidate.Key == key, ct);
+
+        if (row is null || !row.IsFor(requestHash) || !row.IsAbandoned(clock.UtcNow))
+        {
+            return false;
+        }
+
+        own.Remove(row);
+
+        try
+        {
+            await own.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Another retry removed it first; whichever of the two then reserves the key runs.
+        }
+
+        return true;
     }
 
     // The key exists. Whose it is decides the answer; the row that is there is never changed by a later request.

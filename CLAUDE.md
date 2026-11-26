@@ -1158,5 +1158,7 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    `GatePostingsOf`, `GateCommits`) and asserts the loser's one answer, never "409 or 422" (`docs/testing-strategy.md`).
    **R9 is fixed:** `ApprovalRequest.Approve` takes the document's writers (`CreatedByUserId`, `UpdatedByUserId`) from the
    four document approvals and refuses them as it refuses the maker (403 `approval_checker_is_maker`); a writer may reject;
-   a user who only edited in between is not caught (ADR 0023 "Amended 2026-11-26"). The other three of its ten wait for
-   the owner.
+   a user who only edited in between is not caught (ADR 0023 "Amended 2026-11-26"). **R3 is fixed:** a reservation older
+   than `IdempotencyKey.AbandonedAfter` (five minutes) is taken over by a retry of the same request, and
+   `IdempotencyKeySweeper` (the first hosted background work) deletes expired keys once a day through `IdempotencyKeySweep`,
+   tenant by tenant, without raw SQL (ADR 0006 "Amended 2026-11-26"). The other two of its ten wait for the owner.

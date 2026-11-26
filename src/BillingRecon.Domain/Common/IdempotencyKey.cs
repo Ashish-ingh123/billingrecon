@@ -17,6 +17,13 @@ public sealed class IdempotencyKey : ITenantScoped, IHardDeletable
     /// <summary>How long a key is remembered (BR-803).</summary>
     public static readonly TimeSpan Retention = TimeSpan.FromDays(30);
 
+    /// <summary>
+    /// How long a reservation may wait for its answer before it is taken for abandoned (review 2026-11, finding R3):
+    /// the process that reserved it died before it answered. No request runs that long: a command of the database
+    /// times out long before.
+    /// </summary>
+    public static readonly TimeSpan AbandonedAfter = TimeSpan.FromMinutes(5);
+
     /// <summary>Longest stored <see cref="Method"/>.</summary>
     public const int MethodMaxLength = 8;
 
@@ -113,6 +120,14 @@ public sealed class IdempotencyKey : ITenantScoped, IHardDeletable
 
     /// <summary>Whether <paramref name="requestHash"/> is the fingerprint of the request that reserved the key.</summary>
     public bool IsFor(ReadOnlySpan<byte> requestHash) => requestHash.SequenceEqual(RequestHash);
+
+    /// <summary>
+    /// Whether the key was reserved, never answered, and reserved longer ago than <see cref="AbandonedAfter"/>: the
+    /// same request may then reserve it anew.
+    /// </summary>
+    /// <param name="nowUtc">The instant of the question.</param>
+    /// <returns>True for a reservation that nothing will answer any more.</returns>
+    public bool IsAbandoned(DateTimeOffset nowUtc) => Status == IdempotencyStatus.InProgress && nowUtc - CreatedAtUtc > AbandonedAfter;
 
     /// <summary>Stores the answer to the first request. A key is completed once.</summary>
     /// <exception cref="InvalidOperationException">The key is already completed.</exception>

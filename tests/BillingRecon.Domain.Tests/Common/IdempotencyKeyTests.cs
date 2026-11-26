@@ -92,4 +92,18 @@ public sealed class IdempotencyKeyTests
         Should.Throw<ArgumentException>(() => IdempotencyKey.Reserve(Key, Cashier, " ", "/x", Hash, Now));
         Should.Throw<ArgumentException>(() => IdempotencyKey.Reserve(Key, Cashier, "POST", "/x", [1, 2, 3], Now)).ParamName.ShouldBe("requestHash");
     }
+
+    [Fact]
+    public void A_reservation_without_its_answer_is_abandoned_after_five_minutes_and_a_completed_key_never()
+    {
+        // Review 2026-11, finding R3.
+        var key = IdempotencyKey.Reserve(Key, Cashier, "POST", "/api/v1/payments", Hash, Now);
+
+        key.IsAbandoned(Now).ShouldBeFalse();
+        key.IsAbandoned(Now + IdempotencyKey.AbandonedAfter).ShouldBeFalse();
+        key.IsAbandoned(Now + IdempotencyKey.AbandonedAfter + TimeSpan.FromSeconds(1)).ShouldBeTrue();
+
+        key.Complete(201, "application/json", null, "{}", Now);
+        key.IsAbandoned(Now + TimeSpan.FromDays(1)).ShouldBeFalse();
+    }
 }

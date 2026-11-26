@@ -6,9 +6,11 @@ using BillingRecon.Application.Receivables;
 using BillingRecon.Domain.Billing;
 using BillingRecon.Domain.Common;
 using BillingRecon.Domain.Payers;
+using BillingRecon.Infrastructure.Common.Idempotency;
 using BillingRecon.Infrastructure.Identity;
 using BillingRecon.IntegrationTests.Support;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog.Events;
 
 namespace BillingRecon.IntegrationTests.Database;
@@ -364,6 +366,107 @@ public sealed class IdempotencyApiTests(SqlServerFixture sqlServer) : DatabaseTe
         using var cleared = await client.PostJsonAsync(Records, new IdempotencyProbeRequest("MRN-2"), key);
         cleared.StatusCode.ShouldBe(HttpStatusCode.Created);
         cleared.Headers.Contains(Replayed).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task A_key_left_in_progress_by_a_crash_is_taken_over_by_a_retry_after_five_minutes_and_not_before()
+    {
+        // Review 2026-11, finding R3: until 2026-11-26 such a key answered 409 until somebody deleted it by hand.
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var tenant = await NewApiTenantAsync();
+        using var client = factory.CreateClientFor(tenant, "Cashier");
+        var key = Guid.NewGuid();
+        var payload = new IdempotencyProbeRequest("MRN-1");
+        using (var crashed = await client.PostJsonAsync(Records, payload, key))
+        {
+            crashed.StatusCode.ShouldBe(HttpStatusCode.Created);
+        }
+
+        await using (var system = ApiContext(SystemIdentity.Instance))
+        {
+            await system.Database.ExecuteSqlAsync(
+                $"UPDATE [dbo].[IdempotencyKeys] SET [Status] = 'InProgress', [StatusCode] = NULL, [CompletedAtUtc] = NULL, [ResponseBody] = NULL, [ResponseHeaders] = NULL, [ResponseContentType] = NULL WHERE [Key] = {key}");
+        }
+
+        // What the dead request did was rolled back with its connection: the patient it registered is not there. The
+        // application may not delete a patient, so the administrator of the test does.
+        await using (var administrator = AdministratorApiContext(SystemIdentity.Instance))
+        {
+            await administrator.Database.ExecuteSqlAsync($"DELETE FROM [dbo].[Patients] WHERE [TenantId] = {tenant.TenantId!.Value.Value} AND [Mrn] = 'MRN-1'");
+        }
+
+        // Five minutes exactly is not yet longer than five minutes.
+        factory.Clock.Advance(IdempotencyKey.AbandonedAfter);
+        using (var waiting = await client.PostJsonAsync(Records, payload, key))
+        {
+            await waiting.ShouldBeProblemAsync(HttpStatusCode.Conflict, CommonErrors.IdempotencyInProgressCode);
+        }
+
+        // Another request under the abandoned key is still another request: the key is not its to take.
+        factory.Clock.Advance(TimeSpan.FromSeconds(1));
+        using (var other = await client.PostJsonAsync(Records, new IdempotencyProbeRequest("MRN-2"), key))
+        {
+            await other.ShouldBeProblemAsync(HttpStatusCode.UnprocessableEntity, CommonErrors.IdempotencyKeyReuseCode);
+        }
+
+        // The same request takes it over, runs, and is replayed from then on.
+        using var retried = await client.PostJsonAsync(Records, payload, key);
+        retried.StatusCode.ShouldBe(HttpStatusCode.Created, await retried.Content.ReadAsStringAsync());
+        retried.Headers.Contains(Replayed).ShouldBeFalse("the retry ran: there was no answer to replay");
+        var body = await retried.Content.ReadAsStringAsync();
+
+        using var replay = await client.PostJsonAsync(Records, payload, key);
+        replay.Headers.GetValues(Replayed).ShouldBe(["true"]);
+        (await replay.Content.ReadAsStringAsync()).ShouldBe(body);
+
+        await using var reader = ApiContext(tenant);
+        var row = await reader.Set<IdempotencyKey>().SingleAsync();
+        row.Status.ShouldBe(IdempotencyStatus.Completed);
+        row.CreatedAtUtc.ShouldBe(factory.Clock.UtcNow, "the reservation is the retry's own");
+    }
+
+    [Fact]
+    public async Task The_sweep_deletes_the_keys_of_every_tenant_that_have_expired_and_no_other()
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var tenant = await NewApiTenantAsync();
+        var elsewhere = await NewApiTenantAsync();
+        using var client = factory.CreateClientFor(tenant, "Cashier");
+        using var theirClient = factory.CreateClientFor(elsewhere, "Cashier");
+
+        async Task<Guid> RecordedAsync(HttpClient sender, string mrn)
+        {
+            var key = Guid.NewGuid();
+            using var response = await sender.PostJsonAsync(Records, new IdempotencyProbeRequest(mrn), key);
+            response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync());
+
+            return key;
+        }
+
+        async Task<int> SweptAsync()
+        {
+            await using var scope = factory.Services.CreateAsyncScope();
+
+            return await scope.ServiceProvider.GetRequiredService<IdempotencyKeySweep>().RunAsync(CancellationToken.None);
+        }
+
+        await RecordedAsync(client, "MRN-1");
+        await RecordedAsync(client, "MRN-2");
+        await RecordedAsync(theirClient, "MRN-1");
+
+        // On the day a key expires it is still kept.
+        factory.Clock.Advance(IdempotencyKey.Retention);
+        (await SweptAsync()).ShouldBe(0);
+
+        var young = await RecordedAsync(client, "MRN-3");
+        factory.Clock.Advance(TimeSpan.FromSeconds(1));
+        (await SweptAsync()).ShouldBe(3);
+        (await SweptAsync()).ShouldBe(0);
+
+        await using var reader = ApiContext(tenant);
+        (await reader.Set<IdempotencyKey>().SingleAsync()).Key.ShouldBe(young);
+        await using var theirs = ApiContext(elsewhere);
+        (await theirs.Set<IdempotencyKey>().CountAsync()).ShouldBe(0);
     }
 
     [Fact]

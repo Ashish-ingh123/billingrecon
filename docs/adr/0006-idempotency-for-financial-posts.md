@@ -190,3 +190,30 @@ record none.
 Verified on the office machine: Application 483 tests, the `Database` collection, 540, on LocalDB 2019 in a copy
 (`PaymentReferenceApiTests`: the finding's sequence, the other-money cases, ten rounds of two requests at once). SQL
 Server 2022 is owed.
+
+## Amended 2026-11-26 (Prompt 10.8, review finding R3): an abandoned key is taken over, and expired keys are swept
+
+`ExpiresAtUtc` was written and indexed and nothing read it; a key whose process died between reserving and answering
+answered 409 `idempotency_in_progress` for ever, and the browser retries exactly that answer with the same key
+(`docs/review-2026-11.md`, R3). The owner approved the fix on 2026-11-26.
+
+1. **A reservation older than five minutes with no answer is abandoned** (`IdempotencyKey.AbandonedAfter`,
+   `IsAbandoned`). A retry of the same request (the same fingerprint) deletes it and reserves the key anew, once; a
+   different request under that key is still 422 `idempotency_key_reuse`. What the dead request did was rolled back
+   with its connection, so the retry is the first to run.
+2. **The risk taken:** a request that is really still running after five minutes would run a second time under its
+   own key. No request does: a command of the database times out long before. The limit is a constant, not a setting.
+3. **Expired keys are deleted once a day** by `IdempotencyKeySweeper`, a hosted service: the first background work of
+   the application. `IdempotencyKeySweep` goes through the tenants, each in a context of that tenant (no raw SQL, no
+   `IgnoreQueryFilters`: the ban list is as it was), 500 keys a save, by the index on the tenant and the expiry. A run
+   that fails is logged and tried the next day. Several instances of the application may sweep at once; a row another
+   took is skipped.
+4. A key is deleted only after its expiry, never on the day of it.
+
+Tests: `IdempotencyKeyTests` (five minutes exactly is not abandoned; a completed key never is),
+`IdempotencyApiTests.A_key_left_in_progress_by_a_crash_is_taken_over_by_a_retry_after_five_minutes_and_not_before`
+and `The_sweep_deletes_the_keys_of_every_tenant_that_have_expired_and_no_other`. The older test of a stuck key stands
+unchanged (409 before the five minutes). The hosted service's own loop (its two waits) is not under test.
+
+Verified on the office machine: Domain 716, the `Database` collection, 547, on LocalDB 2019 in a copy. SQL Server
+2022 is owed with the rest.

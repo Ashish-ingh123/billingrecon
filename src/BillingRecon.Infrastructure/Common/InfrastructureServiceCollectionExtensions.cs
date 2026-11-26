@@ -118,6 +118,8 @@ public static class InfrastructureServiceCollectionExtensions
         // Idempotency keys of financial POSTs; the store holds the transaction of the request while a key is reserved
         // (BR-803, ADR 0006).
         services.AddScoped<IIdempotencyStore, IdempotencyStore>();
+        services.AddScoped<IdempotencyKeySweep>();
+        services.AddHostedService<IdempotencyKeySweeper>();
 
         // Gapless document numbers, taken in the transaction this unit of work commits (BR-801, ADR 0008). How long the
         // request waited for its series and held it is measured, and is the API's Server-Timing when that is on (ADR 0046).
