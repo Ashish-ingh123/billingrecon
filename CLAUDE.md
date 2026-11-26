@@ -1150,4 +1150,5 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    payment that was not reversed for a method and a reference (422 `payment_reference_already_recorded`, the index
    `UX_Payments_TenantId_PayerId_Method_Reference`, migration `0027_PaymentReferenceOnce`; cash is never compared; ADR 0006
    "Amended 2026-11-26"; BR-301). A database test that records several payments for one payer gives each a reference of
-   its own. The other seven of its ten wait for the owner.
+   its own. **R6 is accepted and recorded** (`docs/security.md`, row R4). The other six of its ten wait
+   for the owner.
