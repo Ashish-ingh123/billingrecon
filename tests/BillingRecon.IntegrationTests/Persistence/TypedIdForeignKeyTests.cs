@@ -155,6 +155,9 @@ public sealed class TypedIdForeignKeyTests
                 // Since Prompt 11.2 (ADR 0060): the shift of a cashier, and the shift a ledger posting names.
                 "FK_CashierShifts_CashierUserId", "FK_CashierShifts_CreatedByUserId", "FK_CashierShifts_UpdatedByUserId",
                 "FK_LedgerPostings_ShiftId",
+
+                // Since Prompt 11.4 (ADR 0062): who saved the names of the accountant's ledgers.
+                "FK_AccountingLedgers_CreatedByUserId", "FK_AccountingLedgers_UpdatedByUserId",
             ],
             ignoreOrder: true);
     }

@@ -43,5 +43,6 @@ public static class AuditTrailPolicies
         [nameof(PrefixChange)] = Policies.ManageTenant,
         [nameof(NumberSeries)] = Policies.ManageTenant,
         [nameof(PrintSettings)] = Policies.ManageTenant,
+        [nameof(AccountingLedgers)] = Policies.ManageTenant,
     };
 }

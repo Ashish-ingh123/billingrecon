@@ -1,9 +1,12 @@
 using System.Net;
+using System.Xml.Linq;
 using BillingRecon.Api.Adjustments;
 using BillingRecon.Api.Billing;
+using BillingRecon.Api.Identity;
 using BillingRecon.Api.Payments;
 using BillingRecon.Application.Adjustments;
 using BillingRecon.Application.Billing;
+using BillingRecon.Application.Identity;
 using BillingRecon.Application.Payers;
 using BillingRecon.Application.Payments;
 using BillingRecon.Application.Reporting;
@@ -336,6 +339,225 @@ public sealed class ReportsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
         await method.ShouldBeProblemAsync(HttpStatusCode.BadRequest, CommonErrors.ValidationFailedCode);
         await order.ShouldBeProblemAsync(HttpStatusCode.BadRequest, CommonErrors.ValidationFailedCode);
     }
+
+    [Fact]
+    public async Task ADR0062_the_vouchers_of_a_month_add_up_to_the_ledger_each_balances_and_a_reversal_is_its_mirror()
+    {
+        await using var scenario = await ScenarioAsync();
+        var tenant = scenario.TenantId;
+        var period = $"from={MonthStart:yyyy-MM-dd}&to={MonthEnd:yyyy-MM-dd}";
+
+        // Before a name is set: the summary says which ledgers the month needs, and the file is refused naming them.
+        var unnamed = await scenario.ReadAsync<AccountingExportSummaryDto>($"accounting-export/summary?{period}");
+        ExportLedger[] used =
+        [
+            ExportLedger.Receivable, ExportLedger.UnappliedCash, ExportLedger.CreditAvailable, ExportLedger.Revenue, ExportLedger.TaxOutput,
+            ExportLedger.Adjustments, ExportLedger.Cash, ExportLedger.Card, ExportLedger.Upi, ExportLedger.BankTransfer, ExportLedger.Cheque,
+        ];
+        unnamed.Missing.ShouldBe(used);
+        using (var refused = await scenario.Viewer.GetAsync(Report($"accounting-export?{period}")))
+        {
+            var problem = await refused.ShouldBeProblemAsync(HttpStatusCode.UnprocessableEntity, CommonErrors.AccountingLedgerNotMappedCode);
+            problem.GetProperty("detail").GetString().ShouldNotBeNull().ShouldContain("Receivable, UnappliedCash, CreditAvailable, Revenue, TaxOutput, Adjustments, Cash, Card, Upi, BankTransfer, Cheque");
+        }
+
+        // An administrator names them; card and UPI go to one bank ledger, and a name has a character XML escapes.
+        var names = new UpdateAccountingLedgersRequest
+        {
+            Receivable = "Patient Receivables",
+            UnappliedCash = "Advances from Patients",
+            CreditAvailable = "Credit Notes Payable",
+            Revenue = "Hospital Income",
+            TaxOutput = "GST Output",
+            Adjustments = "Discounts & Write-offs",
+            OpeningBalances = "Opening Balances",
+            Cash = "Cash",
+            Card = "HDFC Current A/c",
+            Upi = "HDFC Current A/c",
+            BankTransfer = "SBI Current A/c",
+            Cheque = "Cheques in Hand",
+        };
+        using (var administrator = scenario.Factory.CreateClientFor(new FixedIdentity(scenario.Maker.TenantId, new UserId(Guid.NewGuid())), "TenantAdmin"))
+        using (var saved = await administrator.SendWithIfMatchAsync(HttpMethod.Put, AccountingLedgers, names, PayersApi.ETag(AccountingLedgersMapping.NoVersion)))
+        {
+            saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
+        }
+
+        // The control total is what the ledger says moved, summed here in SQL; so is every ledger of the accountant's.
+        var summary = await scenario.ReadAsync<AccountingExportSummaryDto>($"accounting-export/summary?{period}");
+        summary.Missing.ShouldBeEmpty();
+        (summary.From, summary.To).ShouldBe((MonthStart, MonthEnd));
+        summary.ControlTotal.ShouldBe(summary.LedgerTotal);
+        summary.ControlTotal.ShouldBe(await LedgerAsync($"SELECT ISNULL(SUM(e.[Debit]), 0) AS [Value] FROM dbo.LedgerPostings p JOIN dbo.LedgerEntries e ON e.[PostingId] = p.[Id] WHERE p.[TenantId] = {tenant}"));
+        summary.ControlTotal.ShouldBe(summary.Ledgers.Sum(ledger => ledger.Credit));
+        summary.Vouchers.ShouldBe((int)await LedgerAsync($"SELECT CAST(COUNT(*) AS decimal(18,2)) AS [Value] FROM dbo.LedgerPostings p WHERE p.[TenantId] = {tenant}"));
+        (summary.Receipts + summary.Payments + summary.Journals).ShouldBe(summary.Vouchers);
+        (summary.Receipts, summary.Payments).ShouldBe((5, 2));
+
+        (decimal Debit, decimal Credit) Of(params ExportLedger[] ledgers)
+            => (summary.Ledgers.Where(total => ledgers.Contains(total.Ledger)).Sum(total => total.Debit), summary.Ledgers.Where(total => ledgers.Contains(total.Ledger)).Sum(total => total.Credit));
+        async Task<(decimal Debit, decimal Credit)> AccountAsync(string account) => (
+            await LedgerAsync($"SELECT ISNULL(SUM(e.[Debit]), 0) AS [Value] FROM dbo.LedgerPostings p JOIN dbo.LedgerEntries e ON e.[PostingId] = p.[Id] WHERE p.[TenantId] = {tenant} AND e.[Account] = {account}"),
+            await LedgerAsync($"SELECT ISNULL(SUM(e.[Credit]), 0) AS [Value] FROM dbo.LedgerPostings p JOIN dbo.LedgerEntries e ON e.[PostingId] = p.[Id] WHERE p.[TenantId] = {tenant} AND e.[Account] = {account}"));
+
+        Of(ExportLedger.Receivable).ShouldBe(await AccountAsync("Receivable"));
+        Of(ExportLedger.UnappliedCash).ShouldBe(await AccountAsync("UnappliedCash"));
+        Of(ExportLedger.CreditAvailable).ShouldBe(await AccountAsync("CreditAvailable"));
+        Of(ExportLedger.Adjustments).ShouldBe(await AccountAsync("Adjustments"));
+        Of(ExportLedger.Revenue, ExportLedger.TaxOutput).ShouldBe(await AccountAsync("Revenue"));
+        Of(ExportLedger.Cash, ExportLedger.Card, ExportLedger.Upi, ExportLedger.BankTransfer, ExportLedger.Cheque).ShouldBe(await AccountAsync("Cash"));
+
+        // The tax is the documents' own: of the four bills on the credit side, of the credit note on the debit side.
+        var billed = new[] { scenario.Admission, scenario.Dressing, scenario.Consultation, scenario.YesterdayBill };
+        Of(ExportLedger.TaxOutput).ShouldBe((scenario.Credit.TaxTotal, billed.Sum(bill => bill.TaxTotal)));
+        scenario.Credit.TaxTotal.ShouldBeGreaterThan(0m);
+        Of(ExportLedger.Card).ShouldBe((150.00m, 150.00m));
+        Of(ExportLedger.BankTransfer).ShouldBe((0.00m, 50.00m));
+
+        // The file: an attachment that is never cached, and XML a parser reads.
+        using var response = await scenario.Viewer.GetAsync(Report($"accounting-export?{period}"));
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+        response.Content.Headers.ContentType.ShouldNotBeNull().ToString().ShouldBe("application/xml; charset=utf-8");
+        response.Content.Headers.ContentDisposition.ShouldNotBeNull().FileName.ShouldNotBeNull().Trim('"').ShouldBe("billingrecon-tally-20261001-20261031.xml");
+        response.Headers.CacheControl.ShouldNotBeNull().NoStore.ShouldBeTrue();
+        var text = await response.Content.ReadAsStringAsync();
+        text.ShouldStartWith("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+        text.ShouldContain("<LEDGERNAME>Discounts &amp; Write-offs</LEDGERNAME>");
+        var envelope = XDocument.Parse(text).Root.ShouldNotBeNull();
+        envelope.Name.LocalName.ShouldBe("ENVELOPE");
+        envelope.Element("HEADER")!.Element("TALLYREQUEST")!.Value.ShouldBe("Import Data");
+        var import = envelope.Element("BODY")!.Element("IMPORTDATA")!;
+        import.Element("REQUESTDESC")!.Element("REPORTNAME")!.Value.ShouldBe("Vouchers");
+
+        var vouchers = import.Element("REQUESTDATA")!.Elements("TALLYMESSAGE").Select(message => message.Elements().ShouldHaveSingleItem()).ToList();
+        vouchers.Count.ShouldBe(summary.Vouchers);
+        vouchers.ShouldAllBe(voucher => voucher.Name.LocalName == "VOUCHER" && voucher.Attribute("ACTION")!.Value == "Create");
+        vouchers.Select(voucher => voucher.Attribute("REMOTEID")!.Value).Distinct().Count().ShouldBe(vouchers.Count);
+        vouchers.Select(voucher => voucher.Element("VOUCHERNUMBER")!.Value).Distinct().Count().ShouldBe(vouchers.Count);
+        vouchers.ShouldAllBe(voucher => voucher.Attribute("VCHTYPE")!.Value == voucher.Element("VOUCHERTYPENAME")!.Value);
+        vouchers.Select(voucher => voucher.Element("DATE")!.Value).Distinct().Order().ShouldBe(["20261016", "20261017"]);
+        string[] known = [names.Receivable, names.UnappliedCash, names.CreditAvailable, names.Revenue, names.TaxOutput, names.Adjustments, names.Cash, names.Card, names.BankTransfer, names.Cheque];
+
+        // Every voucher balances: a debit is "Yes" with a negative amount, a credit "No" with a positive one.
+        var debits = 0m;
+        foreach (var voucher in vouchers)
+        {
+            var lines = Lines(voucher);
+            lines.Count.ShouldBeGreaterThanOrEqualTo(2);
+            lines.Sum(line => line.Amount).ShouldBe(0m, voucher.Element("VOUCHERNUMBER")!.Value);
+            lines.ShouldAllBe(line => line.Amount != 0m && line.Debit == (line.Amount < 0m) && known.Contains(line.Ledger));
+            debits += lines.Where(line => line.Debit).Sum(line => -line.Amount);
+        }
+
+        debits.ShouldBe(summary.ControlTotal);
+
+        XElement Numbered(string number) => vouchers.Single(voucher => voucher.Element("VOUCHERNUMBER")!.Value == number);
+
+        // A bill with tax: what the payer owes against its taxable value and its tax. A bill without: two lines.
+        var admission = Numbered(scenario.Admission.Number!);
+        admission.Attribute("VCHTYPE")!.Value.ShouldBe("Journal");
+        admission.Element("NARRATION")!.Value.ShouldBe($"Bill {scenario.Admission.Number} posted. Payer: {scenario.First.Name}.");
+        Lines(admission).ShouldBe(
+        [
+            ("Patient Receivables", true, -scenario.Admission.Total),
+            ("Hospital Income", false, scenario.Admission.Total - scenario.Admission.TaxTotal),
+            ("GST Output", false, scenario.Admission.TaxTotal),
+        ]);
+        Lines(Numbered(scenario.YesterdayBill.Number!)).ShouldBe([("Patient Receivables", true, -200.00m), ("Hospital Income", false, 200.00m)]);
+        Numbered(scenario.YesterdayBill.Number!).Element("DATE")!.Value.ShouldBe("20261016");
+
+        // A payment by card is a receipt into the bank; its reversal is the mirror, a payment out of it, with a number of its own.
+        var card = Numbered(scenario.Card.Number);
+        card.Attribute("VCHTYPE")!.Value.ShouldBe("Receipt");
+        Lines(card).ShouldBe([("HDFC Current A/c", true, -150.00m), ("Advances from Patients", false, 150.00m)]);
+        var reversed = vouchers.Single(voucher => voucher.Element("VOUCHERNUMBER")!.Value.StartsWith(scenario.Card.Number + "/RV-", StringComparison.Ordinal));
+        reversed.Attribute("VCHTYPE")!.Value.ShouldBe("Payment");
+        Lines(reversed).ShouldBe([("Advances from Patients", true, -150.00m), ("HDFC Current A/c", false, 150.00m)]);
+
+        // An allocation, and its reversal, move no money: journals between the advances and the receivables.
+        var allocations = vouchers.Where(voucher => voucher.Element("VOUCHERNUMBER")!.Value.StartsWith(scenario.Cheque.Number + "/A", StringComparison.Ordinal)).ToList();
+        allocations.Select(voucher => voucher.Element("VOUCHERNUMBER")!.Value[(scenario.Cheque.Number.Length + 1)..][..2]).Order().ShouldBe(["AL", "AL", "AR"]);
+        allocations.ShouldAllBe(voucher => voucher.Attribute("VCHTYPE")!.Value == "Journal");
+        Lines(allocations.Single(voucher => voucher.Element("VOUCHERNUMBER")!.Value.Contains("/AR-", StringComparison.Ordinal)))
+            .ShouldBe([("Patient Receivables", true, -100.00m), ("Advances from Patients", false, 100.00m)]);
+
+        // The refund by bank transfer is the other payment.
+        var refund = vouchers.Single(voucher => voucher.Attribute("VCHTYPE")!.Value == "Payment" && voucher != reversed);
+        Lines(refund).ShouldBe([("Advances from Patients", true, -50.00m), ("SBI Current A/c", false, 50.00m)]);
+
+        // Nothing of the other hospital: not its payer, and not one voucher more than this hospital's postings.
+        text.ShouldNotContain(scenario.OtherPayer.Name);
+
+        // One day of it is that day's postings alone.
+        var day = await scenario.ReadAsync<AccountingExportSummaryDto>($"accounting-export/summary?from={Yesterday:yyyy-MM-dd}&to={Yesterday:yyyy-MM-dd}");
+        (day.Vouchers, day.Receipts, day.ControlTotal).ShouldBe((2, 1, 500.00m));
+    }
+
+    [Fact]
+    public async Task ADR0062_another_hospital_exports_its_own_postings_alone_and_a_new_one_an_empty_file()
+    {
+        await using var scenario = await ScenarioAsync();
+        var period = $"from={MonthStart:yyyy-MM-dd}&to={MonthEnd:yyyy-MM-dd}";
+        var empty = await NewApiTenantAsync();
+        using var emptyViewer = scenario.Factory.CreateClientFor(empty, "Viewer");
+
+        // A hospital with no posting needs no name: its file is the envelope with no voucher in it.
+        var none = await ReadAsync<AccountingExportSummaryDto>(emptyViewer, $"accounting-export/summary?{period}");
+        (none.Vouchers, none.ControlTotal, none.LedgerTotal).ShouldBe((0, 0m, 0m));
+        none.Ledgers.ShouldBeEmpty();
+        using var file = await emptyViewer.GetAsync(Report($"accounting-export?{period}"));
+        file.StatusCode.ShouldBe(HttpStatusCode.OK, await file.Content.ReadAsStringAsync());
+        XDocument.Parse(await file.Content.ReadAsStringAsync()).Descendants("VOUCHER").ShouldBeEmpty();
+
+        // The other hospital of the scenario: a bill and a payment in cash, and nothing of the first one's month.
+        Guid otherId;
+        await using (var direct = AdministratorApiContext(SystemIdentity.Instance))
+        {
+            otherId = await direct.Database.SqlQuery<Guid>($"SELECT [TenantId] AS [Value] FROM dbo.Bills WHERE [Id] = {scenario.OtherBill.Id}").SingleAsync();
+        }
+
+        var otherTenant = new TenantId(otherId);
+        using var otherViewer = scenario.Factory.CreateClientFor(new FixedIdentity(otherTenant, new UserId(Guid.NewGuid())), "Viewer");
+        var other = await ReadAsync<AccountingExportSummaryDto>(otherViewer, $"accounting-export/summary?{period}");
+        (other.Vouchers, other.Receipts, other.Journals, other.ControlTotal).ShouldBe((2, 1, 1, 800.00m));
+        other.Ledgers.Select(total => total.Ledger).ShouldBe([ExportLedger.Receivable, ExportLedger.UnappliedCash, ExportLedger.Revenue, ExportLedger.Cash]);
+    }
+
+    [Theory]
+    [InlineData("", "from")]
+    [InlineData("from=2026-10-01", "to")]
+    [InlineData("to=2026-10-31", "from")]
+    [InlineData("from=2026-10-31&to=2026-10-01", "to")]
+    [InlineData("from=2026-10-01&to=2027-01-01", "to")]
+    public async Task ADR0062_an_export_needs_both_dates_in_order_and_at_most_92_days(string query, string field)
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var tenant = await NewApiTenantAsync();
+        using var viewer = factory.CreateClientFor(tenant, "Viewer");
+
+        foreach (var path in new[] { "accounting-export", "accounting-export/summary" })
+        {
+            using var response = await viewer.GetAsync(Report($"{path}?{query}"));
+
+            var problem = await response.ShouldBeProblemAsync(HttpStatusCode.BadRequest, CommonErrors.ValidationFailedCode);
+            problem.GetProperty("errors").EnumerateObject().Select(error => error.Name).ShouldContain(field);
+        }
+
+        // 92 days are a period: 1 October to 31 December.
+        using var quarter = await viewer.GetAsync(Report("accounting-export/summary?from=2026-10-01&to=2026-12-31"));
+        quarter.StatusCode.ShouldBe(HttpStatusCode.OK, await quarter.Content.ReadAsStringAsync());
+    }
+
+    private static readonly Uri AccountingLedgers = new("/api/v1/settings/accounting-ledgers", UriKind.Relative);
+
+    // The lines of a voucher of the file: the ledger, whether the package is told it is a debit, and the amount as written.
+    private static List<(string Ledger, bool Debit, decimal Amount)> Lines(XElement voucher) =>
+    [
+        .. voucher.Elements("ALLLEDGERENTRIES.LIST").Select(line => (
+            line.Element("LEDGERNAME")!.Value,
+            line.Element("ISDEEMEDPOSITIVE")!.Value == "Yes",
+            decimal.Parse(line.Element("AMOUNT")!.Value, System.Globalization.CultureInfo.InvariantCulture))),
+    ];
 
     private static Uri Report(string pathAndQuery) => new($"/api/v1/reports/{pathAndQuery}", UriKind.Relative);
 

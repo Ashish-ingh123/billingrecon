@@ -219,6 +219,49 @@ public sealed class SettingsController : ApiControllerBase
         return result.IsSuccess ? OkWithVersion(result.Value, result.Value.Version) : Problem(result.Error);
     }
 
+    /// <summary>
+    /// The names the hospital gives the ledgers of its accountant's books (ADR 0062), with their version as the
+    /// <c>ETag</c>. A hospital that never saved any answers none, with the version of a row that is not there.
+    /// </summary>
+    [Authorize(Policy = Policies.ManageTenant)]
+    [HttpGet("accounting-ledgers")]
+    [ProducesResponseType<AccountingLedgersDto>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAccountingLedgersAsync(
+        [FromServices] IQueryHandler<GetAccountingLedgersQuery, AccountingLedgersDto> handler,
+        CancellationToken ct)
+    {
+        var result = await handler.HandleAsync(new GetAccountingLedgersQuery(), ct);
+
+        return result.IsSuccess ? OkWithVersion(result.Value, result.Value.Version) : Problem(result.Error);
+    }
+
+    /// <summary>
+    /// Saves the names of the accountant's ledgers under <c>If-Match</c> (ADR 0062). An empty name takes a name away;
+    /// the export of a period that needs it is refused until it is set again.
+    /// </summary>
+    [Authorize(Policy = Policies.ManageTenant)]
+    [HttpPut("accounting-ledgers")]
+    [ProducesResponseType<AccountingLedgersDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status428PreconditionRequired)]
+    public async Task<IActionResult> UpdateAccountingLedgersAsync(
+        UpdateAccountingLedgersRequest request,
+        [FromServices] ICommandHandler<UpdateAccountingLedgersCommand, AccountingLedgersDto> handler,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (!TryGetExpectedVersion(out var version, out var refusal))
+        {
+            return refusal;
+        }
+
+        var result = await handler.HandleAsync(request.ToCommand(version), ct);
+
+        return result.IsSuccess ? OkWithVersion(result.Value, result.Value.Version) : Problem(result.Error);
+    }
+
     private async Task<IActionResult> ReadImageAsync(
         LetterheadImageKind kind,
         IQueryHandler<GetLetterheadImageQuery, LetterheadImageDto> handler,

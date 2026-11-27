@@ -1181,6 +1181,139 @@
         }
       }
     },
+    "/api/v1/reports/accounting-export/summary": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "What an accountant's export of a period would hold (ADR 0062): how many vouchers, what each ledger of the\naccountant's books receives, the control total beside what our ledger says moved, and the ledgers the hospital\nhas not named yet. `from` and `to` are business dates, both required, at most 92 days.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingExportSummaryDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingExportSummaryDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingExportSummaryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/accounting-export": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "The accountant's export of a period as the XML file Tally imports as vouchers (ADR 0062): one voucher for each\nposting of the ledger, balanced, numbered as our document. 422 `accounting_ledger_not_mapped` names the\nledgers an administrator must name first. The file is an attachment and is never cached.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/xml": {},
+              "application/problem+json": {}
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/opening-batches/dry-run": {
       "post": {
         "tags": [
@@ -9423,6 +9556,144 @@
         }
       }
     },
+    "/api/v1/settings/accounting-ledgers": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "The names the hospital gives the ledgers of its accountant's books (ADR 0062), with their version as the\n`ETag`. A hospital that never saved any answers none, with the version of a row that is not there.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingLedgersDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingLedgersDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingLedgersDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Saves the names of the accountant's ledgers under `If-Match` (ADR 0062). An empty name takes a name away;\nthe export of a period that needs it is refused until it is set again.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccountingLedgersRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccountingLedgersRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccountingLedgersRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingLedgersDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingLedgersDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingLedgersDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Precondition Required",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users": {
       "post": {
         "tags": [
@@ -15981,6 +16252,211 @@
   },
   "components": {
     "schemas": {
+      "AccountingExportSummaryDto": {
+        "required": [
+          "from",
+          "to",
+          "vouchers",
+          "receipts",
+          "payments",
+          "journals",
+          "controlTotal",
+          "ledgerTotal",
+          "ledgers",
+          "missing"
+        ],
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "The first business date.",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "description": "The last business date.",
+            "format": "date"
+          },
+          "vouchers": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "How many vouchers.",
+            "format": "int32"
+          },
+          "receipts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "How many of them are receipts.",
+            "format": "int32"
+          },
+          "payments": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "How many are payments.",
+            "format": "int32"
+          },
+          "journals": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "How many are journals.",
+            "format": "int32"
+          },
+          "controlTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "The debits of every voucher, which equal their credits.",
+            "format": "double"
+          },
+          "ledgerTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "The debits of our ledger for the period, read on their own and added up: equal to ControlTotal.",
+            "format": "double"
+          },
+          "ledgers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExportLedgerTotalDto"
+            },
+            "description": "What each ledger receives; only the ledgers the period uses."
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExportLedger"
+            },
+            "description": "The ledgers the period uses and the hospital has not named: the file is refused until they are."
+          }
+        },
+        "description": "What an export of a period holds, before the file is made (ADR 0062): the control totals the accountant compares\nwith what the package says it imported."
+      },
+      "AccountingLedgersDto": {
+        "required": [
+          "receivable",
+          "unappliedCash",
+          "creditAvailable",
+          "revenue",
+          "taxOutput",
+          "adjustments",
+          "openingBalances",
+          "cash",
+          "card",
+          "upi",
+          "bankTransfer",
+          "cheque",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "receivable": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "What payers owe on bills."
+          },
+          "unappliedCash": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Money received and not yet applied to a bill."
+          },
+          "creditAvailable": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Credit of credit notes not yet applied or refunded."
+          },
+          "revenue": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The taxable value billed."
+          },
+          "taxOutput": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The tax billed."
+          },
+          "adjustments": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Discounts, write-offs and rounding."
+          },
+          "openingBalances": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The other side of the opening balances."
+          },
+          "cash": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Money received in cash."
+          },
+          "card": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Money received by card."
+          },
+          "upi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Money received by UPI."
+          },
+          "bankTransfer": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Money received by bank transfer."
+          },
+          "cheque": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Money received by cheque."
+          },
+          "version": {
+            "type": "string",
+            "description": "The row version."
+          }
+        },
+        "description": "The hospital's names for its accountant's ledgers, as the API answers them (ADR 0062). A name that is null is not\nset. Version is the row version to send back as `If-Match`; eight zero bytes in base64 for\na hospital that never saved any."
+      },
       "AdjustmentDto": {
         "required": [
           "id",
@@ -18893,6 +19369,64 @@
           }
         },
         "description": "One drift row of the reconciliation: which identity is broken (the names of docs/database.md section 5.6), the bill,\npayment, credit note, payer, posting or number series it is about, its document number or other reference where it\nhas one, and the two figures that disagree: what is cached (or counted) and what the ledger (or the series) says."
+      },
+      "ExportLedger": {
+        "enum": [
+          "Receivable",
+          "UnappliedCash",
+          "CreditAvailable",
+          "Revenue",
+          "TaxOutput",
+          "Adjustments",
+          "OpeningBalances",
+          "Cash",
+          "Card",
+          "Upi",
+          "BankTransfer",
+          "Cheque"
+        ],
+        "description": "A ledger of the accountant's books that a line of the export goes to (ADR 0062): Reporting's own word for the\ntwelve names a hospital sets, so that it names no type of another module."
+      },
+      "ExportLedgerTotalDto": {
+        "required": [
+          "ledger",
+          "name",
+          "debit",
+          "credit"
+        ],
+        "type": "object",
+        "properties": {
+          "ledger": {
+            "description": "The ledger.",
+            "$ref": "#/components/schemas/ExportLedger"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The name the hospital gave it, or null when none is set."
+          },
+          "debit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "The debits.",
+            "format": "double"
+          },
+          "credit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "The credits.",
+            "format": "double"
+          }
+        },
+        "description": "What one ledger of the accountant's books receives in a period."
       },
       "ForgotPasswordRequest": {
         "type": "object",
@@ -22503,6 +23037,97 @@
           }
         },
         "description": "A payment that still holds money not applied to a bill (BR-304)."
+      },
+      "UpdateAccountingLedgersRequest": {
+        "type": "object",
+        "properties": {
+          "receivable": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "What payers owe on bills."
+          },
+          "unappliedCash": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Money received and not yet applied to a bill."
+          },
+          "creditAvailable": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Credit of credit notes not yet applied or refunded."
+          },
+          "revenue": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The taxable value billed."
+          },
+          "taxOutput": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The tax billed."
+          },
+          "adjustments": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Discounts, write-offs and rounding."
+          },
+          "openingBalances": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The other side of the opening balances."
+          },
+          "cash": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Money received in cash."
+          },
+          "card": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Money received by card."
+          },
+          "upi": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Money received by UPI."
+          },
+          "bankTransfer": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Money received by bank transfer."
+          },
+          "cheque": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Money received by cheque."
+          }
+        },
+        "additionalProperties": false,
+        "description": "The body of `PUT /api/v1/settings/accounting-ledgers` (ADR 0062): the name of each ledger of the accountant's\nbooks. A member left out, null or empty leaves that ledger without a name."
       },
       "UpdateAdjustmentRequest": {
         "type": "object",

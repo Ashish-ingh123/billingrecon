@@ -58,6 +58,7 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
         ["shifts: open, close"] = [TenantAdmin, Supervisor, BillingClerk, Cashier],
         ["shifts: read"] = Everyone,
         ["day end"] = [TenantAdmin, Supervisor, Viewer],
+        ["accounting export"] = [TenantAdmin, Supervisor, Viewer],
         ["signed in"] = Everyone,
     };
 
@@ -162,6 +163,12 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
         ("POST", "api/v1/cashier-shifts/{id:guid}/approve", "approve or reject"),
         ("POST", "api/v1/cashier-shifts/{id:guid}/reject", "approve or reject"),
         ("GET", "api/v1/reports/day-end", "day end"),
+
+        // Since Prompt 11.4 (ADR 0062): the accountant's export, and the names of the accountant's ledgers.
+        ("GET", "api/v1/reports/accounting-export", "accounting export"),
+        ("GET", "api/v1/reports/accounting-export/summary", "accounting export"),
+        ("GET", "api/v1/settings/accounting-ledgers", "users, settings, prefixes"),
+        ("PUT", "api/v1/settings/accounting-ledgers", "users, settings, prefixes"),
 
         ("GET", "api/v1/approval-requests", "approve or reject"),
         ("GET", "api/v1/audit-records", "audit trail"),
@@ -343,6 +350,8 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
             (Role.TenantAdmin, "PrintSettings", true),
             (Role.Supervisor, "PrintSettings", false),
             (Role.Viewer, "PrintSettings", false),
+            (Role.TenantAdmin, "AccountingLedgers", true),
+            (Role.Supervisor, "AccountingLedgers", false),
             (Role.Supervisor, "Tenant", false),
             (Role.Supervisor, "NumberSeries", false),
 

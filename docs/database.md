@@ -1203,6 +1203,15 @@ Four columns of `Users`, null or zero for a user who never asked:
 Using the link, or setting the password any other way, empties the first two. No table, no index (the link names
 its user, so the row is read by its key) and no grant changes.
 
+### 5.15 The names of the accountant's ledgers (ADR 0062, migration `0033_AccountingLedgers`)
+
+`AccountingLedgers`: at most one row for a tenant (`UX_AccountingLedgers_TenantId`), made by the first save.
+Twelve columns `nvarchar(100) NULL`, a name of a ledger in the accountant's books each: `Receivable`,
+`UnappliedCash`, `CreditAvailable`, `Revenue`, `TaxOutput`, `Adjustments`, `OpeningBalances`, `Cash`, `Card`, `Upi`,
+`BankTransfer`, `Cheque`. With them the usual `Id`, `TenantId`, the four audit columns (foreign keys to `Users`)
+and `RowVersion`. The accountant's export reads the row and the ledger; it has no table of its own and writes
+nothing. No grant changes.
+
 ## 6. Idempotency store (ADR 0006)
 
 Lifecycle of a row in `IdempotencyKeys` for a financial POST:

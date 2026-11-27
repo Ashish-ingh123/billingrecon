@@ -970,6 +970,7 @@ date. A report reads committed rows and takes no lock.
 | `GET /api/v1/reports/payment-register` | page of payments, by payment date, reversed ones included | `from`, `to`, `payerId`, `method`, `status` (`Posted`, `PendingReversal`, `Reversed`), `order` (`OldestFirst` by default, `NewestFirst`) |
 | `GET /api/v1/reports/daily-collection` | the collection of one day by method | `date` |
 | `GET /api/v1/reports/day-end` | every shift of one day with its cash, and the cash outside the shifts (section 8.20); for a TenantAdmin, a Supervisor and a Viewer only | `date` |
+| `GET /api/v1/reports/accounting-export`, `GET /api/v1/reports/accounting-export/summary` | the vouchers of a period for the accountant's package, as a file, and their control totals (section 8.21); for a TenantAdmin, a Supervisor and a Viewer only | `from`, `to` (both required) |
 | `GET /api/v1/reports/outstanding-by-payer` | page of payers with a balance, the largest net outstanding first | `search` |
 | `GET /api/v1/reports/payers/{payerId}/balance` | one payer's balances (US-40); 404 `payer_not_found` | |
 | `GET /api/v1/reports/unapplied-cash` | page of payments that hold unapplied cash, the oldest first | `payerId` |
@@ -1304,6 +1305,46 @@ The trail of a shift (`entityType=CashierShift`: `Opened`, `Closed`, `SubmittedF
 `ClosingRejected`) is read by a TenantAdmin, a Supervisor and a Viewer. A cash document that joins a shift is not a
 change of the shift and leaves no record in its trail: the trail of the document says what happened.
 
+### 8.21 The accountant's export and the names of the accountant's ledgers (US-52; BR-904; ADR 0062)
+
+| Endpoint | Who | Success | Refusals |
+|---|---|---|---|
+| `GET /api/v1/reports/accounting-export/summary?from=&to=` | TenantAdmin, Supervisor, Viewer (`AccountingExport`) | 200, the control totals | 400 |
+| `GET /api/v1/reports/accounting-export?from=&to=` | the same | 200, the file (`application/xml`, an attachment, `Cache-Control: no-store`) | 400; 422 `accounting_ledger_not_mapped` |
+| `GET /api/v1/settings/accounting-ledgers` | TenantAdmin (`ManageTenant`) | 200, the twelve names, `ETag` | |
+| `PUT /api/v1/settings/accounting-ledgers` | TenantAdmin (`ManageTenant`) | 200, the names, `ETag` | 400; 409 `concurrency_conflict`; 428 |
+
+**The period** is two business dates in India, both required and both included, at most 92 days; anything else is
+400 with the field `from` or `to`.
+
+**The vouchers.** One posting of the ledger is one voucher, and its lines are the posting's entries, so every voucher
+balances and the vouchers of a period add up to the ledger's entries of the period. A payment recorded is a
+`Receipt`; a refund and a payment's reversal a `Payment`; everything else a `Journal`. An entry to `Cash` goes to the
+ledger of the method of its payment or refund (`Cash`, `Card`, `Upi`, `BankTransfer`, `Cheque`); the `Revenue` of a
+bill or of a credit note is split into `Revenue`, its taxable value, and `TaxOutput`, its tax. The voucher's number
+is our document's number; a posting that follows from a document carries it with a mark of its own
+(`RCT/26-27/000012/AL-1a2b3c4d`: `AL` an allocation, `AR` its reversal, `RV` a payment's reversal, `CA` an
+application of credit, `CR` its reversal), so that no two vouchers share a number.
+
+**The summary** answers `from`, `to`, `vouchers`, `receipts`, `payments`, `journals`; `controlTotal`, the debits of
+every voucher; `ledgerTotal`, the debits of the ledger's entries of the period read on their own, always equal to
+it; `ledgers`, what each ledger the period uses receives (`ledger`, `name` or null, `debit`, `credit`); and
+`missing`, the ledgers the period uses and the hospital has not named. The summary never refuses for a missing name.
+
+**The file** is the XML Tally imports as vouchers: `ENVELOPE` / `HEADER` / `TALLYREQUEST` "Import Data", then `BODY` /
+`IMPORTDATA` with `REQUESTDESC` / `REPORTNAME` "Vouchers" and `REQUESTDATA`, a `TALLYMESSAGE` with one `VOUCHER`
+(`REMOTEID`, `VCHTYPE`, `ACTION="Create"`) for each voucher: `DATE` (`YYYYMMDD`), `VOUCHERTYPENAME`, `VOUCHERNUMBER`,
+`NARRATION` (what happened, and the payer's name) and an `ALLLEDGERENTRIES.LIST` for each line with `LEDGERNAME`,
+`ISDEEMEDPOSITIVE` (`Yes` for a debit) and `AMOUNT` (negative for a debit). UTF-8. It is refused with 422
+`accounting_ledger_not_mapped`, whose message lists them, while a ledger the period uses has no name. What of this
+shape was confirmed against Tally's documentation, and what was not, is in ADR 0062; no Tally has imported one yet.
+
+**The names** are `receivable`, `unappliedCash`, `creditAvailable`, `revenue`, `taxOutput`, `adjustments`,
+`openingBalances`, `cash`, `card`, `upi`, `bankTransfer` and `cheque`, each null or at most 100 characters on one
+line, and `version`. A hospital that saved none answers none, with the version of eight zero bytes, which is the
+`If-Match` of its first save. A member left out, null or empty takes that name away; an unknown member is 400. Two
+may be the same. The trail (`entityType=AccountingLedgers`, `Changed`) is the TenantAdmin's.
+
 ## 9. Error-code catalogue
 
 Every `errorCode` the API can answer, with its status and what the client is told (the `detail`). Section 3 gives the
@@ -1504,6 +1545,7 @@ For a failure no use case reported: routing, model binding, content negotiation,
 |---|---|---|
 | `ledger_balance_negative` | 422 | The posting would take a balance below zero (BR-405). Read the document again and retry. |
 | `document_not_printable` | 422 | Only a posted document is printed: this one is a draft, waits for approval, or was voided or reversed. |
+| `accounting_ledger_not_mapped` | 422 | The accountant's export needs a ledger name for: …. An administrator sets them under Administration, Settings. |
 | `opening_batch_not_found` | 404 | The opening batch does not exist. |
 | `opening_batch_not_pending` | 409 | The opening batch was decided already; it is approved or rejected once. |
 | `opening_batch_duplicate` | 409 | These files were submitted before for this cut-over date; opening balances are brought in once. |

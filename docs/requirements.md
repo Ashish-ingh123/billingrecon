@@ -44,6 +44,7 @@ Permission matrix (✓ = allowed, R = read only):
 | Cashier shift: open, close one's own | ✓ | ✓ | ✓ | ✓ | |
 | Shifts: read | ✓ | ✓ | own | own | R |
 | Day-end report | ✓ | ✓ | | | R |
+| Accountant's export | ✓ | ✓ | | | R |
 
 The checker must always be a different user from the maker (BR-603), whatever the roles.
 
@@ -215,6 +216,7 @@ shift with a difference is in the checker's row, and its cashier is never its ch
 | **BR-901** | R1 reports: bill register, payment register with daily collection by method, outstanding by payer, unapplied cash and available credit, pending approvals, and ledger reconciliation (cache versus ledger). Reports read committed data and every figure ties back to ledger entries. |
 | **BR-902** | The dashboard covers a period of business dates in India, `from` to `to` both included, the last 30 days ending today by default and at most 366 days, and compares each summary figure with the previous period of the same length; the change is in percent to two decimal places, null when the previous figure is zero. Billed is the Receivable debits of the bills posted with a bill date in the period; collected is the Cash debits of the payments recorded with a payment date in the period, gross of reversals and refunds; outstanding dues and unapplied cash are their ledger balances at the end of the period's last day; pending approvals are the requests still waiting at the end of that day in India; reconciliation drift is the current count only, with no previous figure. Ageing is the balance due of posted bills by days past their due date as of today, in the buckets 0–30 (bills not yet due included), 31–60, 61–90 and over 90. |
 | **BR-903** | The day-end report covers one business date (IST): every shift of that date with its float, its cash received and paid out, its expected cash and, once counted, its counted cash and difference, and the cash of the date that no shift holds. Its cash total equals the Cash row of the daily collection of that date (BR-901). A shift that is still open or waits for approval is shown as such. *Added 2026-11-27 with Prompt 11.2 (ADR 0060).* |
+| **BR-904** | The accountant's export covers a period of business dates (IST) of at most 92 days as a file the accountant's package imports: one balanced voucher for each posting of the ledger, numbered as our document, its lines in the ledgers the hospital named. Money goes to the ledger of its method; the tax of a bill and of a credit note is a ledger of its own. The vouchers add up to the ledger's entries of the period. A ledger the period uses and the hospital has not named refuses the file and is named. The names are set by a TenantAdmin and audited. *Added 2026-11-27 with Prompt 11.4 (ADR 0062).* |
 
 ---
 
@@ -232,6 +234,7 @@ Acceptance criteria cite the rules they verify. "Given/when/then" is abbreviated
 | US-04 | As the platform, requests never cross tenants. | A token for tenant A cannot read or write tenant B's records, including by id (BR-002); tested as a defect. |
 | US-50 | As a Supervisor or a TenantAdmin I sign in with my password and a code of my authenticator app. | Set up at the first sign-in, with recovery codes shown once (BR-608); a code two steps away or used before is refused; without the second step no decision is made (BR-609); an administrator's reset signs me out and holds my decisions for 24 hours (BR-610). |
 | US-51 | As a user who forgot my password I ask for a link by mail and choose a new password with it. | The page says the same whatever I typed; the link works once and for 30 minutes; my sessions end; my second step is still asked for; where no mail is sent the page tells me to ask my administrator (BR-611). |
+| US-52 | As a Supervisor, a TenantAdmin or a Viewer I export a period for the accountant, after an administrator named the accountant's ledgers. | Every voucher balances and names our document; the vouchers equal the ledger's movements of the period; a reversed payment is its mirror; a missing name refuses the file by name; another hospital's postings never appear (BR-904). |
 
 ### Patients and payers
 

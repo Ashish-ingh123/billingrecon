@@ -172,6 +172,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ITenantImageRepository, TenantImageRepository>();
         services.AddScoped<IPrintSettingsRepository, PrintSettingsRepository>();
+        services.AddScoped<IAccountingLedgersRepository, AccountingLedgersRepository>();
         services.AddScoped<IUserNames, UserNames>();
         services.AddScoped<IPrefixChangeRepository, PrefixChangeRepository>();
         services.AddScoped<IPrefixChangeReadService, PrefixChangeReadService>();

@@ -204,4 +204,55 @@ public sealed class ReportsController(ILogger<ReportsController> logger, IAuthor
 
         return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
     }
+    /// <summary>
+    /// What an accountant's export of a period would hold (ADR 0062): how many vouchers, what each ledger of the
+    /// accountant's books receives, the control total beside what our ledger says moved, and the ledgers the hospital
+    /// has not named yet. <c>from</c> and <c>to</c> are business dates, both required, at most 92 days.
+    /// </summary>
+    [Authorize(Policy = Policies.AccountingExport)]
+    [HttpGet("accounting-export/summary")]
+    [ProducesResponseType<AccountingExportSummaryDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AccountingExportSummaryAsync(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        [FromServices] IQueryHandler<AccountingExportSummaryQuery, AccountingExportSummaryDto> handler,
+        CancellationToken ct)
+    {
+        var result = await handler.HandleAsync(new AccountingExportSummaryQuery { From = from, To = to }, ct);
+
+        return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
+    }
+
+    /// <summary>
+    /// The accountant's export of a period as the XML file Tally imports as vouchers (ADR 0062): one voucher for each
+    /// posting of the ledger, balanced, numbered as our document. 422 <c>accounting_ledger_not_mapped</c> names the
+    /// ledgers an administrator must name first. The file is an attachment and is never cached.
+    /// </summary>
+    [Authorize(Policy = Policies.AccountingExport)]
+    [HttpGet("accounting-export")]
+    [Produces(TallyVoucherWriter.ContentType, "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> AccountingExportAsync(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        [FromServices] IQueryHandler<AccountingExportQuery, AccountingExport> handler,
+        CancellationToken ct)
+    {
+        var result = await handler.HandleAsync(new AccountingExportQuery { From = from, To = to }, ct);
+        if (result.IsFailure)
+        {
+            return Problem(result.Error);
+        }
+
+        var export = result.Value;
+        Response.ContentType = TallyVoucherWriter.ContentType + "; charset=utf-8";
+        Response.Headers.ContentDisposition = $"attachment; filename=\"{TallyVoucherWriter.FileName(export.Summary.From, export.Summary.To)}\"";
+        Response.Headers.CacheControl = "no-store";
+        await TallyVoucherWriter.WriteAsync(Response.Body, export, ct);
+
+        return new EmptyResult();
+    }
 }

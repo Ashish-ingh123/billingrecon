@@ -91,6 +91,7 @@ public sealed class ErrorCodesTests
         {
             var type when type == typeof(string) => "sample",
             var type when type == typeof(IReadOnlyDictionary<string, string[]>) => new Dictionary<string, string[]>(),
+            var type when type == typeof(IReadOnlyCollection<string>) => new[] { "sample" },
             var type when type == typeof(decimal) => 0m,
             var type when type == typeof(int) => 0,
             var type when type == typeof(bool) => false,

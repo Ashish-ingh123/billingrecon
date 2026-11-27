@@ -273,6 +273,8 @@ src/
                                 tenth ApprovalDocumentType, CashierShift, and the ApprovalAction Close. Since Prompt 11.3a
                                 (ADR 0061): Totp, SecondStepStage, the second step of User with six events (Identity).
                                 Since Prompt 11.3b: the link of a forgotten password on User, with two events.
+                                Since Prompt 11.4a (ADR 0062): AccountingLedgers, AccountingLedgerNames and the
+                                enum AccountingLedger (Identity).
   BillingRecon.Application/     Use cases (command/query handlers as plain classes), FluentValidation validators,
                                 port interfaces (IClock, IUnitOfWork, repositories, INumberSeries,
                                 IIdempotencyStore, ITenantContext, ICurrentUser), DTOs and explicit mappers.
@@ -347,6 +349,9 @@ src/
                                 (Identity). ADR 0061.
                                 Since Prompt 11.3b: RequestPasswordResetHandler, ResetPasswordByLinkHandler,
                                 SignInOptionsHandler, IPasswordResetMail, IPasswordResetTokens (Identity).
+                                Since Prompt 11.4a (ADR 0062): the names of the accountant's ledgers, read and
+                                saved (Identity); IAccountingExportReports, AccountingExportBuilder, the two
+                                handlers and TallyVoucherWriter (Reporting).
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -391,6 +396,8 @@ src/
                                 ApprovalHolds (Identity), ADR 0061.
                                 Since Prompt 11.3b: MailOptions, MailOutbox, MailDispatcher, IMailTransport with
                                 SmtpMailTransport, PasswordResetMail, PasswordResetTokens (Identity).
+                                Since Prompt 11.4a (ADR 0062): AccountingLedgersConfiguration and its repository
+                                (Identity); AccountingExportReports (Reporting).
   BillingRecon.Api/             Controllers, middleware and filters (correlation id, idempotency, tenant resolution),
                                 the error contract (Common/Errors: exception handler, Error to ProblemDetails mapper),
                                 authentication/authorisation, OpenAPI + Scalar, Program.cs (composition root),
@@ -427,6 +434,8 @@ src/
                                 AllowWhileSecondStep attributes (ADR 0061).
                                 Since Prompt 11.3b: three anonymous actions of AuthController (options,
                                 forgot-password, reset-password).
+                                Since Prompt 11.4a (ADR 0062): the policy AccountingExport, two actions of
+                                ReportsController and two of SettingsController.
 tests/
   Directory.Build.props         Test defaults: xUnit, Shouldly, test SDK/runner, global usings.
   BillingRecon.Domain.Tests/  BillingRecon.Application.Tests/
@@ -974,6 +983,10 @@ after an administrator's reset (Accepted on the owner's approval of the Prompt 1
 ADR 0030, ADR 0031, ADR 0032, ADR 0045, ADR 0051, ADR 0055 and ADR 0057 and narrows row R3 of the threat model).
 ADR 0061 was amended by Prompt 11.3b (2026-11-27): a forgotten password reset by a link in a mail, where the deployment
 has a mail server.
+0062 the accountant's export: one voucher for each posting of the ledger, as Receipt, Payment or Journal; money by the
+ledger of its method and the tax of a bill as a ledger of its own; twelve ledger names a hospital sets; a missing name
+refuses the file by name; Tally's XML, confirmed against Tally's documentation in part and never imported (Accepted on
+the owner's answers and approval of the Prompt 11.4 plan, 2026-11-27; it amends ADR 0032, ADR 0033 and ADR 0036).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1059,7 +1072,7 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    owner saw and, for every other row, why it is open (the 10,000-bill load, the journey and the browser suites through
    nginx, `PiiMaskerTests` after its fix, the recovery model: no second run; the `Database` tests of 10.1 to 10.4 on
    SQL Server 2022: the first CI run). A row is never closed on a report alone where a machine can show it.
-2. **Everything else still open:** `docs/backlog.md`, 42 rows (B1 to B46 but B18, B21, B24 and B43): owner questions, recorded deviations,
+2. **Everything else still open:** `docs/backlog.md`, 46 rows (B1 to B50 but B18, B21, B24 and B43): owner questions, recorded deviations,
    accepted limitations, follow-ups and small fixes, each with its origin and when it is due. Three are marked
    *R1 review*, for the owner: B3 (three credit-note choices), B19 (adjustments by kind), B33 (the stale `0002_Payers`
    in two ADRs). B18 and B24 were closed by Prompt 10.1.
@@ -1291,7 +1304,25 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    `api/call.ts`, not `answer()`. The sign-in page links to `/forgot-password` and asks the API nothing for it; its
    "Need help?" block is always there now. `e2e/routes.spec.ts` takes an optional session per route, and opens the
    pages before the application with it. `mail_password` is the fourth secret file of production and must exist,
-   empty where there is no mail. Migration `0032_PasswordResetLink`; **the next free migration is `0033` and the next
-   ADR 0062.** BR-611, US-51. Owed: runbook section 8, row 11.3b (**no mail has been sent to a real server**; SQL
-   Server 2022; the compose files), backlog B44 to B46, `docs/go-live.md` G9. Stage 8, Prompt 11.4 (the accountant's
-   export), is next: it begins with questions to the owner.
+   empty where there is no mail. Migration `0032_PasswordResetLink`. BR-611, US-51. Owed: runbook section 8, row 11.3b (**no mail has been sent to a real server**; SQL
+   Server 2022; the compose files), backlog B44 to B46, `docs/go-live.md` G9.
+
+   **Prompt 11.4a (2026-11-27, ADR 0062), stage 8 of the eight, its first part:** the accountant's export. **One
+   posting is one voucher and its lines are the posting's entries** (`AccountingExportReports`), so the vouchers of a
+   period equal the ledger's entries by construction; two things are reworded for the accountant: an entry to `Cash`
+   goes to the ledger of the payment's or the refund's method, and the `Revenue` of a bill or a credit note is split
+   into its taxable value and its tax (`TaxTotal`). Receipt for a payment recorded, Payment for a refund and a
+   payment's reversal, Journal for the rest. `AccountingLedgers` (Identity) is one row of twelve names for a tenant,
+   set by a TenantAdmin under `If-Match` (`GET`/`PUT /api/v1/settings/accounting-ledgers`); Reporting reads them
+   through Identity's own query handler and names its ledgers with its own enum, `ExportLedger`.
+   `GET /api/v1/reports/accounting-export/summary` answers the control totals and the names that are missing;
+   `GET /api/v1/reports/accounting-export` streams the file (`TallyVoucherWriter`, the BCL's `XmlWriter`) or answers
+   422 `accounting_ledger_not_mapped` naming every ledger the period uses without a name. Policy `AccountingExport`:
+   TenantAdmin, Supervisor, Viewer. **A file under a `/Reporting/` folder may not contain `.Add(` at all**
+   (`ReportingConventionTests` reads the text): build lists with LINQ or an iterator. **A sum of `Money` is not
+   translated to SQL:** read the rows and add them up, as every report does. **In a query expression `from` is a
+   keyword:** a parameter named `from` must be renamed before it is used there. A voucher number that follows from a
+   document carries a hash of the posting's id, not its last characters: ids made one after the other end alike.
+   Migration `0033_AccountingLedgers`; **the next free migration is `0034` and the next ADR 0063.** BR-904, US-52.
+   Owed: runbook section 8, row 11.4a (**no Tally has imported a file**; SQL Server 2022), backlog B47 to B50,
+   `docs/go-live.md` G10. 11.4b is the two screens: the export under Reports and the names under Administration.

@@ -73,6 +73,12 @@ public static class Policies
     /// <summary>The day-end report of every shift (US-48, BR-903): whoever runs or audits the hospital (ADR 0060).</summary>
     public const string DayEnd = nameof(DayEnd);
 
+    /// <summary>
+    /// The accountant's export (ADR 0062): whoever runs or audits the hospital, as for the day-end report. An
+    /// accountant is given the role Viewer.
+    /// </summary>
+    public const string AccountingExport = nameof(AccountingExport);
+
     /// <summary>Any signed-in user, whatever the roles: the service information.</summary>
     public const string SignedIn = nameof(SignedIn);
 
@@ -99,6 +105,7 @@ public static class Policies
         [WorkShift] = [Role.TenantAdmin, Role.Supervisor, Role.BillingClerk, Role.Cashier],
         [ReadShifts] = [Role.TenantAdmin, Role.Supervisor, Role.BillingClerk, Role.Cashier, Role.Viewer],
         [DayEnd] = [Role.TenantAdmin, Role.Supervisor, Role.Viewer],
+        [AccountingExport] = [Role.TenantAdmin, Role.Supervisor, Role.Viewer],
     };
 
     /// <summary>Every policy of the catalogue, <see cref="SignedIn"/> included.</summary>

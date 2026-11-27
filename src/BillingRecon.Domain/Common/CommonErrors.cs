@@ -107,4 +107,14 @@ public static class CommonErrors
     /// </summary>
     public static Error DocumentNotPrintable()
         => Error.BusinessRule(DocumentNotPrintableCode, "Only a posted document is printed: this one is a draft, waits for approval, or was voided or reversed.");
+
+    /// <summary>Code of <see cref="AccountingLedgerNotMapped"/>.</summary>
+    public const string AccountingLedgerNotMappedCode = "accounting_ledger_not_mapped";
+
+    /// <summary>
+    /// The accountant's export of a period needs a ledger the hospital has not named (ADR 0062). The message names
+    /// every one, so an administrator sets them in one go.
+    /// </summary>
+    public static Error AccountingLedgerNotMapped(IReadOnlyCollection<string> ledgers)
+        => Error.BusinessRule(AccountingLedgerNotMappedCode, $"The accountant's export needs a ledger name for: {string.Join(", ", ledgers)}. An administrator sets them under Administration, Settings.");
 }

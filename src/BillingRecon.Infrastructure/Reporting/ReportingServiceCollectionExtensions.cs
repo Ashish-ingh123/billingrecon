@@ -22,6 +22,10 @@ public static class ReportingServiceCollectionExtensions
         services.AddScoped<IApprovalReports, ApprovalReports>();
         services.AddScoped<IDashboardReports, DashboardReports>();
 
+        // The accountant's export (ADR 0062): the vouchers of a period, and what builds a file from them.
+        services.AddScoped<IAccountingExportReports, AccountingExportReports>();
+        services.AddScoped<AccountingExportBuilder>();
+
         return services;
     }
 }

@@ -272,6 +272,13 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   has no automated test: it was proved once by hand against an SMTP sink on the office machine, and a real server
   is owed (runbook section 8, row 11.3b). The frontend: `auth/ForgotPassword.test.tsx`. The browser suite
   `e2e/routes.spec.ts` opens the pages before the application too, each with the session of its stage.
+- **The accountant's export** (Prompt 11.4a; ADR 0062): `AccountingLedgersTests` (the names), `AccountingExportTests`
+  (the control totals, the refusal that names every ledger without a name, vouchers that do not add up never written,
+  and the file: the envelope, a debit as "Yes" and negative, escaping), and on SQL Server `AccountingLedgersApiTests`
+  and three tests of `ReportsApiTests` on the month of the Phase 4 scenario, where the file is parsed as XML and every
+  ledger of the accountant's is held against the ledger, summed in SQL of the test's own. **The file is read back by
+  an XML parser, never by Tally:** `docs/go-live.md` G10. A file under `/Reporting/` may not call `.Add(` at all
+  (`ReportingConventionTests` reads the text), so the query service builds its lists with LINQ and an iterator.
 - **The lens and Tab in a search** (Prompt 10.4d; ADR 0039 and ADR 0040, amended 2026-11-26): `SearchTab.test.tsx` (the
   lens on every search box, drawn and not read; the spinner in its place; Clear; a list's search sent when its box is
   left and not when unchanged; a picker by Tab with one result, several, none, a late answer and a late answer after
