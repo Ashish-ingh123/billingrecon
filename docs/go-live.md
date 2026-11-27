@@ -3,7 +3,7 @@
 What stands between BillingRecon and a first live hospital that is **outside the code**: each line with who decides it
 and by when, and how the hospital moves onto it. Completed by Prompt 10.7 (2026-11-27): the open sign-offs of Phase 10
 and 11, the checklist with an owner and a date for each item, the acceptance script, the cut-over plan, go or no-go,
-and the first two weeks. No line here is decided by Claude Code (the bar of Phase 10, point 5).
+the first two weeks, and the training notes of each role. No line here is decided by Claude Code (the bar of Phase 10, point 5).
 
 There is no client yet (ADR 0058). Phase 10 is built against the reference hospital of `docs/reference-hospital.md`,
 so every line below is open until a real hospital exists, and its date is "before that hospital's go-live".
@@ -176,3 +176,140 @@ what will happen and when.
 In the first week a call of 15 minutes at 18:00 with the hospital's administrator and a supervisor: what went wrong,
 what was asked, what is fixed. At the end of the two weeks, a written summary, and the support contract (C12) takes
 over.
+
+## Training notes
+
+One page for each role, for the hospital's staff in the week before the cut-over, on staging. The screenshots are of
+the application with test data (`docs/ui/`); a user with two roles reads both pages. Every user signs in with the
+hospital's code, their e-mail address and their password, and chooses a password of their own at the first sign-in.
+
+![The sign-in page](ui/sign-in-built.png)
+
+What every role should know:
+
+- **Nothing posted is ever changed or deleted.** A mistake is put right by a new document: a credit note, an
+  adjustment, a reversal or a refund. Each of those waits for a second person, a Supervisor or a TenantAdmin, who is
+  never the one who made it.
+- **Dates are the business day in India.** A document may be dated back a few days, never ahead.
+- **"Someone else changed this"** means another user saved the same record first: read it again and redo the change.
+- **Sign out** at the end of a shift. Closing the tab also ends the session.
+- **"Forgot password?"** on the sign-in page sends a link by mail, if the hospital has mail set up; otherwise a
+  TenantAdmin sets a new password.
+
+### BillingClerk: patients and bills
+
+1. **Patients**, Register patient: the name, the date of birth, the MRN of the hospital, and a guarantor if someone
+   else pays. Search first: the MRN finds a patient already registered.
+
+   ![Registering a patient](ui/patient-new.png)
+
+2. **Bills**, New bill: the patient, the payer, then the lines from the service catalogue (type a few letters) or as
+   free text. The totals, the GST and its halves are worked out as you type.
+
+   ![A bill being drafted](ui/bill-editor.png)
+
+3. **Post** the bill. It takes its number and is owed from then on. A bill at or above the hospital's approval
+   threshold waits for a Supervisor instead, with no number yet.
+
+   ![A posted bill](ui/bill-posted.png)
+
+4. **Print** the bill from its page, on the hospital's letterhead. A second print says "Duplicate".
+5. **A wrong bill:** a draft is corrected or voided; a posted bill gets a **credit note** (a line billed wrongly) or an
+   **adjustment** (a discount or a write-off), each approved by a Supervisor.
+
+   ![A credit note](ui/credit-note.png)
+
+### Cashier: the counter
+
+1. **Shifts**, Open a shift, with the float in the drawer. Cash is refused until a shift is open.
+
+   ![Opening a shift](ui/shift-open.png)
+
+2. **Payments**, Record a payment: the payer, the amount, the method (cash, card, UPI, bank transfer or cheque) and,
+   for all but cash, its reference.
+
+   ![Recording a payment](ui/payment-new.png)
+
+3. **Allocate** the payment to the payer's bills, oldest first unless the payer asks otherwise. What is not allocated
+   is held as an advance.
+
+   ![Allocating a payment](ui/allocating.png)
+
+4. **Print the receipt** from the payment's page. A payment taken by mistake is never deleted: **Request reversal**,
+   which a Supervisor approves.
+
+   ![A payment](ui/payment.png)
+
+5. **Refunds** come from an advance or a credit note, and wait for a Supervisor.
+6. **Close the shift** at its end: count every note and coin, the float included. If the count differs from what the
+   drawer should hold, say why: a Supervisor approves the closing. Print the closing slip.
+
+   ![Closing a shift](ui/shift-close.png)
+
+### Supervisor: approvals and the day's end
+
+1. **Sign in with the second step.** After the password, the six digits of the authenticator app. The first time, set
+   it up: scan the code (or type the key), confirm with a code, and **keep the ten recovery codes** somewhere safe.
+
+   ![Setting up the second step](ui/second-step-enrol.png)
+   ![Giving the code](ui/second-step.png)
+
+2. **Approvals**: what waits for a second person, oldest first. Open each, read the document, approve or reject with
+   a reason. Your own documents are not yours to approve.
+
+   ![The approvals](ui/approvals.png)
+
+3. **Shift closings with a difference** are approved here too: read the cashier's reason first.
+4. **Reports**, Day-end report, at the end of each day: every shift with its cash, its count and its difference. The
+   cash of the day equals the Cash row of the daily collection.
+
+   ![The day-end report](ui/day-end.png)
+
+5. **A lost phone:** ask a TenantAdmin to take the second step away; set it up again at the next sign-in. For a day
+   after that, you approve nothing.
+
+### Viewer: the reports
+
+1. **Dashboard**: billed, collected and owed over a period, each figure with its explanation on hover.
+
+   ![The dashboard](ui/dashboard-built.png)
+
+2. **Reports**: the bill and payment registers, the daily collection, outstanding by payer, unapplied cash, available
+   credit, pending approvals, the day-end report and the reconciliation. Each exports every row as CSV.
+
+   ![The reports](ui/reports.png)
+   ![The bill register](ui/report-bills.png)
+
+3. **Reports, Accountant's export**: a period as the file the accountant imports into Tally, with its control total.
+   Import each period once.
+
+   ![The accountant's export](ui/accounting-export.png)
+
+4. **Reconciliation** should always be empty. A row is reported to the owner at once (hypercare, Sev-1).
+
+### TenantAdmin: users and settings
+
+1. **Users and settings, Users**: create a user with their roles and a one-time password, which they change at their
+   first sign-in. Disable a user who leaves; never share an account.
+
+   ![The users](ui/users.png)
+   ![A new user](ui/user-new.png)
+
+2. **Reset a password, or a second step**, from the user's page: their sessions end, and for a day they approve
+   nothing.
+3. **Settings**: the approval threshold, the days a document may be dated back, the days a bill is due, the
+   letterhead with its logo and signature, and the prefixes of the numbers (a change of prefix waits for a second
+   person).
+
+   ![The letterhead's images](ui/settings-letterhead-images.png)
+
+4. **Print**: the paper, margins and what each document shows.
+
+   ![The print settings](ui/settings-print.png)
+
+5. **Accounts**: the names of the ledgers in the accountant's Tally company, exactly as they are there.
+
+   ![The names of the accountant's ledgers](ui/settings-accounts.png)
+
+6. **Import** is for the cut-over only (runbook section 18).
+7. **Keep two TenantAdmins with a second step** (C17): one resets the other.

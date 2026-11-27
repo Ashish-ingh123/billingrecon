@@ -28,8 +28,11 @@ recent payments, top payers, pending approvals and reconciliation panels](docs/u
 > signature, the production deployment, sign-out on the server, live search, an independent review and its fixes;
 > then the owner's eight stages: search on the document lists, the cashier's shift with the day-end closing, a second
 > step at sign-in for administrators and supervisors (TOTP) and a forgotten password reset by mail, and the
-> accountant's export for Tally (ADRs 0051 to 0062). Go-live operations and readiness (Prompts 10.6 and 10.7) are next;
-> what a hospital and its accountant must sign off first is in [docs/go-live.md](docs/go-live.md).
+> accountant's export for Tally; then operations (the nightly reconciliation of every hospital, alerts by mail, a
+> watchdog on the server, on-call) and go-live readiness (ADRs 0051 to 0062; `v1.2.0` proposed). **Before a first
+> hospital goes live:** the merge to `main` and the first CI run, the checks of [docs/runbook.md](docs/runbook.md)
+> section 8 on a machine with Docker and on staging, and the twenty sign-offs of [docs/go-live.md](docs/go-live.md),
+> which also holds the acceptance script, the cut-over plan and the training notes of each role.
 > Start with [CLAUDE.md](CLAUDE.md) (stack, architecture, the twelve financial rules, the working agreement).
 
 ## Release plan
@@ -107,4 +110,5 @@ browser journey) are in [docs/runbook.md](docs/runbook.md). Continuous integrati
 - [docs/build-prompts.md](docs/build-prompts.md): how it was built, prompt by prompt, and its status table
 - [docs/build-history.md](docs/build-history.md): what was decided for each built prompt
 - [docs/adr/](docs/adr/): Architecture Decision Records, 0000 to 0062 (0056 is kept for Prompt 10.6)
-- [docs/go-live.md](docs/go-live.md): what must be signed off, and by whom, before a hospital goes live
+- [docs/go-live.md](docs/go-live.md): what must be signed off, by whom and when, before a hospital goes live; the
+  acceptance script, the cut-over plan, hypercare and the training notes

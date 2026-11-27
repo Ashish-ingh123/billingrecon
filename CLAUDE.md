@@ -1373,5 +1373,9 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    are roles, dates counted back from the reference cut-over of 1 April 2027; none marked done by Claude Code), the
    acceptance script in two parts with a column for the client's tester, the cut-over plan (rollback point: 1 April,
    08:00, before the first live bill), go or no-go on 31 March, and two weeks of hypercare with the owner as first line.
-   C1, the client's acceptance date, stays open until there is a client. 10.7b: the training notes per role with
-   screenshots from the browser suite, the README, and `v1.2.0` proposed.
+   C1, the client's acceptance date, stays open until there is a client. **10.7b:** the training notes of the five roles
+   at the end of `docs/go-live.md`, with thirteen screenshots taken from the browser suite (`e2e/routes.spec.ts` writes a
+   full-page screenshot of every route into `frontend/test-results`; run it with `-g "<path> in the light theme on a
+   desktop"` and copy `desktop-light.png`), and the README. **Phase 10 is written.** `v1.2.0` is proposed for the tip of
+   `phase-10-operations`, after the merge; the merge, the push, the tags and CI are the owner's. Next is no prompt of
+   `docs/build-prompts.md`: what is left is `docs/go-live.md` (C1 to C20) and runbook section 8.
