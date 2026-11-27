@@ -7,7 +7,7 @@
   section 14, the load test and the browser journey (Prompt 8.2), and with the release (Prompt 8.3, 2026-11-24) rolling
   back a migration (section 3), backup and restore (section 15) and the incident procedures (section 16). Migrations
   outside Development are section 10. Complete for R1. Section 17, onboarding and suspending a hospital, with Prompt 10.2
-  (ADR 0052).
+  (ADR 0052). Section 20, operations: alerts, the watchdog and on-call, with Prompt 10.6 (ADR 0056).
 
 ---
 
@@ -707,6 +707,7 @@ describes its check in full.
 | 11.3b | Migration `0032_PasswordResetLink` and `PasswordResetApiTests` on SQL Server 2022 (LocalDB 2019 here). **No mail has left this machine:** the tests replace the SMTP client, and `SmtpMailTransport` has spoken only to a sink on the same machine, once and by hand, without TLS and without a login. With a real server: set `MAIL_HOST`, `MAIL_FROM`, `MAIL_USER`, `MAIL_PASSWORD` and an https `MAIL_PUBLIC_BASE_URL` (so on staging, not the demo on http://localhost), ask for a link on "Forgot password?", see the mail arrive and not land in spam, open the link, choose a password, see the link refused a second time and after 30 minutes, and see that a supervisor is still asked for the code. Check the server's requirements (port 587 with STARTTLS is what the client speaks; a server that wants implicit TLS on 465 is not supported by the BCL client). With `MAIL_HOST` empty: the page says to ask the administrator. In production `mail_password` must exist as a file, empty where there is none, or `docker compose` will not start the API: **not run here**. The pages through nginx in both themes (the browser suite covers them without nginx). |
 | 11.4a, 11.4b | Migration `0033_AccountingLedgers`, `AccountingLedgersApiTests` and the three `ADR0062` tests of `ReportsApiTests` on SQL Server 2022 (LocalDB 2019 here). **No Tally has imported a file:** with the demo running, name the twelve ledgers (Users and settings, Accounts, as the TenantAdmin), make those ledgers in a Tally company created for the test, download a month from Reports, Accountant's export (the button is held back until every ledger the month uses has a name) and import it (Import, Transactions). Check: every voucher arrives (the count of the summary); the totals of each ledger equal the summary's; a bill shows the receivable against income and tax; a receipt by card sits in the bank ledger; `tally.imp` has no error. Then import the same file again and see whether the vouchers double, and whether our voucher numbers were kept; report both, and any tag Tally refused (ADR 0062 lists what was not confirmed). The two pages through nginx in both themes. |
 | 10.6a | `OperationsApiTests` on SQL Server 2022 (LocalDB 2019 here). **No alert has reached a real mailbox**: set `MAIL_HOST` and the rest with `ALERT_MAIL_TO` on staging, seed a drift there (`UPDATE dbo.PayerBalances SET Receivable = Receivable + 1 WHERE PayerId = ...` as `sa`, on staging only, then undo it), and see the mail "[BillingRecon alert] Reconciliation drift" arrive after 02:00 IST naming that hospital; see the log line "The nightly reconciliation of N hospitals found no drift" on a clean night, and "Deleted N expired idempotency keys" once a day. The API's startup warning when `ALERT_MAIL_TO` is empty. |
+| 10.6b | **Nothing of the watchdog has run on a server.** `deploy/prod/watch.test.sh` passes under Git Bash against stand-ins; on staging: section 20.1 (Seq's retention, the `seq_api_key` secret, the env file), then see `dc logs watch` give six `ok` lines, stop the API and see the `health` mail, and read `/ops/db-log-used-percent` and `/ops/backup-last-ok` written by the backup loop (`dc exec watch cat /ops/...`). Not proven anywhere: the Seq API's answer to `/api/events?filter=...&fromDateUtc=...` (the count of errors), `apk add` at the watch container's start, the sizes `df` reads from inside a container, and `sys.dm_db_log_space_usage` read by the backup loop. The external monitor of section 20.2 is the owner's. |
 | 11.2b | Migration `0030_ShiftClosingSlip` and `PrintSettingsApiTests` on SQL Server 2022 (LocalDB 2019 here). The shift routes of `e2e/routes.spec.ts` through nginx (step 11b): they ran in Edge against the built app, with nginx's policy applied by the test. By hand at https://localhost as `cashier@demo.local`: Shifts shows the open shift; Record payment with Cash shows the shift's date; Count and close with a wrong count asks for a reason and sends the closing to Approvals, where `supervisor@demo.local` approves it; the closing slip prints on A4 and, with the Print settings set to the roll, on an 80 mm roll (paper: only the owner's eyes). As `supervisor@demo.local` the day-end report of today equals the Cash row of the daily collection. |
 | 11.2a | `CashierShiftsApiTests` and migration `0029_CashierShifts` on SQL Server 2022 (they ran on LocalDB 2019 in a copy), and with them every database test that records cash, which now opens a shift first. `docker compose up --build` with the demo: the seed opens the cashier's shift and takes cash only today, so the dashboard's collection by method shows cash on the last day alone. The browser journey of section 14 (its cashier step opens today's shift through the API until 11.2b has the screen). The load test of section 14 at full size again: every payment of its loop is cash and now updates its user's shift, so its p95 and the hold of the series are to be read again against the targets. By hand: as `cashier@demo.local` a cash payment is taken; a second user without a shift is refused cash with the message of `shift_not_open`. |
 | 11.1b | By hand through nginx, as a cashier: on Payments, a part of a patient's name finds their payments while it is typed, a part of a number finds one payment, and an amount finds the payments of that amount; Back leaves the list. The same box on Bills, Credit notes, Adjustments and Refunds. |
@@ -1389,4 +1390,59 @@ Every new value goes into the vault first.
 `dc ps` (every service up, `sql` and `api` healthy), `dc logs backup --since 24h` (one "full backup written and
 verified", a log backup every 15 minutes, no `FAILED`), `dc logs offsite --since 1h` (no `OFF-SITE COPY FAILED`),
 `dc logs api | grep -i "not encrypted"` (nothing, once TDE is on). Seq is at `http://localhost:5341` through
-`ssh -L 5341:127.0.0.1:5341 <server>`. Alerts on these are Prompt 10.6's.
+`ssh -L 5341:127.0.0.1:5341 <server>`. The watchdog and the alerts on all of these are section 20.
+
+
+## 20. Operations: alerts, the watchdog and on-call (ADR 0056)
+
+Two things tell the operator that something is wrong, both by mail to `ALERT_MAIL_TO` through the mail server of
+`MAIL_*` (subject `[BillingRecon alert] ...`):
+
+- **The API itself**: the nightly reconciliation of every hospital at 02:00 IST ("Reconciliation drift", or "The
+  nightly reconciliation did not run"), and a failed sweep of idempotency keys. Each is also an error in Seq.
+- **The watchdog** (`watch`, `deploy/prod/watch.sh`), every 5 minutes: `health`, `errors`, `disk`, `log`, `backup`,
+  `cert`. One mail a day per check; every round is a line per check in `dc logs watch`.
+
+What neither can see, the server itself being down, an external monitor sees (20.2). Without `ALERT_MAIL_TO` and
+`MAIL_HOST` every alert is in the logs only: not acceptable in production.
+
+### 20.1 Once per environment
+
+1. **Seq's retention: 30 days.** Through the tunnel of section 19.8, sign in to Seq as `admin`, Settings, Retention,
+   add a policy that deletes events older than 30 days. Seq keeps everything until a policy says otherwise.
+2. **The watchdog's key to Seq.** In Seq, Settings, API keys, add a key named `watchdog` with the **Read** permission
+   only, and write it to the secret file: `echo -n '<key>' | sudo tee /etc/billingrecon/secrets/seq_api_key`. An empty
+   file (`sudo touch ...`) turns the count of errors off; the file must exist.
+3. `ALERT_MAIL_TO` and `MAIL_*` in the env file, then `dc up -d api watch`. Check: `dc logs api | grep "operations
+   alerts"` says nothing (the warning appears only when alerts are logged and not mailed), and `dc logs watch` shows a
+   round of six lines ending in `ok` within 5 minutes, after the backup loop has written its first full backup.
+4. **Prove the mail once:** stop the API (`dc stop api`), wait for the next round, see the mail "health" arrive, start
+   it again (`dc start api`). On staging, prove the drift alert as runbook section 8, row 10.6a says.
+
+### 20.2 The external uptime monitor (the owner's account)
+
+Create a monitor at an uptime service (UptimeRobot, Better Stack or the hosting provider's own) on
+`https://<DOMAIN>/health/live`, every 5 minutes, alerting the same address and a phone. `/health/live` needs no
+database, so it answers whenever the server, nginx and the API run; the watchdog's `health` covers readiness. Note the
+service and its login in the operator's vault. Nothing in the repository configures it.
+
+### 20.3 On-call
+
+**Who is called:** the operator on duty, by the alert mail and the uptime monitor's call; the owner for Sev-1 (drift,
+data at risk, the hospital unable to bill). **Within** 15 minutes for Sev-1, the next working morning for the rest.
+
+| Alert | Severity | First steps |
+|---|---|---|
+| Reconciliation drift | Sev-1 | Section 16.1 for each hospital named: suspend it (section 17.2), capture, never correct a cache by hand. |
+| The nightly reconciliation did not run | Sev-2 | Read the error in Seq; run the reconciliation report as a TenantAdmin of each hospital by hand that morning; fix the cause before the next night. |
+| `health` (and the uptime monitor) | Sev-1 | `dc ps`: which service is down or unhealthy. `dc logs api --since 30m`. A failed deploy: section 19.3 rolls back to the last tag. `/health/ready` 503 with the API up is a pending migration or no database: `dc logs migrate`, `dc logs sql`. |
+| `errors` | Sev-2 | In Seq, group the errors of the last 15 minutes by message and correlation id. One defect repeated: find its requests, open an issue, and if postings are failing, tell the hospital. |
+| `disk` | Sev-1 at 85% | `df -h`, `du -sh /var/lib/docker/volumes/*`. Backups older than the retention not deleted (`dc logs backup`)? Old images: `docker image prune -a` after a deploy is confirmed. More disk from the provider before 95%: SQL Server stops writing at full. Section 16.5 is the disk that is already full. |
+| `log` | Sev-1 at 80% | The log is freed by log backups: `dc logs backup` for `LOG BACKUP FAILED`, then section 15. A transaction left open holds it: `DBCC OPENTRAN` in the database, as `sa`, names it. |
+| `backup` | Sev-1 | `dc logs backup --since 30h`: the last full backup failed or the loop stopped. Run a full backup by hand (section 15) before anything else. |
+| `cert` | Sev-2 at 14 days | Certbot renews at 30 days, so it has been failing for two weeks: `dc logs certbot`. DNS still points here? Port 80 open for the challenge? `dc restart certbot`; by force, section 19.7. |
+| The sweep of idempotency keys failed | Sev-3 | Read the error; section 7 deletes expired keys by hand if it keeps failing. |
+| The uptime monitor alone | Sev-1 | The server is unreachable: the provider's console. After it returns, `dc ps` and the alerts above. |
+
+After any Sev-1: what happened, when it was noticed, what was done, and what changes so it does not recur, written
+the same day.

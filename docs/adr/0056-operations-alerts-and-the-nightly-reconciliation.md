@@ -81,3 +81,27 @@ to be recorded.
   R3); its schedule is not under test.
 - Verified on .NET 10 with LocalDB 2019 in a throwaway copy, with the mail server replaced. **Not verified:** an
   alert reaching a real mailbox, and the job running at 02:00 on a server (runbook section 8, row 10.6a).
+
+## Amended (2026-11-27, Prompt 10.6b): the watchdog, Seq's retention and on-call
+
+- **The watchdog** is the service `watch` of `docker-compose.prod.yml`: `deploy/prod/watch.sh` in `alpine:3.20.3`,
+  which adds `bash`, `curl` and `openssl` with `apk` at start. Every 5 minutes six checks: `/health/ready` through
+  nginx (the frontend's fixed address, so the certificate's name is checked as a browser would), the errors in Seq of
+  the last 15 minutes (20 or more), the disks of the database and its backups (85%), the transaction log (80%), the
+  last verified full backup (26 hours), and the certificate (14 days). One mail a day per check, by `curl` to the same
+  mail server; each round is a line per check in its log.
+- **Two deviations from the plan, both narrower:**
+  - The database's fullness is read by the backup loop, the one container with `sqlcmd`, which writes the use of the
+    transaction log and the instant of the last verified full backup into a shared volume (`ops-state`); the
+    watchdog reads them. The data files grow with the disk, so the disk is their limit; the log is what fills when log
+    backups fail. The age of the last backup was not in the prompt and costs one line: it is the alert a failed backup
+    needed (runbook 19.8 said so).
+  - **Seq's retention is a step of the runbook** (section 20.1), not of `prepare.sql`, which is SQL and cannot set Seq.
+- **A Seq API key with the Read permission** is a ninth secret file, `seq_api_key`; an empty file turns the count of
+  errors off.
+- **On-call** is runbook section 20.3: who is called, how fast, and the first steps of each alert. The external
+  uptime monitor is section 20.2: the owner's account, nothing in the repository.
+- Verified by `deploy/prod/watch.test.sh` (run by CI, and under Git Bash here): every check failing mails six alerts
+  once, a second round mails none, a round where every check passes mails nothing, and without a mail server nothing
+  is mailed. **Not verified:** the watchdog on a server, the Seq API's answer to the query of errors, and the backup
+  loop's two files (runbook section 8, row 10.6b).

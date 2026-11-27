@@ -1362,4 +1362,9 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    public so a test calls one run; a test with mail registers `Support/CapturedMails` and configures `MailOptions` and
    `AlertOptions`. **A posted bill's `BalanceDue` cannot be seeded off its status (`CK_Bills_StatusMatchesBalance`):
    seed drift in `PayerBalances`.** No migration; the next free migration is still `0034`, the next ADR `0063`. Owed:
-   runbook section 8, row 10.6a. 10.6b is the watchdog on the server, Seq's retention and the on-call page.
+   runbook section 8, row 10.6a. **10.6b (ADR 0056 amended):** `deploy/prod/watch.sh` (service `watch`, `alpine:3.20.3` with
+   `apk add` at start) checks health through nginx, errors in Seq (secret `seq_api_key`), disks, the transaction log and
+   the last full backup (both written to the `ops-state` volume by `backup-loop.sh`) and the certificate, and mails once
+   a day per check by `curl`. `deploy/prod/watch.test.sh` tests it against `watch-test-servers.mjs` and runs in CI's
+   frontend job. Runbook section 20 is operations and on-call. A new secret file goes into the counts of
+   `ProductionDeploymentTests` (now nine files, nine images). Owed: runbook section 8, row 10.6b. **10.7 is next.**

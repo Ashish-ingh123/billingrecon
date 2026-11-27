@@ -146,6 +146,7 @@ services:
       - mssql_sa_password
     volumes:
       - sql-backups:/var/opt/backups
+      - ops-state:/ops
       - ./deploy/prod:/prod:ro
     entrypoint: ["/bin/bash", "/prod/backup-loop.sh"]
     depends_on:
@@ -166,6 +167,34 @@ services:
       - sql-backups:/backups:ro
     entrypoint: ["/bin/sh", "-c", "if [ -z \"$$OFFSITE_REMOTE\" ]; then echo 'OFFSITE_REMOTE is empty: NO OFF-SITE COPY IS MADE' >&2; exec sleep infinity; fi; while true; do rclone copy /backups \"$$OFFSITE_REMOTE\" --config /run/secrets/rclone_conf --exclude 'tde/**' || echo 'OFF-SITE COPY FAILED' >&2; sleep 900; done"]
 
+  # The watchdog (ADR 0056, docs/runbook.md section 20): every 5 minutes the health through nginx, the errors in Seq,
+  # the disks, the transaction log and the last backup (from the backup loop), and the certificate; one mail a day per
+  # problem to ALERT_MAIL_TO through the API's mail server. curl and openssl are added to the pinned Alpine at start.
+  watch:
+    image: alpine:3.20.3
+    restart: unless-stopped
+    environment:
+      DOMAIN: "${DOMAIN}"
+      WATCH_HEALTH_RESOLVE: "${DOMAIN}:443:172.28.0.10"
+      ALERT_MAIL_TO: "${ALERT_MAIL_TO:-}"
+      MAIL_HOST: "${MAIL_HOST:-}"
+      MAIL_PORT: "${MAIL_PORT:-587}"
+      MAIL_USER: "${MAIL_USER:-}"
+      MAIL_FROM: "${MAIL_FROM:-}"
+    secrets:
+      - mail_password
+      - seq_api_key
+    volumes:
+      - sql-data:/var/opt/mssql:ro
+      - sql-backups:/var/opt/backups:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - ops-state:/ops
+      - ./deploy/prod:/prod:ro
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache bash curl openssl >/dev/null && exec bash /prod/watch.sh"]
+    depends_on:
+      - frontend
+      - seq
+
 secrets:
   mssql_sa_password:
     file: "${SECRETS_DIR:-/etc/billingrecon/secrets}/mssql_sa_password"
@@ -181,6 +210,8 @@ secrets:
     file: "${SECRETS_DIR:-/etc/billingrecon/secrets}/two_step_encryption_key"
   mail_password:
     file: "${SECRETS_DIR:-/etc/billingrecon/secrets}/mail_password"
+  seq_api_key:
+    file: "${SECRETS_DIR:-/etc/billingrecon/secrets}/seq_api_key"
   rclone_conf:
     file: "${SECRETS_DIR:-/etc/billingrecon/secrets}/rclone.conf"
 
@@ -190,6 +221,7 @@ volumes:
   seq-data:
   letsencrypt:
   acme-webroot:
+  ops-state:
 
 networks:
   default:

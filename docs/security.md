@@ -145,6 +145,8 @@ enter, mounted into the one service that needs it; the API reads its two from `/
 to start without them. No secret is in git, in an image, in the environment file or in the environment of the API's
 container; `ProductionDeploymentTests` holds the compose file to that. The operator keeps every secret, the TDE
 certificate's backup included, in a vault off the server, and rotates each by `docs/runbook.md` section 19.7.
+The watchdog (ADR 0056) reads Seq with a key of its own that may only read (`seq_api_key`), and the password of the
+mail server (`mail_password`) to send its alerts.
 
 ## 8. Data protection and the audit
 

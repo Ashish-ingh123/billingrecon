@@ -29,7 +29,7 @@ public sealed class ProductionDeploymentTests
             .Select(match => match.Groups["path"].Value)
             .ToList();
 
-        files.Count.ShouldBe(8);
+        files.Count.ShouldBe(9);
         files.ShouldAllBe(path => path.StartsWith("${SECRETS_DIR:-/etc/billingrecon/secrets}/", StringComparison.Ordinal));
     }
 
@@ -40,7 +40,7 @@ public sealed class ProductionDeploymentTests
             .Select(match => match.Groups["image"].Value)
             .ToList();
 
-        images.Count.ShouldBe(8);
+        images.Count.ShouldBe(9);
         foreach (var image in images)
         {
             var tag = image[(image.LastIndexOf(':') + 1)..];
@@ -70,6 +70,7 @@ public sealed class ProductionDeploymentTests
         example.Where(line => !line.StartsWith('#') && line.Contains("KEY=", StringComparison.OrdinalIgnoreCase)).ShouldBeEmpty();
         string.Join('\n', example).ShouldContain("jwt_signing_key");
         string.Join('\n', example).ShouldContain("mail_password");
+        string.Join('\n', example).ShouldContain("seq_api_key");
     }
 
     [Fact]

@@ -287,6 +287,9 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   that names it and not the other, a clean night sends none, a sweep and a reconciliation against a database that is
   not there are alerts, and without an address nothing is mailed. The jobs' runs are called directly; their schedules
   (`Task.Delay` until the next run) are not under test.
+  The watchdog (10.6b): `deploy/prod/watch.test.sh`, run by CI after the frontend's tests, runs `watch.sh` against
+  stand-ins (`watch-test-servers.mjs`: nginx's health, Seq's events and a mail server) with every check failing, again,
+  and then passing. Under Git Bash a certificate's subject is written `//CN=`, or it is taken for a path.
 - **The lens and Tab in a search** (Prompt 10.4d; ADR 0039 and ADR 0040, amended 2026-11-26): `SearchTab.test.tsx` (the
   lens on every search box, drawn and not read; the spinner in its place; Clear; a list's search sent when its box is
   left and not when unchanged; a picker by Tab with one result, several, none, a late answer and a late answer after
