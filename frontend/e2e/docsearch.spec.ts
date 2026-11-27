@@ -102,7 +102,8 @@ for (const theme of ['light', 'dark'] as const) {
     await box.pressSequentially('kavita');
     await page.keyboard.press('Tab');
     await expect(page).toHaveURL(/\/payments\?search=kavita&status=Posted$/);
-    expect(seen.at(-1)).toBe('kavita');
+    // The address changes a moment before the request is seen: wait for it.
+    await expect.poll(() => seen.at(-1)).toBe('kavita');
 
     // Another filter keeps the search, and starts at the first page.
     await page.getByLabel('Method').selectOption('Cash');
