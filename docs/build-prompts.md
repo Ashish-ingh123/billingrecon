@@ -70,7 +70,7 @@ is left; their numbering is mine, not the blueprint's.
 | 11.2 The cashier's shift and the day-end closing | Stage 6 of the owner's eight stages, in two commits on the owner's approval of the split (2026-11-27). The requirements were approved "as recommended": cash needs an open shift, a difference is recorded and not posted, a Supervisor or TenantAdmin who is not the cashier approves. **11.2a built 2026-11-27:** `CashierShift` (Payments), `LedgerPostings.ShiftId` and `IShiftCash` (the expected cash from the ledger), the closing with its approval, `GET /api/v1/reports/day-end`, three policies, migration `0029_CashierShifts`, ADR 0060; BR-310 to BR-315, BR-903, US-45 to US-48. The count is one column, not child rows as the plan said (ADR 0060, alternatives). Verified on LocalDB 2019 only. **11.2b built 2026-11-27:** the Shifts section (`frontend/src/shifts`: the list with the user's own shift, opening, counting and closing, a shift's page), the day-end report under Reports, cash on Record payment asking for an open shift and taking its date, and the closing slip (`/shifts/:id/print`) by a fourth kind of print settings, `ShiftClosing` (migration `0030_ShiftClosingSlip`; ADR 0060, amended; US-49). Verified in Edge against the built app; through nginx and on paper is owed |
 | 11.3 Two-step sign-in and a forgotten password | Stage 7 of the owner's eight stages, in two commits on the owner's approval of the proposal "as recommended" (2026-11-27): our own QR encoder, the BCL's SMTP client, a 24-hour hold after an administrator's reset (review finding R5), forced enrolment with no grace period. **11.3a built 2026-11-27:** the second step by TOTP on the BCL (`Totp`, `SignInTokens`, the claim `step`, `SecondStepGateMiddleware`, `DecisionGateMiddleware`), the secret encrypted under `TwoStep:EncryptionKey`, ten recovery codes, an administrator's reset, the two pages and the QR code drawn by `auth/qr.ts`; migration `0031_SecondStep`, ADR 0061, BR-608 to BR-610, US-50. Verified on LocalDB 2019 and by component tests; no camera has read the QR code here. **11.3b built 2026-11-27:** a forgotten password reset by a link in a mail (`RequestPasswordResetHandler`, `ResetPasswordByLinkHandler`, `PasswordResetTokens`, `MailOutbox`, `MailDispatcher`, the BCL's `SmtpClient` behind `IMailTransport`), optional by `Mail:Host`; three anonymous actions of `AuthController`; the pages `/forgot-password` and `/reset-password`; migration `0032_PasswordResetLink`, ADR 0061 amended, BR-611, US-51. Verified on LocalDB 2019 with the mail server replaced, by component tests and in Edge; the SMTP client was proved by hand against a sink on this machine, and **no mail has been sent to a real server**. Stage 8, Prompt 11.4, is next |
 | 11.4 The accountant's export | Stage 8 of the owner's eight stages, in two commits on the owner's answers (Tally; a voucher for each document; one control ledger; tax to a ledger of its own) and approval of the plan "as recommended" (2026-11-27). **11.4a built 2026-11-27:** the twelve ledger names of a hospital (`AccountingLedgers`, `GET` and `PUT /api/v1/settings/accounting-ledgers`), the vouchers of a period read from the ledger (`AccountingExportReports`), their control totals and the file Tally imports (`TallyVoucherWriter`), the policy `AccountingExport`; migration `0033_AccountingLedgers`, ADR 0062, BR-904, US-52. Verified on LocalDB 2019; the format is confirmed against Tally's documentation in part (ADR 0062 says which part) and **no Tally has imported a file**. **11.4b built 2026-11-27:** the export under Reports, Accounts (the summary, the ledgers without a name, the download of the file) and a fifth tab of Users and settings, Accounts, for the twelve names; verified by component tests and in Edge. **Stage 8 is done, and with it the eight stages of 2026-11-26.** |
-| 12.2 The tables: filters, sort and columns | Given by the owner on 2026-11-27 with TanStack Table decided; plan approved "as recommended", in three commits on `phase-12-tables`. **12.2a built 2026-11-27 (ADR 0063):** the new filters and the named orders of 11 lists and 6 reports, `sort_not_supported` and `filter_invalid`, `GET /api/v1/system/business-date`, migration `0034_ListIndexes`; measured on 100,000 bills (slowest 179 ms). Verified on LocalDB 2019. **12.2b, the shared table and the document lists, is next** |
+| 12.2 The tables: filters, sort and columns | Given by the owner on 2026-11-27 with TanStack Table decided; plan approved "as recommended", in three commits on `phase-12-tables`. **12.2a built 2026-11-27 (ADR 0063):** the new filters and the named orders of 11 lists and 6 reports, `sort_not_supported` and `filter_invalid`, `GET /api/v1/system/business-date`, migration `0034_ListIndexes`; measured on 100,000 bills (slowest 179 ms). Verified on LocalDB 2019. **12.2b built 2026-11-27:** the shared table on TanStack Table 9.3.1 (DataTable, the "Columns" menu, the filter bar with the date shortcuts from the server, columns kept per user and table) and the five document lists on it; 16 component tests, the browser suite in Edge. **12.2c, the rest of the screens, is next** |
 
 **Verification is deferred (owner, 2026-11-20): the personal-machine run comes later, and `docs/runbook.md` section 8 is the one running list of every command it owes, in order. Meanwhile every prompt from 2.2 on is committed unverified, one commit per prompt. Phase 3 is written to its end (3.1 to 3.6), and 4.1 (record a payment), 4.2 (allocate a payment to bills), 4.3 (credit notes) and 4.4 (adjustments) are written. Since 2026-11-21 the office machine has the .NET 10 SDK: the whole tip of the branch built and passed there on .NET 10 with LocalDB 2019, and the migrations `0003` to `0015` are in the repository; only the run on SQL Server 2022 in Docker is still owed. 4.5 (reversals), 4.5b (reverse an application of credit) and 4.6 (refunds) are written too, and `0016` and `0017` are in the repository. Phase 4 is written to its end; its branch merge to `main` is the owner's step. 5.1 (users and roles) is written too, and `0018` is in the repository. 5.2 (sign-in and JWT) is written too; it adds no migration. 5.3 was split with its plan: its first half, the role permissions, is written too, with no migration. 5.3b (tenant settings and prefix changes) is written too, and `0019` is in the repository. ADR 0033 built note point 5 was decided on 2026-11-23 (the approval holds the series) and is built as its own commit. 5.4 was split with its plan: its first half, the database logins and grants, is written too, and `0020` is in the repository. 5.4b (HTTP hardening and `docs/security.md` in full) is written too, with no migration; Phase 5 is written to its end, and its merge to `main` is the owner's step. 6.1 (registers and balances), 6.2 (reconciliation and audit trail) and 6.3 (dashboard figures) are written too, with no migration, on `phase-2-billing` like the rest: the backend of R1 is written to its end, and its merge to `main` is the owner's step. 7.1 (the frontend's scaffold and sign-in) is written too, on the same branch, with Node 24 on the office machine. 7.2 (patients, payers and catalogue screens), 7.3 (bill screens), 7.4 (cashier screens) and 7.5 (the checker's inbox, credit notes and adjustments; split with its plan), 7.5b (reports) and 7.6 (dashboard) are written too: the frontend of R1 is written to its end. 8.1 (one-command local run) is written too, on `phase-8-delivery`, and so are 8.2 (performance and browser tests) and 8.3 (release R1, tagged `v1.0.0`): R1 is written to its end. On 2026-11-24 the owner reported the first run on the personal machine: `docker compose up --build` with the demo, and `dotnet test` with Docker, which passed; its output is still to be sent, so the rows of runbook section 8 stay until then. No prompt is left in R1. Phase 9, the interface, has begun: 9.1 (the brand, the tokens and the sign-in page) is written, without the photograph, which is still to come, and so are 9.2 (the shell and the shared components) and 9.3 (the money screens' shared components, bills, credit notes and adjustments); and 9.3b (payments, refunds, the statement and the inbox) is written too; and 9.4 (the dashboard and its tooltips) is written too; and so is 9.4b (the reports, print, the finishing pass and the release): Phase 9 is written, `v1.1.0` proposed; what else follows is in `docs/backlog.md` and the release plan of CLAUDE.md. What was decided for each built prompt is in `docs/build-history.md` since 2026-11-26 (it stood under each prompt below until then).**
 
@@ -734,6 +734,12 @@ left block starts about 5.5% in, with a mark of about 120 px. The type looks lik
    for (icons, motion, an accessibility check) is asked for with its name, a version at least a week old, its licence and
    its size.
 
+   *Amended 2026-11-27 (Prompt 12.2, ADR 0063):* the owner decided one headless library for the tables,
+   `@tanstack/react-table` 9.3.1 (MIT). It draws nothing and brings no styles, so points 1, 6 and 9 hold: the tables
+   keep our markup, tokens and CSS Modules, and nginx's policy is unchanged. It loads with the lists only; the budgets
+   of 9.4b hold (ADR 0038, amended 2026-11-27, gives them before and after). Point 7 holds for the tables: a list with
+   no filter set answers and shows exactly what it did.
+
 **Not in this phase** (each sends a request no screen sends today, or is a feature; ask for it as its own prompt): a count
 of waiting approvals in the navigation; a dashboard that refreshes itself; the screens for users and settings (backlog
 B18); a command palette; languages other than English.
@@ -1142,6 +1148,10 @@ stops. A real hospital's inputs replace that document when one exists.
    processing agreement, the penetration test, the client's tax sign-off and their acceptance are not decided by Claude.
 6. **No real patient's data outside production.** The client's export lives outside git; staging and tests use the
    synthetic records of `TestData` or an export with names, phones and addresses replaced.
+
+*Amended 2026-11-27 (Prompt 12.2):* the bar holds for Phase 12. On the office machine point 4 is met as far as it can
+be (LocalDB 2019 in a throwaway copy, the browser suite in Edge); the run on SQL Server 2022 and CI is owed in runbook
+section 8, rows 12.2a to 12.2c.
 
 **The eight stages of 2026-11-26.** On 2026-11-26 the owner gave one prompt of eight stages, to be worked in order in
 one session, each stage planned, approved, built, committed and stopped before the next. That one prompt sets aside
@@ -1593,3 +1603,106 @@ Done when: the accountant imports a month and its totals equal ours.
 
 After stage 8: the status table, CLAUDE.md and the README are updated, and the owner is told what is left before 10.6
 and 10.7.
+
+### Phase 12. The tables (branch `phase-12-tables`)
+
+Given by the owner on 2026-11-27. "The bar of Phase 9" and "The bar of Phase 10" hold, with the amendments of 12.2
+below. There was no Prompt 12.1: the business date it was to give is `GET /api/v1/system/business-date`, built in
+12.2a. The next free numbers after 12.2a: migration `0035`, ADR `0064`.
+
+#### 12.2 The tables: filters, sort and columns
+
+```
+Read ADR 0036 with its amendments, ADR 0038 (no UI kit, the budgets), ADRs 0039 to 0043,
+ADR 0048 (the data table, and what it does under 720 px), the 11.1 search, useLiveSearch and
+SearchInput, the business date of 12.1, docs/api.md, and "The bar of Phase 9" and "The bar
+of Phase 10" in docs/build-prompts.md.
+
+The owner has decided the library: TanStack Table (@tanstack/react-table), used headless. It
+draws nothing: our DataTable keeps its own markup, tokens, CSS Modules, status badges and
+Money component. In the plan give its exact version (at least a week old), its licence, its
+compressed size, and the budgets of 9.4b before and after. No other package. No grid that
+brings its own styles. nginx's policy stays as it is: no inline style, nothing from another
+origin.
+
+Show me the plan first, and wait for my approval:
+- every table in the product, in one list: the filters and the sort it has today, and what it
+  lacks, column by column (a period of dates, status, method, an amount from and to, the
+  payer, the maker, the document's origin);
+- for each new filter and each sortable column: its API parameter, what it costs on 100,000
+  documents, and any index. Sorting is by a named list of columns per endpoint, never a
+  column name passed through to SQL; every sort ends on a stable tie-breaker so that pages do
+  not repeat or skip a row;
+- how TanStack is wired: manualFiltering, manualSorting and manualPagination on every table.
+  The API filters, sorts and pages over every row; the browser never filters or sorts the
+  page it holds. TanStack holds the state of the columns only;
+- where each piece of state lives: filters, sort and page in the address (replaced, not
+  pushed, and back to page 1 on a change); column visibility and order in this browser, per
+  user and per table, with "Reset columns";
+- which columns can never be hidden (the document's number or the record's name, and the
+  status), and why;
+- what stays as it is: the header in view, the totals row in view, the fold under 720 px,
+  the skeleton, the empty state, print on A4;
+- the split, if the plan is too large for one commit. Recommended: 12.2a the API
+  (parameters, indexes, tests on SQL Server, docs/api.md, the OpenAPI snapshot), 12.2b the
+  screens.
+
+Build:
+- the API: the new filter and sort parameters on each list and report, tenant-filtered,
+  paged, combined with search and the existing filters; an unknown sort column or a malformed
+  filter is 400 with its own errorCode, added to the catalogue; the totals over every page
+  follow the filters;
+- one shared table built on TanStack, replacing the inside of DataTable and not its outside:
+  the same roles, headings and cells the tests find today;
+- a filter row or filter bar from the shared components (SearchInput, select, date, the
+  amount field with its unit): each filter answers as the user changes it, with the pause of
+  useLiveSearch for text and amounts; the rows on screen stay until the new ones arrive, a
+  stale request is cancelled, nothing shifts; "Clear filters", and a count of the filters in
+  use said in words;
+- date filters: a from and a to in business dates in India, with the shortcuts Today, This
+  week, This month and Last 30 days counted from the business date of 12.1, never from the
+  browser's clock; a filter left empty filters nothing;
+- sortable headers: a button in each sortable header with aria-sort, the direction shown by
+  an icon and announced, one column at a time;
+- a "Columns" menu: show and hide, move up and down by keyboard, "Reset columns";
+- the CSV export follows the filters and the sort, and keeps every column and its bytes as
+  today, whatever is hidden on screen. Print follows the columns shown.
+
+No change of behaviour beyond these: no policy changes, no route changes, no figure is
+computed in the browser, and a list with no filter set answers exactly as it does today.
+
+Tests:
+- on SQL Server: each filter alone and combined, each sort in both directions with its
+  tie-breaker across two pages, % and _ in text taken as text, an unknown sort column
+  refused, another tenant's rows never found, the totals equal to the filtered rows' ledger
+  sums, a date filter's boundaries at midnight in India, the cost measured on 100,000
+  documents; the matrix test; OpenApiSnapshotTests updated in the same change;
+- components: a filter sends one request after the pause and none before; a stale answer is
+  dropped; the address and Back; page 1 after a change; Clear filters; the date shortcuts
+  from the server's date when the browser's clock is a day off; aria-sort; the Columns menu
+  by keyboard; a column that cannot be hidden; the choice remembered for one user and not
+  another; every existing table test unweakened, and any assertion that had to change called
+  out one by one;
+- in the browser: every table in both themes at 1440 and 390 px under nginx's exact policy,
+  with no sideways scroll of the page, no console error, no layout shift, nothing animated
+  with reduced motion; axe; the CSV equal to the filtered and sorted rows; the budgets; the
+  8.2 journey.
+
+A migration for the indexes, at the next free number. Update docs/api.md, docs/ui/,
+docs/testing-strategy.md, runbook section 8 and docs/traceability.md if a story is added. An
+ADR for the table (TanStack, the server doing the work, where the state lives), amending
+ADR 0036 and ADR 0048.
+Done when: on any long table I narrow the rows by any column that matters, sort them, hide
+the columns I do not need, and the totals and the export agree with what I see; and nginx's
+policy and the budgets are as they were.
+```
+
+The plan was approved "as recommended" on 2026-11-27 (a business date from the server, as there was no 12.1;
+TanStack Table 9.3.1 with its store packages pinned; the seventeen tables; no fold under 720 px; the maker filter only
+where users may be read), in three commits:
+
+- **12.2a, the API:** the parameters, the two error codes (`sort_not_supported`, `filter_invalid`), migration
+  `0034_ListIndexes`, the SQL Server tests with the measurement on 100,000 rows, `docs/api.md`, the OpenAPI snapshot.
+- **12.2b, the shared table and the five document lists** (bills, payments, credit notes, adjustments, refunds).
+- **12.2c, the remaining lists and the reports**, the browser suite, the screenshots, and ADR 0063 completed (amending
+  ADR 0036 and ADR 0048).

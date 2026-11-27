@@ -64,3 +64,10 @@ Built as decided, with no package and no change of the API. What the build found
   exported it with the payer `=Kumar, Ravi` written as `"'=Kumar, Ravi"`; the daily collection showed 600.00 received,
   50.00 refunded, 550.00 net; outstanding by payer 190.00 owed less 150.00 unapplied, 40.00 net; the reconciliation no
   drift. The export was read in the page, not saved to disk.
+
+## Amended 2026-11-27 (Prompt 12.2): the CSV follows the filters and the order
+
+ADR 0063 adds filters and a `sort` to the reports (ADR 0036, amended). The CSV written in the browser is read with the
+same filters and order as the screen, every page, and **keeps every column in today's order and bytes, whatever is
+hidden on screen**; its totals are still the server's, of the filtered rows. Print follows the columns shown. Built in
+12.2c, with a browser test that the CSV equals the filtered and sorted rows.

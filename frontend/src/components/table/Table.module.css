@@ -1,0 +1,212 @@
+/*
+ * What the tables of Prompt 12.2 add to the tables of ADR 0048 (ADR 0063): the sorting headers, the "Columns" menu,
+ * the filter bar and the line that says the order. Colours are tokens; only colour and opacity change, and with reduced
+ * motion nothing does.
+ */
+
+.frame {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.tools {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* A header that sorts: the whole header is the button, its text as the header's, the icon after it. */
+.sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.sort:hover {
+  color: var(--text);
+}
+
+.sort:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.sortIcon,
+.sortIdle {
+  flex: none;
+  font-size: 1rem;
+}
+
+.sortIdle {
+  opacity: 0.45;
+}
+
+/* The line that says the order, for a screen reader; nothing to see. */
+.said {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The "Columns" menu: a button, and its panel under it, over the table. */
+.columns {
+  position: relative;
+}
+
+.panel {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + var(--space-1));
+  z-index: 5;
+  display: grid;
+  gap: var(--space-3);
+  width: min(22rem, calc(100vw - 2rem));
+  padding: var(--space-4);
+  color: var(--text);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
+}
+
+.columnList {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.columnList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.columnName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.move {
+  display: inline-flex;
+  gap: var(--space-3);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.panelActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/*
+ * The filter bar: the fields in a row that wraps, the count and "Clear filters" on a line of their own under them. A
+ * field keeps its width and goes to the next line rather than shrinking under its box (no wider than the bar), and the
+ * line of the count is always there, so "Clear filters" coming and going moves nothing.
+ */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.filters > * {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
+.range {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.range legend {
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.rangeFields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.rangeFields label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* A box of its own, so the input's least width is counted from it and the input fills it, never wider. */
+.amount {
+  display: inline-block;
+  width: 8.5rem;
+}
+
+.amount input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.filters > .inUse {
+  flex-basis: 100%;
+}
+
+.inUse {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 1.75rem;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.fieldError {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--danger);
+}
+
+@media print {
+  .tools,
+  .filters {
+    display: none;
+  }
+}

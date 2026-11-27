@@ -99,3 +99,11 @@ Built as decided, with no package and no migration. What the build found:
   supervisor approved the four requests from the inbox, which named both makers and showed the reversal's reason and its
   payment. The bill then owed 500.00, the payment held 400.00, the credit note, the adjustment and the refund were
   numbered, and the reconciliation found no drift.
+
+## Amended 2026-11-27 (Prompt 12.2b): the lists of credit notes and adjustments on the shared table
+
+The lists of credit notes and adjustments are drawn by the shared table of ADR 0063, with their filters in the bar
+(the search, status, for adjustments the kind, the date with its shortcuts, total or amount from and to; "Made by" for
+an administrator) and sortable headers (number, date, total or amount, and for credit notes the available amount). A
+list opened for one bill or one payer keeps it through "Clear filters". Drafting from the bill's page is unchanged. The
+checker's inbox takes the shared table, with the requester as a filter, in 12.2c.

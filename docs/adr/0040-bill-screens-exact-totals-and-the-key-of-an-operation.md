@@ -155,3 +155,11 @@ on a phone over its threshold, so the box keeps its 44 px.
 
 **Risk kept:** after a Tab that waits for a late answer, the record appears in a field the user has left; the
 announcement and the shown record are what tell them, and the payer of a payment never takes one of several this way.
+
+## Amended 2026-11-27 (Prompt 12.2b): the list of bills on the shared table
+
+The list of bills is drawn by the shared table of ADR 0063: the same columns, headings and links, with a filter bar
+(the search, status, bill date with its shortcuts, total and balance due from and to; "Made by" for an administrator),
+sortable headers (number, bill date, total, balance due) and a "Columns" menu; the number and the status are never
+hidden. No figure is computed in the browser for the list: totals and balances are the server's. The editor and the
+bill's page are unchanged.

@@ -1388,4 +1388,9 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    `ToQuery()` of those lists answers `Result<TQuery>`, and its controller answers the failure first. Migration
    `0034_ListIndexes`; **the next free migration is `0035` and the next ADR `0064`.** `ListFiltersApiTests` holds them,
    with 100,000 bills seeded in SQL by copying a draft (drafts have no posting). Owed: runbook section 8, row 12.2a.
-   12.2b is the shared table on TanStack and the five document lists; 12.2c the rest of the screens.
+   **12.2b (2026-11-27):** the shared table in `frontend/src/components/table` (`DataTable` on TanStack Table 9,
+   `manual*` all three; `ColumnsMenu`; `FilterBar`; `useListState` for the address; `columnPrefs` in localStorage per
+   hospital, user and table; `periodOf` from the server's business date; `useListQuery` keeping the rows and cancelling
+   a stale request; `MakerFilter` only with `ManageTenant`) and the five document lists on it. A header sorts when its
+   column names an API order (`sort`), never by TanStack's `getCanSort`, which is false for display columns. A new list
+   on the table keeps its address names and its `['<list>', 'list', …]` query key. 12.2c is the rest of the screens.

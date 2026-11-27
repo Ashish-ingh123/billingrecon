@@ -198,6 +198,9 @@ with field errors lists the messages per field under `errors`, keyed by the JSON
 - **`GET /api/v1/system/business-date`** (anyone signed in) answers `{ "today": "2026-11-27" }`: today in India by the
   server's clock, never cached. The screens count the shortcuts of a date filter (today, this week, this month, the
   last 30 days) from it, never from the browser's clock.
+- **What the screens send** (Prompt 12.2b): the lists keep their filters, `sort` and `page` in the address and send
+  them as they are; an amount after the pause of typing, and nothing for one that cannot be read. The screens never
+  filter or sort the page they receive.
 
 ## 7. Idempotency (BR-803, ADR 0006)
 
@@ -1017,6 +1020,11 @@ date. A report reads committed rows and takes no lock.
 | `GET /api/v1/reports/available-credit` | page of posted credit notes that hold available credit, the oldest first | `payerId` |
 | `GET /api/v1/reports/pending-approvals` | page of the requests that wait for a checker, the oldest first. Since 2026-11-26 (review finding R8) the rows, the count and the oldest are of the kinds of document the caller's role may read (a Cashier is shown no waiting adjustment, a BillingClerk no waiting refund; a prefix change and an opening batch are shown to who may decide), and of every kind for a Supervisor or TenantAdmin. A `documentType` the caller may not read answers an empty page, not 403 | `documentType` |
 | `GET /api/v1/reports/reconciliation` | page of drift rows (US-41), by identity and reference | |
+
+**Filters and orders of Prompt 12.2.** Beside the query above, the paged reports take the filters and the `sort` of
+section 6 (ADR 0063, amending ADR 0036): the registers an amount from and to, the unapplied cash and the available
+credit a period of dates. The totals of a report, over every page, are of the rows its filters leave. With no new
+parameter a report answers exactly as before.
 
 **Periods.** A register covers `from` to `to` (`yyyy-MM-dd`, business dates in India), both included: both given or
 neither, the end not before the start, at most 366 days. Neither means the current month in India. A period it cannot

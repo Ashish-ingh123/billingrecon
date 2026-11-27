@@ -1,24 +1,38 @@
-import { useId } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link } from 'react-router';
+import { answer } from '../api/call';
+import { useApiClient } from '../api/ApiClientContext';
 import { useBill } from '../bills/api';
 import { Badge } from '../components/Badge';
 import buttons from '../components/buttons.module.css';
-import table from '../components/DataTable.module.css';
-import { Pagination } from '../components/ListControls';
-import listStyles from '../components/ListControls.module.css';
-import { DocumentSearchField } from '../components/DocumentSearchField';
 import { EmptyState } from '../components/EmptyState';
+import { pageSize } from '../components/listParams';
+import { Pagination } from '../components/ListControls';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
+import { DataTable, type TableColumn } from '../components/table/DataTable';
+import { FilterBar, type FilterSpec } from '../components/table/FilterBar';
+import { known, useListState } from '../components/table/listState';
+import { MakerFilter } from '../components/table/MakerFilter';
+import { useListQuery } from '../components/table/useListQuery';
 import { formatDate, formatDecimal } from '../format';
 import { usePayer } from '../payers/api';
-import {
-  creditNoteStatuses,
-  creditNoteStatusLabels,
-  useCreditNotes,
-  type CreditNoteListParams,
-  type CreditNoteStatus,
-} from './api';
+import { creditNoteStatuses, creditNoteStatusLabels, type CreditNoteSummary } from './api';
+
+/** Every filter of the credit notes the address may hold (Prompt 12.2, ADR 0063). */
+const keys = ['search', 'status', 'from', 'to', 'totalFrom', 'totalTo', 'createdBy', 'billId', 'payerId'] as const;
+const clearable = keys.filter((key) => key !== 'billId' && key !== 'payerId');
+
+const filters: readonly FilterSpec<(typeof keys)[number]>[] = [
+  { kind: 'search', key: 'search' },
+  {
+    kind: 'select',
+    key: 'status',
+    label: 'Status',
+    options: creditNoteStatuses.map((status) => ({ value: status, label: creditNoteStatusLabels[status].label })),
+  },
+  { kind: 'dates', from: 'from', to: 'to', label: 'Date' },
+  { kind: 'amounts', from: 'totalFrom', to: 'totalTo', label: 'Total' },
+];
 
 function PayerName({ id }: { id: string }) {
   const payer = usePayer(id);
@@ -31,52 +45,87 @@ function BillNumber({ id, link = true }: { id: string; link?: boolean }) {
   return link ? <Link to={`/bills/${id}`}>{number}</Link> : <>{number}</>;
 }
 
+const columns: readonly TableColumn<CreditNoteSummary>[] = [
+  {
+    id: 'number',
+    header: 'Number',
+    fixed: true,
+    sort: 'number',
+    cell: (creditNote) => <Link to={`/credit-notes/${creditNote.id}`}>{creditNote.number ?? 'No number'}</Link>,
+  },
+  {
+    id: 'date',
+    header: 'Date',
+    sort: 'creditNoteDate',
+    cell: (creditNote) => formatDate(creditNote.creditNoteDate),
+  },
+  { id: 'bill', header: 'Bill', cell: (creditNote) => <BillNumber id={creditNote.billId} /> },
+  { id: 'payer', header: 'Payer', cell: (creditNote) => <PayerName id={creditNote.payerId} /> },
+  {
+    id: 'total',
+    header: 'Total (₹)',
+    numeric: true,
+    sort: 'total',
+    cell: (creditNote) => formatDecimal(creditNote.total),
+  },
+  {
+    id: 'available',
+    header: 'Available (₹)',
+    numeric: true,
+    sort: 'availableAmount',
+    cell: (creditNote) => (creditNote.status === 'Posted' ? formatDecimal(creditNote.availableAmount) : '—'),
+  },
+  {
+    id: 'status',
+    header: 'Status',
+    fixed: true,
+    cell: (creditNote) => (
+      <Badge
+        tone={creditNoteStatusLabels[creditNote.status].tone}
+        icon={creditNoteStatusLabels[creditNote.status].icon}
+      >
+        {creditNoteStatusLabels[creditNote.status].label}
+      </Badge>
+    ),
+  },
+];
+
 /**
- * The credit notes (US-24): drafts, those waiting for approval, posted and voided, by status, for one bill or one payer.
- * A credit note is drafted from the page of the posted bill it corrects (ADR 0042), so this list offers no new one.
+ * The credit notes (US-24): drafts, those waiting for approval, posted and voided, narrowed by any filter of the bar,
+ * for one bill or one payer. A credit note is drafted from the page of the posted bill it corrects (ADR 0042), so this
+ * list offers no new one. The API filters, sorts and pages (Prompt 12.2, ADR 0063).
  */
 export function CreditNotesPage() {
-  const [query, setQuery] = useSearchParams();
-  const statusId = useId();
-  const status = query.get('status') as CreditNoteStatus | null;
-  const page = Number.parseInt(query.get('page') ?? '1', 10);
-  const params: CreditNoteListParams = {
-    search: query.get('search') ?? '',
-    status: status !== null && creditNoteStatuses.includes(status) ? status : undefined,
-    billId: query.get('billId') ?? '',
-    payerId: query.get('payerId') ?? '',
-    page: Number.isFinite(page) && page >= 1 ? page : 1,
-  };
-  const creditNotes = useCreditNotes(params);
-
-  const change = (next: Partial<CreditNoteListParams>, options?: { replace?: boolean }) => {
-    const merged = { ...params, ...next, page: next.page ?? 1 };
-    const search = new URLSearchParams();
-    if (merged.search !== '') {
-      search.set('search', merged.search);
-    }
-
-    if (merged.billId !== '') {
-      search.set('billId', merged.billId);
-    }
-
-    if (merged.payerId !== '') {
-      search.set('payerId', merged.payerId);
-    }
-
-    if (merged.status !== undefined) {
-      search.set('status', merged.status);
-    }
-
-    if (merged.page > 1) {
-      search.set('page', String(merged.page));
-    }
-
-    setQuery(search, options);
-  };
+  const client = useApiClient();
+  const state = useListState(keys, clearable);
+  const { values, sort, page } = state;
+  const status = known(values.status, creditNoteStatuses);
+  const creditNotes = useListQuery(['credit-notes', 'list', values, sort, page], (signal) =>
+    answer(
+      client.GET('/api/v1/credit-notes', {
+        params: {
+          query: {
+            ...(status === undefined ? {} : { Status: status }),
+            ...(values.billId === '' ? {} : { BillId: values.billId }),
+            ...(values.payerId === '' ? {} : { PayerId: values.payerId }),
+            ...(values.search === '' ? {} : { Search: values.search }),
+            ...(values.from === '' ? {} : { CreditNoteDateFrom: values.from }),
+            ...(values.to === '' ? {} : { CreditNoteDateTo: values.to }),
+            ...(values.totalFrom === '' ? {} : { TotalFrom: values.totalFrom }),
+            ...(values.totalTo === '' ? {} : { TotalTo: values.totalTo }),
+            ...(values.createdBy === '' ? {} : { CreatedBy: values.createdBy }),
+            ...(sort === '' ? {} : { Sort: sort }),
+            Page: page,
+            PageSize: pageSize,
+          },
+        },
+        signal,
+      }),
+    ),
+  );
 
   const showAll = (
-    <button type="button" className={buttons.link} onClick={() => change({ billId: '', payerId: '' })}>
+    <button type="button" className={buttons.link} onClick={() => state.change({ billId: '', payerId: '' })}>
       Show every credit note
     </button>
   );
@@ -86,100 +135,39 @@ export function CreditNotesPage() {
       <PageHeader
         title="Credit notes"
         subtitle={
-          params.billId !== '' ? (
+          values.billId !== '' ? (
             <>
-              The credit notes of bill <BillNumber id={params.billId} link={false} />. {showAll}
+              The credit notes of bill <BillNumber id={values.billId} link={false} />. {showAll}
             </>
-          ) : params.payerId !== '' ? (
+          ) : values.payerId !== '' ? (
             <>
-              The credit notes of <PayerName id={params.payerId} />. {showAll}
+              The credit notes of <PayerName id={values.payerId} />. {showAll}
             </>
           ) : (
             'Corrections of posted bills. A credit note is drafted from the page of the bill it corrects.'
           )
         }
       />
-      <div className={listStyles.filters} role="search">
-        <DocumentSearchField
-          sent={params.search}
-          onSend={(text) => change({ search: text }, { replace: true })}
-          busy={creditNotes.isFetching}
-        />
-        <div className={listStyles.field}>
-          <label htmlFor={statusId}>Status</label>
-          <select
-            id={statusId}
-            className={listStyles.input}
-            value={params.status ?? ''}
-            onChange={(event) => change({ status: (event.target.value || undefined) as CreditNoteStatus | undefined })}
-          >
-            <option value="">All</option>
-            {creditNoteStatuses.map((value) => (
-              <option key={value} value={value}>
-                {creditNoteStatusLabels[value].label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <FilterBar state={state} filters={filters} busy={creditNotes.isFetching}>
+        <MakerFilter value={values.createdBy} onChange={(createdBy) => state.change({ createdBy })} />
+      </FilterBar>
       {creditNotes.data === undefined ? (
         <LoadState error={creditNotes.error} what="credit notes" />
       ) : creditNotes.data.items.length === 0 ? (
         <EmptyState icon="receipt-minus">No credit note matches.</EmptyState>
       ) : (
         <>
-          <div className={table.wrap}>
-            <table className={table.table}>
-              <thead>
-                <tr>
-                  <th scope="col">Number</th>
-                  <th scope="col">Date</th>
-                  <th scope="col">Bill</th>
-                  <th scope="col">Payer</th>
-                  <th scope="col" className={table.number}>
-                    Total (₹)
-                  </th>
-                  <th scope="col" className={table.number}>
-                    Available (₹)
-                  </th>
-                  <th scope="col">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {creditNotes.data.items.map((creditNote) => (
-                  <tr key={creditNote.id}>
-                    <td>
-                      <Link to={`/credit-notes/${creditNote.id}`}>{creditNote.number ?? 'No number'}</Link>
-                    </td>
-                    <td>{formatDate(creditNote.creditNoteDate)}</td>
-                    <td>
-                      <BillNumber id={creditNote.billId} />
-                    </td>
-                    <td>
-                      <PayerName id={creditNote.payerId} />
-                    </td>
-                    <td className={table.number}>{formatDecimal(creditNote.total)}</td>
-                    <td className={table.number}>
-                      {creditNote.status === 'Posted' ? formatDecimal(creditNote.availableAmount) : '—'}
-                    </td>
-                    <td>
-                      <Badge
-                        tone={creditNoteStatusLabels[creditNote.status].tone}
-                        icon={creditNoteStatusLabels[creditNote.status].icon}
-                      >
-                        {creditNoteStatusLabels[creditNote.status].label}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Pagination
-            page={params.page}
-            totalCount={Number(creditNotes.data.totalCount)}
-            onChange={(next) => change({ page: next })}
+          <DataTable
+            tableId="credit-notes"
+            label="Credit notes"
+            columns={columns}
+            rows={creditNotes.data.items}
+            keyOf={(creditNote) => creditNote.id}
+            sort={sort}
+            onSort={state.setSort}
+            busy={creditNotes.isFetching}
           />
+          <Pagination page={page} totalCount={Number(creditNotes.data.totalCount)} onChange={state.setPage} />
         </>
       )}
     </section>

@@ -141,3 +141,14 @@ The owner approved the plan of Prompt 10.4d on 2026-11-26. No package, no change
    unchanged, or one character, sends nothing.
 
 Tests: `SearchTab.test.tsx` and `e2e/searchtab.spec.ts`; the tests of 10.2b stand as they were for a list.
+
+## Amended 2026-11-27 (Prompt 12.2): the filters, the order and the page of a list in the address
+
+ADR 0063 extends point 1 (a list in the address). A list's filters, its order (`sort`, as the API names it) and its
+page are all in the address, **replaced, not pushed**, so Back leaves the list; any change of a filter or of the order
+goes back to page 1 (`useListState`, frontend, components/table). An amount, like the search, is sent after the pause
+of `useLiveSearch` (300 ms); a select or a date at once. The rows on screen stay until the newer answer arrives, and a
+request a later change made stale is cancelled (`useListQuery`). "Clear filters" empties the bar and keeps the context a
+list was opened for (one payer, one bill); the count of filters in use is said in words. The columns shown and their
+order are kept in this browser per hospital, user and table, with "Reset columns". The search box of 11.1 and
+`SearchInput` (amended 2026-11-26) are unchanged and stand first in the bar.

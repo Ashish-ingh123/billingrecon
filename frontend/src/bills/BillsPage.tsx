@@ -1,124 +1,66 @@
-import { useId, useState, type FormEvent } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link } from 'react-router';
+import { answer } from '../api/call';
+import { useApiClient } from '../api/ApiClientContext';
 import { useCan } from '../auth/permissions';
 import buttons from '../components/buttons.module.css';
-import table from '../components/DataTable.module.css';
-import { Pagination } from '../components/ListControls';
-import listStyles from '../components/ListControls.module.css';
-import { DocumentSearchField } from '../components/DocumentSearchField';
 import { EmptyState } from '../components/EmptyState';
+import { pageSize } from '../components/listParams';
+import { Pagination } from '../components/ListControls';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
+import { DataTable, type TableColumn } from '../components/table/DataTable';
+import { FilterBar, type FilterSpec } from '../components/table/FilterBar';
+import { known, useListState } from '../components/table/listState';
+import { MakerFilter } from '../components/table/MakerFilter';
+import { useListQuery } from '../components/table/useListQuery';
 import { formatDate, formatDecimal } from '../format';
 import { usePatient } from '../patients/api';
 import { usePayer } from '../payers/api';
-import { billStatuses, billStatusLabels, useBills, type BillListParams, type BillStatus } from './api';
+import { billStatuses, billStatusLabels, type BillSummary } from './api';
+
+const origins = ['Standard', 'Opening'] as const;
 import { BillStatusBadge } from './BillStatusBadge';
 
-/** The bill list's filters and page, kept in the address (ADR 0039 point 1). */
-function useBillListParams(): BillListParams & {
-  change: (next: Partial<BillListParams>, options?: { replace?: boolean }) => void;
-} {
-  const [params, setParams] = useSearchParams();
-  const status = params.get('status');
-  const page = Number.parseInt(params.get('page') ?? '1', 10);
-  const current: BillListParams = {
-    search: params.get('search') ?? '',
-    status: billStatuses.includes(status as BillStatus) ? (status as BillStatus) : undefined,
-    from: params.get('from') ?? '',
-    to: params.get('to') ?? '',
-    patientId: params.get('patientId') ?? '',
-    payerId: params.get('payerId') ?? '',
-    page: Number.isFinite(page) && page >= 1 ? page : 1,
-  };
+/** Every filter of the bills the address may hold (ADR 0039 point 1; Prompt 12.2, ADR 0063). */
+const keys = [
+  'search',
+  'status',
+  'from',
+  'to',
+  'totalFrom',
+  'totalTo',
+  'balanceDueFrom',
+  'balanceDueTo',
+  'createdBy',
+  'origin',
+  'patientId',
+  'payerId',
+] as const;
 
-  const change = (next: Partial<BillListParams>, options?: { replace?: boolean }) => {
-    const merged = { ...current, ...next, page: next.page ?? 1 };
-    const query = new URLSearchParams();
-    for (const [name, value] of [
-      ['search', merged.search],
-      ['patientId', merged.patientId],
-      ['payerId', merged.payerId],
-      ['status', merged.status ?? ''],
-      ['from', merged.from],
-      ['to', merged.to],
-    ] as const) {
-      if (value !== '') {
-        query.set(name, value);
-      }
-    }
+/** The filters of the bar: a list opened for one patient or payer keeps them through "Clear filters". */
+const clearable = keys.filter((key) => key !== 'patientId' && key !== 'payerId');
 
-    if (merged.page > 1) {
-      query.set('page', String(merged.page));
-    }
-
-    setParams(query, options);
-  };
-
-  return { ...current, change };
-}
-
-function BillFilters({ params, busy }: { params: ReturnType<typeof useBillListParams>; busy: boolean }) {
-  const [from, setFrom] = useState(params.from);
-  const [to, setTo] = useState(params.to);
-  const statusId = useId();
-  const fromId = useId();
-  const toId = useId();
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    params.change({ from, to });
-  };
-
-  return (
-    <form className={listStyles.filters} role="search" onSubmit={submit}>
-      <DocumentSearchField
-        sent={params.search}
-        onSend={(text) => params.change({ search: text }, { replace: true })}
-        busy={busy}
-      />
-      <div className={listStyles.field}>
-        <label htmlFor={statusId}>Status</label>
-        <select
-          id={statusId}
-          className={listStyles.input}
-          value={params.status ?? ''}
-          onChange={(event) => params.change({ status: (event.target.value || undefined) as BillStatus | undefined })}
-        >
-          <option value="">All</option>
-          {billStatuses.map((status) => (
-            <option key={status} value={status}>
-              {billStatusLabels[status]}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className={listStyles.field}>
-        <label htmlFor={fromId}>Bill date from</label>
-        <input
-          id={fromId}
-          className={listStyles.input}
-          type="date"
-          value={from}
-          onChange={(event) => setFrom(event.target.value)}
-        />
-      </div>
-      <div className={listStyles.field}>
-        <label htmlFor={toId}>to</label>
-        <input
-          id={toId}
-          className={listStyles.input}
-          type="date"
-          value={to}
-          onChange={(event) => setTo(event.target.value)}
-        />
-      </div>
-      <button type="submit" className={buttons.secondary}>
-        Show
-      </button>
-    </form>
-  );
-}
+const filters: readonly FilterSpec<(typeof keys)[number]>[] = [
+  { kind: 'search', key: 'search' },
+  {
+    kind: 'select',
+    key: 'status',
+    label: 'Status',
+    options: billStatuses.map((status) => ({ value: status, label: billStatusLabels[status] })),
+  },
+  {
+    kind: 'select',
+    key: 'origin',
+    label: 'Origin',
+    options: [
+      { value: 'Standard', label: 'Billed here' },
+      { value: 'Opening', label: 'Brought in at the cut-over' },
+    ],
+  },
+  { kind: 'dates', from: 'from', to: 'to', label: 'Bill date' },
+  { kind: 'amounts', from: 'totalFrom', to: 'totalTo', label: 'Total' },
+  { kind: 'amounts', from: 'balanceDueFrom', to: 'balanceDueTo', label: 'Balance due' },
+];
 
 function PatientName({ id }: { id: string }) {
   const patient = usePatient(id);
@@ -130,12 +72,65 @@ function PayerName({ id }: { id: string }) {
   return <>{payer.data?.name ?? '…'}</>;
 }
 
-/** The bills (US-20, US-23): newest bill date first, by status and date, or those of one patient or payer. */
+const columns: readonly TableColumn<BillSummary>[] = [
+  {
+    id: 'number',
+    header: 'Number',
+    fixed: true,
+    sort: 'number',
+    cell: (bill) => <Link to={`/bills/${bill.id}`}>{bill.number ?? 'No number'}</Link>,
+  },
+  { id: 'billDate', header: 'Bill date', sort: 'billDate', cell: (bill) => formatDate(bill.billDate) },
+  { id: 'patient', header: 'Patient', cell: (bill) => <PatientName id={bill.patientId} /> },
+  { id: 'payer', header: 'Payer', cell: (bill) => <PayerName id={bill.payerId} /> },
+  { id: 'total', header: 'Total (₹)', numeric: true, sort: 'total', cell: (bill) => formatDecimal(bill.total) },
+  {
+    id: 'balanceDue',
+    header: 'Balance due (₹)',
+    numeric: true,
+    sort: 'balanceDue',
+    cell: (bill) => formatDecimal(bill.balanceDue),
+  },
+  { id: 'status', header: 'Status', fixed: true, cell: (bill) => <BillStatusBadge status={bill.status} /> },
+];
+
+/**
+ * The bills (US-20, US-23): newest bill date first unless another order is chosen; narrowed by any filter of the bar,
+ * or to those of one patient or payer. The API filters, sorts and pages every bill; the screen shows its page
+ * (Prompt 12.2, ADR 0063).
+ */
 export function BillsPage() {
   const canDraft = useCan('WriteBills');
-  const params = useBillListParams();
-  const bills = useBills(params);
-  const narrowed = params.patientId !== '' || params.payerId !== '';
+  const client = useApiClient();
+  const state = useListState(keys, clearable);
+  const { values, sort, page } = state;
+  const bills = useListQuery(['bills', 'list', values, sort, page], (signal) =>
+    answer(
+      client.GET('/api/v1/bills', {
+        params: {
+          query: {
+            ...(known(values.status, billStatuses) === undefined ? {} : { Status: known(values.status, billStatuses) }),
+            ...(values.from === '' ? {} : { BillDateFrom: values.from }),
+            ...(values.to === '' ? {} : { BillDateTo: values.to }),
+            ...(values.patientId === '' ? {} : { PatientId: values.patientId }),
+            ...(values.payerId === '' ? {} : { PayerId: values.payerId }),
+            ...(values.search === '' ? {} : { Search: values.search }),
+            ...(values.totalFrom === '' ? {} : { TotalFrom: values.totalFrom }),
+            ...(values.totalTo === '' ? {} : { TotalTo: values.totalTo }),
+            ...(values.balanceDueFrom === '' ? {} : { BalanceDueFrom: values.balanceDueFrom }),
+            ...(values.balanceDueTo === '' ? {} : { BalanceDueTo: values.balanceDueTo }),
+            ...(values.createdBy === '' ? {} : { CreatedBy: values.createdBy }),
+            ...(known(values.origin, origins) === undefined ? {} : { Origin: known(values.origin, origins) }),
+            ...(sort === '' ? {} : { Sort: sort }),
+            Page: page,
+            PageSize: pageSize,
+          },
+        },
+        signal,
+      }),
+    ),
+  );
+  const narrowed = values.patientId !== '' || values.payerId !== '';
 
   return (
     <section aria-labelledby="page-title">
@@ -145,11 +140,11 @@ export function BillsPage() {
           narrowed ? (
             <>
               The bills of{' '}
-              {params.patientId !== '' ? <PatientName id={params.patientId} /> : <PayerName id={params.payerId} />}.{' '}
+              {values.patientId !== '' ? <PatientName id={values.patientId} /> : <PayerName id={values.payerId} />}.{' '}
               <button
                 type="button"
                 className={buttons.link}
-                onClick={() => params.change({ patientId: '', payerId: '' })}
+                onClick={() => state.change({ patientId: '', payerId: '' })}
               >
                 Show every bill
               </button>
@@ -166,58 +161,26 @@ export function BillsPage() {
           )
         }
       />
-      <BillFilters key={`${params.from}|${params.to}`} params={params} busy={bills.isFetching} />
+      <FilterBar state={state} filters={filters} busy={bills.isFetching}>
+        <MakerFilter value={values.createdBy} onChange={(createdBy) => state.change({ createdBy })} />
+      </FilterBar>
       {bills.data === undefined ? (
         <LoadState error={bills.error} what="bills" />
       ) : bills.data.items.length === 0 ? (
         <EmptyState icon="receipt">No bill matches.</EmptyState>
       ) : (
         <>
-          <div className={table.wrap}>
-            <table className={table.table}>
-              <thead>
-                <tr>
-                  <th scope="col">Number</th>
-                  <th scope="col">Bill date</th>
-                  <th scope="col">Patient</th>
-                  <th scope="col">Payer</th>
-                  <th scope="col" className={table.number}>
-                    Total (₹)
-                  </th>
-                  <th scope="col" className={table.number}>
-                    Balance due (₹)
-                  </th>
-                  <th scope="col">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bills.data.items.map((bill) => (
-                  <tr key={bill.id}>
-                    <td>
-                      <Link to={`/bills/${bill.id}`}>{bill.number ?? 'No number'}</Link>
-                    </td>
-                    <td>{formatDate(bill.billDate)}</td>
-                    <td>
-                      <PatientName id={bill.patientId} />
-                    </td>
-                    <td>
-                      <PayerName id={bill.payerId} />
-                    </td>
-                    <td className={table.number}>{formatDecimal(bill.total)}</td>
-                    <td className={table.number}>{formatDecimal(bill.balanceDue)}</td>
-                    <td>
-                      <BillStatusBadge status={bill.status} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Pagination
-            page={params.page}
-            totalCount={Number(bills.data.totalCount)}
-            onChange={(page) => params.change({ page })}
+          <DataTable
+            tableId="bills"
+            label="Bills"
+            columns={columns}
+            rows={bills.data.items}
+            keyOf={(bill) => bill.id}
+            sort={sort}
+            onSort={state.setSort}
+            busy={bills.isFetching}
           />
+          <Pagination page={page} totalCount={Number(bills.data.totalCount)} onChange={state.setPage} />
         </>
       )}
     </section>

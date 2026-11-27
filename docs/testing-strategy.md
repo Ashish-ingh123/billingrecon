@@ -369,3 +369,12 @@ and no gap, an unknown order and an unreadable filter refused with their codes, 
 a register's totals against the ledger summed in SQL, the business date turning at midnight in India, and the cost on
 100,000 bills copied in SQL from one draft (no posting, so no drift), each order and filter timed after a warm-up and
 held under 1.5 seconds; the timings are printed with the test's output.
+
+**The shared table and the document lists** (Prompt 12.2b; ADR 0063): `Table.test.tsx` on the list of bills with the API
+faked: an amount is sent once after the pause of typing and not before, and one that is not an amount is said and not
+sent; the rows stay while a newer answer is awaited and an answer that came too late is dropped; the address is
+replaced, not pushed, and a change goes back to page 1; "Clear filters" keeps the context a list was opened for; the
+date shortcuts count from the server's date with the browser's clock a day ahead; "Made by" for an administrator only;
+`aria-sort` through ascending, descending and none; the "Columns" menu by keyboard with the columns never hidden; the
+choice of columns kept for one user and not another; `periodOf` and `orderOf`. The browser suite runs the five lists
+under nginx's policy with axe, no sideways scroll from 360 to 1,920 px and no layout shift while a filter is typed.

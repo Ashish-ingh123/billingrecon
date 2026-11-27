@@ -179,3 +179,12 @@ is left; the address holds it as `search`, beside the other filters, and a searc
 that Back leaves the list. Another filter keeps the search and goes to the first page. No screen was added and no
 package. Tests: `e2e/docsearch.spec.ts` (each of the five lists; one character not sent; Clear; Back; the address
 opening a list with its search; Tab; both themes; a phone; axe).
+
+## Amended 2026-11-27 (Prompt 12.2): the reports filter and order on request, and their totals follow
+
+ADR 0063 amends this record. The bill and payment registers take an amount from and to; the unapplied cash and the
+available credit a period of dates; every paged report takes `sort`, one of its named columns, ending on a key that is
+one of a kind (`docs/api.md` section 6). **The totals of a report are of the rows its filters leave**, over every page,
+and still tie to the ledger (`ListFiltersApiTests` sums the filtered rows' postings in SQL). The payment register's
+`order` stays for the dashboard and applies only when no `sort` is given. A report with no new parameter answers
+exactly as before. The report screens take the shared table and filter bar in 12.2c.

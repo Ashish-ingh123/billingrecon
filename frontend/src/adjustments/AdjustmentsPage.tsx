@@ -1,27 +1,55 @@
-import { useId } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link } from 'react-router';
+import { answer } from '../api/call';
+import { useApiClient } from '../api/ApiClientContext';
 import { useBill } from '../bills/api';
 import { Badge } from '../components/Badge';
 import buttons from '../components/buttons.module.css';
-import table from '../components/DataTable.module.css';
-import { Pagination } from '../components/ListControls';
-import listStyles from '../components/ListControls.module.css';
-import { DocumentSearchField } from '../components/DocumentSearchField';
 import { EmptyState } from '../components/EmptyState';
+import { pageSize } from '../components/listParams';
+import { Pagination } from '../components/ListControls';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
+import { DataTable, type TableColumn } from '../components/table/DataTable';
+import { FilterBar, type FilterSpec } from '../components/table/FilterBar';
+import { known, useListState } from '../components/table/listState';
+import { MakerFilter } from '../components/table/MakerFilter';
+import { useListQuery } from '../components/table/useListQuery';
 import { formatDate, formatDecimal } from '../format';
 import { usePayer } from '../payers/api';
-import {
-  adjustmentKinds,
-  adjustmentStatuses,
-  adjustmentStatusLabels,
-  kindLabels,
-  useAdjustments,
-  type AdjustmentKind,
-  type AdjustmentListParams,
-  type AdjustmentStatus,
-} from './api';
+import { adjustmentKinds, adjustmentStatuses, adjustmentStatusLabels, kindLabels, type Adjustment } from './api';
+
+/** Every filter of the adjustments the address may hold (Prompt 12.2, ADR 0063). */
+const keys = [
+  'search',
+  'status',
+  'kind',
+  'from',
+  'to',
+  'amountFrom',
+  'amountTo',
+  'createdBy',
+  'billId',
+  'payerId',
+] as const;
+const clearable = keys.filter((key) => key !== 'billId' && key !== 'payerId');
+
+const filters: readonly FilterSpec<(typeof keys)[number]>[] = [
+  { kind: 'search', key: 'search' },
+  {
+    kind: 'select',
+    key: 'status',
+    label: 'Status',
+    options: adjustmentStatuses.map((status) => ({ value: status, label: adjustmentStatusLabels[status].label })),
+  },
+  {
+    kind: 'select',
+    key: 'kind',
+    label: 'Kind',
+    options: adjustmentKinds.map((kind) => ({ value: kind, label: kindLabels[kind] })),
+  },
+  { kind: 'dates', from: 'from', to: 'to', label: 'Date' },
+  { kind: 'amounts', from: 'amountFrom', to: 'amountTo', label: 'Amount' },
+];
 
 function PayerName({ id }: { id: string }) {
   const payer = usePayer(id);
@@ -34,54 +62,83 @@ function BillNumber({ id, link = true }: { id: string; link?: boolean }) {
   return link ? <Link to={`/bills/${id}`}>{number}</Link> : <>{number}</>;
 }
 
+const columns: readonly TableColumn<Adjustment>[] = [
+  {
+    id: 'number',
+    header: 'Number',
+    fixed: true,
+    sort: 'number',
+    cell: (adjustment) => <Link to={`/adjustments/${adjustment.id}`}>{adjustment.number ?? 'No number'}</Link>,
+  },
+  {
+    id: 'date',
+    header: 'Date',
+    sort: 'adjustmentDate',
+    cell: (adjustment) => formatDate(adjustment.adjustmentDate),
+  },
+  { id: 'kind', header: 'Kind', cell: (adjustment) => kindLabels[adjustment.kind] },
+  { id: 'bill', header: 'Bill', cell: (adjustment) => <BillNumber id={adjustment.billId} /> },
+  { id: 'payer', header: 'Payer', cell: (adjustment) => <PayerName id={adjustment.payerId} /> },
+  {
+    id: 'amount',
+    header: 'Amount (₹)',
+    numeric: true,
+    sort: 'amount',
+    cell: (adjustment) => formatDecimal(adjustment.amount),
+  },
+  {
+    id: 'status',
+    header: 'Status',
+    fixed: true,
+    cell: (adjustment) => (
+      <Badge
+        tone={adjustmentStatusLabels[adjustment.status].tone}
+        icon={adjustmentStatusLabels[adjustment.status].icon}
+      >
+        {adjustmentStatusLabels[adjustment.status].label}
+      </Badge>
+    ),
+  },
+];
+
 /**
- * The adjustments (BR-501 to BR-503): discounts, write-offs and roundings, by status and kind, for one bill or one payer.
- * An adjustment is drafted from the page of the posted bill it lowers (ADR 0042), so this list offers no new one.
+ * The adjustments (BR-501 to BR-503): discounts, write-offs and roundings, narrowed by any filter of the bar, for one
+ * bill or one payer. An adjustment is drafted from the page of the posted bill it lowers (ADR 0042), so this list
+ * offers no new one. The API filters, sorts and pages (Prompt 12.2, ADR 0063).
  */
 export function AdjustmentsPage() {
-  const [query, setQuery] = useSearchParams();
-  const statusId = useId();
-  const kindId = useId();
-  const status = query.get('status') as AdjustmentStatus | null;
-  const kind = query.get('kind') as AdjustmentKind | null;
-  const page = Number.parseInt(query.get('page') ?? '1', 10);
-  const params: AdjustmentListParams = {
-    search: query.get('search') ?? '',
-    status: status !== null && adjustmentStatuses.includes(status) ? status : undefined,
-    kind: kind !== null && adjustmentKinds.includes(kind) ? kind : undefined,
-    billId: query.get('billId') ?? '',
-    payerId: query.get('payerId') ?? '',
-    page: Number.isFinite(page) && page >= 1 ? page : 1,
-  };
-  const adjustments = useAdjustments(params);
-
-  const change = (next: Partial<AdjustmentListParams>, options?: { replace?: boolean }) => {
-    const merged = { ...params, ...next, page: next.page ?? 1 };
-    const search = new URLSearchParams();
-    if (merged.search !== '') {
-      search.set('search', merged.search);
-    }
-
-    for (const [name, value] of [
-      ['billId', merged.billId],
-      ['payerId', merged.payerId],
-      ['status', merged.status ?? ''],
-      ['kind', merged.kind ?? ''],
-    ] as const) {
-      if (value !== '') {
-        search.set(name, value);
-      }
-    }
-
-    if (merged.page > 1) {
-      search.set('page', String(merged.page));
-    }
-
-    setQuery(search, options);
-  };
+  const client = useApiClient();
+  const state = useListState(keys, clearable);
+  const { values, sort, page } = state;
+  const status = known(values.status, adjustmentStatuses);
+  const kind = known(values.kind, adjustmentKinds);
+  const adjustments = useListQuery(['adjustments', 'list', values, sort, page], (signal) =>
+    answer(
+      client.GET('/api/v1/adjustments', {
+        params: {
+          query: {
+            ...(status === undefined ? {} : { Status: status }),
+            ...(kind === undefined ? {} : { Kind: kind }),
+            ...(values.billId === '' ? {} : { BillId: values.billId }),
+            ...(values.payerId === '' ? {} : { PayerId: values.payerId }),
+            ...(values.search === '' ? {} : { Search: values.search }),
+            ...(values.from === '' ? {} : { AdjustmentDateFrom: values.from }),
+            ...(values.to === '' ? {} : { AdjustmentDateTo: values.to }),
+            ...(values.amountFrom === '' ? {} : { AmountFrom: values.amountFrom }),
+            ...(values.amountTo === '' ? {} : { AmountTo: values.amountTo }),
+            ...(values.createdBy === '' ? {} : { CreatedBy: values.createdBy }),
+            ...(sort === '' ? {} : { Sort: sort }),
+            Page: page,
+            PageSize: pageSize,
+          },
+        },
+        signal,
+      }),
+    ),
+  );
 
   const showAll = (
-    <button type="button" className={buttons.link} onClick={() => change({ billId: '', payerId: '' })}>
+    <button type="button" className={buttons.link} onClick={() => state.change({ billId: '', payerId: '' })}>
       Show every adjustment
     </button>
   );
@@ -91,112 +148,39 @@ export function AdjustmentsPage() {
       <PageHeader
         title="Adjustments"
         subtitle={
-          params.billId !== '' ? (
+          values.billId !== '' ? (
             <>
-              The adjustments of bill <BillNumber id={params.billId} link={false} />. {showAll}
+              The adjustments of bill <BillNumber id={values.billId} link={false} />. {showAll}
             </>
-          ) : params.payerId !== '' ? (
+          ) : values.payerId !== '' ? (
             <>
-              The adjustments of <PayerName id={params.payerId} />. {showAll}
+              The adjustments of <PayerName id={values.payerId} />. {showAll}
             </>
           ) : (
             'Discounts, write-offs and roundings of posted bills. An adjustment is drafted from the page of the bill it lowers.'
           )
         }
       />
-      <div className={listStyles.filters} role="search">
-        <DocumentSearchField
-          sent={params.search}
-          onSend={(text) => change({ search: text }, { replace: true })}
-          busy={adjustments.isFetching}
-        />
-        <div className={listStyles.field}>
-          <label htmlFor={statusId}>Status</label>
-          <select
-            id={statusId}
-            className={listStyles.input}
-            value={params.status ?? ''}
-            onChange={(event) => change({ status: (event.target.value || undefined) as AdjustmentStatus | undefined })}
-          >
-            <option value="">All</option>
-            {adjustmentStatuses.map((value) => (
-              <option key={value} value={value}>
-                {adjustmentStatusLabels[value].label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className={listStyles.field}>
-          <label htmlFor={kindId}>Kind</label>
-          <select
-            id={kindId}
-            className={listStyles.input}
-            value={params.kind ?? ''}
-            onChange={(event) => change({ kind: (event.target.value || undefined) as AdjustmentKind | undefined })}
-          >
-            <option value="">All</option>
-            {adjustmentKinds.map((value) => (
-              <option key={value} value={value}>
-                {kindLabels[value]}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <FilterBar state={state} filters={filters} busy={adjustments.isFetching}>
+        <MakerFilter value={values.createdBy} onChange={(createdBy) => state.change({ createdBy })} />
+      </FilterBar>
       {adjustments.data === undefined ? (
         <LoadState error={adjustments.error} what="adjustments" />
       ) : adjustments.data.items.length === 0 ? (
         <EmptyState icon="sliders">No adjustment matches.</EmptyState>
       ) : (
         <>
-          <div className={table.wrap}>
-            <table className={table.table}>
-              <thead>
-                <tr>
-                  <th scope="col">Number</th>
-                  <th scope="col">Date</th>
-                  <th scope="col">Kind</th>
-                  <th scope="col">Bill</th>
-                  <th scope="col">Payer</th>
-                  <th scope="col" className={table.number}>
-                    Amount (₹)
-                  </th>
-                  <th scope="col">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {adjustments.data.items.map((adjustment) => (
-                  <tr key={adjustment.id}>
-                    <td>
-                      <Link to={`/adjustments/${adjustment.id}`}>{adjustment.number ?? 'No number'}</Link>
-                    </td>
-                    <td>{formatDate(adjustment.adjustmentDate)}</td>
-                    <td>{kindLabels[adjustment.kind]}</td>
-                    <td>
-                      <BillNumber id={adjustment.billId} />
-                    </td>
-                    <td>
-                      <PayerName id={adjustment.payerId} />
-                    </td>
-                    <td className={table.number}>{formatDecimal(adjustment.amount)}</td>
-                    <td>
-                      <Badge
-                        tone={adjustmentStatusLabels[adjustment.status].tone}
-                        icon={adjustmentStatusLabels[adjustment.status].icon}
-                      >
-                        {adjustmentStatusLabels[adjustment.status].label}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Pagination
-            page={params.page}
-            totalCount={Number(adjustments.data.totalCount)}
-            onChange={(next) => change({ page: next })}
+          <DataTable
+            tableId="adjustments"
+            label="Adjustments"
+            columns={columns}
+            rows={adjustments.data.items}
+            keyOf={(adjustment) => adjustment.id}
+            sort={sort}
+            onSort={state.setSort}
+            busy={adjustments.isFetching}
           />
+          <Pagination page={page} totalCount={Number(adjustments.data.totalCount)} onChange={state.setPage} />
         </>
       )}
     </section>

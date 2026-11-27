@@ -47,7 +47,11 @@ export type IconName =
   | 'plus'
   | 'half'
   | 'stamp'
-  | 'search';
+  | 'search'
+  | 'sort'
+  | 'sort-up'
+  | 'sort-down'
+  | 'columns';
 
 const outline = {
   fill: 'none',
@@ -233,6 +237,27 @@ const shapes: Record<IconName, ReactNode> = {
   menu: (
     <g {...outline}>
       <path d="M4 6.5h16M4 12h16M4 17.5h16" />
+    </g>
+  ),
+  sort: (
+    <g {...outline}>
+      <path d="m8 9 4-4 4 4M8 15l4 4 4-4" />
+    </g>
+  ),
+  'sort-up': (
+    <g {...outline}>
+      <path d="m7 14 5-5 5 5" />
+    </g>
+  ),
+  'sort-down': (
+    <g {...outline}>
+      <path d="m7 10 5 5 5-5" />
+    </g>
+  ),
+  columns: (
+    <g {...outline}>
+      <rect x="4" y="5" width="16" height="14" rx="2" />
+      <path d="M10 5v14M15 5v14" />
     </g>
   ),
   'chevrons-left': (

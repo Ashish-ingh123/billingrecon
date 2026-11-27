@@ -73,3 +73,15 @@ service items, with no change of what any screen does.
   document status. A header that stays in view inside a table that scrolls sideways was not done: the frame that scrolls
   is what a sticky header would stick to.
 - **Not verified:** the shell through nginx on the personal machine (runbook section 8, row 9.2).
+
+## Amended 2026-11-27 (Prompt 12.2b): the inside of the data table
+
+ADR 0063 replaces the inside of the data table, not its outside. The lists' tables are drawn by `DataTable`
+(frontend/src/components/table) on TanStack Table, headless, in the same markup and classes as before
+(`DataTable.module.css`: the frame that scrolls, the first column in view, tabular figures right-aligned), with the same
+roles, headings and cells the tests find. What it adds: a sortable header is a button with `aria-sort`, its direction
+shown by an icon and said in a polite status line, one column at a time; a "Columns" menu above the table shows, hides
+and moves the columns by keyboard, with "Reset columns"; the number (or name) and the status are never hidden.
+**Under 720 px nothing changes:** the table still scrolls inside its own frame with its first column in view; no rows
+fold into cards (decided with the plan of 12.2). The header and the totals row in view, the skeleton, the empty state
+and print on A4 stay as they were. The five document lists use it from 12.2b; the other lists and the reports from 12.2c.

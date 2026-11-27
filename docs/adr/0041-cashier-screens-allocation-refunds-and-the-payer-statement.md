@@ -82,3 +82,12 @@ Built as decided, with no package. What the build found:
   (202; the other reversals withheld while it waits), read the statement (owed 560.55, unapplied 500.00 from a second
   payment, net 60.55), drew a refund from it (500.01 refused, 500.00 drafted) and submitted it (202); a Viewer saw the
   payment with no action, read the refunds, and had no access to recording.
+
+## Amended 2026-11-27 (Prompt 12.2b): the lists of payments and refunds on the shared table
+
+The lists of payments and refunds are drawn by the shared table of ADR 0063, with their filters in the bar (payments:
+the search, status, method, origin, date, amount from and to; refunds: the search, status, method, refund date, amount
+from and to; "Made by" for an administrator) and sortable headers (number, date, amount, and for payments the
+unapplied amount). A list opened for one payer keeps it through "Clear filters" and offers "Show every …". Recording,
+allocating, refunds from their source and the payer statement are unchanged; the statement takes the shared table in
+12.2c.

@@ -3,8 +3,9 @@
 - **Status:** Accepted. On 2026-11-27 the owner gave Prompt 12.2 with its library decided (TanStack Table, headless)
   and approved the plan "as recommended", with its six points: a business date from the server (there was no 12.1);
   TanStack Table 9 with its three packages pinned; the seventeen tables of the plan; no fold under 720 px; three
-  commits on the branch `phase-12-tables`; the maker filter only where users may be read. This record is 12.2a, the
-  API; 12.2b (the shared table and the document lists) and 12.2c (the rest of the screens) will amend it.
+  commits on the branch `phase-12-tables`; the maker filter only where users may be read. Written with 12.2a, the
+  API; amended by 12.2b (the shared table and the five document lists, built note below); 12.2c (the rest of the
+  screens) will amend it again.
 - **Date:** 2026-11-27
 - **Deciders:** project owner, Claude Code
 - **Amends:** ADR 0036 (the reports filter and order on request, and their totals follow), ADR 0018 (a list's order
@@ -80,3 +81,33 @@ it holds, and an order never to be a column name passed through to SQL.
 - Tested on LocalDB 2019 in a throwaway copy: `ListFiltersApiTests` (each filter alone and together, each order both
   ways, the tie-breaker across pages, the refusals, tenant isolation, a register's totals against the ledger, the day
   turning at midnight in India, the master lists, the 100,000 bills).
+
+## Built note (2026-11-27, Prompt 12.2b)
+
+- **The shared table**, in `frontend/src/components/table`: `DataTable` (TanStack's `useTable` with the visibility,
+  ordering, sorting, filtering and paging features, `manual*` all three, the rows as the API gave them), `ColumnsMenu`,
+  `FilterBar`, `listState` (`useListState`: the address, replaced, page 1 on a change, the count in use, "Clear
+  filters" leaving the context a list was opened for, such as one payer), `columnPrefs` (localStorage key
+  `billingrecon.columns.v1.<hospital>.<user>.<table>`, read and written in `try`, a column that is gone dropped and a
+  new one put last), `businessDate` (`periodOf`, counted in UTC dates from the server's day, a week from Monday),
+  `useListQuery` (`keepPreviousData` and the request's `signal`: the rows stay until the newer answer, a stale request
+  is cancelled), `MakerFilter` ("Made by", only with `ManageTenant`, so no one else reads the users). The table's
+  markup and CSS are those of ADR 0048; `Table.module.css` adds the sort buttons, the menu and the bar, from tokens.
+- **Sortable is ours, not TanStack's:** a display column has no accessor, so TanStack's `getCanSort` is false for
+  every one; a header sorts when its column names an API order and the list takes one. The direction is read from
+  the address the same way. Ascending, descending, then the list's own order; `aria-sort` on the header, the icon,
+  and a polite status line saying the order.
+- **The menu** opens on the first checkbox that can be used; the number and the status are ticked, disabled and say
+  why; "Move X up/down" buttons, "Reset columns", Escape gives the focus back to the button.
+- **The bar** wraps its fields without shrinking one under its box, and keeps the count on a line of its own, so
+  "Clear filters" coming and going shifts nothing (the browser suite measures both).
+- **The five document lists** (bills, payments, credit notes, adjustments, refunds) keep every address name they had
+  and add `totalFrom`/`totalTo`, `balanceDueFrom`/`balanceDueTo`, `amountFrom`/`amountTo`, `createdBy`, `origin` and
+  `sort`; their query keys keep the `['<list>', 'list', …]` prefix, so every invalidation still matches.
+- **Packages:** `@tanstack/react-table` 9.3.1, with npm `overrides` pinning `@tanstack/react-store` and
+  `@tanstack/store` to 0.11.2. It loads with the lists only (one chunk of 16 kB gzipped); the route budgets hold.
+- **Tests:** `Table.test.tsx` (16): an amount sent once after the pause and not before, an amount that is not one
+  said and not sent, the rows kept and a late answer dropped, the address replaced and page 1, "Clear filters", the
+  shortcuts from the server's date with the browser's clock a day ahead, "Made by" for an administrator only,
+  `aria-sort` through the three states, the menu by keyboard with the fixed columns, the choice kept for one user and
+  not another, `periodOf` and `orderOf`. Every earlier test unchanged (698).

@@ -130,3 +130,21 @@ Built as decided, on the office machine (Node 24.22.2, npm 11.19.1). What the bu
   script runs before the first paint rests on the script test and on its place in the built page, before the app's
   script and its stylesheet.
 - **No source maps in the production build** (Vite's default): they would publish the whole source to every browser.
+
+## Amended 2026-11-27 (Prompt 12.2): one headless table library, and the budgets after it
+
+Point 6 (no UI kit) stands. The owner decided TanStack Table for the tables (ADR 0063): `@tanstack/react-table` 9.3.1,
+MIT, used headless. It draws nothing: our `DataTable` keeps its own markup, tokens, CSS Modules, status badges and
+`Money`; no grid that brings its own styles was added, and nginx's policy is unchanged (no inline style, nothing from
+another origin). Its two store packages are pinned by npm `overrides` to 0.11.2. It is no precedent for a kit.
+
+The budgets of ADR 0050 (amended by 9.4b), compressed, measured on the build before and after 12.2b:
+
+| Budget | Limit | Before | After |
+| --- | --- | --- | --- |
+| A first visit's JavaScript | 145 kB | 140.7 kB | 140.8 kB |
+| A first visit's CSS | 15 kB | 5.8 kB | 5.8 kB |
+| The largest chunk of any other route | 20 kB | 4.8 kB | 15.7 kB (the lists' shared chunk, with TanStack) |
+| The dashboard's chunk | 130 kB | 112.2 kB | 111.7 kB |
+
+TanStack loads only with a list, never on the sign-in page; every budget holds as it was set.
