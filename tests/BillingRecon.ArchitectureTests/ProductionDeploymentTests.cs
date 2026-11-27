@@ -11,7 +11,7 @@ public sealed class ProductionDeploymentTests
     private static readonly string Compose = File.ReadAllText(RepositoryFiles.PathOf("docker-compose.prod.yml"));
 
     private static readonly string[] SecretSettings =
-        ["MSSQL_SA_PASSWORD:", "Jwt__SigningKey:", "Database__ConnectionString:", "MIGRATOR_PASSWORD:", "APP_PASSWORD:", "Password="];
+        ["MSSQL_SA_PASSWORD:", "Jwt__SigningKey:", "TwoStep__EncryptionKey:", "Database__ConnectionString:", "MIGRATOR_PASSWORD:", "APP_PASSWORD:", "Password="];
 
     [Fact]
     public void The_production_compose_file_sets_no_secret_in_the_environment_of_a_service()
@@ -29,7 +29,7 @@ public sealed class ProductionDeploymentTests
             .Select(match => match.Groups["path"].Value)
             .ToList();
 
-        files.Count.ShouldBe(6);
+        files.Count.ShouldBe(7);
         files.ShouldAllBe(path => path.StartsWith("${SECRETS_DIR:-/etc/billingrecon/secrets}/", StringComparison.Ordinal));
     }
 

@@ -10,6 +10,8 @@ public sealed record UserDto(
     UserStatus Status,
     IReadOnlyList<Role> Roles,
     bool CredentialsChangeDue,
+    bool SecondStepEnrolled,
+    DateTimeOffset? ApprovalHoldUntilUtc,
     DateTimeOffset? LastSignInAtUtc,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc,

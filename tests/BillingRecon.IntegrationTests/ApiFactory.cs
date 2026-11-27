@@ -32,6 +32,9 @@ public class ApiFactory : WebApplicationFactory<Program>
     /// <summary>The setting of the signing key.</summary>
     public const string SigningKeySetting = "Jwt:SigningKey";
 
+    /// <summary>The setting of the key that protects the secrets of the second step (ADR 0061).</summary>
+    public const string EncryptionKeySetting = "TwoStep:EncryptionKey";
+
     /// <summary>The setting of the host names the API answers for (ADR 0035).</summary>
     public const string AllowedHostsSetting = "AllowedHosts";
 
@@ -46,6 +49,7 @@ public class ApiFactory : WebApplicationFactory<Program>
     // Outside Development the host needs a key of its own, as a deployment does; every factory makes a new one. It is
     // long enough for HS512 as well, so a test can sign with the right key and the wrong algorithm.
     private readonly string _signingKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(2 * JwtOptions.MinimumKeyBytes));
+    private readonly string _encryptionKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
     /// <summary>Makes <see cref="WebApplicationFactory{TEntryPoint}.CreateClient()"/> call <see cref="BaseAddress"/>.</summary>
     public ApiFactory()
@@ -92,6 +96,7 @@ public class ApiFactory : WebApplicationFactory<Program>
                 configuration.AddInMemoryCollection(
                 [
                     new KeyValuePair<string, string?>(SigningKeySetting, _signingKey),
+                    new KeyValuePair<string, string?>(EncryptionKeySetting, _encryptionKey),
                     new KeyValuePair<string, string?>(AllowedHostsSetting, Host),
                 ]);
             }

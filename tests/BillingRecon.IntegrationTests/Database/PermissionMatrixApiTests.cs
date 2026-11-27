@@ -168,6 +168,12 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
         ("GET", "api/v1/system/info", "signed in"),
         ("POST", "api/v1/auth/password", "signed in"),
 
+        // Since Prompt 11.3a (ADR 0061): the second step of a sign-in, and an administrator's reset of a user's.
+        ("POST", "api/v1/auth/second-step", "signed in"),
+        ("POST", "api/v1/auth/second-step/enrolment", "signed in"),
+        ("POST", "api/v1/auth/second-step/enrolment/confirm", "signed in"),
+        ("POST", "api/v1/users/{id:guid}/second-step/reset", "users, settings, prefixes"),
+
         ("GET", "api/v1/reports/bill-register", "reports"),
         ("GET", "api/v1/reports/payment-register", "reports"),
         ("GET", "api/v1/reports/daily-collection", "reports"),

@@ -59,6 +59,36 @@ public sealed class User : AggregateRoot<UserId>, ITenantScoped, ICreationAudite
     public bool PasswordChangeDue { get; private set; }
 
     /// <summary>
+    /// The secret of the user's second step, protected (encrypted) as the port that stores it made it; null while the
+    /// user has none (ADR 0061). Never audited and never answered.
+    /// </summary>
+    public string? SecondStepSecret { get; private set; }
+
+    /// <summary>The protected secret of an enrolment that was begun and not confirmed yet; null otherwise.</summary>
+    public string? SecondStepPendingSecret { get; private set; }
+
+    /// <summary>The last time step a code was accepted for: that step and every earlier one are spent (a code is good once).</summary>
+    public long? SecondStepLastStep { get; private set; }
+
+    /// <summary>Wrong codes in a row since the last right one.</summary>
+    public int SecondStepFailures { get; private set; }
+
+    /// <summary>When the second step was enrolled; null while the user has none.</summary>
+    public DateTimeOffset? SecondStepEnrolledAtUtc { get; private set; }
+
+    /// <summary>The hashes of the recovery codes not used yet, separated by a space; null while the user has no second step.</summary>
+    public string? RecoveryCodeHashes { get; private set; }
+
+    /// <summary>
+    /// Until when the user approves and rejects nothing: 24 hours after an administrator reset their password or their
+    /// second step (ADR 0061; review finding R5). Null when no reset was made.
+    /// </summary>
+    public DateTimeOffset? ApprovalHoldUntilUtc { get; private set; }
+
+    /// <summary>True when the user has a second step.</summary>
+    public bool SecondStepEnrolled => SecondStepSecret is not null;
+
+    /// <summary>
     /// The number of the user's sessions (ADR 0057): a token carries the number it was issued with and is refused once the
     /// user has another. It goes up at a sign-out, a change or a reset of the password, a disabling and a change of the roles,
     /// so each of them ends every session the user had.
@@ -218,8 +248,9 @@ public sealed class User : AggregateRoot<UserId>, ITenantScoped, ICreationAudite
     /// (ADR 0051). The event says so and carries neither.
     /// </summary>
     /// <exception cref="ArgumentException">The hash is blank or too long.</exception>
-    public void ResetPassword(string passwordHash)
+    public void ResetPassword(string passwordHash, DateTimeOffset? approvalHoldUntilUtc = null)
     {
+        ApprovalHoldUntilUtc = approvalHoldUntilUtc ?? ApprovalHoldUntilUtc;
         PasswordHash = Field.Required(passwordHash, PasswordHashMaxLength);
         PasswordChangeDue = true;
         SessionVersion++;
@@ -237,6 +268,129 @@ public sealed class User : AggregateRoot<UserId>, ITenantScoped, ICreationAudite
         PasswordChangeDue = false;
         SessionVersion++;
         AddDomainEvent(new UserPasswordChanged(Id));
+    }
+
+    /// <summary>Longest protected secret of a second step, as it is stored.</summary>
+    public const int ProtectedSecretMaxLength = 200;
+
+    /// <summary>Longest text of the hashes of the recovery codes: ten of 64 characters and their spaces.</summary>
+    public const int RecoveryCodeHashesMaxLength = 700;
+
+    /// <summary>How many wrong codes in a row end the sign-in that gave them: its token is refused from then on.</summary>
+    public const int SecondStepFailuresAllowed = 5;
+
+    /// <summary>How long a user decides nothing after an administrator reset their password or their second step.</summary>
+    public static readonly TimeSpan ApprovalHold = TimeSpan.FromHours(24);
+
+    /// <summary>The user began to enrol a second step: the protected secret waits for its first code.</summary>
+    public Result BeginSecondStepEnrolment(string protectedSecret)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(protectedSecret);
+
+        if (SecondStepEnrolled)
+        {
+            return IdentityErrors.SecondStepAlreadyEnrolled();
+        }
+
+        SecondStepPendingSecret = protectedSecret;
+        AddDomainEvent(new UserSecondStepEnrolmentBegun(Id));
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// The first code of the pending secret was right, for <paramref name="step"/>: the user has a second step from now
+    /// on, with the recovery codes whose hashes are given. Every session the user had ends (ADR 0057).
+    /// </summary>
+    public Result ConfirmSecondStep(long step, IReadOnlyCollection<string> recoveryCodeHashes, DateTimeOffset enrolledAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(recoveryCodeHashes);
+
+        if (SecondStepEnrolled)
+        {
+            return IdentityErrors.SecondStepAlreadyEnrolled();
+        }
+
+        if (SecondStepPendingSecret is null)
+        {
+            return IdentityErrors.SecondStepEnrolmentNotBegun();
+        }
+
+        SecondStepSecret = SecondStepPendingSecret;
+        SecondStepPendingSecret = null;
+        SecondStepLastStep = step;
+        SecondStepFailures = 0;
+        SecondStepEnrolledAtUtc = enrolledAtUtc;
+        RecoveryCodeHashes = string.Join(' ', recoveryCodeHashes);
+        SessionVersion++;
+        AddDomainEvent(new UserSecondStepEnrolled(Id));
+
+        return Result.Success();
+    }
+
+    /// <summary>A right code was given for <paramref name="step"/>, which is spent with every step before it.</summary>
+    public void PassSecondStep(long step)
+    {
+        SecondStepLastStep = step;
+        SecondStepFailures = 0;
+        AddDomainEvent(new UserSecondStepPassed(Id));
+    }
+
+    /// <summary>
+    /// Spends the recovery code whose hash is <paramref name="hash"/>: true when the user had it. A recovery code is
+    /// good once.
+    /// </summary>
+    public bool UseRecoveryCode(string hash)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(hash);
+
+        var left = (RecoveryCodeHashes ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+        if (!SecondStepEnrolled || !left.Remove(hash))
+        {
+            return false;
+        }
+
+        RecoveryCodeHashes = string.Join(' ', left);
+        SecondStepFailures = 0;
+        AddDomainEvent(new UserRecoveryCodeUsed(Id, left.Count));
+
+        return true;
+    }
+
+    /// <summary>
+    /// A wrong code was given. After <see cref="SecondStepFailuresAllowed"/> in a row the sign-in that gave them is
+    /// over: every session of the user ends, the one between its two steps with them. True when that happened.
+    /// </summary>
+    public bool FailSecondStep()
+    {
+        SecondStepFailures++;
+        var locked = SecondStepFailures >= SecondStepFailuresAllowed;
+        if (locked)
+        {
+            SecondStepFailures = 0;
+            SessionVersion++;
+        }
+
+        AddDomainEvent(new UserSecondStepFailed(Id, locked));
+
+        return locked;
+    }
+
+    /// <summary>
+    /// An administrator took the user's second step away (a lost phone): the secret and the recovery codes are gone,
+    /// every session ends, and the user decides nothing until <paramref name="approvalHoldUntilUtc"/>.
+    /// </summary>
+    public void ResetSecondStep(DateTimeOffset approvalHoldUntilUtc)
+    {
+        SecondStepSecret = null;
+        SecondStepPendingSecret = null;
+        SecondStepLastStep = null;
+        SecondStepFailures = 0;
+        SecondStepEnrolledAtUtc = null;
+        RecoveryCodeHashes = null;
+        ApprovalHoldUntilUtc = approvalHoldUntilUtc;
+        SessionVersion++;
+        AddDomainEvent(new UserSecondStepReset(Id));
     }
 
     /// <summary>

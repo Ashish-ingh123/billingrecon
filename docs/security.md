@@ -25,6 +25,17 @@ its reason, or named with the prompt that does it.
 - **Deny by default:** every endpoint needs a valid token but the sign-in, the health checks and, in Development, the
   OpenAPI document and the Scalar page. In Development a request without a token acts as the development user (a
   TenantAdmin); Development must never be the environment of a machine others can reach.
+- **The second step (ADR 0061).** A TenantAdmin and a Supervisor sign in with a second step, a time-based code of an
+  authenticator app (RFC 6238); any other user may set one up. The password alone answers a token that only gives
+  the code (5 minutes) or, for a user of those roles who has none, only sets one up (15 minutes). A code is good for
+  its own 30-second step and the one beside it, and once; ten recovery codes, stored as hashes, each sign in once.
+  The secret is encrypted at rest with AES-256-GCM under `TwoStep:EncryptionKey`, a secret of the host of its own,
+  bound to the user's row; it is in no answer after its enrolment, no audit image and no log line. The fifth wrong
+  code in a row ends the sign-in. A decision (every approve and reject) needs a sign-in whose second step was
+  given. The requirement can be switched off in the Development and Demo environments only.
+- **An administrator's reset and the hold.** An administrator may take a user's second step away for a lost phone.
+  For 24 hours after an administrator reset a user's password or second step, that user approves and rejects
+  nothing (row R3 below).
 - Passwords (ADR 0030): PBKDF2-HMAC-SHA-256, 600,000 iterations, a salt of 16 bytes per password, 12 to 128
   characters. Neither a password nor its hash is ever in an answer, an audit image, a log line or the fingerprint of an
   idempotency key; the user POSTs and the sign-in take no Idempotency-Key for that reason.
@@ -115,7 +126,7 @@ role against the database.
 
 ## 7. Secrets
 
-`Database:ConnectionString`, `Jwt:SigningKey` and `Seq:ApiKey` come from user-secrets or the environment, never from a
+`Database:ConnectionString`, `Jwt:SigningKey`, `TwoStep:EncryptionKey` and `Seq:ApiKey` come from user-secrets or the environment, never from a
 file in git. The one key in git, the Development signing key, is refused outside Development. Changing the signing key
 signs everybody out (`docs/runbook.md` section 9). The database logins' passwords are made per environment and kept in
 the deployment's secret store (`docs/runbook.md` section 10).
@@ -208,7 +219,7 @@ it.
 |---|---|---|---|
 | R1 | A user denies a change they made | An append-only audit record per change, with the user, the instant, the correlation id and both images, in the transaction of the change; `DENY UPDATE, DELETE` at the database | Done (ADR 0020, ADR 0034) |
 | R2 | A maker approves their own request | Maker and checker differ, checked by the decision and a CHECK constraint; the checker holds Supervisor or TenantAdmin | Done (ADR 0023, ADR 0032) |
-| R3 | A TenantAdmin creates a second user and approves their own requests with it | The audit trail shows who created the user and who approved | Accepted for R1: shown, not prevented; a hospital's TenantAdmin is trusted with its users. **Accepted again on 2026-11-26, in its full form** (review finding R5, `docs/review-2026-11.md`): a TenantAdmin can also be the maker, then create a Supervisor or reset one's password, sign in as that user and approve, for every kind of document; maker-checker holds between people, not against the one who administers the users. The control is the audit trail, which shows the user's creation or reset, the sign-in and the approval. To be narrowed by Prompt 11.3: with a second step required of a Supervisor, a reset password alone no longer signs in as them (the administrator's reset of the second step is itself audited) |
+| R3 | A TenantAdmin creates a second user and approves their own requests with it | The audit trail shows who created the user and who approved | Accepted for R1: shown, not prevented; a hospital's TenantAdmin is trusted with its users. **Accepted again on 2026-11-26, in its full form** (review finding R5, `docs/review-2026-11.md`): a TenantAdmin can also be the maker, then create a Supervisor or reset one's password, sign in as that user and approve, for every kind of document; maker-checker holds between people, not against the one who administers the users. The control is the audit trail, which shows the user's creation or reset, the sign-in and the approval. To be narrowed by Prompt 11.3: with a second step required of a Supervisor, a reset password alone no longer signs in as them (the administrator's reset of the second step is itself audited) **Narrowed on 2026-11-27 (ADR 0061, Prompt 11.3a):** a Supervisor and a TenantAdmin sign in with a second step; an administrator who resets a Supervisor's password or second step to sign in as them finds that user held from every decision for 24 hours, signed out and audited. Still accepted: an administrator who waits the day out, or who creates a new Supervisor and enrols as them (a new user has no hold). The control is delay and evidence. |
 | R4 | A TenantAdmin raises or removes the approval threshold of bill postings, posts a large bill with no checker, and puts the threshold back | The audit trail holds the two changes of the settings and the posting, each with the user and the instant | Accepted on 2026-11-26 (review finding R6, `docs/review-2026-11.md`): shown, not prevented. It is the trust of row R3 again: the one who administers the hospital can go around its second person, and is seen doing it. A change of the threshold as a maker-checker request was weighed and not taken |
 | R5 | A checker writes a document, has another user submit it and approves it: the maker on record is the other user (review 2026-11, finding R9) | Since 2026-11-26 the approval of a bill, a credit note, an adjustment or a refund is refused to the user who created the document or changed it last (403 `approval_checker_is_maker`; ADR 0023, amended) | A user who only edited the document between its creation and its submission by others is not caught: submitting is the last change. The audit trail shows every change and who made it |
 

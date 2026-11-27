@@ -18,6 +18,7 @@ public sealed class ChangeOwnPasswordHandler(
     IUserRepository users,
     IPasswordHasher hasher,
     ITokenIssuer tokens,
+    ISecondStepPolicy secondStep,
     IClock clock,
     IUnitOfWork unitOfWork) : ICommandHandler<ChangeOwnPasswordCommand, SignedInDto>
 {
@@ -52,9 +53,7 @@ public sealed class ChangeOwnPasswordHandler(
             return committed.Error;
         }
 
-        var roles = user.Roles.Select(role => role.Role).Order().ToArray();
-        var token = tokens.Issue(tenantId, user.Id, roles, passwordChangeDue: false, user.SessionVersion);
-        var seconds = (int)Math.Round((token.ExpiresAtUtc - clock.UtcNow).TotalSeconds, MidpointRounding.AwayFromZero);
-        return new SignedInDto(token.Value, SignInHandler.TokenType, token.ExpiresAtUtc, seconds, CredentialsChangeDue: false);
+        // The new token is of the new session; a user with a second step gives its code again (ADR 0061).
+        return SignInTokens.For(tokens, secondStep, clock, tenantId, user, secondStepGiven: false);
     }
 }

@@ -13,6 +13,7 @@ namespace BillingRecon.Application.Identity;
 public sealed class ResetUserPasswordHandler(
     IValidator<ResetUserPasswordCommand> validator,
     IPasswordHasher hasher,
+    IClock clock,
     IUserRepository repository,
     IUnitOfWork unitOfWork) : ICommandHandler<ResetUserPasswordCommand, UserDto>
 {
@@ -35,7 +36,8 @@ public sealed class ResetUserPasswordHandler(
             return CommonErrors.ConcurrencyConflict();
         }
 
-        user.ResetPassword(hasher.Hash(command.Password));
+        // The user decides nothing for 24 hours: who set the password could sign in as them (ADR 0061; review finding R5).
+        user.ResetPassword(hasher.Hash(command.Password), clock.UtcNow + User.ApprovalHold);
 
         var committed = await unitOfWork.CommitAsync(ct);
 

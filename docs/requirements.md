@@ -186,6 +186,9 @@ shift with a difference is in the checker's row, and its cashier is never its ch
 | **BR-605** | A document has at most one pending approval request. Pending requests are listed for checkers. A rejection records the checker's comment and returns a draft document to `Draft`; a rejected reversal leaves the document as it was. |
 | **BR-606** | The checker's approval is the posting: number allocation, ledger entries, cache updates, status change and audit happen in the approval transaction. The maker's submission has no financial effect. |
 | **BR-607** | Tenant settings (`PostingApprovalThreshold`, `MaxBackdateDays`, `DefaultDueDays`, default number prefixes) are changed only by a TenantAdmin and every change is audited. |
+| **BR-608** | A TenantAdmin and a Supervisor sign in with a second step: after the password, a time-based code of an authenticator app (RFC 6238). A user of those roles who has none sets it up before anything else; any other user may set one up, and is asked for it from then on. A code is accepted for its own 30-second step and the one before and after, and once. Each of ten recovery codes signs in once in its place. *Added 2026-11-27 with Prompt 11.3 (ADR 0061), as are BR-609 and BR-610.* |
+| **BR-609** | A decision of a maker-checker request (BR-603) is made only in a sign-in whose second step was given. The fifth wrong code in a row ends the sign-in. |
+| **BR-610** | An administrator may take a user's second step away (a lost phone); the user's sessions end and they set a new one up. For 24 hours after an administrator reset a user's password or second step, that user approves and rejects nothing. Both resets are audited. |
 
 ### Audit (BR-701 – BR-719)
 
@@ -226,6 +229,7 @@ Acceptance criteria cite the rules they verify. "Given/when/then" is abbreviated
 | US-02 | As a user I sign in and receive a JWT so that the API knows my tenant and roles. | Token carries tenant, user, roles (BR-602); disabled user is refused (BR-601). |
 | US-03 | As a TenantAdmin I set the posting approval threshold, back-date window and default due days. | Settings applied on next request; change audited (BR-607). |
 | US-04 | As the platform, requests never cross tenants. | A token for tenant A cannot read or write tenant B's records, including by id (BR-002); tested as a defect. |
+| US-50 | As a Supervisor or a TenantAdmin I sign in with my password and a code of my authenticator app. | Set up at the first sign-in, with recovery codes shown once (BR-608); a code two steps away or used before is refused; without the second step no decision is made (BR-609); an administrator's reset signs me out and holds my decisions for 24 hours (BR-610). |
 
 ### Patients and payers
 
@@ -287,7 +291,7 @@ Acceptance criteria cite the rules they verify. "Given/when/then" is abbreviated
 | Correctness | The twelve rules in `CLAUDE.md` §4 and the BR catalogue above are enforced by tests; a failing invariant blocks release. |
 | Performance | Posting a bill or recording a payment: p95 < 500 ms at 50 concurrent users, 10 000 bills per tenant per month, on a single SQL Server instance. Number allocation serialises per (tenant, type, FY) and must stay under 20 ms inside the transaction. Measured by `deploy/load` (ADR 0046): the 50 users pause one second between their requests; the 20 ms is the time a posting holds its series, from its number to its commit; a run with no pause at all, where every user queues on the series of bills, is reported as a stress figure and not judged. |
 | Availability | Single-region deployment; planned downtime windows acceptable in R1. Backup and restore drills are R5. |
-| Security | TLS only; JWT lifetime 60 minutes; passwords hashed with a slow, salted algorithm from the BCL; secrets from environment or user secrets; no tenant data in logs beyond ids. |
+| Security | TLS only; JWT lifetime 60 minutes; a second step at sign-in for TenantAdmin and Supervisor (BR-608); passwords hashed with a slow, salted algorithm from the BCL; secrets from environment or user secrets; no tenant data in logs beyond ids. |
 | Retention | Financial documents, ledger and audit are retained for at least 8 years (Companies Act 2013 books of account). Idempotency keys 30 days. |
 | Observability | Structured logs with TenantId, UserId, CorrelationId on every event; health endpoint. Metrics and tracing are R5. |
 | Compatibility | API is versioned under `/api/v1`; breaking changes need a new version. |

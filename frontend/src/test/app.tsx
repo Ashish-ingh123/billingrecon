@@ -39,6 +39,7 @@ export function sessionFor(roles: readonly Role[], expiresInMs = 60 * 60 * 1000)
     userId: 'd0000000-0000-4000-8000-000000000002',
     tenantId: 'd0000000-0000-4000-8000-000000000001',
     credentialsChangeDue: false,
+    secondStep: 'Done',
     roles: [...roles],
     email: 'asha@example.org',
     hospital: 'city-hospital',

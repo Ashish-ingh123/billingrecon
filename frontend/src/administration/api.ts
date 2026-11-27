@@ -153,6 +153,16 @@ export function resetPassword(client: ApiClient, user: User, password: string): 
   );
 }
 
+/** Takes a user's second step away, for a lost phone (ADR 0061): they enrol again, and decide nothing for 24 hours. */
+export function resetSecondStep(client: ApiClient, user: User): Promise<User> {
+  return answer(
+    client.POST('/api/v1/users/{id}/second-step/reset', {
+      params: { path: { id: user.id } },
+      headers: ifMatch(user.version),
+    }),
+  );
+}
+
 export function useSettings() {
   const client = useApiClient();
   return useQuery({

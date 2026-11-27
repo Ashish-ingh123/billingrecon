@@ -84,6 +84,20 @@ public static class InfrastructureServiceCollectionExtensions
             .ValidateOnStart();
         services.AddHostedService<DemoTenantSeeder>();
 
+        // The second step of a sign-in (ADR 0061): its key, checked at startup like the signing key of the tokens, and
+        // its requirement, which only the Development and Demo environments may switch off.
+        services.AddOptions<TwoStepOptions>()
+            .BindConfiguration(TwoStepOptions.SectionName)
+            .Validate(TwoStepOptions.HasValidKey, TwoStepOptions.InvalidKeyMessage)
+            .Validate(options => environment.IsDevelopment() || TwoStepOptions.IsNotTheDevelopmentKey(options), TwoStepOptions.DevelopmentKeyMessage)
+            .Validate(
+                options => options.Required || environment.IsDevelopment() || environment.IsEnvironment(DemoOptions.EnvironmentName),
+                TwoStepOptions.RequiredMessage)
+            .ValidateOnStart();
+        services.AddSingleton<ISecondStepSecrets, SecondStepSecrets>();
+        services.AddSingleton<ISecondStepPolicy, SecondStepPolicy>();
+        services.AddScoped<IApprovalHolds, ApprovalHolds>();
+
         // What an operator does to a hospital from the server (ADR 0052), and whether the hospital of a request is active,
         // asked on every request and kept for 30 seconds.
         services.AddScoped<ITenantOperations, TenantOperations>();

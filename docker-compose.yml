@@ -94,6 +94,11 @@ services:
       ASPNETCORE_ENVIRONMENT: "${API_ENVIRONMENT:-Demo}"
       Database__ConnectionString: "Server=sql;Database=BillingRecon;User Id=billingrecon_app;Password=${BILLINGRECON_APP_PASSWORD};Encrypt=True;TrustServerCertificate=True"
       Jwt__SigningKey: "${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env, see .env.example}"
+      # The key that keeps the secrets of the second step of a sign-in unreadable at rest (ADR 0061), and whether an
+      # administrator and a supervisor must have one: false is allowed in the Demo environment only, so the demo's users
+      # sign in with their password alone. Set TWO_STEP_REQUIRED=true with API_ENVIRONMENT=Production.
+      TwoStep__EncryptionKey: "${TWO_STEP_ENCRYPTION_KEY:?Set TWO_STEP_ENCRYPTION_KEY in .env, see .env.example}"
+      TwoStep__Required: "${TWO_STEP_REQUIRED:-false}"
       AllowedHosts: "localhost;frontend"
       ReverseProxy__KnownProxies__0: "172.28.0.10"
       Seq__ServerUrl: "http://seq"

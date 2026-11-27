@@ -29,6 +29,7 @@ describe('the session of a sign-in', () => {
       tenantId: 'd0000000-0000-4000-8000-000000000001',
       roles: ['Cashier'],
       credentialsChangeDue: false,
+      secondStep: 'None',
       email: 'asha@example.org',
       hospital: 'city-hospital',
     });

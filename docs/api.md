@@ -774,6 +774,12 @@ included (section 2; ADR 0032).
 | `POST /api/v1/users/{id}/disable` (needs `If-Match`; no body) | 200, the user `Disabled` | 404; 409 `concurrency_conflict`; 422 `user_cannot_disable_self`, `user_last_tenant_admin`, `user_already_disabled`; 428 |
 | `POST /api/v1/users/{id}/enable` (needs `If-Match`; no body) | 200, the user `Active` | 404; 409 `concurrency_conflict`; 422 `user_already_active`; 428 |
 | `POST /api/v1/users/{id}/password` (needs `If-Match`) | 200, the user | 400; 404; 409 `concurrency_conflict`; 428 |
+| `POST /api/v1/users/{id}/second-step/reset` (needs `If-Match`; no body) | 200, the user, without a second step and with `approvalHoldUntilUtc` | 404; 409 `concurrency_conflict`; 428 |
+
+A user answers `secondStepEnrolled` and `approvalHoldUntilUtc` too (ADR 0061). A reset of the password and a reset of
+the second step both set the hold: for 24 hours that user approves and rejects nothing (section 8.12). The reset of a
+second step is for a lost phone: the user's sessions end and they enrol again at the next sign-in. Audited as
+`SecondStepReset`.
 
 The body of a creation (unknown members are refused):
 
@@ -810,6 +816,9 @@ password, and the key store keeps a fingerprint of the body), and no answer of i
 |---|---|---|
 | `POST /api/v1/auth/login` | 200, the token | 400; 401 `invalid_credentials`; 429 `too_many_sign_ins` |
 | `POST /api/v1/auth/password` (any signed-in user, policy `SignedIn`) | 200, a new token | 400; 401; 422 `password_current_wrong` |
+| `POST /api/v1/auth/second-step` (a token that waits for its second step; body `code`) | 200, a full token | 401 `session_ended`; 403; 422 `second_step_code_wrong`, `second_step_not_enrolled` |
+| `POST /api/v1/auth/second-step/enrolment` (a token that must enrol, or any full token; no body) | 200, the secret and its address | 401; 403; 422 `second_step_already_enrolled` |
+| `POST /api/v1/auth/second-step/enrolment/confirm` (the same tokens; body `code`) | 200, the recovery codes and a full token | 401; 403; 422 `second_step_code_wrong`, `second_step_enrolment_not_begun`, `second_step_already_enrolled` |
 | `POST /api/v1/auth/logout` (any signed-in user, policy `SignedIn`) | 204 | 401 |
 
 **A sign-out ends the user's sessions on the server** (ADR 0057). Every token carries the number of the session it was
@@ -842,6 +851,36 @@ exist, and an unknown address costs as much time as a wrong password. Why a sign
 (a warning with the hospital's code and, when the address was found, the user's id); the address and the password
 never are. A missing or over-long value is a 400 `validation_failed` like any other. A sign-in is recorded on the user
 (`lastSignInAtUtc`) and in the audit trail (`SignedIn`, by the user).
+
+**The second step (ADR 0061).** The answer of a sign-in carries `secondStep`, the stage its token is at:
+
+- `None`: a full token of a user who has no second step and whose roles need none;
+- `Pending`: the user has a second step. The token lives 5 minutes and reaches `POST /api/v1/auth/second-step` and
+  the sign-out, and everything else answers 403 `second_step_required`;
+- `Enrolment`: the user is a TenantAdmin or a Supervisor and has none yet. The token lives 15 minutes and reaches the
+  two enrolment actions and the sign-out, and everything else answers 403 `second_step_enrolment_required`;
+- `Done`: a full token whose sign-in gave the second step.
+
+A password that is due (`credentialsChangeDue`) is changed first; the answer of the change is then at one of these
+stages, and so is the answer of any change of one's own password. `code` is the six digits an authenticator app
+shows (TOTP, RFC 6238: HMAC-SHA-1, steps of 30 seconds), accepted for its own step and the one before and after,
+and once: the step a code was accepted for and every earlier one are spent. In place of it a **recovery code**
+(`XXXX-XXXX-XXXX-XXXX`, with or without its dashes, in any case) signs in once. A wrong code is 422
+`second_step_code_wrong`; the fifth in a row ends the user's sessions, the one that gave them included (401
+`session_ended`), and the user signs in again.
+
+**Enrolment.** Begin answers `secret` (base32) and `provisioningUri` (the `otpauth://totp/...` address a QR code
+holds); beginning again replaces a secret that was never confirmed. Confirm takes the first code of the app and
+answers `recoveryCodes` (ten, shown this once: only their hashes are kept) and `signedIn`, the sign-in of a new
+session at the stage `Done`; every other session of the user ends. A user who has a second step cannot begin
+another (422 `second_step_already_enrolled`), and a token that waits for a code cannot enrol at all (403): an
+administrator takes the old one away first (section 8.11). None of the three takes an `Idempotency-Key`, and no
+answer of them may be cached. Outside the Development and Demo environments the requirement cannot be switched off.
+
+**A decision needs the second step, and a checker who is not on hold.** Every approve and reject action (every POST
+of the policy `Decide`) answers 403 `second_step_required` to a token whose stage is not `Done`, and 403
+`approval_on_hold` to a user whose password or second step an administrator reset less than 24 hours ago (the
+message says until when). Reading the inbox is no decision.
 
 **Repeated attempts are limited** (ADR 0035), in two ways that answer the same 429 `too_many_sign_ins`, with
 `Retry-After` in seconds and `Cache-Control: no-store`:
@@ -1305,6 +1344,13 @@ For a failure no use case reported: routing, model binding, content negotiation,
 | `password_change_required` | 403 | Set a password of your own first: the one you were given must be changed. |
 | `session_ended` | 401 | This session has ended. Sign in again. |
 | `password_current_wrong` | 422 | The current password is not right; nothing was changed. |
+| `second_step_code_wrong` | 422 | The code is not right. Give the code your authenticator app shows now, or a recovery code you have not used. |
+| `second_step_not_enrolled` | 422 | You have no second step to give a code for. |
+| `second_step_already_enrolled` | 422 | You have a second step already. An administrator can take it away if you lost it. |
+| `second_step_enrolment_not_begun` | 422 | Begin the enrolment first: there is no secret to confirm. |
+| `second_step_required` | 403 | This needs the second step of your sign-in: give the code of your authenticator app first. |
+| `second_step_enrolment_required` | 403 | Your role needs a second step at sign-in. Set it up first. |
+| `approval_on_hold` | 403 | Your password or second step was reset by an administrator: you can approve and reject again after …. |
 | `tenant_invalid` | 400 | The tenant is not valid. |
 | `tenant_suspended` | 403 | This hospital is suspended; ask the operator of BillingRecon. |
 | `tenant_code_taken` | 409 | A hospital with this code exists already; nothing was created. |

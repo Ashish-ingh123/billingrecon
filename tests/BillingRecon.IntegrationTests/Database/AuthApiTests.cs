@@ -56,7 +56,7 @@ public sealed class AuthApiTests(SqlServerFixture sqlServer) : DatabaseTest(sqlS
         var token = new JsonWebToken(signedIn.AccessToken);
         token.Subject.ShouldBe(user.Id.ToString());
         token.GetClaim(TokenClaims.TenantIdClaim).Value.ShouldBe(admin.TenantId.ToString());
-        token.Claims.Where(claim => claim.Type == TokenClaims.RoleClaim).Select(claim => claim.Value).ShouldBe(["Supervisor", "Cashier"]);
+        token.Claims.Where(claim => claim.Type == TokenClaims.RoleClaim).Select(claim => claim.Value).ShouldBe(["BillingClerk", "Cashier"]);
 
         var acting = await IdentityAsync(anonymous, signedIn.AccessToken);
         (acting.TenantId, acting.UserId).ShouldBe((admin.TenantId!.Value.Value, user.Id));
@@ -506,7 +506,7 @@ public sealed class AuthApiTests(SqlServerFixture sqlServer) : DatabaseTest(sqlS
         var admin = await NewApiTenantAsync();
         using var administrator = factory.CreateClientFor(admin, "TenantAdmin");
 
-        using var created = await administrator.PostJsonAsync(new Uri("/api/v1/users", UriKind.Relative), new CreateUserRequest { Email = Email, DisplayName = "Asha Rao", Password = Password, Roles = [Role.Cashier, Role.Supervisor] });
+        using var created = await administrator.PostJsonAsync(new Uri("/api/v1/users", UriKind.Relative), new CreateUserRequest { Email = Email, DisplayName = "Asha Rao", Password = Password, Roles = [Role.Cashier, Role.BillingClerk] });
         created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync());
 
         await using var context = ApiContext(admin);

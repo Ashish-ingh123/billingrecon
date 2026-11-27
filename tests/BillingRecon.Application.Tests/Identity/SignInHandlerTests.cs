@@ -248,5 +248,5 @@ public sealed class SignInHandlerTests
     }
 
     private SignInHandler Handler(IUnitOfWork unitOfWork)
-        => new(new SignInCommandValidator(), _clock, _lookup, _hasher, _scope, _users, _tokens, unitOfWork);
+        => new(new SignInCommandValidator(), _clock, _lookup, _hasher, _scope, _users, _tokens, Substitute.For<ISecondStepPolicy>(), unitOfWork);
 }

@@ -4716,6 +4716,208 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/second-step": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The second step of a sign-in (ADR 0061): the code of the authenticator app, or a recovery code, with the token the
+         *     password gave. Answers a sign-in with a full token. A wrong code is 422, and the fifth in a row ends the sign-in.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SecondStepCodeRequest"];
+                    "text/json": components["schemas"]["SecondStepCodeRequest"];
+                    "application/*+json": components["schemas"]["SecondStepCodeRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SignedInDto"];
+                        "application/json": components["schemas"]["SignedInDto"];
+                        "text/json": components["schemas"]["SignedInDto"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/second-step/enrolment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Begins the enrolment of a second step for the user who asks (ADR 0061): answers the secret for an authenticator
+         *     app, as text and as the address a QR code holds. Open to a token that only enrols, and to any full token of a
+         *     user who has none.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SecondStepEnrolmentDto"];
+                        "application/json": components["schemas"]["SecondStepEnrolmentDto"];
+                        "text/json": components["schemas"]["SecondStepEnrolmentDto"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/second-step/enrolment/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirms the enrolment with the first code of the authenticator app (ADR 0061): answers the recovery codes, this
+         *     once, and the sign-in of a new session whose second step is given. Every other session of the user ends.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SecondStepCodeRequest"];
+                    "text/json": components["schemas"]["SecondStepCodeRequest"];
+                    "application/*+json": components["schemas"]["SecondStepCodeRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SecondStepEnrolledDto"];
+                        "application/json": components["schemas"]["SecondStepEnrolledDto"];
+                        "text/json": components["schemas"]["SecondStepEnrolledDto"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/prefix-changes": {
         parameters: {
             query?: never;
@@ -6261,6 +6463,82 @@ export interface paths {
                         "text/plain": components["schemas"]["ProblemDetails"];
                         "application/json": components["schemas"]["ProblemDetails"];
                         "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Precondition Required */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}/second-step/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Takes the second step of a user away, for a lost phone (ADR 0061): the user's sessions end, they enrol again at
+         *     their next sign-in when their roles need one, and they approve and reject nothing for 24 hours. Needs If-Match; no body.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["UserDto"];
+                        "application/json": components["schemas"]["UserDto"];
+                        "text/json": components["schemas"]["UserDto"];
                     };
                 };
                 /** @description Not Found */
@@ -11708,6 +11986,27 @@ export interface components {
          * @enum {unknown}
          */
         Role: "TenantAdmin" | "Supervisor" | "BillingClerk" | "Cashier" | "Viewer";
+        /** @description The body of the second step of a sign-in and of the confirmation of its enrolment: the code. */
+        SecondStepCodeRequest: {
+            /** @description Six digits of the authenticator app; for the second step of a sign-in also a recovery code. */
+            code?: null | string;
+        };
+        /** @description What a confirmed enrolment answers: the recovery codes, shown this once, and the sign-in of the new session. */
+        SecondStepEnrolledDto: {
+            recoveryCodes: string[];
+            signedIn: components["schemas"]["SignedInDto"];
+        };
+        /** @description What an enrolment that was begun answers: the secret for the authenticator app, as text and as the address a QR code holds. */
+        SecondStepEnrolmentDto: {
+            secret: string;
+            provisioningUri: string;
+        };
+        /**
+         * @description Where a sign-in stands with its second step (ADR 0061): what the token it was given is good for.
+         * @default None
+         * @enum {unknown}
+         */
+        SecondStepStage: "None" | "Pending" | "Enrolment" | "Done";
         /**
          * @description A service item as the API returns it. decimal ServiceItemDto.DefaultUnitPrice has up to four decimals and
          *     decimal ServiceItemDto.TaxRatePercent up to two. string ServiceItemDto.Version is the row version in base64, the same value the
@@ -11748,6 +12047,7 @@ export interface components {
             /** Format: int32 */
             expiresInSeconds: number | string;
             credentialsChangeDue: boolean;
+            secondStep?: components["schemas"]["SecondStepStage"];
         };
         /**
          * @description One card of the dashboard: its figure for the period, the same figure for the previous period, and the change in
@@ -12083,6 +12383,9 @@ export interface components {
             status: components["schemas"]["UserStatus"];
             roles: components["schemas"]["Role"][];
             credentialsChangeDue: boolean;
+            secondStepEnrolled: boolean;
+            /** Format: date-time */
+            approvalHoldUntilUtc: null | string;
             /** Format: date-time */
             lastSignInAtUtc: null | string;
             /** Format: date-time */

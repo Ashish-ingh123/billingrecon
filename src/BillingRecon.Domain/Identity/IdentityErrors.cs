@@ -163,4 +163,52 @@ public static class IdentityErrors
     /// </summary>
     public static Error PrefixInUse()
         => Error.Conflict(PrefixInUseCode, "This prefix belongs to another kind of document, now or in the past; choose another one (BR-802).");
+    /// <summary>Code of <see cref="SecondStepCodeWrong"/>.</summary>
+    public const string SecondStepCodeWrongCode = "second_step_code_wrong";
+
+    /// <summary>Code of <see cref="SecondStepNotEnrolled"/>.</summary>
+    public const string SecondStepNotEnrolledCode = "second_step_not_enrolled";
+
+    /// <summary>Code of <see cref="SecondStepAlreadyEnrolled"/>.</summary>
+    public const string SecondStepAlreadyEnrolledCode = "second_step_already_enrolled";
+
+    /// <summary>Code of <see cref="SecondStepEnrolmentNotBegun"/>.</summary>
+    public const string SecondStepEnrolmentNotBegunCode = "second_step_enrolment_not_begun";
+
+    /// <summary>Code of <see cref="SecondStepRequired"/>.</summary>
+    public const string SecondStepRequiredCode = "second_step_required";
+
+    /// <summary>Code of <see cref="SecondStepEnrolmentRequired"/>.</summary>
+    public const string SecondStepEnrolmentRequiredCode = "second_step_enrolment_required";
+
+    /// <summary>Code of <see cref="ApprovalOnHold"/>.</summary>
+    public const string ApprovalOnHoldCode = "approval_on_hold";
+
+    /// <summary>The code of the second step is not the one expected, was used already, or is no recovery code of the user.</summary>
+    public static Error SecondStepCodeWrong()
+        => Error.BusinessRule(SecondStepCodeWrongCode, "The code is not right. Give the code your authenticator app shows now, or a recovery code you have not used.");
+
+    /// <summary>A code was given by a user who has no second step.</summary>
+    public static Error SecondStepNotEnrolled()
+        => Error.BusinessRule(SecondStepNotEnrolledCode, "You have no second step to give a code for.");
+
+    /// <summary>A user who has a second step began to enrol one.</summary>
+    public static Error SecondStepAlreadyEnrolled()
+        => Error.BusinessRule(SecondStepAlreadyEnrolledCode, "You have a second step already. An administrator can take it away if you lost it.");
+
+    /// <summary>An enrolment was confirmed that was never begun.</summary>
+    public static Error SecondStepEnrolmentNotBegun()
+        => Error.BusinessRule(SecondStepEnrolmentNotBegunCode, "Begin the enrolment first: there is no secret to confirm.");
+
+    /// <summary>The request needs a sign-in whose second step was given, and this one stopped after the password, or has none.</summary>
+    public static Error SecondStepRequired()
+        => Error.Forbidden(SecondStepRequiredCode, "This needs the second step of your sign-in: give the code of your authenticator app first.");
+
+    /// <summary>The user's roles need a second step and the user has none: only the enrolment is open.</summary>
+    public static Error SecondStepEnrolmentRequired()
+        => Error.Forbidden(SecondStepEnrolmentRequiredCode, "Your role needs a second step at sign-in. Set it up first.");
+
+    /// <summary>An administrator reset the user's password or second step less than 24 hours ago: the user decides nothing until then.</summary>
+    public static Error ApprovalOnHold(DateTimeOffset untilUtc)
+        => Error.Forbidden(ApprovalOnHoldCode, $"Your password or second step was reset by an administrator: you can approve and reject again after {untilUtc:yyyy-MM-dd HH:mm} UTC.");
 }

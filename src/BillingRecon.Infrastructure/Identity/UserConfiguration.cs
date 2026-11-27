@@ -17,7 +17,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<User> builder)
     {
-        builder.ToTable("Users");
+        builder.ToTable("Users", table => table.HasCheckConstraint("CK_Users_SecondStepFailures", "[SecondStepFailures] >= 0"));
         builder.HasKey(user => user.Id);
 
         // The address is unique in the tenant without regard to case (BR-601): the index compares the upper-cased form.
@@ -30,6 +30,13 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
 
         // The hash is the one column no audit image may hold (ADR 0030).
         builder.Property(user => user.PasswordHash).HasMaxLength(User.PasswordHashMaxLength).IsUnicode(false).HasAnnotation(EntitySnapshot.NotAuditedAnnotation, true);
+
+        // The second step (ADR 0061). Its secrets, protected as they are, and the hashes of the recovery codes are in
+        // no audit image, like the hash of the password.
+        builder.Property(user => user.SecondStepSecret).HasMaxLength(User.ProtectedSecretMaxLength).IsUnicode(false).HasAnnotation(EntitySnapshot.NotAuditedAnnotation, true);
+        builder.Property(user => user.SecondStepPendingSecret).HasMaxLength(User.ProtectedSecretMaxLength).IsUnicode(false).HasAnnotation(EntitySnapshot.NotAuditedAnnotation, true);
+        builder.Property(user => user.RecoveryCodeHashes).HasMaxLength(User.RecoveryCodeHashesMaxLength).IsUnicode(false).HasAnnotation(EntitySnapshot.NotAuditedAnnotation, true);
+        builder.Ignore(user => user.SecondStepEnrolled);
 
         // The roles are rows of the user, deleted when the user no longer holds them.
         builder.HasMany(user => user.Roles)

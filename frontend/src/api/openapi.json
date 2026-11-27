@@ -7514,6 +7514,256 @@
         }
       }
     },
+    "/api/v1/auth/second-step": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "The second step of a sign-in (ADR 0061): the code of the authenticator app, or a recovery code, with the token the\npassword gave. Answers a sign-in with a full token. A wrong code is 422, and the fifth in a row ends the sign-in.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecondStepCodeRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecondStepCodeRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecondStepCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedInDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedInDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedInDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/second-step/enrolment": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Begins the enrolment of a second step for the user who asks (ADR 0061): answers the secret for an authenticator\napp, as text and as the address a QR code holds. Open to a token that only enrols, and to any full token of a\nuser who has none.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecondStepEnrolmentDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecondStepEnrolmentDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecondStepEnrolmentDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/second-step/enrolment/confirm": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Confirms the enrolment with the first code of the authenticator app (ADR 0061): answers the recovery codes, this\nonce, and the sign-in of a new session whose second step is given. Every other session of the user ends.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecondStepCodeRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecondStepCodeRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecondStepCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecondStepEnrolledDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecondStepEnrolledDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecondStepEnrolledDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/prefix-changes": {
       "post": {
         "tags": [
@@ -9845,6 +10095,107 @@
               "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Precondition Required",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{id}/second-step/reset": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Takes the second step of a user away, for a lost phone (ADR 0061): the user's sessions end, they enrol again at\ntheir next sign-in when their roles need one, and they approve and reject nothing for 24 hours. Needs If-Match; no body.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDto"
                 }
               }
             }
@@ -21460,6 +21811,65 @@
         ],
         "description": "What a user may do in a tenant (BR-601; docs/requirements.md section 1). A user holds one or more. The member names\nare stored as text and are the codes of the `Roles` table, so renaming one is a data migration."
       },
+      "SecondStepCodeRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Six digits of the authenticator app; for the second step of a sign-in also a recovery code."
+          }
+        },
+        "additionalProperties": false,
+        "description": "The body of the second step of a sign-in and of the confirmation of its enrolment: the code."
+      },
+      "SecondStepEnrolledDto": {
+        "required": [
+          "recoveryCodes",
+          "signedIn"
+        ],
+        "type": "object",
+        "properties": {
+          "recoveryCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "signedIn": {
+            "$ref": "#/components/schemas/SignedInDto"
+          }
+        },
+        "description": "What a confirmed enrolment answers: the recovery codes, shown this once, and the sign-in of the new session."
+      },
+      "SecondStepEnrolmentDto": {
+        "required": [
+          "secret",
+          "provisioningUri"
+        ],
+        "type": "object",
+        "properties": {
+          "secret": {
+            "type": "string"
+          },
+          "provisioningUri": {
+            "type": "string"
+          }
+        },
+        "description": "What an enrolment that was begun answers: the secret for the authenticator app, as text and as the address a QR code holds."
+      },
+      "SecondStepStage": {
+        "enum": [
+          "None",
+          "Pending",
+          "Enrolment",
+          "Done"
+        ],
+        "description": "Where a sign-in stands with its second step (ADR 0061): what the token it was given is good for.",
+        "default": "None"
+      },
       "ServiceItemDto": {
         "required": [
           "id",
@@ -21577,6 +21987,9 @@
           },
           "credentialsChangeDue": {
             "type": "boolean"
+          },
+          "secondStep": {
+            "$ref": "#/components/schemas/SecondStepStage"
           }
         },
         "description": "What a successful sign-in answers (docs/api.md, section 8.12): the token, its type, and when it expires."
@@ -22421,6 +22834,8 @@
           "status",
           "roles",
           "credentialsChangeDue",
+          "secondStepEnrolled",
+          "approvalHoldUntilUtc",
           "lastSignInAtUtc",
           "createdAtUtc",
           "updatedAtUtc",
@@ -22449,6 +22864,16 @@
           },
           "credentialsChangeDue": {
             "type": "boolean"
+          },
+          "secondStepEnrolled": {
+            "type": "boolean"
+          },
+          "approvalHoldUntilUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           },
           "lastSignInAtUtc": {
             "type": [

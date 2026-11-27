@@ -170,7 +170,7 @@ public sealed class UserHandlerTests
     public async Task ADR0030_a_password_reset_keeps_the_hash_of_the_new_password_and_never_the_password()
     {
         var user = Existing(Role.Cashier);
-        var handler = new ResetUserPasswordHandler(new ResetUserPasswordCommandValidator(), _hasher, _repository, _unitOfWork);
+        var handler = new ResetUserPasswordHandler(new ResetUserPasswordCommandValidator(), _hasher, _clock, _repository, _unitOfWork);
 
         var tooShort = await handler.HandleAsync(new ResetUserPasswordCommand(Id, Version(), "short"), CancellationToken.None);
         var reset = await handler.HandleAsync(new ResetUserPasswordCommand(Id, Version(), "a new long passphrase"), CancellationToken.None);

@@ -1171,6 +1171,24 @@ A shift of the cash counter and the ledger postings that moved cash in or out of
 - **Grants:** `CashierShifts` takes the schema's `SELECT, INSERT, UPDATE`; no line of its own. `LedgerPostings`
   stays insert-only: the column is written with the row.
 
+### 5.13 The second step of a sign-in (ADR 0061, migration `0031_SecondStep`)
+
+Seven columns of `Users`, all null or zero for a user without a second step:
+
+- `SecondStepSecret varchar(200) NULL` and `SecondStepPendingSecret varchar(200) NULL`: the secret of the second step
+  and that of an enrolment not confirmed yet, each as `v1.nonce.ciphertext.tag` in base64 (AES-256-GCM under
+  `TwoStep:EncryptionKey`, with the tenant's and the user's id as associated data). Never the secret itself.
+- `SecondStepLastStep bigint NULL`: the last 30-second step a code was accepted for; that step and every earlier one
+  are spent.
+- `SecondStepFailures int NOT NULL` (`CK_Users_SecondStepFailures`: zero or more): wrong codes in a row.
+- `SecondStepEnrolledAtUtc datetimeoffset(3) NULL`.
+- `RecoveryCodeHashes varchar(700) NULL`: the SHA-256 hashes, in hexadecimal and separated by a space, of the
+  recovery codes not used yet. Using a code rewrites the column; nothing is deleted.
+- `ApprovalHoldUntilUtc datetimeoffset(3) NULL`: until when the user decides nothing, set by an administrator's reset
+  of the password or of the second step.
+
+The two secrets and the hashes are in no audit image (the annotation of ADR 0030 point 8). No grant changes.
+
 ## 6. Idempotency store (ADR 0006)
 
 Lifecycle of a row in `IdempotencyKeys` for a financial POST:

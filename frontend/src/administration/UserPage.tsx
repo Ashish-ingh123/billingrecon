@@ -17,7 +17,7 @@ import { PageHeader } from '../components/PageHeader';
 import { ProblemAlert } from '../components/ProblemAlert';
 import summary from '../components/Summary.module.css';
 import { formatInstant } from '../format';
-import { disableUser, enableUser, resetPassword, userKeys, useUser, type User } from './api';
+import { disableUser, enableUser, resetPassword, resetSecondStep, userKeys, useUser, type User } from './api';
 import styles from './Administration.module.css';
 import { UserStatusBadge } from './UsersPage';
 
@@ -42,6 +42,8 @@ function UserView({ user }: { user: User }) {
   const session = useSession();
   const [done, setDone] = useState<string | null>(null);
   const itself = user.id === session.userId;
+  // When the page was opened: a hold that has passed is no longer said.
+  const [openedAt] = useState(() => Date.now());
 
   const changed = (next: User, message: string) => {
     queryClient.setQueryData(userKeys.one(next.id), next);
@@ -58,6 +60,16 @@ function UserView({ user }: { user: User }) {
         next.status === 'Disabled'
           ? `${next.displayName} can no longer sign in.`
           : `${next.displayName} can sign in again.`,
+      ),
+  });
+
+  const secondStep = useMutation({
+    mutationFn: () => resetSecondStep(client, user),
+    onMutate: () => setDone(null),
+    onSuccess: (next) =>
+      changed(
+        next,
+        `${next.displayName} has no second step any more: they set one up at the next sign-in, and approve nothing for 24 hours.`,
       ),
   });
 
@@ -97,6 +109,7 @@ function UserView({ user }: { user: User }) {
         }
       />
       {status.error !== null && <ProblemAlert problem={problemOf(status.error)} />}
+      {secondStep.error !== null && <ProblemAlert problem={problemOf(secondStep.error)} />}
       {done !== null && (
         <Banner tone="success" title="Done" live>
           {done}
@@ -106,6 +119,12 @@ function UserView({ user }: { user: User }) {
         <Banner tone="warning" title="Password to be changed">
           {user.displayName} signs in with a password an administrator set and must choose their own before anything
           else.
+        </Banner>
+      )}
+      {user.approvalHoldUntilUtc !== null && Date.parse(user.approvalHoldUntilUtc) > openedAt && (
+        <Banner tone="warning" title="Approves nothing for now">
+          An administrator reset this user&apos;s password or second step. Until{' '}
+          {formatInstant(user.approvalHoldUntilUtc)} {user.displayName} approves and rejects nothing.
         </Banner>
       )}
       {itself && (
@@ -119,6 +138,7 @@ function UserView({ user }: { user: User }) {
             ['E-mail address', user.email],
             ['Status', user.status],
             ['Last signed in', user.lastSignInAtUtc === null ? 'Never' : formatInstant(user.lastSignInAtUtc)],
+            ['Second step', user.secondStepEnrolled ? 'Set up' : 'Not set up'],
             ['Created', formatInstant(user.createdAtUtc)],
             ['Last changed', formatInstant(user.updatedAtUtc)],
           ]}
@@ -141,6 +161,24 @@ function UserView({ user }: { user: User }) {
             changed(next, `A new password is set for ${next.displayName}; they must change it at the next sign-in.`)
           }
         />
+      )}
+      {!itself && user.secondStepEnrolled && (
+        <section className={forms.section} aria-labelledby="second-step-title">
+          <h2 id="second-step-title">Second step</h2>
+          <p className={forms.note}>
+            For a lost phone: take the second step away. {user.displayName} is signed out, sets a new one up at the next
+            sign-in, and approves nothing for 24 hours.
+          </p>
+          <div className={forms.actions}>
+            <ConfirmAction
+              label="Reset second step"
+              confirmLabel="Confirm: reset the second step"
+              danger
+              busy={secondStep.isPending}
+              onConfirm={() => secondStep.mutate()}
+            />
+          </div>
+        </section>
       )}
       <section className={forms.section} aria-labelledby="trail-title">
         <h2 id="trail-title">Audit trail</h2>

@@ -31,11 +31,38 @@ public static class TokenClaims
     /// <summary>The value of <see cref="PasswordChangeClaim"/>.</summary>
     public const string PasswordChangeRequired = "required";
 
-    /// <summary>
-    /// The claim that carries the number of the user's sessions the token was issued in (ADR 0057): a token is refused
-    /// once the user has another number.
-    /// </summary>
+    /// <summary>The claim of a session's number (ADR 0057).</summary>
     public const string SessionClaim = "ses";
+
+    /// <summary>
+    /// The claim of the second step (ADR 0061): <c>pending</c> on a token that only gives its code, <c>enrol</c> on one
+    /// that only enrols it, <c>done</c> on a full token whose sign-in gave it. A token without it is a full token of a
+    /// user who has no second step.
+    /// </summary>
+    public const string SecondStepClaim = "step";
+
+    /// <summary>The stage of the second step a token carries; <see cref="SecondStepStage.None"/> for a token without the claim.</summary>
+    public static SecondStepStage SecondStepOf(ClaimsPrincipal principal)
+    {
+        ArgumentNullException.ThrowIfNull(principal);
+
+        return principal.FindFirst(SecondStepClaim)?.Value switch
+        {
+            "pending" => SecondStepStage.Pending,
+            "enrol" => SecondStepStage.Enrolment,
+            "done" => SecondStepStage.Done,
+            _ => SecondStepStage.None,
+        };
+    }
+
+    /// <summary>The value of the claim for a stage; null for <see cref="SecondStepStage.None"/>, which has no claim.</summary>
+    public static string? SecondStepValue(SecondStepStage stage) => stage switch
+    {
+        SecondStepStage.Pending => "pending",
+        SecondStepStage.Enrolment => "enrol",
+        SecondStepStage.Done => "done",
+        _ => null,
+    };
 
     /// <summary>
     /// The number of the session <paramref name="principal"/> was issued in: true when it carries exactly one such claim

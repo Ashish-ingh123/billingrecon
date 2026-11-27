@@ -19,6 +19,7 @@ public sealed class SignInHandler(
     ISignInScope signInScope,
     IUserRepository users,
     ITokenIssuer tokens,
+    ISecondStepPolicy secondStep,
     IUnitOfWork unitOfWork) : ICommandHandler<SignInCommand, SignInOutcome>
 {
     /// <summary>The type of the token, as the client sends it back in the <c>Authorization</c> header.</summary>
@@ -73,9 +74,8 @@ public sealed class SignInHandler(
         }
 
         // A user whose password was set by an administrator gets a token that only changes it (ADR 0051).
-        var token = tokens.Issue(tenant.Id, candidate.Id, candidate.Roles, user.PasswordChangeDue, user.SessionVersion);
-        var seconds = (int)Math.Round((token.ExpiresAtUtc - now).TotalSeconds, MidpointRounding.AwayFromZero);
-        var signedIn = new SignedInDto(token.Value, TokenType, token.ExpiresAtUtc, seconds, user.PasswordChangeDue);
+        // and one who has a second step, or must have one, a token that only gives or enrols it (ADR 0061).
+        var signedIn = SignInTokens.For(tokens, secondStep, clock, tenant.Id, user, secondStepGiven: false);
         return SignInOutcome.Success(signedIn, candidate.Id);
     }
 }

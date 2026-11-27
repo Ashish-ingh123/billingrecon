@@ -41,14 +41,14 @@ internal static class TestClientExtensions
     {
         ArgumentNullException.ThrowIfNull(factory);
 
-        return factory.Services.GetRequiredService<ITokenIssuer>().Issue(tenantId, userId, TestRoles.Of(roles), passwordChangeDue: false, sessionVersion: 0).Value;
+        return factory.Services.GetRequiredService<ITokenIssuer>().Issue(tenantId, userId, TestRoles.Of(roles), passwordChangeDue: false, sessionVersion: 0, SecondStepStage.Done).Value;
     }
 
     private sealed class BearerTokens(ITokenIssuer issuer, TenantId tenantId, UserId userId, IReadOnlyList<Role> roles) : DelegatingHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            request.Headers.Authorization ??= new AuthenticationHeaderValue("Bearer", issuer.Issue(tenantId, userId, roles, passwordChangeDue: false, sessionVersion: 0).Value);
+            request.Headers.Authorization ??= new AuthenticationHeaderValue("Bearer", issuer.Issue(tenantId, userId, roles, passwordChangeDue: false, sessionVersion: 0, SecondStepStage.Done).Value);
 
             return base.SendAsync(request, cancellationToken);
         }

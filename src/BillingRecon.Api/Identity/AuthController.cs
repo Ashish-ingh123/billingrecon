@@ -86,6 +86,8 @@ public sealed class AuthController(ILogger<AuthController> logger) : ApiControll
     /// </summary>
     [Authorize(Policy = Policies.SignedIn)]
     [AllowWhilePasswordChangeDue]
+    [AllowWhileSecondStepPending]
+    [AllowWhileSecondStepEnrolment]
     [HttpPost("logout")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
@@ -96,5 +98,66 @@ public sealed class AuthController(ILogger<AuthController> logger) : ApiControll
         Response.Headers.CacheControl = "no-store";
         var result = await handler.HandleAsync(new SignOutCommand(), ct);
         return result.IsSuccess ? NoContent() : Problem(result.Error);
+    }
+    /// <summary>
+    /// The second step of a sign-in (ADR 0061): the code of the authenticator app, or a recovery code, with the token the
+    /// password gave. Answers a sign-in with a full token. A wrong code is 422, and the fifth in a row ends the sign-in.
+    /// </summary>
+    [Authorize(Policy = Policies.SignedIn)]
+    [AllowWhileSecondStepPending]
+    [HttpPost("second-step")]
+    [ProducesResponseType<SignedInDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> SecondStepAsync(
+        SecondStepCodeRequest request,
+        [FromServices] ICommandHandler<VerifySecondStepCommand, SignedInDto> handler,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        Response.Headers.CacheControl = "no-store";
+        var result = await handler.HandleAsync(new VerifySecondStepCommand(request.Code), ct);
+        return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
+    }
+
+    /// <summary>
+    /// Begins the enrolment of a second step for the user who asks (ADR 0061): answers the secret for an authenticator
+    /// app, as text and as the address a QR code holds. Open to a token that only enrols, and to any full token of a
+    /// user who has none.
+    /// </summary>
+    [Authorize(Policy = Policies.SignedIn)]
+    [AllowWhileSecondStepEnrolment]
+    [HttpPost("second-step/enrolment")]
+    [ProducesResponseType<SecondStepEnrolmentDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> BeginSecondStepEnrolmentAsync(
+        [FromServices] ICommandHandler<BeginSecondStepEnrolmentCommand, SecondStepEnrolmentDto> handler,
+        CancellationToken ct)
+    {
+        Response.Headers.CacheControl = "no-store";
+        var result = await handler.HandleAsync(new BeginSecondStepEnrolmentCommand(), ct);
+        return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
+    }
+
+    /// <summary>
+    /// Confirms the enrolment with the first code of the authenticator app (ADR 0061): answers the recovery codes, this
+    /// once, and the sign-in of a new session whose second step is given. Every other session of the user ends.
+    /// </summary>
+    [Authorize(Policy = Policies.SignedIn)]
+    [AllowWhileSecondStepEnrolment]
+    [HttpPost("second-step/enrolment/confirm")]
+    [ProducesResponseType<SecondStepEnrolledDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ConfirmSecondStepEnrolmentAsync(
+        SecondStepCodeRequest request,
+        [FromServices] ICommandHandler<ConfirmSecondStepEnrolmentCommand, SecondStepEnrolledDto> handler,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        Response.Headers.CacheControl = "no-store";
+        var result = await handler.HandleAsync(new ConfirmSecondStepEnrolmentCommand(request.Code), ct);
+        return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
     }
 }

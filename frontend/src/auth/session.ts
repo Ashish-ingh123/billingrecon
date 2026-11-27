@@ -20,9 +20,17 @@ export interface Session {
    * password only, and the app shows nothing else.
    */
   credentialsChangeDue: boolean;
+  /**
+   * Where the sign-in stands with its second step (ADR 0061): `Pending` reaches the page that gives its code alone,
+   * `Enrolment` the page that sets one up alone; `Done` and `None` are full sessions, with and without one.
+   */
+  secondStep: SecondStep;
 }
 
 /** Where the session is kept: sessionStorage, so it survives a refresh and ends with the tab (row S5). */
+/** The stage of the second step of a sign-in, as the API answers it. */
+export type SecondStep = 'None' | 'Pending' | 'Enrolment' | 'Done';
+
 export const sessionStorageKey = 'billingrecon.session';
 
 /** Where the hospital's code is remembered for the next sign-in: localStorage, as it is not a secret. */
@@ -64,7 +72,7 @@ export function readClaims(token: string): Claims | null {
 
 /** The session of a sign-in the API answered, or null when its token cannot be read. */
 export function sessionFromSignIn(
-  signedIn: { accessToken: string; expiresAtUtc: string; credentialsChangeDue?: boolean },
+  signedIn: { accessToken: string; expiresAtUtc: string; credentialsChangeDue?: boolean; secondStep?: SecondStep },
   email: string,
   hospital: string,
 ): Session | null {
@@ -84,6 +92,7 @@ export function sessionFromSignIn(
     email: email.trim(),
     hospital: hospital.trim(),
     credentialsChangeDue: signedIn.credentialsChangeDue === true,
+    secondStep: signedIn.secondStep ?? 'None',
   };
 }
 

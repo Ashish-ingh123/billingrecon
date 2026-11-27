@@ -193,4 +193,28 @@ public sealed class UsersController : ApiControllerBase
 
         return result.IsSuccess ? OkWithVersion(result.Value, result.Value.Version) : Problem(result.Error);
     }
+    /// <summary>
+    /// Takes the second step of a user away, for a lost phone (ADR 0061): the user's sessions end, they enrol again at
+    /// their next sign-in when their roles need one, and they approve and reject nothing for 24 hours. Needs If-Match; no body.
+    /// </summary>
+    [Authorize(Policy = Policies.ManageTenant)]
+    [HttpPost("{id:guid}/second-step/reset")]
+    [ProducesResponseType<UserDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status428PreconditionRequired)]
+    public async Task<IActionResult> ResetSecondStepAsync(
+        Guid id,
+        [FromServices] ICommandHandler<ResetUserSecondStepCommand, UserDto> handler,
+        CancellationToken ct)
+    {
+        if (!TryGetExpectedVersion(out var version, out var refusal))
+        {
+            return refusal;
+        }
+
+        var result = await handler.HandleAsync(new ResetUserSecondStepCommand(new UserId(id), version), ct);
+
+        return result.IsSuccess ? OkWithVersion(result.Value, result.Value.Version) : Problem(result.Error);
+    }
 }

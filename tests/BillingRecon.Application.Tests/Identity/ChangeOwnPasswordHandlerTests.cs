@@ -43,7 +43,7 @@ public sealed class ChangeOwnPasswordHandlerTests
     }
 
     private ChangeOwnPasswordHandler Handler(IUnitOfWork unitOfWork)
-        => new(new ChangeOwnPasswordCommandValidator(), _tenant, _currentUser, _users, _hasher, _tokens, _clock, unitOfWork);
+        => new(new ChangeOwnPasswordCommandValidator(), _tenant, _currentUser, _users, _hasher, _tokens, Substitute.For<ISecondStepPolicy>(), _clock, unitOfWork);
 
     [Fact]
     public async Task ADR0051_the_right_current_password_stores_the_new_one_ends_the_due_change_and_issues_a_plain_token()

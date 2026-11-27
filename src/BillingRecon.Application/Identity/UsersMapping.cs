@@ -18,6 +18,8 @@ public static class UsersMapping
             Status: user.Status,
             Roles: [.. user.Roles.Select(role => role.Role).Order()],
             CredentialsChangeDue: user.PasswordChangeDue,
+            SecondStepEnrolled: user.SecondStepEnrolled,
+            ApprovalHoldUntilUtc: user.ApprovalHoldUntilUtc,
             LastSignInAtUtc: user.LastSignInAtUtc,
             CreatedAtUtc: user.CreatedAtUtc,
             UpdatedAtUtc: user.UpdatedAtUtc,

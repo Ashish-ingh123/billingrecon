@@ -1644,6 +1644,10 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTimeOffset?>("ApprovalHoldUntilUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasPrecision(3)
                         .HasColumnType("datetimeoffset(3)");
@@ -1680,11 +1684,39 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasColumnType("varchar(500)")
                         .HasAnnotation("BillingRecon:NotAudited", true);
 
+                    b.Property<string>("RecoveryCodeHashes")
+                        .HasMaxLength(700)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(700)")
+                        .HasAnnotation("BillingRecon:NotAudited", true);
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset?>("SecondStepEnrolledAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<int>("SecondStepFailures")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("SecondStepLastStep")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SecondStepPendingSecret")
+                        .HasMaxLength(200)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(200)")
+                        .HasAnnotation("BillingRecon:NotAudited", true);
+
+                    b.Property<string>("SecondStepSecret")
+                        .HasMaxLength(200)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(200)")
+                        .HasAnnotation("BillingRecon:NotAudited", true);
 
                     b.Property<int>("SessionVersion")
                         .HasColumnType("int");
@@ -1714,6 +1746,8 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                     b.ToTable("Users", null, t =>
                         {
+                            t.HasCheckConstraint("CK_Users_SecondStepFailures", "[SecondStepFailures] >= 0");
+
                             t.HasCheckConstraint("CK_Users_Status", "[Status] IN ('Active', 'Disabled')");
                         });
                 });

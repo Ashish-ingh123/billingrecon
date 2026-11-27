@@ -24,6 +24,7 @@ export function sessionOf(roles: readonly string[]) {
     userId,
     tenantId: 'd0000000-0000-4000-8000-000000000001',
     credentialsChangeDue: false,
+    secondStep: 'Done',
     roles,
     email: 'asha@cityhospital.org',
     hospital: 'city-hospital',

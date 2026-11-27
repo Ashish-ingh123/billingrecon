@@ -136,6 +136,10 @@ app.UseMiddleware<SessionGateMiddleware>();
 app.UseAuthorization();
 // A token that only changes its password reaches that and nothing else (ADR 0051).
 app.UseMiddleware<PasswordChangeGateMiddleware>();
+// A token between the two steps of a sign-in reaches its second step and nothing else, and a decision needs a sign-in
+// whose second step was given and a user who is not on hold (ADR 0061).
+app.UseMiddleware<SecondStepGateMiddleware>();
+app.UseMiddleware<DecisionGateMiddleware>();
 // A suspended hospital reaches nothing, also with a token issued before its suspension (ADR 0052).
 app.UseMiddleware<SuspendedTenantGateMiddleware>();
 app.UseMiddleware<RequestIdentityLoggingMiddleware>();

@@ -42,6 +42,9 @@ public sealed class JwtOptions
     public static readonly TimeSpan PasswordChangeLifetime = TimeSpan.FromMinutes(15);
 
     /// <summary>How far the clock of the API and the clock a token was issued by may disagree.</summary>
+    /// <summary>How long a token lives that only gives the code of a second step (ADR 0061).</summary>
+    public static readonly TimeSpan SecondStepLifetime = TimeSpan.FromMinutes(5);
+
     public static readonly TimeSpan ClockSkew = TimeSpan.FromMinutes(1);
 
     /// <summary>The signing key, in base64.</summary>

@@ -95,6 +95,7 @@ public sealed class ErrorCodesTests
             var type when type == typeof(int) => 0,
             var type when type == typeof(bool) => false,
             var type when type == typeof(DateOnly) => new DateOnly(2026, 11, 20),
+            var type when type == typeof(DateTimeOffset) => new DateTimeOffset(2026, 11, 28, 6, 30, 0, TimeSpan.Zero),
             var type when type == typeof(Money) => Money.Of(100m),
             var type when type == typeof(BillingRecon.Domain.Identity.TenantStatus) => BillingRecon.Domain.Identity.TenantStatus.Suspended,
             var type => throw new NotSupportedException($"No sample value for a {type.Name} parameter; add one here."),

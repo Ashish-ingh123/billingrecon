@@ -78,6 +78,21 @@ export const routes: RouteObject[] = [
           return { element: <ChangePasswordPage /> };
         },
       },
+      // The second step of a sign-in and its enrolment, outside the shell like the change of a password (ADR 0061).
+      {
+        path: '/second-step',
+        lazy: async () => {
+          const { SecondStepPage } = await import('./auth/SecondStepPage');
+          return { element: <SecondStepPage /> };
+        },
+      },
+      {
+        path: '/second-step/enrol',
+        lazy: async () => {
+          const { EnrolSecondStepPage } = await import('./auth/EnrolSecondStepPage');
+          return { element: <EnrolSecondStepPage /> };
+        },
+      },
       {
         // The shell is read with the first page behind the sign-in, not by the sign-in page (Prompt 9.4b, backlog B21).
         lazy: async () => {

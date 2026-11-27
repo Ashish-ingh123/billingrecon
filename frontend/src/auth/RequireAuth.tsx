@@ -23,5 +23,18 @@ export function RequireAuth() {
     return <Navigate to="/change-password" replace />;
   }
 
+  // Then the second step (ADR 0061): its code for a user who has one, its enrolment for one whose role needs it.
+  if (!session.credentialsChangeDue && session.secondStep === 'Pending' && location.pathname !== '/second-step') {
+    return <Navigate to="/second-step" replace />;
+  }
+
+  if (
+    !session.credentialsChangeDue &&
+    session.secondStep === 'Enrolment' &&
+    location.pathname !== '/second-step/enrol'
+  ) {
+    return <Navigate to="/second-step/enrol" replace />;
+  }
+
   return <Outlet />;
 }

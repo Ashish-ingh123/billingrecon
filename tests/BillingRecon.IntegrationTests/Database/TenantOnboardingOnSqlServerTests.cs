@@ -91,7 +91,13 @@ public sealed class TenantOnboardingOnSqlServerTests(SqlServerFixture sqlServer)
         using var changed = await client.SendAsync(change);
         changed.StatusCode.ShouldBe(HttpStatusCode.OK, await changed.Content.ReadAsStringAsync());
 
-        using var after = await GetAsync(client, "/api/v1/users", (await changed.ReadAsAsync<SignedInDto>()).AccessToken);
+        // The first administrator's role needs a second step (ADR 0061): the token of the changed password only enrols it.
+        var enrolling = (await changed.ReadAsAsync<SignedInDto>()).AccessToken;
+        using var before = await GetAsync(client, "/api/v1/users", enrolling);
+        await before.ShouldBeProblemAsync(HttpStatusCode.Forbidden, IdentityErrors.SecondStepEnrolmentRequiredCode);
+        var (_, enrolled) = await client.EnrolAsync(enrolling, factory.Clock.UtcNow);
+
+        using var after = await GetAsync(client, "/api/v1/users", enrolled.SignedIn.AccessToken);
         after.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
@@ -149,7 +155,7 @@ public sealed class TenantOnboardingOnSqlServerTests(SqlServerFixture sqlServer)
         using var factory = new DatabaseApiFactory(SqlServer);
         using var client = factory.CreateClient();
         var onboarded = (await OnboardAsync(factory, City)).Value;
-        var token = await ChangedPasswordTokenAsync(client, onboarded.OneTimePassword);
+        var token = await ChangedPasswordTokenAsync(client, onboarded.OneTimePassword, factory.Clock.UtcNow);
         (await GetAsync(client, "/api/v1/users", token)).StatusCode.ShouldBe(HttpStatusCode.OK);
 
         await using (var scope = factory.Services.CreateAsyncScope())
@@ -206,7 +212,7 @@ public sealed class TenantOnboardingOnSqlServerTests(SqlServerFixture sqlServer)
         return await scope.ServiceProvider.GetRequiredService<ITenantOperations>().OnboardAsync(command, default);
     }
 
-    private static async Task<string> ChangedPasswordTokenAsync(HttpClient client, string oneTimePassword)
+    private static async Task<string> ChangedPasswordTokenAsync(HttpClient client, string oneTimePassword, DateTimeOffset now)
     {
         using var signIn = await client.PostAsJsonAsync(Login, new LoginRequest { Tenant = Code, Email = AdminEmail, Password = oneTimePassword });
         var first = await signIn.ReadAsAsync<SignedInDto>();
@@ -217,7 +223,10 @@ public sealed class TenantOnboardingOnSqlServerTests(SqlServerFixture sqlServer)
         change.Headers.Authorization = new AuthenticationHeaderValue("Bearer", first.AccessToken);
         using var changed = await client.SendAsync(change);
 
-        return (await changed.ReadAsAsync<SignedInDto>()).AccessToken;
+        // The administrator enrols the second step their role needs, and goes on with the token of that (ADR 0061).
+        var (_, enrolled) = await client.EnrolAsync((await changed.ReadAsAsync<SignedInDto>()).AccessToken, now);
+
+        return enrolled.SignedIn.AccessToken;
     }
 
     private static async Task<HttpResponseMessage> GetAsync(HttpClient client, string path, string token)

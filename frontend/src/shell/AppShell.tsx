@@ -151,6 +151,18 @@ export function AppShell() {
           <span className={styles.linkLabel}>Change password</span>
         </NavLink>
 
+        {session.secondStep === 'None' && (
+          <NavLink
+            to="/second-step/enrol"
+            className={styles.railToggle}
+            title={rail ? 'Set up a second step' : undefined}
+            onClick={() => closeDrawer(false)}
+          >
+            <Icon name="shield-check" />
+            <span className={styles.linkLabel}>Set up a second step</span>
+          </NavLink>
+        )}
+
         <button
           type="button"
           className={styles.railToggle}

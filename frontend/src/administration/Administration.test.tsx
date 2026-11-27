@@ -17,6 +17,8 @@ const asha: User = {
   status: 'Active',
   roles: ['Supervisor', 'Cashier'],
   credentialsChangeDue: false,
+  secondStepEnrolled: true,
+  approvalHoldUntilUtc: null,
   lastSignInAtUtc: '2026-11-20T05:00:00+00:00',
   createdAtUtc: '2026-11-01T05:00:00+00:00',
   updatedAtUtc: '2026-11-20T05:00:00+00:00',
@@ -138,6 +140,36 @@ describe('the users of the hospital (US-01, ADR 0051)', () => {
 
     expect(await screen.findByText(/last active tenant administrator/)).toBeInTheDocument();
     expect(api.sent('POST', `${one}/disable`)[0]?.headers.get('If-Match')).toBe(`"${asha.version}"`);
+  });
+
+  it("takes a user's second step away after asking once more, and says the user approves nothing for a day", async () => {
+    const held = {
+      ...asha,
+      secondStepEnrolled: false,
+      approvalHoldUntilUtc: new Date(Date.now() + 86_400_000).toISOString(),
+      version: 'AAAAAAAAB9I=',
+    };
+    const api = routedApi({
+      [`GET ${one}`]: () => json(200, asha),
+      [`POST ${one}/second-step/reset`]: () => json(200, held),
+      ...trail,
+    });
+    const { user } = renderApp(`/administration/users/${asha.id}`, { session: admin, fetch: api.fetch });
+
+    expect(await screen.findByRole('heading', { name: 'Second step' })).toBeInTheDocument();
+    expect(screen.getByText('Set up')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Reset second step' }));
+    expect(api.sent('POST', `${one}/second-step/reset`)).toHaveLength(0);
+    await user.click(screen.getByRole('button', { name: 'Confirm: reset the second step' }));
+
+    expect(await screen.findByText(/has no second step any more/)).toBeInTheDocument();
+    expect(await screen.findByText('Approves nothing for now')).toBeInTheDocument();
+    expect(screen.getByText('Not set up')).toBeInTheDocument();
+    // Nothing left to take away.
+    expect(screen.queryByRole('button', { name: 'Reset second step' })).not.toBeInTheDocument();
+    const sent = api.sent('POST', `${one}/second-step/reset`)[0];
+    expect(sent?.headers.get('If-Match')).toBe(`"${asha.version}"`);
+    expect(await sent?.text()).toBe('');
   });
 
   it('offers no disable or reset of oneself', async () => {

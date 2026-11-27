@@ -73,12 +73,15 @@ services:
       AllowedHosts: "${DOMAIN:?Set DOMAIN in the env file to the name the hospital opens}"
       ReverseProxy__KnownProxies__0: "172.28.0.10"
       Seq__ServerUrl: "http://seq"
-    # The API reads its two secrets from these files (SecretFiles): Database__ConnectionString and Jwt__SigningKey.
+    # The API reads its three secrets from these files (SecretFiles): Database__ConnectionString, Jwt__SigningKey and
+    # TwoStep__EncryptionKey, the key of the second step of a sign-in (ADR 0061).
     secrets:
       - source: api_connection_string
         target: Database__ConnectionString
       - source: jwt_signing_key
         target: Jwt__SigningKey
+      - source: two_step_encryption_key
+        target: TwoStep__EncryptionKey
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -162,6 +165,8 @@ secrets:
     file: "${SECRETS_DIR:-/etc/billingrecon/secrets}/api_connection_string"
   jwt_signing_key:
     file: "${SECRETS_DIR:-/etc/billingrecon/secrets}/jwt_signing_key"
+  two_step_encryption_key:
+    file: "${SECRETS_DIR:-/etc/billingrecon/secrets}/two_step_encryption_key"
   rclone_conf:
     file: "${SECRETS_DIR:-/etc/billingrecon/secrets}/rclone.conf"
 
