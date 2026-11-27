@@ -89,6 +89,21 @@ public sealed class User : AggregateRoot<UserId>, ITenantScoped, ICreationAudite
     public bool SecondStepEnrolled => SecondStepSecret is not null;
 
     /// <summary>
+    /// The hash of the link a forgotten password is reset with (ADR 0061, amended); null when none is out. Never
+    /// audited and never answered: the link itself is only ever in the mail.
+    /// </summary>
+    public string? PasswordResetTokenHash { get; private set; }
+
+    /// <summary>Until when that link is good; null when none is out.</summary>
+    public DateTimeOffset? PasswordResetExpiresAtUtc { get; private set; }
+
+    /// <summary>When the hour began in which the links of <see cref="PasswordResetRequests"/> were asked for.</summary>
+    public DateTimeOffset? PasswordResetWindowStartUtc { get; private set; }
+
+    /// <summary>How many links were asked for in that hour.</summary>
+    public int PasswordResetRequests { get; private set; }
+
+    /// <summary>
     /// The number of the user's sessions (ADR 0057): a token carries the number it was issued with and is refused once the
     /// user has another. It goes up at a sign-out, a change or a reset of the password, a disabling and a change of the roles,
     /// so each of them ends every session the user had.
@@ -250,6 +265,7 @@ public sealed class User : AggregateRoot<UserId>, ITenantScoped, ICreationAudite
     /// <exception cref="ArgumentException">The hash is blank or too long.</exception>
     public void ResetPassword(string passwordHash, DateTimeOffset? approvalHoldUntilUtc = null)
     {
+        ClearPasswordResetLink();
         ApprovalHoldUntilUtc = approvalHoldUntilUtc ?? ApprovalHoldUntilUtc;
         PasswordHash = Field.Required(passwordHash, PasswordHashMaxLength);
         PasswordChangeDue = true;
@@ -264,6 +280,7 @@ public sealed class User : AggregateRoot<UserId>, ITenantScoped, ICreationAudite
     /// <exception cref="ArgumentException">The hash is blank or too long.</exception>
     public void ChangePassword(string passwordHash)
     {
+        ClearPasswordResetLink();
         PasswordHash = Field.Required(passwordHash, PasswordHashMaxLength);
         PasswordChangeDue = false;
         SessionVersion++;
@@ -273,8 +290,88 @@ public sealed class User : AggregateRoot<UserId>, ITenantScoped, ICreationAudite
     /// <summary>Longest protected secret of a second step, as it is stored.</summary>
     public const int ProtectedSecretMaxLength = 200;
 
+    /// <summary>The length of the hash of a password reset link: SHA-256 in hexadecimal.</summary>
+    public const int PasswordResetTokenHashLength = 64;
+
     /// <summary>Longest text of the hashes of the recovery codes: ten of 64 characters and their spaces.</summary>
     public const int RecoveryCodeHashesMaxLength = 700;
+
+    /// <summary>How long the link of a forgotten password is good.</summary>
+    public static readonly TimeSpan PasswordResetLifetime = TimeSpan.FromMinutes(30);
+
+    /// <summary>How many links a user is sent in an hour.</summary>
+    public const int PasswordResetRequestsAllowed = 5;
+
+    /// <summary>The length of the hour the links are counted in.</summary>
+    public static readonly TimeSpan PasswordResetWindow = TimeSpan.FromHours(1);
+
+    /// <summary>
+    /// A link for a forgotten password was asked for: the hash of a new one replaces the one that was out, good for
+    /// <see cref="PasswordResetLifetime"/>. False, and nothing changed, for a user who is not active or who was sent
+    /// <see cref="PasswordResetRequestsAllowed"/> links within the hour: no mail is sent then, and the caller answers as always.
+    /// </summary>
+    public bool RequestPasswordReset(string tokenHash, DateTimeOffset requestedAtUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tokenHash);
+
+        if (Status != UserStatus.Active)
+        {
+            return false;
+        }
+
+        var window = PasswordResetWindowStartUtc is { } start && requestedAtUtc - start < PasswordResetWindow ? PasswordResetRequests : 0;
+        if (window >= PasswordResetRequestsAllowed)
+        {
+            return false;
+        }
+
+        if (window == 0)
+        {
+            PasswordResetWindowStartUtc = requestedAtUtc;
+        }
+
+        PasswordResetRequests = window + 1;
+        PasswordResetTokenHash = tokenHash;
+        PasswordResetExpiresAtUtc = requestedAtUtc + PasswordResetLifetime;
+        AddDomainEvent(new UserPasswordResetRequested(Id));
+
+        return true;
+    }
+
+    /// <summary>
+    /// The user set a new password with the link of the mail: it is good once and until it expires, for an active
+    /// user. Every session of the user ends; a second step, if the user has one, is asked for at the next sign-in as
+    /// always. One refusal, <c>password_reset_link_invalid</c>, for a link that is wrong, used, replaced or too old.
+    /// </summary>
+    public Result ResetPasswordByLink(string tokenHash, string passwordHash, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tokenHash);
+        ArgumentException.ThrowIfNullOrWhiteSpace(passwordHash);
+
+        if (Status != UserStatus.Active
+            || PasswordResetTokenHash is not { } expected
+            || PasswordResetExpiresAtUtc is not { } expires
+            || expires <= now
+            || !System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+                System.Text.Encoding.ASCII.GetBytes(expected), System.Text.Encoding.ASCII.GetBytes(tokenHash)))
+        {
+            return IdentityErrors.PasswordResetLinkInvalid();
+        }
+
+        PasswordHash = passwordHash;
+        PasswordChangeDue = false;
+        ClearPasswordResetLink();
+        SessionVersion++;
+        AddDomainEvent(new UserPasswordResetByLink(Id));
+
+        return Result.Success();
+    }
+
+    private void ClearPasswordResetLink()
+    {
+        PasswordResetTokenHash = null;
+        PasswordResetExpiresAtUtc = null;
+    }
 
     /// <summary>How many wrong codes in a row end the sign-in that gave them: its token is refused from then on.</summary>
     public const int SecondStepFailuresAllowed = 5;

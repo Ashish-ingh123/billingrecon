@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Navigate, useNavigate, useSearchParams } from 'react-router';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useMutation } from '@tanstack/react-query';
 import { useApiClient } from '../api/ApiClientContext';
 import { problemFrom, unreachableProblem, type ApiProblem } from '../api/problem';
@@ -245,17 +245,24 @@ export function SignInPage() {
             {signingIn.isPending ? 'Signing in…' : 'Sign in'}
           </button>
 
-          {support !== null && (
-            <div className={styles.help}>
-              <p className={styles.divider}>
-                <span>Need help?</span>
-              </p>
-              <a className={styles.support} href={`mailto:${support}`}>
-                <Icon name="help" />
-                Contact support
-              </a>
+          {/* A forgotten password (ADR 0061, amended) and, when the build was given an address, the support. */}
+          <div className={styles.help}>
+            <p className={styles.divider}>
+              <span>Need help?</span>
+            </p>
+            <div className={styles.helpLinks}>
+              <Link className={styles.support} to="/forgot-password">
+                <Icon name="padlock" />
+                Forgot password?
+              </Link>
+              {support !== null && (
+                <a className={styles.support} href={`mailto:${support}`}>
+                  <Icon name="help" />
+                  Contact support
+                </a>
+              )}
             </div>
-          )}
+          </div>
         </form>
       </main>
 

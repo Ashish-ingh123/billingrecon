@@ -262,6 +262,16 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   of error correction, its format and version words, and drawn symbols read back by a reader written in the test) and
   `auth/SecondStep.test.tsx`. Test clients carry tokens whose second step is given; a test that signs in for real as an
   administrator or a supervisor enrols first.
+- **A forgotten password** (Prompt 11.3b; ADR 0061, amended): `PasswordResetLinkTests` (the link on the user: once,
+  30 minutes, replaced, five an hour, taken away by any other change of the password),
+  `RequestPasswordResetHandlerTests` and `ResetPasswordByLinkHandlerTests` (the same answer whatever was found; the
+  mail only after the commit), `MailStartupValidationTests` (the optional mail server checked at startup, and the
+  tokens), and on SQL Server `PasswordResetApiTests`. **No test sends a mail:** `Support/CapturedMails` stands in
+  for the SMTP client and keeps what would have been sent, and a test reads the link out of the mail's text. That
+  nothing was sent for a request shows in the next mail being that of a later request. `SmtpMailTransport` itself
+  has no automated test: it was proved once by hand against an SMTP sink on the office machine, and a real server
+  is owed (runbook section 8, row 11.3b). The frontend: `auth/ForgotPassword.test.tsx`. The browser suite
+  `e2e/routes.spec.ts` opens the pages before the application too, each with the session of its stage.
 - **The lens and Tab in a search** (Prompt 10.4d; ADR 0039 and ADR 0040, amended 2026-11-26): `SearchTab.test.tsx` (the
   lens on every search box, drawn and not read; the spinner in its place; Clear; a list's search sent when its box is
   left and not when unchanged; a picker by Tab with one result, several, none, a late answer and a late answer after

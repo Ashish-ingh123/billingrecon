@@ -99,6 +99,13 @@ services:
       # sign in with their password alone. Set TWO_STEP_REQUIRED=true with API_ENVIRONMENT=Production.
       TwoStep__EncryptionKey: "${TWO_STEP_ENCRYPTION_KEY:?Set TWO_STEP_ENCRYPTION_KEY in .env, see .env.example}"
       TwoStep__Required: "${TWO_STEP_REQUIRED:-false}"
+      # The mail server of a forgotten password (ADR 0061, amended): optional, and with no host no mail is sent.
+      Mail__Host: "${MAIL_HOST:-}"
+      Mail__Port: "${MAIL_PORT:-587}"
+      Mail__User: "${MAIL_USER:-}"
+      Mail__Password: "${MAIL_PASSWORD:-}"
+      Mail__From: "${MAIL_FROM:-}"
+      Mail__PublicBaseUrl: "${MAIL_PUBLIC_BASE_URL:-}"
       AllowedHosts: "localhost;frontend"
       ReverseProxy__KnownProxies__0: "172.28.0.10"
       Seq__ServerUrl: "http://seq"

@@ -98,6 +98,17 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<ISecondStepPolicy, SecondStepPolicy>();
         services.AddScoped<IApprovalHolds, ApprovalHolds>();
 
+        // The mail of a forgotten password (ADR 0061, amended): optional, and checked at startup when a server is named.
+        services.AddOptions<MailOptions>()
+            .BindConfiguration(MailOptions.SectionName)
+            .Validate(options => MailOptions.IsUsable(options, environment.IsDevelopment()), MailOptions.IncompleteMessage)
+            .ValidateOnStart();
+        services.AddSingleton<MailOutbox>();
+        services.AddSingleton<IMailTransport, SmtpMailTransport>();
+        services.AddSingleton<IPasswordResetMail, PasswordResetMail>();
+        services.AddSingleton<IPasswordResetTokens, PasswordResetTokens>();
+        services.AddHostedService<MailDispatcher>();
+
         // What an operator does to a hospital from the server (ADR 0052), and whether the hospital of a request is active,
         // asked on every request and kept for 30 seconds.
         services.AddScoped<ITenantOperations, TenantOperations>();

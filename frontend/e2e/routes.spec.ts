@@ -262,6 +262,8 @@ const dayEnd = {
 };
 
 const answers: Answers = {
+  // What the page of a forgotten password asks first: whether this product sends mail (ADR 0061, amended).
+  'GET /api/v1/auth/options': () => ({ passwordResetByMail: true }),
   'GET /api/v1/patients': () => pageOf([patient]),
   [`GET /api/v1/patients/${patient.id}`]: () => patient,
   'GET /api/v1/payers': () => pageOf([payer]),
@@ -352,7 +354,8 @@ const answers: Answers = {
 };
 
 /** Every route of the shell and the heading it shows once it has drawn. */
-const routes: readonly (readonly [string, string | RegExp])[] = [
+// A page is opened by a user with every role, unless it names the session it is for (the stages of a sign-in).
+const routes: readonly (readonly [string, string | RegExp, ReturnType<typeof sessionOf>?])[] = [
   ['/dashboard', 'Dashboard'],
   ['/patients', 'Patients'],
   ['/patients/new', 'Register patient'],
@@ -425,6 +428,12 @@ const routes: readonly (readonly [string, string | RegExp])[] = [
   ['/administration/import/opening-balances', 'Import opening balances'],
   [`/administration/import/batches/${openingBatch.id}`, 'Opening batch'],
   ['/change-password', 'Change your password'],
+  // Since Prompt 11.3b: the pages before the application (ADR 0061). The second step and its enrolment, each for a
+  // session at its stage (backlog B43); a forgotten password, which needs no session at all.
+  ['/second-step', 'Enter your code', { ...sessionOf(['Supervisor']), secondStep: 'Pending' }],
+  ['/second-step/enrol', 'Set up your second step', { ...sessionOf(['Supervisor']), secondStep: 'Enrolment' }],
+  ['/forgot-password', 'Forgot your password?'],
+  ['/reset-password', 'Choose a new password'],
   ['/no-access', 'No access'],
   ['/no-such-page', 'Page not found'],
 ];
@@ -436,11 +445,11 @@ async function sidewaysAt(page: Page, width: number) {
   return page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 }
 
-for (const [path, heading] of routes) {
+for (const [path, heading, signedIn = everyRole] of routes) {
   for (const theme of ['light', 'dark'] as const) {
     for (const [label, size] of Object.entries(sizes)) {
       test(`${path} in the ${theme} theme on a ${label}`, async ({ page }, info) => {
-        const { errors, unexpected, settle, probe } = await open(page, path, theme, size, answers, everyRole);
+        const { errors, unexpected, settle, probe } = await open(page, path, theme, size, answers, signedIn);
 
         await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
         await page.waitForLoadState('networkidle');

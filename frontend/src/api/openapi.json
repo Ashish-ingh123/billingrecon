@@ -7764,6 +7764,202 @@
         }
       }
     },
+    "/api/v1/auth/options": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "What the sign-in page may offer here (ADR 0061, amended): whether a forgotten password can be reset by a link in a\nmail. Needs no token, and says nothing about any hospital or user.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInOptionsDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInOptionsDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInOptionsDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/forgot-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Asks for a link to reset a forgotten password (ADR 0061, amended). Always 202 with no body, whether or not the\nhospital and the address exist, the user may sign in, or a mail server is set up: the answer tells nothing.\nLimited per client address like the sign-in, and to five links an hour for one user.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/reset-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sets a new password with the link of the mail (ADR 0061, amended): good once, for 30 minutes. 204 on success, and\nevery session of the user ends; 422 `password_reset_link_invalid` for a link that is not good, whatever the reason.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/prefix-changes": {
       "post": {
         "tags": [
@@ -18698,6 +18894,27 @@
         },
         "description": "One drift row of the reconciliation: which identity is broken (the names of docs/database.md section 5.6), the bill,\npayment, credit note, payer, posting or number series it is about, its document number or other reference where it\nhas one, and the two figures that disagree: what is cached (or counted) and what the ledger (or the series) says."
       },
+      "ForgotPasswordRequest": {
+        "type": "object",
+        "properties": {
+          "tenant": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The code of the hospital."
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The e-mail address the user signs in with."
+          }
+        },
+        "additionalProperties": false,
+        "description": "The body of `POST /api/v1/auth/forgot-password`: the hospital's code and the address, as at the sign-in."
+      },
       "ImportFinding": {
         "required": [
           "file",
@@ -21773,6 +21990,34 @@
         "additionalProperties": false,
         "description": "The body of a request to reverse a payment or one of its allocations: why (BR-305, BR-306). Unknown members are\nrefused."
       },
+      "ResetPasswordRequest": {
+        "type": "object",
+        "properties": {
+          "tenant": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The code of the hospital, from the link."
+          },
+          "token": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The token, from the link."
+          },
+          "newPassword": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The new password: 12 to 128 characters."
+          }
+        },
+        "additionalProperties": false,
+        "description": "The body of `POST /api/v1/auth/reset-password`: what the link of the mail carried, and the new password."
+      },
       "ResetUserPasswordRequest": {
         "type": "object",
         "properties": {
@@ -21993,6 +22238,19 @@
           }
         },
         "description": "What a successful sign-in answers (docs/api.md, section 8.12): the token, its type, and when it expires."
+      },
+      "SignInOptionsDto": {
+        "required": [
+          "passwordResetByMail"
+        ],
+        "type": "object",
+        "properties": {
+          "passwordResetByMail": {
+            "type": "boolean",
+            "description": "True when a forgotten password can be reset by a link in a mail."
+          }
+        },
+        "description": "What this deployment offers at the sign-in."
       },
       "SummaryFigureDto": {
         "required": [

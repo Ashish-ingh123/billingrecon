@@ -272,6 +272,7 @@ src/
                                 (Payments); CashierShiftId (Common); LedgerPosting.ShiftId (Receivables); the
                                 tenth ApprovalDocumentType, CashierShift, and the ApprovalAction Close. Since Prompt 11.3a
                                 (ADR 0061): Totp, SecondStepStage, the second step of User with six events (Identity).
+                                Since Prompt 11.3b: the link of a forgotten password on User, with two events.
   BillingRecon.Application/     Use cases (command/query handlers as plain classes), FluentValidation validators,
                                 port interfaces (IClock, IUnitOfWork, repositories, INumberSeries,
                                 IIdempotencyStore, ITenantContext, ICurrentUser), DTOs and explicit mappers.
@@ -344,6 +345,8 @@ src/
                                 step: SignInTokens, the four use cases (give the code, begin and confirm an enrolment,
                                 an administrator's reset), ISecondStepSecrets, ISecondStepPolicy, IApprovalHolds
                                 (Identity). ADR 0061.
+                                Since Prompt 11.3b: RequestPasswordResetHandler, ResetPasswordByLinkHandler,
+                                SignInOptionsHandler, IPasswordResetMail, IPasswordResetTokens (Identity).
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -386,6 +389,8 @@ src/
                                 ShiftCashQuery (Receivables) and the day-end report in CollectionReports
                                 (Reporting), ADR 0060. TwoStepOptions, SecondStepSecrets (AES-256-GCM), SecondStepPolicy and
                                 ApprovalHolds (Identity), ADR 0061.
+                                Since Prompt 11.3b: MailOptions, MailOutbox, MailDispatcher, IMailTransport with
+                                SmtpMailTransport, PasswordResetMail, PasswordResetTokens (Identity).
   BillingRecon.Api/             Controllers, middleware and filters (correlation id, idempotency, tenant resolution),
                                 the error contract (Common/Errors: exception handler, Error to ProblemDetails mapper),
                                 authentication/authorisation, OpenAPI + Scalar, Program.cs (composition root),
@@ -420,6 +425,8 @@ src/
                                 ReportsController, and the policies WorkShift, ReadShifts and DayEnd (ADR 0060).
                                 Common/Authentication also SecondStepGateMiddleware, DecisionGateMiddleware and the two
                                 AllowWhileSecondStep attributes (ADR 0061).
+                                Since Prompt 11.3b: three anonymous actions of AuthController (options,
+                                forgot-password, reset-password).
 tests/
   Directory.Build.props         Test defaults: xUnit, Shouldly, test SDK/runner, global usings.
   BillingRecon.Domain.Tests/  BillingRecon.Application.Tests/
@@ -965,6 +972,8 @@ under a key of its own, ten recovery codes, required for TenantAdmin and Supervi
 the two steps that reaches nothing else, a decision that needs the second step, and a 24-hour hold on a user's decisions
 after an administrator's reset (Accepted on the owner's approval of the Prompt 11.3 proposal, 2026-11-27; it amends
 ADR 0030, ADR 0031, ADR 0032, ADR 0045, ADR 0051, ADR 0055 and ADR 0057 and narrows row R3 of the threat model).
+ADR 0061 was amended by Prompt 11.3b (2026-11-27): a forgotten password reset by a link in a mail, where the deployment
+has a mail server.
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1050,7 +1059,7 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    owner saw and, for every other row, why it is open (the 10,000-bill load, the journey and the browser suites through
    nginx, `PiiMaskerTests` after its fix, the recovery model: no second run; the `Database` tests of 10.1 to 10.4 on
    SQL Server 2022: the first CI run). A row is never closed on a report alone where a machine can show it.
-2. **Everything else still open:** `docs/backlog.md`, 40 rows (B1 to B43 but B18, B21 and B24): owner questions, recorded deviations,
+2. **Everything else still open:** `docs/backlog.md`, 42 rows (B1 to B46 but B18, B21, B24 and B43): owner questions, recorded deviations,
    accepted limitations, follow-ups and small fixes, each with its origin and when it is due. Three are marked
    *R1 review*, for the owner: B3 (three credit-note choices), B19 (adjustments by kind), B33 (the stale `0002_Payers`
    in two ADRs). B18 and B24 were closed by Prompt 10.1.
@@ -1254,11 +1263,35 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    `DecisionGateMiddleware` stands in front of every POST of the policy `Decide`: 403 `second_step_required` without
    the stage `Done`, and 403 `approval_on_hold` for 24 hours after an administrator reset the user's password or second
    step (`Users.ApprovalHoldUntilUtc`; review finding R5, narrowed, row R3 of `docs/security.md`). The fifth wrong code
-   ends the sign-in. Migration `0031_SecondStep`; the next free migration is `0032` and the next ADR 0062. **A test
+   ends the sign-in. Migration `0031_SecondStep`. **A test
    client's token has its second step given** (`TestClientExtensions`); a test that signs in for real as an
    administrator or a supervisor enrols through `Support/SecondStepApi`. A new deployment setting that is a secret
    goes into `docker-compose.yml`, `.env.example`, `docker-compose.prod.yml` (a secret file), `deploy/prod/env.example`,
    the smoke run of `ci.yml`, `ApiFactory` and the two lists of `ProductionDeploymentTests`. The browser: the session
    keeps `secondStep`, `RequireAuth` sends it to `/second-step` or `/second-step/enrol`, and the QR code is drawn by
    `auth/qr.ts` with no package. Owed: runbook section 8, row 11.3a (**a phone has not read the QR code**; SQL Server
-   2022; nginx), backlog B41 to B43, `docs/go-live.md` G8. 11.3b is the forgotten password.
+   2022; nginx), backlog B41 and B42, `docs/go-live.md` G8.
+
+   **Prompt 11.3b (2026-11-27, ADR 0061 amended), stage 7 of the eight, its second part:** a forgotten password.
+   **Optional by `Mail:Host`:** without a mail server nothing is sent or stored, `GET /api/v1/auth/options` answers
+   `passwordResetByMail: false`, and the page says to ask the administrator. `POST /api/v1/auth/forgot-password`
+   **always answers 202 with no body**; `POST /api/v1/auth/reset-password` answers 204 or 422
+   `password_reset_link_invalid`, one refusal for every link that is not good. **The anonymous actions are these three
+   and the sign-in, and three use cases take `ISignInScope`** (`SignInHandler`, `RequestPasswordResetHandler`,
+   `ResetPasswordByLinkHandler`): `AuthenticationConventionTests` and `AuthenticationTests` pin both lists, and a new
+   one fails until someone decides. The link is the user's id and 32 random bytes; the row keeps its SHA-256
+   (`Users.PasswordResetTokenHash`, in no audit image), good once, for 30 minutes, replaced by a later one, five an
+   hour per user (counted on the row), taken away by any other change of the password. It travels after the `#` of
+   `{Mail:PublicBaseUrl}/reset-password`, and the page removes it from the address bar. Setting the password ends
+   every session, answers no token, **does not replace the second step and sets no hold**. The mail is plain text,
+   queued in memory (`MailOutbox`) and sent after the request by `MailDispatcher` through `IMailTransport`
+   (`SmtpMailTransport`, the BCL's client; no package). **A test never sends a mail:** it registers
+   `Support/CapturedMails` as `IMailTransport`, configures `MailOptions` through the factory's `configure`, and reads
+   the link out of the mail. A frontend call the API answers without a body goes through `accepted()` of
+   `api/call.ts`, not `answer()`. The sign-in page links to `/forgot-password` and asks the API nothing for it; its
+   "Need help?" block is always there now. `e2e/routes.spec.ts` takes an optional session per route, and opens the
+   pages before the application with it. `mail_password` is the fourth secret file of production and must exist,
+   empty where there is no mail. Migration `0032_PasswordResetLink`; **the next free migration is `0033` and the next
+   ADR 0062.** BR-611, US-51. Owed: runbook section 8, row 11.3b (**no mail has been sent to a real server**; SQL
+   Server 2022; the compose files), backlog B44 to B46, `docs/go-live.md` G9. Stage 8, Prompt 11.4 (the accountant's
+   export), is next: it begins with questions to the owner.

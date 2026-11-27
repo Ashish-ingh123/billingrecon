@@ -51,6 +51,23 @@ export async function answerWithStatus<T>(
   return { data: result.data, status: result.response.status };
 }
 
+/**
+ * For an action the API answers without a body (202, 204): resolves when it was accepted, or throws an
+ * {@link ApiError} with what the API said, or that nothing answered.
+ */
+export async function accepted(request: Promise<{ error?: unknown; response: Response }>): Promise<void> {
+  let result: { error?: unknown; response: Response };
+  try {
+    result = await request;
+  } catch {
+    throw new ApiError(unreachableProblem());
+  }
+
+  if (!result.response.ok) {
+    throw new ApiError(problemFrom(result.response, result.error));
+  }
+}
+
 /** What a thrown error says, as the error component shows it. */
 export function problemOf(error: unknown): ApiProblem {
   return error instanceof ApiError ? error.problem : unreachableProblem();

@@ -1189,6 +1189,20 @@ Seven columns of `Users`, all null or zero for a user without a second step:
 
 The two secrets and the hashes are in no audit image (the annotation of ADR 0030 point 8). No grant changes.
 
+### 5.14 The link of a forgotten password (ADR 0061 amended, migration `0032_PasswordResetLink`)
+
+Four columns of `Users`, null or zero for a user who never asked:
+
+- `PasswordResetTokenHash varchar(64) NULL`: the SHA-256, in hexadecimal, of the link that is out. Never the link.
+  In no audit image.
+- `PasswordResetExpiresAtUtc datetimeoffset(3) NULL`: until when that link is good (30 minutes from the request).
+- `PasswordResetWindowStartUtc datetimeoffset(3) NULL` and `PasswordResetRequests int NOT NULL`
+  (`CK_Users_PasswordResetRequests`: zero or more): the hour in which links were asked for and how many, for the
+  limit of five.
+
+Using the link, or setting the password any other way, empties the first two. No table, no index (the link names
+its user, so the row is read by its key) and no grant changes.
+
 ## 6. Idempotency store (ADR 0006)
 
 Lifecycle of a row in `IdempotencyKeys` for a financial POST:

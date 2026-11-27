@@ -819,6 +819,9 @@ password, and the key store keeps a fingerprint of the body), and no answer of i
 | `POST /api/v1/auth/second-step` (a token that waits for its second step; body `code`) | 200, a full token | 401 `session_ended`; 403; 422 `second_step_code_wrong`, `second_step_not_enrolled` |
 | `POST /api/v1/auth/second-step/enrolment` (a token that must enrol, or any full token; no body) | 200, the secret and its address | 401; 403; 422 `second_step_already_enrolled` |
 | `POST /api/v1/auth/second-step/enrolment/confirm` (the same tokens; body `code`) | 200, the recovery codes and a full token | 401; 403; 422 `second_step_code_wrong`, `second_step_enrolment_not_begun`, `second_step_already_enrolled` |
+| `GET /api/v1/auth/options` (no token) | 200, `passwordResetByMail` | |
+| `POST /api/v1/auth/forgot-password` (no token; body `tenant`, `email`) | 202, no body, whatever was found | 400; 429 `too_many_sign_ins` |
+| `POST /api/v1/auth/reset-password` (no token; body `tenant`, `token`, `newPassword`) | 204 | 400; 422 `password_reset_link_invalid`; 429 `too_many_sign_ins` |
 | `POST /api/v1/auth/logout` (any signed-in user, policy `SignedIn`) | 204 | 401 |
 
 **A sign-out ends the user's sessions on the server** (ADR 0057). Every token carries the number of the session it was
@@ -881,6 +884,19 @@ answer of them may be cached. Outside the Development and Demo environments the 
 of the policy `Decide`) answers 403 `second_step_required` to a token whose stage is not `Done`, and 403
 `approval_on_hold` to a user whose password or second step an administrator reset less than 24 hours ago (the
 message says until when). Reading the inbox is no decision.
+
+**A forgotten password (ADR 0061, amended).** Three actions need no token. `GET /api/v1/auth/options` answers
+`passwordResetByMail`: whether this deployment has a mail server; it says nothing about any hospital or user.
+`POST /api/v1/auth/forgot-password` takes the hospital's code and the address, as the sign-in does, and **always
+answers 202 with no body**: for a user who is sent a link, for an unknown hospital or address, for a user who cannot
+sign in, for the sixth request of a user within an hour, and where there is no mail server. A link goes to the
+address the hospital keeps for the user: `{the app}/reset-password#token=…&hospital=…`, good once, for 30 minutes,
+and replaced by a later one. `POST /api/v1/auth/reset-password` takes `tenant` and `token` from the link and
+`newPassword` (12 to 128 characters); 204 sets the password and ends every session of the user (401
+`session_ended` for their tokens), and answers no token: the user signs in, second step included. Every link that is
+not good answers 422 `password_reset_link_invalid`, whatever the reason. Neither POST takes an `Idempotency-Key`; no
+answer of them may be cached; both count against the limit per client address below. An unknown member in a body is
+400.
 
 **Repeated attempts are limited** (ADR 0035), in two ways that answer the same 429 `too_many_sign_ins`, with
 `Retry-After` in seconds and `Cache-Control: no-store`:
@@ -1351,6 +1367,7 @@ For a failure no use case reported: routing, model binding, content negotiation,
 | `second_step_required` | 403 | This needs the second step of your sign-in: give the code of your authenticator app first. |
 | `second_step_enrolment_required` | 403 | Your role needs a second step at sign-in. Set it up first. |
 | `approval_on_hold` | 403 | Your password or second step was reset by an administrator: you can approve and reject again after …. |
+| `password_reset_link_invalid` | 422 | This link is not good any more: it works once, for 30 minutes. Ask for a new one. |
 | `tenant_invalid` | 400 | The tenant is not valid. |
 | `tenant_suspended` | 403 | This hospital is suspended; ask the operator of BillingRecon. |
 | `tenant_code_taken` | 409 | A hospital with this code exists already; nothing was created. |

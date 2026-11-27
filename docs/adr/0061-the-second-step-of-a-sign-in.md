@@ -131,3 +131,69 @@ the rest, and for the review finding to be weighed.
   written in the test. **No camera has read one here:** the owner scans one on the personal machine (runbook section
   8, row 11.3a).
 - Verified on .NET 10 with LocalDB 2019 in a throwaway copy, and in the browser by component tests only.
+
+## Amended (2026-11-27, Prompt 11.3b): a forgotten password
+
+The second half of the approved proposal. It amends ADR 0031 point 7 (the anonymous actions are four: the sign-in,
+`GET /api/v1/auth/options`, `POST /api/v1/auth/forgot-password` and `POST /api/v1/auth/reset-password`) and point 5
+(three use cases step into a user without a token), ADR 0035 (the limit per client address covers the two new POSTs),
+ADR 0055 (a fourth secret file, `mail_password`) and requirements section 2 (a self-service reset is in scope where
+the deployment has a mail server).
+
+1. **A link in a mail, and only where there is a mail server.** `Mail:Host` is optional. Without it the product
+   sends no mail, makes no link and writes nothing; `GET /api/v1/auth/options` says so (`passwordResetByMail`), the
+   page tells the user to ask their administrator, and an administrator's reset (ADR 0051) stays the only way. That
+   is a supported way to run, not a misconfiguration. With a host, `Mail:From` and `Mail:PublicBaseUrl` (https
+   outside Development) are required and checked at startup.
+2. **The answer to asking tells nothing.** `forgot-password` answers 202 with no body for an unknown hospital, an
+   unknown address, a disabled user, a suspended hospital, a user who was sent five links this hour, a deployment
+   without mail and a link that was sent, alike. The mail goes to the address the hospital keeps for the user, not to
+   the text that was typed.
+3. **The link is good once, for 30 minutes, and only the last one sent.** The token is the user's id and 32 random
+   bytes (256 bits) in the base64 of an address; the row keeps its SHA-256 and when it ends, never the token, and the
+   hash is in no audit image. A later link replaces the earlier one; a password set any other way (the user's own
+   change, an administrator's reset) takes the link away. A fast hash is right here, unlike for a password: the
+   token is random, not chosen.
+4. **Five links an hour for one user,** counted on the user's row (`PasswordResetWindowStartUtc`,
+   `PasswordResetRequests`), so that a restart or a second instance does not forget it, and nobody's inbox is filled.
+   The two POSTs also carry the limit per client address of the sign-in (30 a minute).
+5. **The link carries its parts after the `#`:** `{PublicBaseUrl}/reset-password#token=…&hospital=…`. A browser
+   sends no fragment to a server, so the token is in no access log of nginx; the page reads it once and takes it out
+   of the address bar. The request that sets the password carries it in its body.
+6. **Setting the password ends every session of the user** (ADR 0057) and answers no token: the user signs in as
+   always. **It does not replace the second step:** a TenantAdmin or a Supervisor is still asked for the code, so a
+   mailbox that was taken over does not approve a refund. For the same reason a reset by link sets no 24-hour hold:
+   the hold answers an administrator who knows the new password (review finding R5), and here nobody but the holder
+   of the mailbox does, who still lacks the second step. A user without a second step (a Cashier, a BillingClerk) is
+   as safe as their mailbox, which is what a forgotten-password link means everywhere.
+7. **One refusal for a link that is not good:** 422 `password_reset_link_invalid`, whether it is wrong, used,
+   replaced, too old, for another hospital or no link at all.
+8. **Both are audited as the user:** `PasswordResetRequested` and `PasswordResetByLink`. Like the sign-in, the two
+   use cases step into the user they found (`ISignInScope`), the second with no role; architecture tests pin the
+   three takers and the four anonymous actions.
+9. **The mail is plain text, sent after the request** by a background service from a queue in memory
+   (`MailOutbox`, at most 200 waiting), through the BCL's `SmtpClient` behind `IMailTransport`. No package. A mail
+   that cannot be sent is logged without its address or text and not tried again; the user asks again.
+
+### Consequences of the amendment
+
+- A user with a working mailbox no longer waits for an administrator. A hospital without a mail server loses nothing.
+- **A small difference in time remains** between an address that exists (a row is written) and one that does not.
+  The mail is sent after the answer, which removes the large part; the rest is some milliseconds of a database
+  write, behind the limit of 30 requests a minute per address. Accepted; in the backlog.
+- The queue is in memory: a restart between the answer and the sending loses the mail, and a second instance has its
+  own queue. The user asks again. Accepted for one instance.
+- `System.Net.Mail.SmtpClient` speaks STARTTLS on the submission port and not implicit TLS (port 465), and Microsoft
+  recommends other libraries for new work. It was the owner's choice over a package; `IMailTransport` is the seam
+  where MailKit or a provider's HTTP API would go.
+- Deliverability (SPF, DKIM, the sender's reputation) is the mail provider's and the hospital's: go-live item G9.
+
+### Built note
+
+- Migration `0032_PasswordResetLink`: four columns of `Users` and `CK_Users_PasswordResetRequests`.
+- Verified on .NET 10 with LocalDB 2019 in a throwaway copy, with the mail server replaced by one that keeps the
+  mails; by component tests; and in Edge by the browser suite, which since this prompt also opens the two pages of
+  the second step (backlog B43, closed). `SmtpMailTransport` has no automated test. It was run once by hand: the API of the repository sent the mail of
+  a demo user to an SMTP sink on this machine (no TLS, no login), and a script took the link out of the mail as it
+  arrived (quoted-printable) and set the password with it. **No mail went to a real server, with TLS and a login:**
+  runbook section 8, row 11.3b.

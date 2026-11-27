@@ -11,7 +11,7 @@ public sealed class ProductionDeploymentTests
     private static readonly string Compose = File.ReadAllText(RepositoryFiles.PathOf("docker-compose.prod.yml"));
 
     private static readonly string[] SecretSettings =
-        ["MSSQL_SA_PASSWORD:", "Jwt__SigningKey:", "TwoStep__EncryptionKey:", "Database__ConnectionString:", "MIGRATOR_PASSWORD:", "APP_PASSWORD:", "Password="];
+        ["MSSQL_SA_PASSWORD:", "Jwt__SigningKey:", "TwoStep__EncryptionKey:", "Mail__Password:", "MAIL_PASSWORD", "Database__ConnectionString:", "MIGRATOR_PASSWORD:", "APP_PASSWORD:", "Password="];
 
     [Fact]
     public void The_production_compose_file_sets_no_secret_in_the_environment_of_a_service()
@@ -29,7 +29,7 @@ public sealed class ProductionDeploymentTests
             .Select(match => match.Groups["path"].Value)
             .ToList();
 
-        files.Count.ShouldBe(7);
+        files.Count.ShouldBe(8);
         files.ShouldAllBe(path => path.StartsWith("${SECRETS_DIR:-/etc/billingrecon/secrets}/", StringComparison.Ordinal));
     }
 
@@ -69,6 +69,7 @@ public sealed class ProductionDeploymentTests
         example.Where(line => !line.StartsWith('#') && line.Contains("PASSWORD=", StringComparison.OrdinalIgnoreCase)).ShouldBeEmpty();
         example.Where(line => !line.StartsWith('#') && line.Contains("KEY=", StringComparison.OrdinalIgnoreCase)).ShouldBeEmpty();
         string.Join('\n', example).ShouldContain("jwt_signing_key");
+        string.Join('\n', example).ShouldContain("mail_password");
     }
 
     [Fact]

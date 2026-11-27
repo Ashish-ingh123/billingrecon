@@ -211,4 +211,13 @@ public static class IdentityErrors
     /// <summary>An administrator reset the user's password or second step less than 24 hours ago: the user decides nothing until then.</summary>
     public static Error ApprovalOnHold(DateTimeOffset untilUtc)
         => Error.Forbidden(ApprovalOnHoldCode, $"Your password or second step was reset by an administrator: you can approve and reject again after {untilUtc:yyyy-MM-dd HH:mm} UTC.");
+    /// <summary>Code of <see cref="PasswordResetLinkInvalid"/>.</summary>
+    public const string PasswordResetLinkInvalidCode = "password_reset_link_invalid";
+
+    /// <summary>
+    /// The link of a forgotten password is not good: wrong, used already, replaced by a later one, older than 30
+    /// minutes, or of a hospital or a user that cannot sign in. One answer for all of them, which tells nothing more.
+    /// </summary>
+    public static Error PasswordResetLinkInvalid()
+        => Error.BusinessRule(PasswordResetLinkInvalidCode, "This link is not good any more: it works once, for 30 minutes. Ask for a new one.");
 }

@@ -67,6 +67,21 @@ const referenceData = { read: 'ReadReferenceData', write: 'WriteReferenceData' }
 /** The app's pages: the sign-in, and behind it the shell with the screens of each section (ADR 0038, ADR 0039). */
 export const routes: RouteObject[] = [
   { path: '/sign-in', element: <SignInPage /> },
+  // A forgotten password, before any sign-in (ADR 0061, amended): asking for the link, and the page the link opens.
+  {
+    path: '/forgot-password',
+    lazy: async () => {
+      const { ForgotPasswordPage } = await import('./auth/ForgotPasswordPage');
+      return { element: <ForgotPasswordPage /> };
+    },
+  },
+  {
+    path: '/reset-password',
+    lazy: async () => {
+      const { ResetPasswordPage } = await import('./auth/ResetPasswordPage');
+      return { element: <ResetPasswordPage /> };
+    },
+  },
   {
     element: <RequireAuth />,
     children: [

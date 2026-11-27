@@ -161,7 +161,7 @@ public sealed partial class AuthenticationTests
     }
 
     [Fact]
-    public async Task ADR0031_without_a_token_every_endpoint_answers_401_but_the_sign_in_and_the_health_endpoints()
+    public async Task ADR0031_without_a_token_every_endpoint_answers_401_but_the_sign_in_the_forgotten_password_and_the_health_endpoints()
     {
         using var factory = new ClockedApiFactory();
         using var client = factory.CreateClient();
@@ -171,7 +171,15 @@ public sealed partial class AuthenticationTests
             .Where(endpoint => endpoint.Metadata.GetMetadata<IAllowAnonymous>() is not null)
             .Select(Describe)
             .Order(StringComparer.Ordinal);
-        anonymous.ShouldBe(["* health/live", "* health/ready", "POST api/v1/auth/login"]);
+        anonymous.ShouldBe(
+            [
+                "* health/live",
+                "* health/ready",
+                "GET api/v1/auth/options",
+                "POST api/v1/auth/forgot-password",
+                "POST api/v1/auth/login",
+                "POST api/v1/auth/reset-password",
+            ]);
 
         var refused = 0;
         foreach (var endpoint in endpoints.Where(endpoint => endpoint.Metadata.GetMetadata<IAllowAnonymous>() is null))

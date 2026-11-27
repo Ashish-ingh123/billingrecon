@@ -1684,6 +1684,23 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasColumnType("varchar(500)")
                         .HasAnnotation("BillingRecon:NotAudited", true);
 
+                    b.Property<DateTimeOffset?>("PasswordResetExpiresAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<int>("PasswordResetRequests")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PasswordResetTokenHash")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)")
+                        .HasAnnotation("BillingRecon:NotAudited", true);
+
+                    b.Property<DateTimeOffset?>("PasswordResetWindowStartUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
                     b.Property<string>("RecoveryCodeHashes")
                         .HasMaxLength(700)
                         .IsUnicode(false)
@@ -1746,6 +1763,8 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                     b.ToTable("Users", null, t =>
                         {
+                            t.HasCheckConstraint("CK_Users_PasswordResetRequests", "[PasswordResetRequests] >= 0");
+
                             t.HasCheckConstraint("CK_Users_SecondStepFailures", "[SecondStepFailures] >= 0");
 
                             t.HasCheckConstraint("CK_Users_Status", "[Status] IN ('Active', 'Disabled')");

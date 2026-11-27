@@ -87,7 +87,7 @@ shift with a difference is in the checker's row, and its cashier is never its ch
 - Multi-currency (R1 is INR only, BR-001).
 - HIS/EMR integration, pharmacy or inventory, printable PDF templates, e-mail/SMS notifications.
 - Standalone credit notes (a credit note is always against a bill, BR-210), reversal of refunds, adjustments that increase a bill (BR-503), write-off of tiny unapplied cash.
-- External identity providers and SSO; self-service password reset (a TenantAdmin resets passwords in R1).
+- External identity providers and SSO. (A forgotten password is reset by a link in a mail since Prompt 11.3b, BR-611, where the deployment has a mail server; without one a TenantAdmin resets passwords, as in R1.)
 - Multi-facility tenants (one tenant is one billing entity).
 
 ---
@@ -189,6 +189,7 @@ shift with a difference is in the checker's row, and its cashier is never its ch
 | **BR-608** | A TenantAdmin and a Supervisor sign in with a second step: after the password, a time-based code of an authenticator app (RFC 6238). A user of those roles who has none sets it up before anything else; any other user may set one up, and is asked for it from then on. A code is accepted for its own 30-second step and the one before and after, and once. Each of ten recovery codes signs in once in its place. *Added 2026-11-27 with Prompt 11.3 (ADR 0061), as are BR-609 and BR-610.* |
 | **BR-609** | A decision of a maker-checker request (BR-603) is made only in a sign-in whose second step was given. The fifth wrong code in a row ends the sign-in. |
 | **BR-610** | An administrator may take a user's second step away (a lost phone); the user's sessions end and they set a new one up. For 24 hours after an administrator reset a user's password or second step, that user approves and rejects nothing. Both resets are audited. |
+| **BR-611** | A user who forgot their password asks for a link by their hospital's code and address. The answer is the same whether or not the two belong to a user. The link goes to the address the hospital keeps for the user, sets a new password once, is good for 30 minutes, and is replaced by a later one; a user is sent at most five in an hour. Setting the password ends every session of the user and does not replace the second step. Without a mail server no link is sent and an administrator sets the password. *Added 2026-11-27 with Prompt 11.3b (ADR 0061, amended).* |
 
 ### Audit (BR-701 – BR-719)
 
@@ -230,6 +231,7 @@ Acceptance criteria cite the rules they verify. "Given/when/then" is abbreviated
 | US-03 | As a TenantAdmin I set the posting approval threshold, back-date window and default due days. | Settings applied on next request; change audited (BR-607). |
 | US-04 | As the platform, requests never cross tenants. | A token for tenant A cannot read or write tenant B's records, including by id (BR-002); tested as a defect. |
 | US-50 | As a Supervisor or a TenantAdmin I sign in with my password and a code of my authenticator app. | Set up at the first sign-in, with recovery codes shown once (BR-608); a code two steps away or used before is refused; without the second step no decision is made (BR-609); an administrator's reset signs me out and holds my decisions for 24 hours (BR-610). |
+| US-51 | As a user who forgot my password I ask for a link by mail and choose a new password with it. | The page says the same whatever I typed; the link works once and for 30 minutes; my sessions end; my second step is still asked for; where no mail is sent the page tells me to ask my administrator (BR-611). |
 
 ### Patients and payers
 

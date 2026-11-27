@@ -17,7 +17,11 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<User> builder)
     {
-        builder.ToTable("Users", table => table.HasCheckConstraint("CK_Users_SecondStepFailures", "[SecondStepFailures] >= 0"));
+        builder.ToTable("Users", table =>
+        {
+            table.HasCheckConstraint("CK_Users_SecondStepFailures", "[SecondStepFailures] >= 0");
+            table.HasCheckConstraint("CK_Users_PasswordResetRequests", "[PasswordResetRequests] >= 0");
+        });
         builder.HasKey(user => user.Id);
 
         // The address is unique in the tenant without regard to case (BR-601): the index compares the upper-cased form.
@@ -37,6 +41,9 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(user => user.SecondStepPendingSecret).HasMaxLength(User.ProtectedSecretMaxLength).IsUnicode(false).HasAnnotation(EntitySnapshot.NotAuditedAnnotation, true);
         builder.Property(user => user.RecoveryCodeHashes).HasMaxLength(User.RecoveryCodeHashesMaxLength).IsUnicode(false).HasAnnotation(EntitySnapshot.NotAuditedAnnotation, true);
         builder.Ignore(user => user.SecondStepEnrolled);
+
+        // The link of a forgotten password (ADR 0061, amended): only its hash, and that in no audit image either.
+        builder.Property(user => user.PasswordResetTokenHash).HasMaxLength(User.PasswordResetTokenHashLength).IsUnicode(false).HasAnnotation(EntitySnapshot.NotAuditedAnnotation, true);
 
         // The roles are rows of the user, deleted when the user no longer holds them.
         builder.HasMany(user => user.Roles)

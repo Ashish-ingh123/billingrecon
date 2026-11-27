@@ -115,12 +115,13 @@ describe('the sign-in page (ADR 0047)', () => {
     );
   });
 
-  it('leaves the divider and the link out when the build was given none', async () => {
+  it('leaves the support link out when the build was given none, and keeps the way to a forgotten password', async () => {
     vi.stubEnv('VITE_SUPPORT_EMAIL', '');
     renderApp('/sign-in');
 
     await screen.findByRole('heading', { name: 'Sign in to BillingRecon' });
-    expect(screen.queryByText('Need help?')).not.toBeInTheDocument();
+    expect(screen.getByText('Need help?')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Forgot password?' })).toHaveAttribute('href', '/forgot-password');
     expect(screen.queryByRole('link', { name: 'Contact support' })).not.toBeInTheDocument();
   });
 });

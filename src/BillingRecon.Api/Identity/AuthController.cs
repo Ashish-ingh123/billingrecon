@@ -160,4 +160,62 @@ public sealed class AuthController(ILogger<AuthController> logger) : ApiControll
         var result = await handler.HandleAsync(new ConfirmSecondStepEnrolmentCommand(request.Code), ct);
         return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
     }
+    /// <summary>
+    /// What the sign-in page may offer here (ADR 0061, amended): whether a forgotten password can be reset by a link in a
+    /// mail. Needs no token, and says nothing about any hospital or user.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("options")]
+    [ProducesResponseType<SignInOptionsDto>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> OptionsAsync(
+        [FromServices] IQueryHandler<SignInOptionsQuery, SignInOptionsDto> handler,
+        CancellationToken ct)
+    {
+        var result = await handler.HandleAsync(new SignInOptionsQuery(), ct);
+        return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
+    }
+
+    /// <summary>
+    /// Asks for a link to reset a forgotten password (ADR 0061, amended). Always 202 with no body, whether or not the
+    /// hospital and the address exist, the user may sign in, or a mail server is set up: the answer tells nothing.
+    /// Limited per client address like the sign-in, and to five links an hour for one user.
+    /// </summary>
+    [AllowAnonymous]
+    [EnableRateLimiting(SignInLimits.PolicyName)]
+    [HttpPost("forgot-password")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> ForgotPasswordAsync(
+        ForgotPasswordRequest request,
+        [FromServices] ICommandHandler<RequestPasswordResetCommand, bool> handler,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        Response.Headers.CacheControl = "no-store";
+        var result = await handler.HandleAsync(request.ToCommand(), ct);
+        return result.IsSuccess ? Accepted() : Problem(result.Error);
+    }
+
+    /// <summary>
+    /// Sets a new password with the link of the mail (ADR 0061, amended): good once, for 30 minutes. 204 on success, and
+    /// every session of the user ends; 422 <c>password_reset_link_invalid</c> for a link that is not good, whatever the reason.
+    /// </summary>
+    [AllowAnonymous]
+    [EnableRateLimiting(SignInLimits.PolicyName)]
+    [HttpPost("reset-password")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> ResetPasswordAsync(
+        ResetPasswordRequest request,
+        [FromServices] ICommandHandler<ResetPasswordByLinkCommand, bool> handler,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        Response.Headers.CacheControl = "no-store";
+        var result = await handler.HandleAsync(request.ToCommand(), ct);
+        return result.IsSuccess ? NoContent() : Problem(result.Error);
+    }
 }

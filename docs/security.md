@@ -36,6 +36,15 @@ its reason, or named with the prompt that does it.
 - **An administrator's reset and the hold.** An administrator may take a user's second step away for a lost phone.
   For 24 hours after an administrator reset a user's password or second step, that user approves and rejects
   nothing (row R3 below).
+- **A forgotten password (ADR 0061, amended).** Where the deployment has a mail server, a user asks for a link by
+  their hospital's code and address. The answer is the same whatever was found, so it tells nobody which addresses
+  exist; a small difference in time remains for an address that exists (a row is written), behind the limit per
+  client address. The link is 256 random bits, kept only as its SHA-256, good once and for 30 minutes, replaced by a
+  later one, and sent to the address the hospital keeps; a user is sent five in an hour. It travels after the `#` of
+  the address, which no server logs, and the page takes it out of the address bar. Setting the password ends every
+  session and does not replace the second step, so a mailbox that was taken over signs in as a Cashier at most and
+  approves nothing. Neither the link nor its hash is in an audit image or a log line; the mail's text and address
+  are in no log line either. Without a mail server none of this exists and an administrator resets passwords.
 - Passwords (ADR 0030): PBKDF2-HMAC-SHA-256, 600,000 iterations, a salt of 16 bytes per password, 12 to 128
   characters. Neither a password nor its hash is ever in an answer, an audit image, a log line or the fingerprint of an
   idempotency key; the user POSTs and the sign-in take no Idempotency-Key for that reason.

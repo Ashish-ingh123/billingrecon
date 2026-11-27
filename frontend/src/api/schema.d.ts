@@ -4918,6 +4918,189 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What the sign-in page may offer here (ADR 0061, amended): whether a forgotten password can be reset by a link in a
+         *     mail. Needs no token, and says nothing about any hospital or user.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SignInOptionsDto"];
+                        "application/json": components["schemas"]["SignInOptionsDto"];
+                        "text/json": components["schemas"]["SignInOptionsDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/forgot-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Asks for a link to reset a forgotten password (ADR 0061, amended). Always 202 with no body, whether or not the
+         *     hospital and the address exist, the user may sign in, or a mail server is set up: the answer tells nothing.
+         *     Limited per client address like the sign-in, and to five links an hour for one user.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ForgotPasswordRequest"];
+                    "text/json": components["schemas"]["ForgotPasswordRequest"];
+                    "application/*+json": components["schemas"]["ForgotPasswordRequest"];
+                };
+            };
+            responses: {
+                /** @description Accepted */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sets a new password with the link of the mail (ADR 0061, amended): good once, for 30 minutes. 204 on success, and
+         *     every session of the user ends; 422 `password_reset_link_invalid` for a link that is not good, whatever the reason.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ResetPasswordRequest"];
+                    "text/json": components["schemas"]["ResetPasswordRequest"];
+                    "application/*+json": components["schemas"]["ResetPasswordRequest"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/prefix-changes": {
         parameters: {
             query?: never;
@@ -10952,6 +11135,13 @@ export interface components {
             /** Format: double */
             ledger: number | string;
         };
+        /** @description The body of `POST /api/v1/auth/forgot-password`: the hospital's code and the address, as at the sign-in. */
+        ForgotPasswordRequest: {
+            /** @description The code of the hospital. */
+            tenant?: null | string;
+            /** @description The e-mail address the user signs in with. */
+            email?: null | string;
+        };
         /**
          * @description Why a row of an imported file cannot be brought in (ADR 0053): the file, the line the row starts on (1 for the header,
          *     0 for the file as a whole), and the reason in words a person can act on. A finding never repeats a patient's name,
@@ -11970,6 +12160,15 @@ export interface components {
             /** @description The reason, at most 500 characters. Required; the checker reads it, and it is kept with the reversal. */
             reason?: null | string;
         };
+        /** @description The body of `POST /api/v1/auth/reset-password`: what the link of the mail carried, and the new password. */
+        ResetPasswordRequest: {
+            /** @description The code of the hospital, from the link. */
+            tenant?: null | string;
+            /** @description The token, from the link. */
+            token?: null | string;
+            /** @description The new password: 12 to 128 characters. */
+            newPassword?: null | string;
+        };
         /** @description The body of `POST /api/v1/users/{id}/password`: the new password. Unknown members are refused. */
         ResetUserPasswordRequest: {
             /** @description 12 to 128 characters. */
@@ -12048,6 +12247,11 @@ export interface components {
             expiresInSeconds: number | string;
             credentialsChangeDue: boolean;
             secondStep?: components["schemas"]["SecondStepStage"];
+        };
+        /** @description What this deployment offers at the sign-in. */
+        SignInOptionsDto: {
+            /** @description True when a forgotten password can be reset by a link in a mail. */
+            passwordResetByMail: boolean;
         };
         /**
          * @description One card of the dashboard: its figure for the period, the same figure for the previous period, and the change in
