@@ -111,7 +111,12 @@ export function reportCsv<T>({
 
 /** Hands the file to the browser to save. */
 export function saveCsv(fileName: string, text: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+  saveFile(fileName, new Blob([text], { type: 'text/csv;charset=utf-8' }));
+}
+
+/** Hands a file to the browser to save under `fileName`, as the CSV of a report is saved. */
+export function saveFile(fileName: string, file: Blob): void {
+  const url = URL.createObjectURL(file);
   const link = document.createElement('a');
   link.href = url;
   link.download = fileName;

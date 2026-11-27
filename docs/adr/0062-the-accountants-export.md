@@ -102,7 +102,7 @@ tags", the developer reference's case studies and FAQ, and the import FAQ), thro
 - **An export is not audited:** Reporting never writes (ADR 0036). Who downloaded which period is in the request log
   only. In the backlog.
 - **A period exported twice is imported twice** unless the package stops it, which is not confirmed (above). The
-  accountant imports each period once; the screen will say so (11.4b).
+  accountant imports each period once; the screen says so beside the file.
 - A document posted late into a period already exported (a backdated bill, within the hospital's backdating limit)
   is not in the file made before it. The summary of a period is the check: its voucher count and control total
   change. In the backlog.
@@ -130,3 +130,20 @@ tags", the developer reference's case studies and FAQ, and the import FAQ), thro
   the other end alike, and the test of the month found two vouchers with one number.
 - Verified on .NET 10 with LocalDB 2019 in a throwaway copy. The file was read back by an XML parser in the tests,
   never by Tally. The two screens are Prompt 11.4b.
+
+## Amended (2026-11-27, Prompt 11.4b): the two screens
+
+- **Reports, Accounts, "Accountant's export"** (`/reports/accounting-export`, policy `AccountingExport`): a period of
+  business dates (the current month in India until another is chosen, kept in the address), the summary of point 7
+  (vouchers by type, the control total beside the ledger's, and a table of what each ledger receives with its name in
+  the books), and **one button that downloads the file**. While a ledger the period uses has no name the button is
+  held back and a banner names those ledgers in the screen's words; an administrator is sent to name them, anyone
+  else is told to ask. A refusal of the API is shown as it is. The page says to import each period once.
+- **Users and settings, Accounts** (`/administration/accounting`, the TenantAdmin's): a fifth tab with the twelve
+  names in three groups (balances; income and tax; money by how it came), saved under the version read like every
+  other setting, with the same conflict notice. A name is checked in the browser for its length and for a line break
+  before it is sent.
+- No change of the API. The file is fetched as a blob through the API client, so it carries the token, and saved
+  under the name the API gives it.
+- Verified by component tests and in Edge by the browser suite (both pages in both themes on a desktop and a phone,
+  nginx's policy, axe). Not through nginx, and no file downloaded from the screen has been imported into a Tally.

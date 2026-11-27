@@ -5,7 +5,7 @@ import { Icon, type IconName } from '../brand/Icon';
 import { PageHeader } from '../components/PageHeader';
 import styles from './Reports.module.css';
 
-/** The six reports of R1 (BR-901) and their screens, as the index shows them (ADR 0043 point 2). */
+/** The reports of R1 (BR-901) and their screens, as the index shows them (ADR 0043 point 2); since 11.4b the accountant's export too. */
 const reportGroups: readonly {
   title: string;
   reports: readonly { to: string; name: string; about: string; icon: IconName; policy?: Policy }[];
@@ -76,6 +76,18 @@ const reportGroups: readonly {
         name: 'Pending approvals',
         about: 'What waits for a second person.',
         icon: 'clock',
+      },
+    ],
+  },
+  {
+    title: 'Accounts',
+    reports: [
+      {
+        to: '/reports/accounting-export',
+        name: "Accountant's export",
+        about: "The vouchers of a period as the file the accountant's package imports.",
+        icon: 'report',
+        policy: 'AccountingExport',
       },
     ],
   },

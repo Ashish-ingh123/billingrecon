@@ -22,6 +22,14 @@ recent payments, top payers, pending approvals and reconciliation panels](docs/u
 > the cashier's screens and the inbox, the dashboard with a tooltip on every figure and chart, the reports, print on A4,
 > and a browser suite over every route with axe's WCAG 2.2 AA checks ([docs/build-prompts.md](docs/build-prompts.md),
 > ADRs 0047 to 0050; screenshots in [docs/ui](docs/ui)).
+> **Phases 10 and 11, toward go-live (2026-11-24 to 2026-11-27, not yet merged to `main`):** users and settings with a
+> forced password change, onboarding a hospital by an operator's command, the import of a hospital's records and
+> opening balances, printed bills, receipts and refund vouchers on the hospital's letterhead with its logo and
+> signature, the production deployment, sign-out on the server, live search, an independent review and its fixes;
+> then the owner's eight stages: search on the document lists, the cashier's shift with the day-end closing, a second
+> step at sign-in for administrators and supervisors (TOTP) and a forgotten password reset by mail, and the
+> accountant's export for Tally (ADRs 0051 to 0062). Go-live operations and readiness (Prompts 10.6 and 10.7) are next;
+> what a hospital and its accountant must sign off first is in [docs/go-live.md](docs/go-live.md).
 > Start with [CLAUDE.md](CLAUDE.md) (stack, architecture, the twelve financial rules, the working agreement).
 
 ## Release plan
@@ -95,7 +103,8 @@ browser journey) are in [docs/runbook.md](docs/runbook.md). Continuous integrati
 - [docs/domain-model.md](docs/domain-model.md), [docs/database.md](docs/database.md), [docs/api.md](docs/api.md)
 - [docs/security.md](docs/security.md): authentication, permissions, tenancy, transport, the threat model
 - [docs/testing-strategy.md](docs/testing-strategy.md), [docs/runbook.md](docs/runbook.md)
-- [docs/backlog.md](docs/backlog.md): open questions and follow-ups after R1
-- [docs/build-prompts.md](docs/build-prompts.md): how R1 was built, prompt by prompt
+- [docs/backlog.md](docs/backlog.md): open questions and follow-ups
+- [docs/build-prompts.md](docs/build-prompts.md): how it was built, prompt by prompt, and its status table
 - [docs/build-history.md](docs/build-history.md): what was decided for each built prompt
-- [docs/adr/](docs/adr/): Architecture Decision Records, 0000 to 0046
+- [docs/adr/](docs/adr/): Architecture Decision Records, 0000 to 0062 (0056 is kept for Prompt 10.6)
+- [docs/go-live.md](docs/go-live.md): what must be signed off, and by whom, before a hospital goes live

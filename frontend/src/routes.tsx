@@ -264,6 +264,12 @@ export const routes: RouteObject[] = [
             'ManageTenant',
             async () => (await import('./administration/PrintSettingsPage')).PrintSettingsPage,
           ),
+          // The names of the accountant's ledgers (Prompt 11.4b, ADR 0062).
+          guarded(
+            '/administration/accounting',
+            'ManageTenant',
+            async () => (await import('./administration/AccountingLedgersPage')).AccountingLedgersPage,
+          ),
           // Bringing in a hospital's records and opening balances (Prompt 10.3b, ADR 0053).
           guarded(
             '/administration/import',
@@ -302,6 +308,12 @@ export const routes: RouteObject[] = [
             async () => (await import('./reports/DailyCollectionPage')).DailyCollectionPage,
           ),
           guarded('/reports/day-end', 'DayEnd', async () => (await import('./reports/DayEndPage')).DayEndPage),
+          // The accountant's export (Prompt 11.4b, ADR 0062): for whoever runs or audits the hospital.
+          guarded(
+            '/reports/accounting-export',
+            'AccountingExport',
+            async () => (await import('./reports/AccountingExportPage')).AccountingExportPage,
+          ),
           guarded(
             '/reports/outstanding',
             'Reports',

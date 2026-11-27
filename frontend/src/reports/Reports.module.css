@@ -263,3 +263,26 @@
     width: 100%;
   }
 }
+
+/* The figures of the accountant's export, above its table: a term and its value, side by side where there is room. */
+.figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-6);
+  margin: 0 0 var(--space-4);
+}
+
+.figures div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.figures dt {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.figures dd {
+  margin: 0;
+  font-weight: 600;
+}

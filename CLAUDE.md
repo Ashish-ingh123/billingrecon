@@ -1325,4 +1325,30 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    document carries a hash of the posting's id, not its last characters: ids made one after the other end alike.
    Migration `0033_AccountingLedgers`; **the next free migration is `0034` and the next ADR 0063.** BR-904, US-52.
    Owed: runbook section 8, row 11.4a (**no Tally has imported a file**; SQL Server 2022), backlog B47 to B50,
-   `docs/go-live.md` G10. 11.4b is the two screens: the export under Reports and the names under Administration.
+   `docs/go-live.md` G10.
+
+   **Prompt 11.4b (2026-11-27, ADR 0062 amended), stage 8 of the eight, its second part:** the two screens. Reports
+   gains a group Accounts with "Accountant's export" (`/reports/accounting-export`, `AccountingExport`): the period
+   (the current month until chosen), the summary, the table of what each ledger receives, and one button that fetches
+   the file as a blob (`parseAs: 'blob'`) and saves it under the API's name through `saveFile` of `reports/csv.ts`;
+   the button is held back while a ledger has no name. Users and settings gains a fifth tab, Accounts
+   (`/administration/accounting`, `ManageTenant`), with the twelve names. The labels and the query key are in
+   `reports/accountingExport.ts`: a page module may export components only (`react-refresh/only-export-components`).
+   No API change and no migration. **The eight stages of 2026-11-26 are built.**
+
+7. **After the eight stages (2026-11-27): what is left before 10.6 and 10.7.**
+   - **The merge and the push.** GitHub's `main` is still `03c42fb`; `phase-11-counter` holds every branch before it,
+     so `main` fast-forwards to it. Tags: `v1.0.0` exists locally only; `v1.1.0` is to be made on `65e33ec`. Then the
+     first CI run on GitHub, which is also the first run of the `Database` tests of Phases 10 and 11 on SQL Server
+     2022 (migrations `0021` to `0033`). The owner's commands.
+   - **The verification on a machine with Docker** (runbook section 8): the rows of 10.1 to 11.4b, nginx in front of
+     every new page, and the compose files with the new settings: `.env` needs `TWO_STEP_ENCRYPTION_KEY` or
+     `docker compose` stops; production needs the secret files `two_step_encryption_key` and `mail_password` (empty
+     where there is no mail).
+   - **What only a person can prove:** a phone reads the enrolment's QR code (B42); a mail reaches an inbox through a
+     real server with TLS and a login (B45, G9); Tally imports the export, twice, and its totals match (B47, G10).
+   - **Outside the repository:** `billingrecon-walkthrough.ps1` beside the repo records cash without a shift and
+     signs a supervisor in without a second step, so it fails since 11.2 and 11.3; it needs a shift opened first and
+     `TWO_STEP_REQUIRED=false`, or an update.
+   - Then 10.6 (operations; ADR 0056 is kept for it) and 10.7 (readiness: go-live document, acceptance script,
+     training notes, cut-over, `v1.2.0` proposed).

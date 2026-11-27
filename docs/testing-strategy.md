@@ -279,6 +279,9 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   ledger of the accountant's is held against the ledger, summed in SQL of the test's own. **The file is read back by
   an XML parser, never by Tally:** `docs/go-live.md` G10. A file under `/Reporting/` may not call `.Add(` at all
   (`ReportingConventionTests` reads the text), so the query service builds its lists with LINQ and an iterator.
+  The screens (Prompt 11.4b): `reports/AccountingExport.test.tsx` (the card for those who may export, the summary, the
+  ledgers without a name holding the file back, the file saved under the API's name, the names saved with the version
+  read), and both pages in `e2e/routes.spec.ts`.
 - **The lens and Tab in a search** (Prompt 10.4d; ADR 0039 and ADR 0040, amended 2026-11-26): `SearchTab.test.tsx` (the
   lens on every search box, drawn and not read; the spinner in its place; Clear; a list's search sent when its box is
   left and not when unchanged; a picker by Tab with one result, several, none, a late answer and a late answer after
