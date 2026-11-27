@@ -8,4 +8,11 @@ public interface ICollectionReports
     /// reverse or refund a payment, each under the method of its payment or refund.
     /// </summary>
     public Task<DailyCollectionDto> DailyCollectionAsync(DateOnly date, CancellationToken ct);
+
+    /// <summary>
+    /// The day-end report of <paramref name="date"/> (BR-903; ADR 0060): the shifts of that business date, each with the
+    /// Cash entries of the postings that name it, and the cash of the date that no shift holds. The cashiers are not
+    /// named here: the use case asks Identity.
+    /// </summary>
+    public Task<DayEndDto> DayEndAsync(DateOnly date, CancellationToken ct);
 }

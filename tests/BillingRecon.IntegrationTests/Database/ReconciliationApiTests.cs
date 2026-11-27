@@ -150,6 +150,7 @@ public sealed class ReconciliationApiTests(SqlServerFixture sqlServer) : Databas
 
     private static async Task<PaymentDto> RecordedAsync(HttpClient client, PayerDto payer)
     {
+        await client.EnsureShiftAsync();
         using var response = await client.PostJsonAsync(
             new Uri("/api/v1/payments", UriKind.Relative),
             new RecordPaymentRequest { PayerId = payer.Id, PaymentDate = Today, Method = PaymentMethod.Cash, Amount = 500m });

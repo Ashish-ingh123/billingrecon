@@ -14,4 +14,7 @@ public enum ApprovalAction
 
     /// <summary>Bring in the opening balances of an opening batch (ADR 0053).</summary>
     BringForward = 3,
+
+    /// <summary>Close a cashier's shift with a difference (BR-314, ADR 0060).</summary>
+    Close = 4,
 }

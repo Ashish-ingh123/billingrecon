@@ -547,6 +547,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/day-end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The day-end report of a business date (US-48, BR-903), today in India when no date is given: every shift with its
+         *     cash, and the cash outside the shifts. Its cash total equals the Cash row of the daily collection of the date.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    date?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["DayEndDto"];
+                        "application/json": components["schemas"]["DayEndDto"];
+                        "text/json": components["schemas"]["DayEndDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reports/outstanding-by-payer": {
         parameters: {
             query?: never;
@@ -1199,6 +1253,487 @@ export interface paths {
                 };
                 /** @description Conflict */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Precondition Required */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cashier-shifts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Shifts, the newest first. A Cashier and a BillingClerk get their own, whatever is asked. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Only the shifts of this cashier. */
+                    CashierUserId?: string;
+                    /** @description Only the shifts of the user who asks. */
+                    Mine?: boolean;
+                    /** @description Only the shifts in this state: Open, PendingApproval or Closed. */
+                    Status?: components["schemas"]["CashierShiftStatus"];
+                    /** @description Only the shifts that are open or wait for approval. */
+                    Unclosed?: boolean;
+                    /** @description Only the shifts of this business date. */
+                    Date?: string;
+                    /** @description The page, from 1. */
+                    Page?: number | string;
+                    /** @description The size of a page, at most 100. */
+                    PageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PageOfOfCashierShiftDto"];
+                        "application/json": components["schemas"]["PageOfOfCashierShiftDto"];
+                        "text/json": components["schemas"]["PageOfOfCashierShiftDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Opens a shift for the user who asks, with the float of the drawer. One shift at a time (BR-310). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["OpenCashierShiftRequest"];
+                    "text/json": components["schemas"]["OpenCashierShiftRequest"];
+                    "application/*+json": components["schemas"]["OpenCashierShiftRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["CashierShiftDto"];
+                        "application/json": components["schemas"]["CashierShiftDto"];
+                        "text/json": components["schemas"]["CashierShiftDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cashier-shifts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One shift with the cash the ledger has for it. A Cashier and a BillingClerk read only their own: 404 otherwise. */
+        get: operations["GetCashierShift"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cashier-shifts/{id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The cashier counts the drawer and closes the shift (BR-313). Closed when the count is the expected cash: 200.
+         *     With a difference, which needs a reason, the closing waits for a checker: 202 (BR-314). Needs If-Match.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CloseCashierShiftRequest"];
+                    "text/json": components["schemas"]["CloseCashierShiftRequest"];
+                    "application/*+json": components["schemas"]["CloseCashierShiftRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["CashierShiftDto"];
+                        "application/json": components["schemas"]["CashierShiftDto"];
+                        "text/json": components["schemas"]["CashierShiftDto"];
+                    };
+                };
+                /** @description Accepted */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["CashierShiftDto"];
+                        "application/json": components["schemas"]["CashierShiftDto"];
+                        "text/json": components["schemas"]["CashierShiftDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Precondition Required */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cashier-shifts/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A checker approves the closing with its difference: the shift is closed (BR-314). Never its own cashier. Needs If-Match. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": null | components["schemas"]["DecideCashierShiftRequest"];
+                    "text/json": null | components["schemas"]["DecideCashierShiftRequest"];
+                    "application/*+json": null | components["schemas"]["DecideCashierShiftRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["CashierShiftDto"];
+                        "application/json": components["schemas"]["CashierShiftDto"];
+                        "text/json": components["schemas"]["CashierShiftDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Precondition Required */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cashier-shifts/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A checker rejects the closing, saying why: the shift is open again, to be counted again (BR-605). Needs If-Match. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DecideCashierShiftRequest"];
+                    "text/json": components["schemas"]["DecideCashierShiftRequest"];
+                    "application/*+json": components["schemas"]["DecideCashierShiftRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["CashierShiftDto"];
+                        "application/json": components["schemas"]["CashierShiftDto"];
+                        "text/json": components["schemas"]["CashierShiftDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -9189,12 +9724,12 @@ export interface components {
          * @description What the maker asks to be done to the document, once a checker approves (BR-604, BR-606).
          * @enum {unknown}
          */
-        ApprovalAction: "Post" | "Reverse" | "ChangePrefix" | "BringForward";
+        ApprovalAction: "Post" | "Reverse" | "ChangePrefix" | "BringForward" | "Close";
         /**
          * @description The kind of document an approval request is about (BR-604; docs/database.md, section 3.6).
          * @enum {unknown}
          */
-        ApprovalDocumentType: "Bill" | "CreditNote" | "Adjustment" | "Refund" | "Payment" | "PaymentAllocation" | "CreditNoteAllocation" | "PrefixChange" | "OpeningBatch";
+        ApprovalDocumentType: "Bill" | "CreditNote" | "Adjustment" | "Refund" | "Payment" | "PaymentAllocation" | "CreditNoteAllocation" | "PrefixChange" | "OpeningBatch" | "CashierShift";
         /** @description An approval request as the API returns it: who asked for what on which document, and who decided. */
         ApprovalRequestDto: {
             /** Format: uuid */
@@ -9497,12 +10032,90 @@ export interface components {
             updatedAtUtc: string;
             version: string;
         };
+        /** @description One denomination of a count: the value of the note or coin in rupees, and how many pieces. */
+        CashCountLineDto: {
+            /** Format: int32 */
+            denomination: number | string;
+            /** Format: int32 */
+            pieces: number | string;
+        };
+        /** @description One denomination of the count of a closing. */
+        CashCountLineRequest: {
+            /**
+             * Format: int32
+             * @description The value of the note or coin in rupees: 2000, 500, 200, 100, 50, 20, 10, 5, 2 or 1.
+             */
+            denomination?: null | number | string;
+            /**
+             * Format: int32
+             * @description How many pieces of it the drawer holds.
+             */
+            pieces?: null | number | string;
+        };
+        /**
+         * @description A shift as the API answers it (ADR 0060). decimal CashierShiftDto.CashReceived and decimal CashierShiftDto.CashPaidOut are read from
+         *     the ledger when the shift is read, and decimal CashierShiftDto.ExpectedCash is the float and their difference (BR-312), so
+         *     an open shift shows what its drawer should hold now. The count and what follows from it are null until the shift
+         *     is counted.
+         */
+        CashierShiftDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            cashierUserId: string;
+            cashierName: null | string;
+            /** Format: date */
+            businessDate: string;
+            status: components["schemas"]["CashierShiftStatus"];
+            /** Format: double */
+            openingFloat: number | string;
+            /** Format: date-time */
+            openedAtUtc: string;
+            /** Format: int32 */
+            cashDocuments: number | string;
+            /** Format: double */
+            cashReceived: number | string;
+            /** Format: double */
+            cashPaidOut: number | string;
+            /** Format: double */
+            expectedCash: number | string;
+            count: null | components["schemas"]["CashCountLineDto"][];
+            /** Format: double */
+            looseChange: null | number | string;
+            /** Format: double */
+            countedCash: null | number | string;
+            /** Format: double */
+            difference: null | number | string;
+            differenceReason: null | string;
+            /** Format: date-time */
+            countedAtUtc: null | string;
+            /** Format: date-time */
+            closedAtUtc: null | string;
+            version: string;
+        };
+        /**
+         * @description Where a cashier's shift stands (BR-310 to BR-315; ADR 0060).
+         * @enum {unknown}
+         */
+        CashierShiftStatus: "Open" | "PendingApproval" | "Closed";
         /** @description The body of `POST /api/v1/auth/password`: the current password and the new one (ADR 0051). */
         ChangePasswordRequest: {
             /** @description The password the user has now. */
             currentPassword?: null | string;
             /** @description The password the user chooses: 12 to 128 characters, not the current one. */
             newPassword?: null | string;
+        };
+        /** @description The body of `POST /api/v1/cashier-shifts/{id}/close`. */
+        CloseCashierShiftRequest: {
+            /** @description The pieces of each denomination; one left out has none. */
+            count?: null | components["schemas"]["CashCountLineRequest"][];
+            /**
+             * Format: double
+             * @description The cash below one rupee; none when left out.
+             */
+            looseChange?: null | number | string;
+            /** @description Why the count differs from the expected cash; required when it does. */
+            reason?: null | string;
         };
         /**
          * @description One payment method on one business date: the payments received that day and what they came to, the payments of this
@@ -9912,6 +10525,91 @@ export interface components {
             points: components["schemas"]["TrendPointDto"][];
             daily: components["schemas"]["DailyFiguresDto"][];
         };
+        /** @description Cash that came in and went out, and what is left of it: Net is received less paid out. */
+        DayEndCashDto: {
+            /**
+             * Format: double
+             * @description The cash payments recorded.
+             */
+            received: number | string;
+            /**
+             * Format: double
+             * @description The cash refunds, and the cash payments reversed.
+             */
+            paidOut: number | string;
+            /**
+             * Format: double
+             * @description Received less paid out.
+             */
+            net: number | string;
+        };
+        /**
+         * @description The day-end report of one business date (US-48; BR-903; ADR 0060): every shift of that date, the cash that moved
+         *     outside any shift, and their sum.
+         */
+        DayEndDto: {
+            /**
+             * Format: date
+             * @description The business date in India.
+             */
+            date: string;
+            /** @description The shifts of the date, in the order they were opened. */
+            shifts: components["schemas"]["DayEndShiftDto"][];
+            /** @description The cash of the shifts together. */
+            shiftsTotal: components["schemas"]["DayEndCashDto"];
+            /**
+             * @description The cash of the date that no shift holds: a cash payment reversed after its shift was closed, and cash recorded
+             *     before shifts existed.
+             */
+            outsideShifts: components["schemas"]["DayEndCashDto"];
+            /** @description The two together. Its `Net` equals the net of the Cash row of the daily collection of the date, always. */
+            cash: components["schemas"]["DayEndCashDto"];
+            /**
+             * Format: double
+             * @description The differences of the counted shifts together: above zero an excess, below zero a shortage.
+             */
+            difference: number | string;
+            /**
+             * Format: int32
+             * @description How many shifts of the date are still open or wait for approval.
+             */
+            unclosedShifts: number | string;
+        };
+        /**
+         * @description One shift of the day-end report (BR-903): its cash from the ledger, what its drawer should hold, and, once it is
+         *     counted, what it held and the difference.
+         */
+        DayEndShiftDto: {
+            /** Format: uuid */
+            shiftId: string;
+            /** Format: uuid */
+            cashierUserId: string;
+            cashierName: null | string;
+            status: components["schemas"]["ReportShiftStatus"];
+            /** Format: date-time */
+            openedAtUtc: string;
+            /** Format: date-time */
+            closedAtUtc: null | string;
+            /** Format: double */
+            openingFloat: number | string;
+            /** Format: double */
+            received: number | string;
+            /** Format: double */
+            paidOut: number | string;
+            /** Format: double */
+            net: number | string;
+            /** Format: double */
+            expectedCash: number | string;
+            /** Format: double */
+            countedCash: null | number | string;
+            /** Format: double */
+            difference: null | number | string;
+        };
+        /** @description The body of the approval and of the rejection of the closing of a shift: what the checker has to say. */
+        DecideCashierShiftRequest: {
+            /** @description The comment: optional for an approval, required for a rejection. */
+            comment?: null | string;
+        };
         /** @description The decision on an opening batch: a comment, optional for an approval and required for a rejection. */
         DecideOpeningBatchRequest: {
             /** @description What the checker says. */
@@ -10041,6 +10739,14 @@ export interface components {
          * @enum {unknown}
          */
         LogoSize: "Small" | "Medium" | "Large";
+        /** @description The body of `POST /api/v1/cashier-shifts`. */
+        OpenCashierShiftRequest: {
+            /**
+             * Format: double
+             * @description The cash the drawer holds at the opening: zero or more.
+             */
+            openingFloat?: null | number | string;
+        };
         /**
          * @description What the files of an opening batch would bring in (ADR 0053), and every row that stops them. bool OpeningBatchCheckDto.Accepted
          *     is true when nothing is rejected and the totals are those of the trial balance: only then can the batch be submitted.
@@ -10186,6 +10892,19 @@ export interface components {
          */
         PageOfOfBillSummaryDto: {
             items: components["schemas"]["BillSummaryDto"][];
+            /** Format: int32 */
+            page: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int32 */
+            totalCount: number | string;
+        };
+        /**
+         * @description One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that
+         *     was asked for, and how many items all pages hold together.
+         */
+        PageOfOfCashierShiftDto: {
+            items: components["schemas"]["CashierShiftDto"][];
             /** Format: int32 */
             page: number | string;
             /** Format: int32 */
@@ -10952,6 +11671,11 @@ export interface components {
              */
             to: string;
         };
+        /**
+         * @description Where a shift stands, in the words of Reporting (ADR 0036: Reporting has its own words for the enums of other modules).
+         * @enum {unknown}
+         */
+        ReportShiftStatus: "Open" | "PendingApproval" | "Closed";
         /** @description The body of `POST /api/v1/settings/prefix-changes`: the document type, its new prefix and an optional comment. Unknown members are refused. */
         RequestPrefixChangeRequest: {
             documentType?: null | components["schemas"]["DocumentType"];
@@ -11421,6 +12145,41 @@ export interface operations {
                     "text/plain": components["schemas"]["OpeningBatchDto"];
                     "application/json": components["schemas"]["OpeningBatchDto"];
                     "text/json": components["schemas"]["OpeningBatchDto"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetCashierShift: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["CashierShiftDto"];
+                    "application/json": components["schemas"]["CashierShiftDto"];
+                    "text/json": components["schemas"]["CashierShiftDto"];
                 };
             };
             /** @description Not Found */

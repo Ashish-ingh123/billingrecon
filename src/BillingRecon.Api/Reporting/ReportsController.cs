@@ -99,6 +99,24 @@ public sealed class ReportsController(ILogger<ReportsController> logger, IAuthor
         return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
     }
 
+    /// <summary>
+    /// The day-end report of a business date (US-48, BR-903), today in India when no date is given: every shift with its
+    /// cash, and the cash outside the shifts. Its cash total equals the Cash row of the daily collection of the date.
+    /// </summary>
+    [Authorize(Policy = Policies.DayEnd)]
+    [HttpGet("day-end")]
+    [ProducesResponseType<DayEndDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> DayEndAsync(
+        [FromQuery] DateOnly? date,
+        [FromServices] IQueryHandler<DayEndQuery, DayEndDto> handler,
+        CancellationToken ct)
+    {
+        var result = await handler.HandleAsync(new DayEndQuery { Date = date }, ct);
+
+        return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
+    }
+
     /// <summary>The payers that owe something or have something held for them, the largest net outstanding first.</summary>
     [Authorize(Policy = Policies.Reports)]
     [HttpGet("outstanding-by-payer")]

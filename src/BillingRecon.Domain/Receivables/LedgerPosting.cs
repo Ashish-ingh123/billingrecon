@@ -58,6 +58,12 @@ public sealed class LedgerPosting : Entity<LedgerPostingId>, ITenantScoped, IApp
     /// <summary>The correlation id of the request that caused the posting (BR-703).</summary>
     public Guid CorrelationId { get; private set; }
 
+    /// <summary>
+    /// The cashier's shift whose drawer the posting moved cash in or out of (BR-311, BR-312; ADR 0060); null for a
+    /// posting that moved no cash of a shift. Its business date is the shift's.
+    /// </summary>
+    public CashierShiftId? ShiftId { get; private set; }
+
     /// <summary>The entries, in the order of their line numbers.</summary>
     public IReadOnlyList<LedgerEntry> Entries => _entries;
 
@@ -78,7 +84,8 @@ public sealed class LedgerPosting : Entity<LedgerPostingId>, ITenantScoped, IApp
         DateTimeOffset postedAtUtc,
         UserId? postedBy,
         Guid correlationId,
-        LedgerPostingId? reversalOf = null)
+        LedgerPostingId? reversalOf = null,
+        CashierShiftId? shiftId = null)
     {
         ArgumentNullException.ThrowIfNull(lines);
 
@@ -102,6 +109,11 @@ public sealed class LedgerPosting : Entity<LedgerPostingId>, ITenantScoped, IApp
             throw new ArgumentException("A posting needs the correlation id of its request (BR-703).", nameof(correlationId));
         }
 
+        if (shiftId is { } shift && shift.Value == Guid.Empty)
+        {
+            throw new ArgumentException("A posting names the shift it belongs to; leave it null otherwise.", nameof(shiftId));
+        }
+
         if (reversalOf is { } original && original.Value == Guid.Empty)
         {
             throw new ArgumentException("A reversal names the posting it reverses; leave it null otherwise.", nameof(reversalOf));
@@ -121,6 +133,7 @@ public sealed class LedgerPosting : Entity<LedgerPostingId>, ITenantScoped, IApp
             PostedByUserId = postedBy,
             CorrelationId = correlationId,
             ReversalOfPostingId = reversalOf,
+            ShiftId = shiftId,
         };
 
         for (var index = 0; index < lines.Count; index++)

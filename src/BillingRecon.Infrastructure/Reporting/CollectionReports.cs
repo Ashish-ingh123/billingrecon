@@ -79,6 +79,95 @@ public sealed class CollectionReports(BillingReconDbContext context) : ICollecti
         return new DailyCollectionDto(date, rows, totals);
     }
 
+    /// <inheritdoc />
+    public async Task<DayEndDto> DayEndAsync(DateOnly date, CancellationToken ct)
+    {
+        var shifts = await context.Set<CashierShift>().AsNoTracking()
+            .Where(shift => shift.BusinessDate == date)
+            .OrderBy(shift => shift.OpenedAtUtc)
+            .ThenBy(shift => shift.Id)
+            .ToListAsync(ct);
+
+        // The same entries the daily collection reads, with the shift each posting names.
+        var entries = await (
+                from posting in context.Set<LedgerPosting>().AsNoTracking()
+                join entry in context.Set<LedgerEntry>().AsNoTracking() on posting.Id equals entry.PostingId
+                where posting.BusinessDate == date
+                    && (posting.Kind == LedgerPostingKind.PaymentRecorded || posting.Kind == LedgerPostingKind.PaymentReversed || posting.Kind == LedgerPostingKind.RefundPosted)
+                    && entry.Account == LedgerAccount.Cash
+                select new { posting.Kind, posting.DocumentId, posting.ShiftId, entry.Debit, entry.Credit })
+            .ToListAsync(ct);
+
+        var paymentIds = entries.Where(line => line.Kind != LedgerPostingKind.RefundPosted).Select(line => new PaymentId(line.DocumentId)).Distinct().ToList();
+        var refundIds = entries.Where(line => line.Kind == LedgerPostingKind.RefundPosted).Select(line => new RefundId(line.DocumentId)).Distinct().ToList();
+
+        // Only money in notes and coins is the cash of a drawer: the documents whose method is Cash.
+        var cashPayments = (await context.Set<Payment>().AsNoTracking()
+            .Where(payment => paymentIds.Contains(payment.Id) && payment.Method == PaymentMethod.Cash)
+            .Select(payment => payment.Id)
+            .ToListAsync(ct)).Select(id => id.Value).ToHashSet();
+        var cashRefunds = (await context.Set<Refund>().AsNoTracking()
+            .Where(refund => refundIds.Contains(refund.Id) && refund.Method == PaymentMethod.Cash)
+            .Select(refund => refund.Id)
+            .ToListAsync(ct)).Select(id => id.Value).ToHashSet();
+
+        var ofShifts = shifts.ToDictionary(shift => shift.Id, _ => new Drawer());
+        var outside = new Drawer();
+        foreach (var line in entries)
+        {
+            if (!(line.Kind == LedgerPostingKind.RefundPosted ? cashRefunds : cashPayments).Contains(line.DocumentId))
+            {
+                continue;
+            }
+
+            // A posting names a shift of its own business date (BR-311); anything else is cash outside the shifts.
+            var drawer = line.ShiftId is { } shiftId && ofShifts.TryGetValue(shiftId, out var named) ? named : outside;
+            drawer.Received += line.Debit.Amount;
+            drawer.PaidOut += line.Credit.Amount;
+        }
+
+        DayEndShiftDto[] rows =
+        [
+            .. shifts.Select(shift =>
+            {
+                var drawer = ofShifts[shift.Id];
+                return new DayEndShiftDto(
+                    shift.Id.Value,
+                    shift.CashierUserId.Value,
+                    CashierName: null,
+                    ReportMapping.ToReport(shift.Status),
+                    shift.OpenedAtUtc,
+                    shift.ClosedAtUtc,
+                    shift.OpeningFloat.Amount,
+                    drawer.Received,
+                    drawer.PaidOut,
+                    drawer.Received - drawer.PaidOut,
+                    shift.OpeningFloat.Amount + drawer.Received - drawer.PaidOut,
+                    shift.CountedCash?.Amount,
+                    shift.Difference?.Amount);
+            }),
+        ];
+
+        var shiftsTotal = new DayEndCashDto(rows.Sum(row => row.Received), rows.Sum(row => row.PaidOut), rows.Sum(row => row.Net));
+        var outsideShifts = new DayEndCashDto(outside.Received, outside.PaidOut, outside.Received - outside.PaidOut);
+
+        return new DayEndDto(
+            date,
+            rows,
+            shiftsTotal,
+            outsideShifts,
+            new DayEndCashDto(shiftsTotal.Received + outsideShifts.Received, shiftsTotal.PaidOut + outsideShifts.PaidOut, shiftsTotal.Net + outsideShifts.Net),
+            rows.Sum(row => row.Difference ?? 0m),
+            rows.Count(row => row.Status != ReportShiftStatus.Closed));
+    }
+
+    private sealed class Drawer
+    {
+        public decimal Received { get; set; }
+
+        public decimal PaidOut { get; set; }
+    }
+
     private sealed class Tally
     {
         public int Payments { get; set; }

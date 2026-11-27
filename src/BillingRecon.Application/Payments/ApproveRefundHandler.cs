@@ -21,6 +21,9 @@ namespace BillingRecon.Application.Payments;
 /// number; the source pays, a payment here and a credit note through <see cref="ICreditNoteSettlement"/>; the
 /// ledger, which locks the payer's row of cached balances; one commit that saves the refund, its source and the
 /// request under their row versions. A source changed by a request that committed in between answers 409.
+/// A cash refund is paid out of the open shift of the cashier who drafted it, and its posting names that shift (BR-311;
+/// ADR 0060): <c>shift_not_open</c> when that cashier has none, <c>shift_date_mismatch</c> when the refund is dated
+/// another day than the shift.
 /// </para>
 /// </summary>
 public sealed class ApproveRefundHandler(
@@ -31,6 +34,7 @@ public sealed class ApproveRefundHandler(
     ICreditNoteSettlement creditNotes,
     IActivePayers payers,
     IRefundRepository repository,
+    ICashierShiftRepository shifts,
     IApprovalRequestRepository approvals,
     ITenantSettingsReader tenantSettings,
     INumberSeries numbers,
@@ -108,6 +112,20 @@ public sealed class ApproveRefundHandler(
             return fits.Error;
         }
 
+        // Cash is paid out of the open shift of the cashier who drafted the refund, on the business date of that shift
+        // (BR-311; ADR 0060): the checker approves, the cashier hands the money over.
+        CashierShift? shift = null;
+        if (refund.Method == PaymentMethod.Cash)
+        {
+            var drawer = await CashShifts.RequireAsync(shifts, refund.CreatedByUserId, refund.RefundDate, ofDrafter: true, ct);
+            if (drawer.IsFailure)
+            {
+                return drawer.Error;
+            }
+
+            shift = drawer.Value;
+        }
+
         // Last, after every check: from here on the series of the fiscal year is locked until the commit (BR-801).
         var number = await numbers.NextAsync(DocumentType.Refund, FiscalYear.FromDate(refund.RefundDate), ct);
         var posted = refund.PostApproved(number, now, checker, source.Date, window);
@@ -123,7 +141,8 @@ public sealed class ApproveRefundHandler(
         }
 
         // From this posting on, the payer's row of cached balances is locked until the commit.
-        var entered = await ledger.PostAsync(paid.Value, ct);
+        shift?.TakeCashDocument();
+        var entered = await ledger.PostAsync(paid.Value with { ShiftId = shift?.Id }, ct);
         if (entered.IsFailure)
         {
             // The source accepted the amount as it was read. A ledger that finds a balance going below zero has seen

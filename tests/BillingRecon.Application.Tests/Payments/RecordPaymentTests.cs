@@ -19,6 +19,7 @@ namespace BillingRecon.Application.Tests.Payments;
 public sealed class RecordPaymentTests
 {
     private static readonly PayerId Payer = new(Guid.NewGuid());
+    private static readonly UserId Cashier = new(Guid.NewGuid());
     private static readonly FiscalYear Fy = FiscalYear.FromDate(TestDoubles.Today);
     private static readonly LedgerPostingId Posting = new(Guid.NewGuid());
 
@@ -27,6 +28,8 @@ public sealed class RecordPaymentTests
     private readonly IActivePayers _payers = Substitute.For<IActivePayers>();
     private readonly ITenantSettingsReader _settings = Substitute.For<ITenantSettingsReader>();
     private readonly IPaymentRepository _repository = Substitute.For<IPaymentRepository>();
+    private readonly ICashierShiftRepository _shifts = Substitute.For<ICashierShiftRepository>();
+    private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
     private readonly INumberSeries _numbers = Substitute.For<INumberSeries>();
     private readonly IReceivablesLedger _ledger = Substitute.For<IReceivablesLedger>();
     private readonly IClock _clock = TestDoubles.ClockAt(TestDoubles.Today);
@@ -35,6 +38,11 @@ public sealed class RecordPaymentTests
     public RecordPaymentTests()
     {
         _clock.ToIstDate(Arg.Any<DateTimeOffset>()).Returns(TestDoubles.Today);
+
+        // Whoever records has an open shift of today, so a cash payment has its drawer (BR-311).
+        _currentUser.UserId.Returns(Cashier);
+        _shifts.FindOpenOfAsync(Cashier, Arg.Any<CancellationToken>())
+            .Returns(CashierShift.Open(Cashier, TestDoubles.Today, Money.Zero, new DateTimeOffset(2026, 10, 17, 3, 0, 0, TimeSpan.Zero)));
         _payers.EnsureActiveAsync(Payer, Arg.Any<CancellationToken>()).Returns(Result.Success());
         _settings.GetDocumentSettingsAsync(Arg.Any<CancellationToken>()).Returns(new TenantDocumentSettings(MaxBackdateDays: 7, DefaultDueDays: 15));
         _numbers.NextAsync(DocumentType.Payment, Fy, Arg.Any<CancellationToken>()).Returns(DocumentNumber.Create(DocumentType.Payment, Fy, "PAY", 17));
@@ -296,7 +304,7 @@ public sealed class RecordPaymentTests
         await _unitOfWork.DidNotReceiveWithAnyArgs().CommitAsync(default);
     }
 
-    private RecordPaymentHandler Handler() => new(_validator, _clock, _repository, _settings, _payers, _numbers, _ledger, _unitOfWork);
+    private RecordPaymentHandler Handler() => new(_validator, _clock, _currentUser, _repository, _shifts, _settings, _payers, _numbers, _ledger, _unitOfWork);
 
     private static RecordPaymentCommand Upi() => new()
     {

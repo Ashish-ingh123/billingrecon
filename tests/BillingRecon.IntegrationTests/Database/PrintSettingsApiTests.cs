@@ -198,6 +198,7 @@ public sealed class PrintSettingsApiTests(SqlServerFixture sqlServer) : Database
         using var theirCashier = factory.CreateClientFor(stranger, "Cashier", "BillingClerk");
         var (_, payer) = await cashier.NewBillPartiesAsync();
 
+        await cashier.EnsureShiftAsync();
         using var recorded = await cashier.PostJsonAsync(new Uri("/api/v1/payments", UriKind.Relative), new RecordPaymentRequest { PayerId = payer.Id, PaymentDate = Today, Method = PaymentMethod.Cash, Amount = 1000m });
         recorded.StatusCode.ShouldBe(HttpStatusCode.Created, await recorded.Content.ReadAsStringAsync());
         var payment = await recorded.ReadAsAsync<PaymentDto>();

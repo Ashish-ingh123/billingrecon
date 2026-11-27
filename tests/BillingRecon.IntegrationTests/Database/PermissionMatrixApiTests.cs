@@ -55,6 +55,9 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
         ["audit trail"] = Everyone,
         ["reports"] = Everyone,
         ["dashboard"] = [TenantAdmin, Supervisor, Viewer],
+        ["shifts: open, close"] = [TenantAdmin, Supervisor, BillingClerk, Cashier],
+        ["shifts: read"] = Everyone,
+        ["day end"] = [TenantAdmin, Supervisor, Viewer],
         ["signed in"] = Everyone,
     };
 
@@ -150,6 +153,15 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
         ("POST", "api/v1/refunds/{id:guid}/post", "refunds: change"),
         ("POST", "api/v1/refunds/{id:guid}/approve", "approve or reject"),
         ("POST", "api/v1/refunds/{id:guid}/reject", "approve or reject"),
+
+        // Since Prompt 11.2 (ADR 0060): the shifts of the cash counter and the day-end report.
+        ("POST", "api/v1/cashier-shifts", "shifts: open, close"),
+        ("GET", "api/v1/cashier-shifts", "shifts: read"),
+        ("GET", "api/v1/cashier-shifts/{id:guid}", "shifts: read"),
+        ("POST", "api/v1/cashier-shifts/{id:guid}/close", "shifts: open, close"),
+        ("POST", "api/v1/cashier-shifts/{id:guid}/approve", "approve or reject"),
+        ("POST", "api/v1/cashier-shifts/{id:guid}/reject", "approve or reject"),
+        ("GET", "api/v1/reports/day-end", "day end"),
 
         ("GET", "api/v1/approval-requests", "approve or reject"),
         ("GET", "api/v1/audit-records", "audit trail"),

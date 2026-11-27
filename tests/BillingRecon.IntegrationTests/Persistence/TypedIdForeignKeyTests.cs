@@ -151,6 +151,10 @@ public sealed class TypedIdForeignKeyTests
                 "FK_OpeningBatches_CreatedByUserId", "FK_OpeningBatches_UpdatedByUserId",
                 "FK_DocumentPrints_PrintedByUserId",
                 "FK_PrintSettings_CreatedByUserId", "FK_PrintSettings_UpdatedByUserId",
+
+                // Since Prompt 11.2 (ADR 0060): the shift of a cashier, and the shift a ledger posting names.
+                "FK_CashierShifts_CashierUserId", "FK_CashierShifts_CreatedByUserId", "FK_CashierShifts_UpdatedByUserId",
+                "FK_LedgerPostings_ShiftId",
             ],
             ignoreOrder: true);
     }

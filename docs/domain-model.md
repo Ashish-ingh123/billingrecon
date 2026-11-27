@@ -445,6 +445,28 @@ behaviour; it carries `IAppendOnly`, and the persistence layer refuses to update
 the database assigns, not a typed id. So far every record comes from a domain event, through the generic
 `AuditSubscriber`; no use case calls `IAuditWriter` itself yet.
 
+### 4.14 CashierShift (Payments module)
+
+*Built 2026-11-27 (Prompt 11.2, ADR 0060).* A shift of the cash counter: `CashierUserId`, `BusinessDate` (the date of
+its opening, kept), `Status`, `OpeningFloat`, `OpenedAtUtc`, `CashDocuments`, and once it is counted `Denominations`
+(a `CashCount`: the pieces of each of ten fixed denominations, one value), `LooseChange`, `CountedCash`,
+`ExpectedCash`, `Difference`, `DifferenceReason`, `CountedAtUtc`; `ClosedAtUtc`.
+
+- BR-310: opened by `CashierShift.Open` with a float of zero or more. One shift at a time per user is the use case's
+  check and a filtered unique index; the aggregate cannot see the user's other shifts.
+- BR-311: `CheckTakes(date)` admits a cash document only while the shift is open and only on its business date;
+  `TakeCashDocument()` counts it, which changes the row version and raises no event (ADR 0060 point 10).
+- BR-312, BR-313: `Close(count, looseChange, cashMovement, reason, now)` is handed the shift's Cash entries by the
+  use case, which read them from the ledger through `IShiftCash`; expected is the float and that movement, the
+  difference is counted less expected, and a difference without a reason is refused.
+- BR-314: with no difference the shift is `Closed`; with one it is `PendingApproval`, and `ApproveClosing` closes it
+  while `RejectClosing(reason)` opens it again and clears the count. The difference is a fact of the shift and never
+  a ledger posting.
+- BR-315: a closed shift refuses everything.
+
+It holds no money and has no number: it is not a financial document, and the ledger knows a shift only as the
+`ShiftId` a posting names (section 4.10).
+
 ---
 
 ## 5. State machines
@@ -512,6 +534,12 @@ apply more of its credit while one of its applications waits.
 ### 5.4 ApprovalRequest
 
 `Pending → Approved | Rejected`, decided once, by a user other than the maker (BR-603).
+
+### 5.5 CashierShift (ADR 0060)
+
+`Open → Closed` when the count is the expected cash; `Open → PendingApproval` when it differs, then
+`PendingApproval → Closed` on approval or `PendingApproval → Open` on rejection, to be counted again. `Closed` is
+final (BR-315). Cash documents join only in `Open`.
 
 ---
 

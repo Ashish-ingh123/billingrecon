@@ -369,6 +369,7 @@ public sealed class OpeningBalancesApiTests(SqlServerFixture sqlServer) : Databa
 
         // A payment recorded here settles the opening receivable of its payer.
         var today = DateOnly.FromDateTime(DatabaseApiFactory.InitialInstant.UtcDateTime.AddHours(5.5));
+        await maker.EnsureShiftAsync();
         using var recorded = await maker.PostJsonAsync(new Uri("/api/v1/payments", UriKind.Relative), new RecordPaymentRequest { PayerId = first.PayerId.Value, PaymentDate = today, Method = PaymentMethod.Cash, Amount = 1000.00m });
         recorded.StatusCode.ShouldBe(HttpStatusCode.Created, await recorded.Content.ReadAsStringAsync());
         var payment = await recorded.ReadAsAsync<PaymentDto>();

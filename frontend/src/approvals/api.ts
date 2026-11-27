@@ -25,6 +25,7 @@ export const approvalDocumentTypes: readonly ApprovalDocumentType[] = [
   'CreditNoteAllocation',
   'PrefixChange',
   'OpeningBatch',
+  'CashierShift',
 ];
 
 /** What a request asks, by the kind of its document: each kind has one action (ADR 0023 to ADR 0033). */
@@ -38,6 +39,7 @@ export const requestLabels: Record<ApprovalDocumentType, string> = {
   CreditNoteAllocation: 'Reverse an application of credit',
   PrefixChange: 'Change a document prefix',
   OpeningBatch: 'Bring in opening balances',
+  CashierShift: 'Close a shift with a difference',
 };
 
 /** The kinds as the filter names them. */
@@ -51,11 +53,12 @@ export const documentTypeLabels: Record<ApprovalDocumentType, string> = {
   CreditNoteAllocation: 'Reversals of applied credit',
   PrefixChange: 'Prefix changes',
   OpeningBatch: 'Opening balances',
+  CashierShift: 'Shift closings',
 };
 
 /**
  * Where a request's document is shown: its own page, or for an allocation or an application of credit the page of the
- * payment or the credit note it belongs to (`parentDocumentId`, ADR 0042 point 2). A prefix change and an opening batch have no page yet.
+ * payment or the credit note it belongs to (`parentDocumentId`, ADR 0042 point 2). A prefix change, an opening batch and the closing of a shift have no page yet.
  */
 export function documentLink(request: PendingApproval): { to: string; label: string } | null {
   const parent = request.parentDocumentId;
@@ -76,6 +79,7 @@ export function documentLink(request: PendingApproval): { to: string; label: str
       return parent === null ? null : { to: `/credit-notes/${parent}`, label: 'Its credit note' };
     case 'PrefixChange':
     case 'OpeningBatch':
+    case 'CashierShift':
       return null;
   }
 }
@@ -139,6 +143,16 @@ export interface Decidable {
   facts: (readonly [string, string])[];
   approve: (comment: string, key: string) => Promise<unknown>;
   reject: (comment: string, key: string) => Promise<unknown>;
+}
+
+/** A difference of a count in words: a shortage or an excess, never a bare sign. */
+export function differenceText(difference: number | string): string {
+  const text = String(difference);
+  if (Number(text) === 0) {
+    return 'None';
+  }
+  const short = text.startsWith('-');
+  return `${short ? 'Short by' : 'Over by'} ₹${formatDecimal(short ? text.slice(1) : text)}`;
 }
 
 const keyed = (version: string, key: string) => ({ ...ifMatch(version), 'Idempotency-Key': key });
@@ -396,6 +410,41 @@ export async function readDecidable(client: ApiClient, request: PendingApproval)
               ...path,
               body: { comment },
               headers: ifMatch(change.version),
+            }),
+          ),
+      };
+    }
+
+    case 'CashierShift': {
+      // The closing of a shift (ADR 0060) posts nothing and takes no Idempotency-Key: If-Match refuses a repeat.
+      const shift = await answer(client.GET('/api/v1/cashier-shifts/{id}', { params: { path: { id } } }));
+      const path = { params: { path: { id } } };
+      return {
+        path: `/cashier-shifts/${id}`,
+        version: shift.version,
+        facts: [
+          ['State', shift.status === 'PendingApproval' ? 'Waiting for approval' : shift.status],
+          ['Cashier', shift.cashierName ?? ''],
+          ['Business date', formatDate(shift.businessDate)],
+          ['Expected cash', `₹${formatDecimal(shift.expectedCash)}`],
+          ['Counted cash', shift.countedCash === null ? '' : `₹${formatDecimal(shift.countedCash)}`],
+          ['Difference', shift.difference === null ? '' : differenceText(shift.difference)],
+          ['Reason', shift.differenceReason ?? ''],
+        ],
+        approve: (comment) =>
+          answer(
+            client.POST('/api/v1/cashier-shifts/{id}/approve', {
+              ...path,
+              body: optional(comment),
+              headers: ifMatch(shift.version),
+            }),
+          ),
+        reject: (comment) =>
+          answer(
+            client.POST('/api/v1/cashier-shifts/{id}/reject', {
+              ...path,
+              body: { comment },
+              headers: ifMatch(shift.version),
             }),
           ),
       };

@@ -32,4 +32,7 @@ public enum ApprovalDocumentType
 
     /// <summary>An opening batch: the opening receivables and advances of a hospital, brought in once (ADR 0053).</summary>
     OpeningBatch = 8,
+
+    /// <summary>The closing of a cashier's shift whose count differs from the expected cash (BR-314, ADR 0060).</summary>
+    CashierShift = 9,
 }

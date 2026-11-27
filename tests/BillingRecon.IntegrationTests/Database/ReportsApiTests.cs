@@ -489,6 +489,12 @@ public sealed class ReportsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
 
     private static async Task<PaymentDto> RecordedAsync(HttpClient client, PayerDto payer, DateOnly paymentDate, PaymentMethod method, decimal amount)
     {
+        // Cash is taken in the open shift of whoever records it (BR-311).
+        if (method == PaymentMethod.Cash)
+        {
+            await client.EnsureShiftAsync();
+        }
+
         using var response = await client.PostJsonAsync(
             new Uri("/api/v1/payments", UriKind.Relative),
             new RecordPaymentRequest { PayerId = payer.Id, PaymentDate = paymentDate, Method = method, Reference = "REF-1", Amount = amount });

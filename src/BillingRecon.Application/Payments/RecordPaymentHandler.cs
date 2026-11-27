@@ -18,11 +18,17 @@ namespace BillingRecon.Application.Payments;
 /// then the payment joins the unit of work, which gives it the id its ledger entry names; then the ledger, whose
 /// posting the payment keeps; then one commit.
 /// </para>
+/// <para>
+/// A cash payment needs the open shift of the user who records it (BR-311; ADR 0060): <c>shift_not_open</c> without
+/// one, <c>shift_date_mismatch</c> when it is dated another day than the shift. Its ledger posting names the shift.
+/// </para>
 /// </summary>
 public sealed class RecordPaymentHandler(
     IValidator<RecordPaymentCommand> validator,
     IClock clock,
+    ICurrentUser currentUser,
     IPaymentRepository repository,
+    ICashierShiftRepository shifts,
     ITenantSettingsReader tenantSettings,
     IActivePayers payers,
     INumberSeries numbers,
@@ -45,12 +51,30 @@ public sealed class RecordPaymentHandler(
         var today = clock.ToIstDate(clock.UtcNow);
         var settings = await tenantSettings.GetDocumentSettingsAsync(ct);
         var window = new BusinessDateWindow(today, settings.MaxBackdateDays);
-        var paymentDate = command.PaymentDate ?? today;
+        // Cash is taken in the open shift of whoever records it, and is dated the business date of that shift, which is
+        // also the date of a cash payment sent without one (BR-311; ADR 0060).
+        CashierShift? shift = null;
+        if (method == PaymentMethod.Cash)
+        {
+            if (currentUser.UserId is not { } cashier || await shifts.FindOpenOfAsync(cashier, ct) is not { } open)
+            {
+                return PaymentsErrors.ShiftNotOpen();
+            }
+
+            shift = open;
+        }
+
+        var paymentDate = command.PaymentDate ?? shift?.BusinessDate ?? today;
 
         var dated = Payment.CheckDate(paymentDate, window);
         if (dated.IsFailure)
         {
             return dated.Error;
+        }
+
+        if (shift?.CheckTakes(paymentDate) is { IsFailure: true } otherDay)
+        {
+            return otherDay.Error;
         }
 
         var payer = await payers.EnsureActiveAsync(command.PayerId, ct);
@@ -82,7 +106,11 @@ public sealed class RecordPaymentHandler(
         var payment = recorded.Value;
         repository.Add(payment);
 
-        var entered = await ledger.PostAsync(PostingTemplate.PaymentRecorded(payment.Id, payment.PayerId, payment.Amount, payment.PaymentDate, number), ct);
+        // The posting names the shift, and the shift counts the document: its row version changes, so a closing that
+        // read the ledger without this payment cannot commit (ADR 0060).
+        shift?.TakeCashDocument();
+        var template = PostingTemplate.PaymentRecorded(payment.Id, payment.PayerId, payment.Amount, payment.PaymentDate, number);
+        var entered = await ledger.PostAsync(template with { ShiftId = shift?.Id }, ct);
         if (entered.IsFailure)
         {
             return entered.Error;

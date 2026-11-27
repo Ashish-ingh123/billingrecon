@@ -25,6 +25,7 @@ public static class PendingApprovalPolicies
         [ApprovalDocumentType.PaymentAllocation] = Policies.ReadPayments,
         [ApprovalDocumentType.PrefixChange] = Policies.Decide,
         [ApprovalDocumentType.OpeningBatch] = Policies.Decide,
+        [ApprovalDocumentType.CashierShift] = Policies.Decide,
     };
 
     /// <summary>The kinds of document whose waiting requests the caller is shown; a kind that is not named is shown to no one.</summary>

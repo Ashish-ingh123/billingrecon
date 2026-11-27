@@ -602,6 +602,12 @@ public sealed class RefundsApiTests(SqlServerFixture sqlServer) : DatabaseTest(s
 
     private static async Task<RefundDto> DraftedAsync(HttpClient client, CreateRefundRequest request)
     {
+        // A cash refund is paid out of the open shift of whoever drafted it (BR-311).
+        if (request.Method == PaymentMethod.Cash)
+        {
+            await client.EnsureShiftAsync();
+        }
+
         using var response = await client.PostJsonAsync(Refunds, request);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync());

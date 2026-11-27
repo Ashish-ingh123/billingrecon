@@ -109,6 +109,10 @@ for (const [email, displayName, role] of [
 const clerk = tokens.BillingClerk;
 const cashier = tokens.Cashier;
 
+// Cash is taken and paid out in the open shift of the cashier, on the business date of that shift (BR-311, ADR 0060):
+// the cashier opens today's shift with a float, and it stays open for whoever tries the demo.
+await call('POST', '/api/v1/cashier-shifts', { token: cashier, body: { openingFloat: 2000 } });
+
 const items = [];
 for (const [code, name, category, price, tax] of [
   ['OPD-CONS', 'OPD consultation', 'Consultation', 500, 0],
@@ -177,7 +181,8 @@ for (let day = 6; day >= 0; day -= 1) {
     const total = Number(bill.total);
     const amount = share === 0 ? total : Math.round(total * 0.5 * 100) / 100;
     const extra = day === 1 && offset === 0 ? 200 : 0;
-    const method = ['Cash', 'UPI', 'Card'][day % 3];
+    // Cash only today, in the shift; the money of the days before came by UPI and by card (a cash payment is not back-dated).
+    const method = day === 0 ? 'Cash' : ['UPI', 'Card'][day % 2];
     const payment = await call('POST', '/api/v1/payments', {
       token: cashier,
       key: true,
@@ -204,6 +209,6 @@ if (lastPayment !== null) {
   await call('POST', `/api/v1/refunds/${refund.id}/post`, { token: cashier, ifMatch: refund.version, key: true });
 }
 
-console.log(`The demo is ready: ${bills} bills, ${payments} payments, one refund waiting for a checker.`);
+console.log(`The demo is ready: ${bills} bills, ${payments} payments, one refund waiting for a checker, the cashier's shift open.`);
 console.log('Sign in at https://localhost with the hospital code "demo" and DEMO_PASSWORD as one of:');
 console.log('  admin@demo.local, supervisor@demo.local, clerk@demo.local, cashier@demo.local, viewer@demo.local');

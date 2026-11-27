@@ -267,7 +267,10 @@ src/
                                 six events (Identity). Since Prompt 5.3b (ADR 0033): Tenant.ChangeSettings and
                                 ChangePrefix with two events, the PrefixChange aggregate with PrefixChangeStatus
                                 and three events (Identity); NumberSeries an aggregate with ChangePrefix and
-                                NumberSeriesPrefixChanged, PrefixChangeId (Common).
+                                NumberSeriesPrefixChanged, PrefixChangeId (Common). Since Prompt 11.2 (ADR 0060):
+                                the CashierShift aggregate with CashCount, CashierShiftStatus and five events
+                                (Payments); CashierShiftId (Common); LedgerPosting.ShiftId (Receivables); the
+                                tenth ApprovalDocumentType, CashierShift, and the ApprovalAction Close.
   BillingRecon.Application/     Use cases (command/query handlers as plain classes), FluentValidation validators,
                                 port interfaces (IClock, IUnitOfWork, repositories, INumberSeries,
                                 IIdempotencyStore, ITenantContext, ICurrentUser), DTOs and explicit mappers.
@@ -332,7 +335,11 @@ src/
                                 IDashboardReports, the recent payments over the payment register, and ReportOrder,
                                 the register's order (Reporting); ILedgerMovements with LedgerBalances and LedgerDay,
                                 the ledger by business date (Receivables). IRequestTimings with RequestTiming, the
-                                durations measured while a request ran (Common), ADR 0046.
+                                durations measured while a request ran (Common), ADR 0046. The shift use cases
+                                (open, close, approve and reject a closing, get, list) with ICashierShiftRepository,
+                                ICashierShiftReadService, ShiftReaders and CashShifts (Payments); IShiftCash with
+                                ShiftCash, the cash of a shift from the ledger, and PostingTemplate.ShiftId
+                                (Receivables); the day-end report (DayEndQuery, DayEndDto) (Reporting). ADR 0060.
   BillingRecon.Infrastructure/  EF Core DbContext, entity configurations, migrations, port implementations,
                                 ledger posting, number series, idempotency store, audit writer, JWT wiring. Today:
                                 typed options (Common/Settings), the Serilog pipeline and PII mask (Common/Logging),
@@ -371,6 +378,9 @@ src/
                                 whoever ends the transaction; the idempotency store reads its key's row at the
                                 reservation (Common), ADR 0046. LikePattern, the escaped pattern of a search that
                                 matches a part of a text (Common/Persistence; ADR 0018, amended 2026-11-25).
+                                The CashierShifts table with its repository and read service (Payments),
+                                ShiftCashQuery (Receivables) and the day-end report in CollectionReports
+                                (Reporting), ADR 0060.
   BillingRecon.Api/             Controllers, middleware and filters (correlation id, idempotency, tenant resolution),
                                 the error contract (Common/Errors: exception handler, Error to ProblemDetails mapper),
                                 authentication/authorisation, OpenAPI + Scalar, Program.cs (composition root),
@@ -401,6 +411,8 @@ src/
                                 the JSON options the OpenAPI document reads the controllers' enum converter, so the
                                 document says what the wire carries (ADR 0038, built note). Common/Diagnostics
                                 (ADR 0046): DiagnosticsOptions, ServerTimingMiddleware and AddDiagnostics.
+                                CashierShiftsController with its request records (Payments), the day-end report of
+                                ReportsController, and the policies WorkShift, ReadShifts and DayEnd (ADR 0060).
 tests/
   Directory.Build.props         Test defaults: xUnit, Shouldly, test SDK/runner, global usings.
   BillingRecon.Domain.Tests/  BillingRecon.Application.Tests/
@@ -612,7 +624,8 @@ Each rule names the ADR that records why it is shaped this way and the BR-ids th
 9. **Maker-checker** (BR-603 – BR-606). Sensitive actions take financial effect only after
    approval by a second, different user: reversals of payments and allocations, adjustments
    (write-offs, discounts, rounding), credit notes, refunds, payer credit-limit changes (R4),
-   number-series prefix changes and bill postings at or above a tenant-configured threshold. Maker
+   number-series prefix changes and bill postings at or above a tenant-configured threshold. Since ADR 0060 also
+   the closing of a cashier's shift whose count differs from its expected cash. Maker
    not equal to checker is enforced server-side and by a CHECK constraint; the pending state is
    visible; the checker's approval *is* the posting; both steps are audited.
    As built for its first case, the bill (ADR 0023): the maker's own request to the document answers
@@ -931,6 +944,12 @@ SHA-256, PNG, JPEG or WebP told by their bytes and SVG refused, uploaded as the 
 removed by a POST action, audited by the hash, shown as `data:` URLs with no change of nginx's policy, and a duplicate
 that carries the signature (Accepted on the owner's approval of the Prompt 10.4c plan, 2026-11-26; it amends ADR 0054;
 0056 stays with Prompt 10.6).
+0060 the cashier's shift and the day-end closing: cash only in the open shift of who takes it and on its business date, a
+ledger posting that names its shift so that the expected cash is read from the ledger through `IShiftCash`, a count by
+denomination held as one value, a difference recorded and never posted, a closing with a difference as a maker-checker
+request its cashier cannot decide, the shift's row version against a closing and a cash document at once, and the
+day-end report equal to the daily collection (Accepted on the owner's approval of the Prompt 11.2 requirements and plan,
+2026-11-27; it amends ADR 0005, ADR 0023, ADR 0027, ADR 0029, ADR 0032 and ADR 0036).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1016,7 +1035,7 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    owner saw and, for every other row, why it is open (the 10,000-bill load, the journey and the browser suites through
    nginx, `PiiMaskerTests` after its fix, the recovery model: no second run; the `Database` tests of 10.1 to 10.4 on
    SQL Server 2022: the first CI run). A row is never closed on a report alone where a machine can show it.
-2. **Everything else still open:** `docs/backlog.md`, 34 rows (B1 to B37 but B18, B21 and B24): owner questions, recorded deviations,
+2. **Everything else still open:** `docs/backlog.md`, 37 rows (B1 to B40 but B18, B21 and B24): owner questions, recorded deviations,
    accepted limitations, follow-ups and small fixes, each with its origin and when it is due. Three are marked
    *R1 review*, for the owner: B3 (three credit-note choices), B19 (adjustments by kind), B33 (the stale `0002_Payers`
    in two ADRs). B18 and B24 were closed by Prompt 10.1.
@@ -1173,4 +1192,26 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    refunds (`DocumentSearch` for the text and the amount; `IPartySearch` for the parties of another module;
    `DocumentSearchFilter` in each read service: each part of the search its own query joined by `Union`, never one `Where`
    with `||`, and `NarrowAsync` for the count and the page; ADR 0036 "Amended 2026-11-26" has the measurements). A new
-   list of documents takes the same shape. Migration `0028_DocumentSearch`; the next free migration is `0029`.
+   list of documents takes the same shape. Migration `0028_DocumentSearch`.
+   **Prompt 11.2a (2026-11-27, ADR 0060), stage 6 of the eight, its first part:** the cashier's shift. A user who may
+   record a payment opens a shift with a float (`POST /api/v1/cashier-shifts`, policy `WorkShift`; one shift at a time,
+   422 `shift_already_open`) and closes it with a count by denomination (`POST .../{id}/close`, `If-Match`): closed at
+   once when the count is the expected cash, 202 and an approval request (`CashierShift`, action `Close`) when it
+   differs, which needs a reason; the cashier is the maker and decides nothing; a rejection opens the shift again. A
+   cash payment needs the open shift of who records it and a cash refund that of who drafted it (422 `shift_not_open`),
+   both dated the business date of the shift (422 `shift_date_mismatch`; an undated cash payment takes it). Their
+   ledger postings name the shift (`LedgerPostings.ShiftId`, set through `PostingTemplate` with `with`), and the
+   expected cash is the float and those Cash entries, read through `IShiftCash` and never from Payments' tables. A
+   difference is recorded on the shift and never posted. Every cash document raises the shift's `CashDocuments` and so
+   its row version, which is what keeps a closing and a payment at the same instant from both committing (409); it
+   raises no event. `GET /api/v1/reports/day-end` (policy `DayEnd`) lists every shift of a date and the cash outside
+   the shifts, and equals the Cash row of the daily collection. A Cashier and a BillingClerk read their own shifts
+   only (`ShiftReaders`, 404 otherwise). Migration `0029_CashierShifts`; the next free migration is `0030` and the next
+   ADR 0061. **A test that records cash opens the shift of its user first** (`Support/ShiftsApi.EnsureShiftAsync`, or
+   `FreshShiftAsync` when the scenario moves through the days), and so do `deploy/demo/seed.mjs`, `deploy/load/load.mjs`
+   and the browser journey. A new use case that moves cash asks `CashShifts.RequireAsync` before it takes its number,
+   calls `TakeCashDocument()` and sets the template's `ShiftId`; a new kind of approval request needs its line in
+   `PendingApprovalPolicies`, `AuditTrailPolicies`, the frontend's `approvals/api.ts` and the count of
+   `PermissionConventionTests`. The checker's inbox decides a shift's closing already; the screens of the shift and
+   the printed closing slip are 11.2b. Owed: runbook section 8, row 11.2a (SQL Server 2022, the load test again, the
+   demo and the journey with Docker); backlog B38 to B40.

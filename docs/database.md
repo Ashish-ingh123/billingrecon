@@ -1139,6 +1139,36 @@ Built 2026-11-26 (Prompt 10.4c-2).
   roll) and `CK_PrintSettings_BillShowsTax` (a bill's `ShowSacColumn` and `ShowTaxSplit` are 1).
 - **Grants:** the schema's `SELECT, INSERT, UPDATE`; no line of its own.
 
+### 5.12 The cashier's shift (ADR 0060, migration `0029_CashierShifts`)
+
+A shift of the cash counter and the ledger postings that moved cash in or out of its drawer (BR-310 to BR-315).
+
+- **`CashierShifts`**: `Id`, `TenantId`, `CashierUserId` (FK `Users(Id)`), `BusinessDate date`, `Status varchar(20)`
+  (`Open`, `PendingApproval`, `Closed`), `OpeningFloat decimal(18,2)`, `OpenedAtUtc`, `CashDocuments int` (how many
+  cash documents joined the shift; each one changes the row version), and, null until the shift is counted:
+  `Denominations varchar(120)` (the count as its canonical text, `2000x0 500x12 ... 1x4`), `LooseChange`,
+  `CountedCash`, `ExpectedCash` and `Difference` (all `decimal(18,2)`), `DifferenceReason nvarchar(500)`,
+  `CountedAtUtc`; `ClosedAtUtc`, the audit columns and `RowVersion`.
+- **Indexes:** `UX_CashierShifts_TenantId_CashierUserId_Unclosed` (unique, filtered `[Status] <> 'Closed'`: a user has
+  one shift at a time, BR-310) and `IX_CashierShifts_TenantId_BusinessDate` (the day-end report and the list).
+- **CHECK constraints** beside that of the enum: `CK_CashierShifts_OpeningFloat` (zero or more),
+  `CK_CashierShifts_CashDocuments`, `CK_CashierShifts_LooseChange` (0 to below 1),
+  `CK_CashierShifts_CountedIffNotOpen` (an open shift has no count, a counted one all of it),
+  `CK_CashierShifts_Difference` (counted less expected), `CK_CashierShifts_ReasonIffDifference`,
+  `CK_CashierShifts_PendingHasDifference` (only a difference waits) and `CK_CashierShifts_ClosedIffClosed`.
+- **`LedgerPostings.ShiftId uniqueidentifier NULL`**, FK `CashierShifts(Id)` (`FK_LedgerPostings_ShiftId`, by the
+  convention of ADR 0021), with `IX_LedgerPostings_TenantId_ShiftId` (filtered `[ShiftId] IS NOT NULL`): the shift
+  whose drawer the posting moved cash in or out of; null for every other posting, and for every posting written
+  before this migration. A posting that names a shift has the shift's `BusinessDate` (BR-311).
+- **The expected cash of a shift (BR-312)** is its float plus
+  `SUM(e.Debit - e.Credit)` over `LedgerEntries e JOIN LedgerPostings p ON p.Id = e.PostingId WHERE e.Account = 'Cash'
+  AND p.ShiftId = @shift`. The columns `ExpectedCash`, `CountedCash` and `Difference` are what the closing recorded;
+  no cash joins a shift once it is counted, so they stay equal to the ledger. A difference is in no ledger entry.
+- **`ApprovalRequests`**: `CK_ApprovalRequests_DocumentType` also admits `CashierShift`, and
+  `CK_ApprovalRequests_Action` also `Close`.
+- **Grants:** `CashierShifts` takes the schema's `SELECT, INSERT, UPDATE`; no line of its own. `LedgerPostings`
+  stays insert-only: the column is written with the row.
+
 ## 6. Idempotency store (ADR 0006)
 
 Lifecycle of a row in `IdempotencyKeys` for a financial POST:

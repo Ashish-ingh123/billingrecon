@@ -51,6 +51,30 @@ const openingBatch = {
   decidedAtUtc: null,
   version: 'AAAAAAAADgA=',
 };
+const cashierShift = {
+  id: 'fe000000-0000-4000-8000-000000000001',
+  cashierUserId: 'd0000000-0000-4000-8000-000000000009',
+  cashierName: 'Chetan Cashier',
+  businessDate: '2026-11-27',
+  status: 'PendingApproval',
+  openingFloat: 1000,
+  openedAtUtc: '2026-11-27T03:00:00+00:00',
+  cashDocuments: 1,
+  cashReceived: 250,
+  cashPaidOut: 0,
+  expectedCash: 1250,
+  count: [
+    { denomination: 500, pieces: 2 },
+    { denomination: 200, pieces: 1 },
+  ],
+  looseChange: 0,
+  countedCash: 1200,
+  difference: -50,
+  differenceReason: 'A note of 50 is missing',
+  countedAtUtc: '2026-11-27T11:30:00+00:00',
+  closedAtUtc: null,
+  version: 'AAAAAAAADwA=',
+};
 const later = creditApplication({
   id: 'f9100000-0000-4000-8000-000000000002',
   appliedAtPosting: false,
@@ -184,6 +208,23 @@ const kinds: {
     version: openingBatch.version,
     keyed: true,
   },
+  {
+    // Since Prompt 11.2 (ADR 0060): the closing of a shift posts nothing, so it carries no key.
+    kind: 'CashierShift',
+    request: pendingApproval({
+      documentType: 'CashierShift',
+      action: 'Close',
+      documentId: cashierShift.id,
+      payerId: null,
+      payerName: null,
+      amount: null,
+      makerComment: 'A note of 50 is missing',
+    }),
+    read: [`GET /api/v1/cashier-shifts/${cashierShift.id}`, cashierShift],
+    approve: `/api/v1/cashier-shifts/${cashierShift.id}/approve`,
+    version: cashierShift.version,
+    keyed: false,
+  },
 ];
 
 describe("the checker's inbox (BR-603 to BR-606)", () => {
@@ -255,6 +296,32 @@ describe("the checker's inbox (BR-603 to BR-606)", () => {
       expect(await sent?.json()).toEqual({ comment: null });
     },
   );
+
+  it("shows a shift's closing with its cashier and its shortage in words", async () => {
+    const request = pendingApproval({
+      documentType: 'CashierShift',
+      action: 'Close',
+      documentId: cashierShift.id,
+      payerId: null,
+      payerName: null,
+      amount: null,
+      makerComment: 'A note of 50 is missing',
+    });
+    const api = routedApi({
+      [inbox]: waiting(request),
+      [`GET /api/v1/cashier-shifts/${cashierShift.id}`]: () => json(200, cashierShift),
+    });
+    const { user } = renderApp('/approvals', { session: supervisor, fetch: api.fetch });
+
+    expect(await screen.findByText(/^Close a shift with a difference/)).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+
+    expect(await screen.findByText('Chetan Cashier')).toBeInTheDocument();
+    expect(screen.getByText('₹1,250.00')).toBeInTheDocument();
+    expect(screen.getByText('₹1,200.00')).toBeInTheDocument();
+    // A difference is said in words, never as a bare sign (ADR 0049).
+    expect(screen.getByText('Short by ₹50.00')).toBeInTheDocument();
+  });
 
   it('rejects with a comment, which it asks for, and sends it', async () => {
     const api = routedApi({

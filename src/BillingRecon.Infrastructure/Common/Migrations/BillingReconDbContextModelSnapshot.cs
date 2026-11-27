@@ -960,13 +960,13 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                     b.ToTable("ApprovalRequests", null, t =>
                         {
-                            t.HasCheckConstraint("CK_ApprovalRequests_Action", "[Action] IN ('Post', 'Reverse', 'ChangePrefix', 'BringForward')");
+                            t.HasCheckConstraint("CK_ApprovalRequests_Action", "[Action] IN ('Post', 'Reverse', 'ChangePrefix', 'BringForward', 'Close')");
 
                             t.HasCheckConstraint("CK_ApprovalRequests_CheckerIsNotMaker", "[CheckerUserId] IS NULL OR [CheckerUserId] <> [MakerUserId]");
 
                             t.HasCheckConstraint("CK_ApprovalRequests_Decided", "([Status] = 'Pending' AND [CheckerUserId] IS NULL AND [DecidedAtUtc] IS NULL) OR ([Status] <> 'Pending' AND [CheckerUserId] IS NOT NULL AND [DecidedAtUtc] IS NOT NULL)");
 
-                            t.HasCheckConstraint("CK_ApprovalRequests_DocumentType", "[DocumentType] IN ('Bill', 'CreditNote', 'Adjustment', 'Refund', 'Payment', 'PaymentAllocation', 'CreditNoteAllocation', 'PrefixChange', 'OpeningBatch')");
+                            t.HasCheckConstraint("CK_ApprovalRequests_DocumentType", "[DocumentType] IN ('Bill', 'CreditNote', 'Adjustment', 'Refund', 'Payment', 'PaymentAllocation', 'CreditNoteAllocation', 'PrefixChange', 'OpeningBatch', 'CashierShift')");
 
                             t.HasCheckConstraint("CK_ApprovalRequests_RejectionHasComment", "[Status] <> 'Rejected' OR [CheckerComment] IS NOT NULL");
 
@@ -1934,6 +1934,123 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BillingRecon.Domain.Payments.CashierShift", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("BusinessDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("CashDocuments")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("CashierUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("ClosedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<DateTimeOffset?>("CountedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<decimal?>("CountedCash")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Denominations")
+                        .HasMaxLength(120)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(120)");
+
+                    b.Property<decimal?>("Difference")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("DifferenceReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal?>("ExpectedCash")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("LooseChange")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("OpenedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<decimal>("OpeningFloat")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "BusinessDate")
+                        .HasDatabaseName("IX_CashierShifts_TenantId_BusinessDate");
+
+                    b.HasIndex("TenantId", "CashierUserId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CashierShifts_TenantId_CashierUserId_Unclosed")
+                        .HasFilter("[Status] <> 'Closed'");
+
+                    b.ToTable("CashierShifts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CashierShifts_CashDocuments", "[CashDocuments] >= 0");
+
+                            t.HasCheckConstraint("CK_CashierShifts_ClosedIffClosed", "([Status] = 'Closed' AND [ClosedAtUtc] IS NOT NULL) OR ([Status] <> 'Closed' AND [ClosedAtUtc] IS NULL)");
+
+                            t.HasCheckConstraint("CK_CashierShifts_CountedIffNotOpen", "([Status] = 'Open' AND [Denominations] IS NULL AND [LooseChange] IS NULL AND [CountedCash] IS NULL AND [ExpectedCash] IS NULL AND [Difference] IS NULL AND [DifferenceReason] IS NULL AND [CountedAtUtc] IS NULL) OR ([Status] <> 'Open' AND [Denominations] IS NOT NULL AND [LooseChange] IS NOT NULL AND [CountedCash] IS NOT NULL AND [ExpectedCash] IS NOT NULL AND [Difference] IS NOT NULL AND [CountedAtUtc] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_CashierShifts_Difference", "[Difference] IS NULL OR [Difference] = [CountedCash] - [ExpectedCash]");
+
+                            t.HasCheckConstraint("CK_CashierShifts_LooseChange", "[LooseChange] IS NULL OR ([LooseChange] >= 0 AND [LooseChange] < 1)");
+
+                            t.HasCheckConstraint("CK_CashierShifts_OpeningFloat", "[OpeningFloat] >= 0");
+
+                            t.HasCheckConstraint("CK_CashierShifts_PendingHasDifference", "[Status] <> 'PendingApproval' OR [Difference] <> 0");
+
+                            t.HasCheckConstraint("CK_CashierShifts_ReasonIffDifference", "[Difference] IS NULL OR ([Difference] = 0 AND [DifferenceReason] IS NULL) OR ([Difference] <> 0 AND [DifferenceReason] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_CashierShifts_Status", "[Status] IN ('Open', 'PendingApproval', 'Closed')");
+                        });
+                });
+
             modelBuilder.Entity("BillingRecon.Domain.Payments.Payment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2444,6 +2561,9 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                     b.Property<Guid?>("ReversalOfPostingId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("ShiftId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("TenantId")
                         .IsConcurrencyToken()
                         .HasColumnType("uniqueidentifier");
@@ -2455,6 +2575,10 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                     b.HasIndex("TenantId", "PayerId")
                         .HasDatabaseName("IX_LedgerPostings_TenantId_PayerId");
+
+                    b.HasIndex("TenantId", "ShiftId")
+                        .HasDatabaseName("IX_LedgerPostings_TenantId_ShiftId")
+                        .HasFilter("[ShiftId] IS NOT NULL");
 
                     b.HasIndex("TenantId", "DocumentType", "DocumentId")
                         .HasDatabaseName("IX_LedgerPostings_TenantId_DocumentType_DocumentId");
@@ -3124,6 +3248,35 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasConstraintName("FK_Payers_UpdatedByUserId");
                 });
 
+            modelBuilder.Entity("BillingRecon.Domain.Payments.CashierShift", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CashierUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_CashierShifts_CashierUserId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_CashierShifts_CreatedByUserId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_CashierShifts_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_CashierShifts_UpdatedByUserId");
+                });
+
             modelBuilder.Entity("BillingRecon.Domain.Payments.Payment", b =>
                 {
                     b.HasOne("BillingRecon.Domain.Identity.User", null)
@@ -3323,6 +3476,12 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasForeignKey("ReversalOfPostingId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("FK_LedgerPostings_ReversalOfPostingId");
+
+                    b.HasOne("BillingRecon.Domain.Payments.CashierShift", null)
+                        .WithMany()
+                        .HasForeignKey("ShiftId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_LedgerPostings_ShiftId");
 
                     b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
                         .WithMany()

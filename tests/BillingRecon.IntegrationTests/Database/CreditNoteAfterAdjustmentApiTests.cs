@@ -63,6 +63,7 @@ public sealed class CreditNoteAfterAdjustmentApiTests(SqlServerFixture sqlServer
         }
 
         // 4. So there is no credit to draw a refund from: the payer holds nothing.
+        await clerk.EnsureShiftAsync();
         using var refund = await clerk.PostJsonAsync(Refunds, new CreateRefundRequest { CreditNoteId = whole.Id, Amount = 126m, Method = PaymentMethod.Cash, Reason = "Refund of the credit" });
         refund.IsSuccessStatusCode.ShouldBeFalse("a credit note that was never posted holds no credit to refund");
     }

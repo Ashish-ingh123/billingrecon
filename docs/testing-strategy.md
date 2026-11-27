@@ -244,6 +244,13 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   Print waiting for them, a duplicate signed like the original) and `frontend/e2e/letterhead.spec.ts` (the three sheets
   with real images in both themes under nginx's policy, nothing moving when an image arrives, an A4 PDF, a phone, axe,
   and the upload on the Settings screen). The test images are drawn by the tests (`png` of `e2e/stubbed.ts`).
+- **The cashier's shift** (Prompt 11.2; ADR 0060): `CashierShiftTests` and `CashierShiftHandlerTests` (the states,
+  the count, each refusal, the cash payment that needs a shift), and on SQL Server `CashierShiftsApiTests`: the expected
+  cash held against the ledger's own entries in SQL, a closing with a difference that its cashier cannot approve, the
+  day-end report against the daily collection with a refund, a reversal inside the shift and one after it closed, and
+  three races through `RaceGate` (two openings; a closing against a cash payment, each way), which were seen to fail
+  with the shift's count of cash documents removed. A database test that records cash opens the shift of its user
+  first (`Support/ShiftsApi`).
 - **The lens and Tab in a search** (Prompt 10.4d; ADR 0039 and ADR 0040, amended 2026-11-26): `SearchTab.test.tsx` (the
   lens on every search box, drawn and not read; the spinner in its place; Clear; a list's search sent when its box is
   left and not when unchanged; a picker by Tab with one result, several, none, a late answer and a late answer after

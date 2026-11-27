@@ -29,6 +29,8 @@ public sealed class PaymentReversalHandlerTests
     private static readonly BusinessDateWindow Window = new(TestDoubles.Today, 7);
 
     private readonly IPaymentRepository _repository = Substitute.For<IPaymentRepository>();
+    private readonly ICashierShiftRepository _shifts = Substitute.For<ICashierShiftRepository>();
+    private readonly IShiftCash _shiftCash = Substitute.For<IShiftCash>();
     private readonly IApprovalRequestRepository _approvals = Substitute.For<IApprovalRequestRepository>();
     private readonly IBillSettlement _bills = Substitute.For<IBillSettlement>();
     private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
@@ -140,7 +142,7 @@ public sealed class PaymentReversalHandlerTests
     }
 
     private ApprovePaymentReversalHandler ApprovePayment() => new(
-        new ApprovePaymentReversalCommandValidator(), _clock, _currentUser, _repository, _approvals, _bills, _ledger, _unitOfWork);
+        new ApprovePaymentReversalCommandValidator(), _clock, _currentUser, _repository, _shifts, _shiftCash, _approvals, _bills, _ledger, _unitOfWork);
 
     private ApproveAllocationReversalHandler ApproveAllocation() => new(
         new ApproveAllocationReversalCommandValidator(), _clock, _currentUser, _repository, _approvals, _bills, _ledger, _unitOfWork);

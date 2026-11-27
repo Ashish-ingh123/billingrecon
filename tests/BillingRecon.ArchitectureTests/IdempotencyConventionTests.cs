@@ -56,6 +56,10 @@ public sealed class IdempotencyConventionTests
 
         // Since ADR 0059: removing an image of the letterhead, under If-Match; a second removal changes nothing.
         typeof(SettingsController),
+
+        // Since ADR 0060: a shift has no number and posts nothing. A second opening is refused by the rule of one shift
+        // at a time, and a closing or a decision sent again by the version of the shift.
+        typeof(CashierShiftsController),
     ];
 
     private static readonly Type[] ControllersWithPosts =

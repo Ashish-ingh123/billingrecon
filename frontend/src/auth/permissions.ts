@@ -24,6 +24,9 @@ export const policies = {
   ReadAudit: ['TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier', 'Viewer'],
   Reports: ['TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier', 'Viewer'],
   Dashboard: ['TenantAdmin', 'Supervisor', 'Viewer'],
+  WorkShift: ['TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier'],
+  ReadShifts: ['TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier', 'Viewer'],
+  DayEnd: ['TenantAdmin', 'Supervisor', 'Viewer'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Policy = keyof typeof policies;

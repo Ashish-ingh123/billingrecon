@@ -120,6 +120,7 @@ public sealed class TenantIsolationApiTests(SqlServerFixture sqlServer) : Databa
         });
         var adjustment = await CreatedAsync<AdjustmentDto>(client, "adjustments", new CreateAdjustmentRequest { BillId = bill.Id, Kind = AdjustmentKind.WriteOff, Amount = 6m, Reason = "Rounding" });
         var payment = await CreatedAsync<PaymentDto>(client, "payments", new RecordPaymentRequest { PayerId = payer.Id, PaymentDate = Today, Method = PaymentMethod.Cheque, Reference = "000123", Amount = 500m });
+        await client.EnsureShiftAsync();
         var refund = await CreatedAsync<RefundDto>(client, "refunds", new CreateRefundRequest { PaymentId = payment.Id, Amount = 100m, Method = PaymentMethod.Cash, Reason = "Paid twice" });
 
         return (admin,

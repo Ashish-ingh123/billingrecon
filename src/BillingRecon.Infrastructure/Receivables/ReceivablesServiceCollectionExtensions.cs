@@ -17,6 +17,7 @@ public static class ReceivablesServiceCollectionExtensions
         services.AddScoped<IPayerAccounts, PayerAccounts>();
         services.AddScoped<IReconciliationQuery, ReconciliationQuery>();
         services.AddScoped<ILedgerMovements, LedgerMovementsQuery>();
+        services.AddScoped<IShiftCash, ShiftCashQuery>();
 
         // The opening batches (ADR 0053).
         services.AddScoped<IOpeningBatchRepository, OpeningBatchRepository>();

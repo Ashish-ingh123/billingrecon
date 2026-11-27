@@ -32,6 +32,11 @@ public sealed class LedgerPostingConfiguration : IEntityTypeConfiguration<Ledger
             .HasDatabaseName("IX_LedgerPostings_TenantId_DocumentType_DocumentId");
         builder.HasIndex(posting => new { posting.TenantId, posting.PayerId }).HasDatabaseName("IX_LedgerPostings_TenantId_PayerId");
 
+        // The postings of a shift: its expected cash (BR-312; ADR 0060). Most postings name none.
+        builder.HasIndex(posting => new { posting.TenantId, posting.ShiftId })
+            .HasFilter("[ShiftId] IS NOT NULL")
+            .HasDatabaseName("IX_LedgerPostings_TenantId_ShiftId");
+
         // The entries belong to the posting and are written with it. Nothing ever takes one out again.
         builder.HasMany(posting => posting.Entries)
             .WithOne()

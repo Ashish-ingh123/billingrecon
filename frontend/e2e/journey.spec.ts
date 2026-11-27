@@ -56,6 +56,50 @@ async function signOut(page: Page) {
   await expect(page.getByRole('heading', { name: 'Sign in to BillingRecon' })).toBeVisible();
 }
 
+/**
+ * The signed-in cashier's shift of today (Prompt 11.2, ADR 0060): cash is taken in an open shift, on the business date
+ * of that shift. Asked of the API with the page's own token until the shift has its screens (Prompt 11.2b): an open
+ * shift of an earlier day is counted to exactly its expected cash and closed, and today's is opened.
+ */
+async function shiftOfToday(page: Page) {
+  const token = await page.evaluate(
+    () =>
+      (JSON.parse(window.sessionStorage.getItem('billingrecon.session') ?? '{}') as { accessToken?: string })
+        .accessToken ?? '',
+  );
+  expect(token, 'the cashier is signed in').not.toBe('');
+  const headers = { Authorization: `Bearer ${token}` };
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+
+  const mine = await page.request.get('/api/v1/cashier-shifts?mine=true&status=Open', { headers });
+  expect(mine.status()).toBe(200);
+  const { items } = (await mine.json()) as {
+    items: { id: string; businessDate: string; expectedCash: number; version: string }[];
+  };
+  const open = items[0];
+  if (open?.businessDate === today) return;
+
+  if (open !== undefined) {
+    // The fewest notes and coins that come to the expected cash, and its paise as loose change.
+    let rupees = Math.trunc(open.expectedCash);
+    const count: { denomination: number; pieces: number }[] = [];
+    for (const denomination of [2000, 500, 200, 100, 50, 20, 10, 5, 2, 1]) {
+      const pieces = Math.floor(rupees / denomination);
+      if (pieces > 0) count.push({ denomination, pieces });
+      rupees -= pieces * denomination;
+    }
+    const looseChange = Math.round((open.expectedCash - Math.trunc(open.expectedCash)) * 100) / 100;
+    const closed = await page.request.post(`/api/v1/cashier-shifts/${open.id}/close`, {
+      headers: { ...headers, 'If-Match': `"${open.version}"` },
+      data: { count, looseChange, reason: null },
+    });
+    expect(closed.status(), 'the shift of an earlier day closes on its expected cash').toBe(200);
+  }
+
+  const opened = await page.request.post('/api/v1/cashier-shifts', { headers, data: { openingFloat: 0 } });
+  expect(opened.status()).toBe(201);
+}
+
 /** Chooses the first record a picker finds for `text`. */
 async function pick(page: Page, label: string, kind: string, text: string) {
   // The results open while the text is typed (Prompt 10.2b): nothing is pressed to find them.
@@ -116,6 +160,7 @@ test('a clerk registers a patient and their payer, then drafts a bill and posts 
 test('a cashier records the payer’s payment and applies it oldest first, which settles the bill', async ({ page }) => {
   expect(journey.billPath, 'the clerk’s step posted the bill').not.toBe('');
   await signIn(page, 'cashier@demo.local');
+  await shiftOfToday(page);
 
   await page.goto(journey.payerPath);
   await page.getByRole('link', { name: 'Record a payment from them' }).click();

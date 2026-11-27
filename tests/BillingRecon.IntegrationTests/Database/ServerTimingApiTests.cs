@@ -39,6 +39,7 @@ public sealed class ServerTimingApiTests(SqlServerFixture sqlServer) : DatabaseT
         var draft = await client.CreateBillAsync(NewBill(patient, payer, Dressing));
 
         using var posted = await client.SendWithIfMatchAsync(HttpMethod.Post, BillingApi.Bill(draft.Id, "post"), body: null, PayersApi.ETag(draft.Version));
+        await client.EnsureShiftAsync();
         using var recorded = await client.PostJsonAsync(Payments, new RecordPaymentRequest { PayerId = payer.Id, PaymentDate = Today, Method = PaymentMethod.Cash, Amount = 126m });
 
         posted.StatusCode.ShouldBe(HttpStatusCode.OK, await posted.Content.ReadAsStringAsync());

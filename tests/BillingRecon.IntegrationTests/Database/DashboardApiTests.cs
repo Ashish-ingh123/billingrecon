@@ -266,6 +266,13 @@ public sealed class DashboardApiTests(SqlServerFixture sqlServer) : DatabaseTest
     // A payment dated today in India by the clock (no date sent), with the reference BR-301 asks for all but cash.
     private static async Task<PaymentDto> RecordedAsync(HttpClient client, PayerDto payer, PaymentMethod method, decimal amount)
     {
+        // Cash is taken in a shift of the day it is taken on (BR-311): the scenario moves through the days, so each
+        // cash payment closes the shift before it and opens one of its own day.
+        if (method == PaymentMethod.Cash)
+        {
+            await client.FreshShiftAsync();
+        }
+
         using var response = await client.PostJsonAsync(
             new Uri("/api/v1/payments", UriKind.Relative),
             new RecordPaymentRequest { PayerId = payer.Id, Method = method, Amount = amount, Reference = method == PaymentMethod.Cash ? null : "REF-1" });

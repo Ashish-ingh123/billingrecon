@@ -18,6 +18,7 @@ namespace BillingRecon.Application.Receivables;
 /// <param name="Description">What happened, for a person reading the ledger.</param>
 /// <param name="Lines">The lines: two or more, debits equal to credits.</param>
 /// <param name="ReversalOf">The posting this one reverses, for a reversal.</param>
+/// <param name="ShiftId">The cashier's shift whose drawer the cash moved in or out of (BR-311; ADR 0060); set by the use case with <c>with</c>.</param>
 public sealed record PostingTemplate(
     LedgerPostingKind Kind,
     LedgerDocumentType DocumentType,
@@ -26,7 +27,8 @@ public sealed record PostingTemplate(
     DateOnly BusinessDate,
     string Description,
     IReadOnlyList<LedgerLine> Lines,
-    LedgerPostingId? ReversalOf = null)
+    LedgerPostingId? ReversalOf = null,
+    CashierShiftId? ShiftId = null)
 {
     /// <summary>
     /// A bill of <paramref name="total"/> was posted (BR-206): Dr Receivable(bill), Cr Revenue. The payer owes

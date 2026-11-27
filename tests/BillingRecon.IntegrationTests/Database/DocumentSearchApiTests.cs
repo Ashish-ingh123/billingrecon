@@ -171,6 +171,7 @@ public sealed class DocumentSearchApiTests(SqlServerFixture sqlServer) : Databas
         const int Many = 501;
         for (var number = 1; number <= Many; number++)
         {
+            await client.EnsureShiftAsync();
             await CreatedAsync<PaymentDto>(client, Payments, new RecordPaymentRequest { PayerId = self.Id, PaymentDate = Today, Method = PaymentMethod.Cash, Amount = number });
         }
 
@@ -213,6 +214,7 @@ public sealed class DocumentSearchApiTests(SqlServerFixture sqlServer) : Databas
             Lines = [new CreditNoteLineRequest { BillLineId = line.Id, Quantity = line.Quantity }],
         });
         var adjustment = await CreatedAsync<AdjustmentDto>(client, Adjustments, new CreateAdjustmentRequest { BillId = bill.Id, AdjustmentDate = Today, Kind = AdjustmentKind.Discount, Amount = 26m, Reason = "Agreed with the patient" });
+        await client.EnsureShiftAsync();
         var refund = await CreatedAsync<RefundDto>(client, Refunds, new CreateRefundRequest { PaymentId = payment.Id, Amount = 50m, Method = PaymentMethod.Cash, Reason = "Paid twice" });
 
         return new Scene(insurer, bill, insured, payment, insurerPayment, creditNote, adjustment, refund);

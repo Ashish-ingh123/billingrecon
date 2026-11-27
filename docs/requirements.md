@@ -41,6 +41,9 @@ Permission matrix (✓ = allowed, R = read only):
 | Approve or reject (checker) | ✓ | ✓ | | | |
 | Reports | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Dashboard | ✓ | ✓ | | | ✓ |
+| Cashier shift: open, close one's own | ✓ | ✓ | ✓ | ✓ | |
+| Shifts: read | ✓ | ✓ | own | own | R |
+| Day-end report | ✓ | ✓ | | | R |
 
 The checker must always be a different user from the maker (BR-603), whatever the roles.
 
@@ -50,6 +53,11 @@ another bill is in the credit notes' row; the checker's inbox of pending request
 trail of a record is read by whoever may read the record (US-43; since 2026-11-26, review finding R7), the trail of a user and of the settings by a TenantAdmin only, and that of what a checker decides by who may decide. The dashboard (US-44, BR-902; added
 with Prompt 6.3 on 2026-11-23) is the overview of whoever runs or audits the hospital; clerks and cashiers keep every
 report for their daily work.
+
+*The cash counter (ADR 0060, 2026-11-27; Prompt 11.2):* whoever may record a payment may open and close a shift of
+their own, because a cash payment needs one (BR-311); a Cashier and a BillingClerk read the shifts they opened and no
+other; the day-end report of every shift is read by whoever runs or audits the hospital. Approving the closing of a
+shift with a difference is in the checker's row, and its cashier is never its checker (BR-603).
 
 ---
 
@@ -62,7 +70,7 @@ report for their daily work.
 | Identity | Tenants, local user accounts, roles, JWT issued by the API, tenant settings. |
 | Payers | Patients (demographics, MRN), self-pay payers, activation and deactivation. |
 | Billing | Service item catalogue, bills with lines, posting with gapless numbers, void of drafts, credit notes against a bill. |
-| Payments | Payments by cash, card, UPI, bank transfer or cheque; allocation to bills; allocation reversal; payment reversal; refunds. |
+| Payments | Payments by cash, card, UPI, bank transfer or cheque; allocation to bills; allocation reversal; payment reversal; refunds. Since Prompt 11.2: the cashier's shift and its closing (BR-310 to BR-315). |
 | Receivables | Double-entry receivables subledger, cached balances (bill, payment, credit note, payer), reconciliation query. |
 | Adjustments | Discount, write-off and rounding adjustments against a bill. |
 | Reporting | Bill register, payment register and daily collection, outstanding by payer, unapplied cash and credit, pending approvals, ledger reconciliation, and the dashboard (US-44, BR-902). |
@@ -128,7 +136,7 @@ report for their daily work.
 | **BR-213** | A credit note's `AvailableAmount` (unapplied credit) may be applied to other posted bills of the same payer or refunded (BR-307). It is never negative and never exceeds `Total`. |
 | **BR-214** | `CreditNoteDate ≥ BillDate` of the referenced bill, subject to BR-205. |
 
-### Payments, allocations and refunds (BR-301 – BR-329)
+### Payments, allocations, refunds and the cash counter (BR-301 – BR-329)
 
 | Id | Rule |
 |---|---|
@@ -141,6 +149,12 @@ report for their daily work.
 | **BR-307** | A refund returns money from one source: a payment's `UnappliedAmount` or a credit note's `AvailableAmount`. `Amount > 0` and `Amount ≤` the source's available amount at posting. Refunds require maker-checker, a method and reference (BR-301 rules), and post `Dr UnappliedCash(payment) or CreditAvailable(creditNote) / Cr Cash`. The refund date is not before the date of its payment or credit note; BR-205 applies as well (added 2026-11-21, ADR 0029). |
 | **BR-308** | Refunds are not reversible in R1. A refund made in error is corrected by recording a new payment. |
 | **BR-309** | Payments and refunds can be recorded only for an active payer (BR-105). |
+| **BR-310** | A user has at most one shift that is open or waits for approval. A shift opens with a float of zero or more and takes the business date (IST) of its opening, which it keeps however long it stays open. *Added 2026-11-27 with Prompt 11.2 (ADR 0060), as are BR-311 to BR-315.* |
+| **BR-311** | A cash payment is recorded only by a user with an open shift and belongs to that shift; a cash refund belongs to the open shift of the user who drafted it, from the moment a checker approves it. A cash document in a shift carries the business date of the shift: a cash payment sent without a date takes it, and one dated another day is refused. A cash payment reversed while its shift is still open, on that date, comes out of that shift. Money by any other method needs no shift. |
+| **BR-312** | The expected cash of a shift is its float plus the debits to Cash less the credits to Cash of the ledger postings that name the shift. It is read from the ledger and from nowhere else. |
+| **BR-313** | A shift is closed with a count of cash by denomination (2000, 500, 200, 100, 50, 20, 10, 5, 2 and 1 rupee, and the paise as loose change). The difference is counted less expected: above zero an excess, below zero a shortage. A difference that is not zero needs a reason. |
+| **BR-314** | A closing without a difference closes the shift at once. A closing with a difference waits for a checker who is not the cashier of the shift (BR-603); approved, the shift is closed; rejected, it is open again and is counted again. The difference is recorded on the shift and is never posted to the ledger: the reconciliation identities are unchanged. |
+| **BR-315** | A closed shift is never reopened or changed. Opening, closing, submission, approval and rejection are audited (BR-701); a cash document that joins a shift is audited as that document. |
 
 ### Receivables ledger (BR-401 – BR-419)
 
@@ -168,7 +182,7 @@ report for their daily work.
 | **BR-601** | A user belongs to one tenant. E-mail is unique within the tenant. Roles are those in §1; a user may hold several. Disabled users cannot sign in. |
 | **BR-602** | The JWT carries the tenant id, user id and roles. It is validated on every request; the tenant context is resolved once per request from it (BR-002). |
 | **BR-603** | The checker of a maker-checker request must be a different user from the maker and must hold `Supervisor` or `TenantAdmin`. This is enforced server-side and cannot be bypassed by role. Since 2026-11-26 (review finding R9): the approver of a bill, a credit note, an adjustment or a refund must also be a different user from the one who created the document and from the one who changed it last; such a user may still reject it. |
-| **BR-604** | Actions that require maker-checker: posting a credit note, posting an adjustment, posting a refund, reversing an allocation, reversing a payment, posting a bill at or above `Tenant.PostingApprovalThreshold` (BR-207), and changing a number-series prefix (BR-802). |
+| **BR-604** | Actions that require maker-checker: posting a credit note, posting an adjustment, posting a refund, reversing an allocation, reversing a payment, posting a bill at or above `Tenant.PostingApprovalThreshold` (BR-207), changing a number-series prefix (BR-802), and, since 2026-11-27, closing a cashier's shift whose count differs from its expected cash (BR-314). |
 | **BR-605** | A document has at most one pending approval request. Pending requests are listed for checkers. A rejection records the checker's comment and returns a draft document to `Draft`; a rejected reversal leaves the document as it was. |
 | **BR-606** | The checker's approval is the posting: number allocation, ledger entries, cache updates, status change and audit happen in the approval transaction. The maker's submission has no financial effect. |
 | **BR-607** | Tenant settings (`PostingApprovalThreshold`, `MaxBackdateDays`, `DefaultDueDays`, default number prefixes) are changed only by a TenantAdmin and every change is audited. |
@@ -196,6 +210,7 @@ report for their daily work.
 |---|---|
 | **BR-901** | R1 reports: bill register, payment register with daily collection by method, outstanding by payer, unapplied cash and available credit, pending approvals, and ledger reconciliation (cache versus ledger). Reports read committed data and every figure ties back to ledger entries. |
 | **BR-902** | The dashboard covers a period of business dates in India, `from` to `to` both included, the last 30 days ending today by default and at most 366 days, and compares each summary figure with the previous period of the same length; the change is in percent to two decimal places, null when the previous figure is zero. Billed is the Receivable debits of the bills posted with a bill date in the period; collected is the Cash debits of the payments recorded with a payment date in the period, gross of reversals and refunds; outstanding dues and unapplied cash are their ledger balances at the end of the period's last day; pending approvals are the requests still waiting at the end of that day in India; reconciliation drift is the current count only, with no previous figure. Ageing is the balance due of posted bills by days past their due date as of today, in the buckets 0–30 (bills not yet due included), 31–60, 61–90 and over 90. |
+| **BR-903** | The day-end report covers one business date (IST): every shift of that date with its float, its cash received and paid out, its expected cash and, once counted, its counted cash and difference, and the cash of the date that no shift holds. Its cash total equals the Cash row of the daily collection of that date (BR-901). A shift that is still open or waits for approval is shown as such. *Added 2026-11-27 with Prompt 11.2 (ADR 0060).* |
 
 ---
 
@@ -252,6 +267,15 @@ Acceptance criteria cite the rules they verify. "Given/when/then" is abbreviated
 | US-42 | As a Cashier I see today's collection by method. | Ties to payment ledger entries for the IST business date (BR-003, BR-901). |
 | US-43 | As a Viewer I read the audit trail of a bill. | Every state change present with before/after and correlation id (BR-701, BR-703). |
 | US-44 | As a Supervisor, a TenantAdmin or a Viewer I see the dashboard of a period, compared with the previous one. | Every figure equals the one derived from ledger entries; the ageing buckets add up to the outstanding dues; a bill due today is in 0–30; the period's edges fall at midnight in India; another hospital's data never appears; an empty period answers zeros; a BillingClerk or a Cashier is refused with 403 (BR-902). |
+
+### The cash counter (Prompt 11.2)
+
+| Id | Story | Acceptance |
+|---|---|---|
+| US-45 | As a Cashier I open a shift with the float of my drawer. | A second shift is refused while one is open or waits (BR-310); a cash payment without an open shift is refused, and one in a shift carries its date (BR-311). |
+| US-46 | As a Cashier I close my shift with a count by denomination. | The expected cash equals the ledger's Cash entries of the shift plus the float (BR-312); a difference needs a reason (BR-313); without one the shift is closed at once (BR-314); no drift (BR-404). |
+| US-47 | As a Supervisor I approve or reject the closing of a shift with a difference. | Its cashier cannot decide it (BR-603, BR-314); an approval closes it and posts nothing; a rejection opens it again for a recount (BR-605); a closed shift does not change (BR-315). |
+| US-48 | As a Supervisor, a TenantAdmin or a Viewer I read the day-end report of a business date. | Every shift is listed; its cash total equals the daily collection's Cash row (BR-903); another hospital's shifts never appear; a Cashier or a BillingClerk is refused with 403. |
 
 ---
 

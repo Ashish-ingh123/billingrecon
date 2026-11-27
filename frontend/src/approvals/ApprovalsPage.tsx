@@ -44,6 +44,7 @@ const kindIcons: Record<ApprovalDocumentType, IconName> = {
   Refund: 'wallet',
   PrefixChange: 'gear',
   OpeningBatch: 'building',
+  CashierShift: 'clock',
 };
 
 /**

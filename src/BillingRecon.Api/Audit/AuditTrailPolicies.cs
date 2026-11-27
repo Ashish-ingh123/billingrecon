@@ -30,6 +30,9 @@ public static class AuditTrailPolicies
         [nameof(Payment)] = Policies.ReadPayments,
         [nameof(Refund)] = Policies.ReadRefunds,
 
+        // A shift is read in full by who reads the day-end report; a cashier reads the shift itself, not its trail (ADR 0060).
+        [nameof(CashierShift)] = Policies.DayEnd,
+
         // What a checker decides, and the batch of opening balances, are read by who may decide.
         [nameof(ApprovalRequest)] = Policies.Decide,
         [nameof(OpeningBatch)] = Policies.Decide,

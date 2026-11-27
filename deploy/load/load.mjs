@@ -303,6 +303,9 @@ for (const user of users) {
   const changing = await signIn(user.email, oneTime);
   const changed = await must('POST', '/api/v1/auth/password', { token: changing, body: { currentPassword: oneTime, newPassword: password } });
   user.token = changed.accessToken;
+
+  // Every payment of the loop is cash, and cash is taken in the open shift of who records it (BR-311, ADR 0060).
+  await must('POST', '/api/v1/cashier-shifts', { token: user.token, body: { openingFloat: 0 } });
 }
 
 const register = await must('GET', '/api/v1/reports/bill-register?page=1&pageSize=1', { token: admin });

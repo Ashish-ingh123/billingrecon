@@ -82,6 +82,7 @@ public sealed class PaymentReferenceApiTests(SqlServerFixture sqlServer) : Datab
         await ShouldRecordAsync(theirClient, Upi(theirPayer, "777001"));
 
         // Cash is never compared, with or without a note in its reference: two equal cash payments are ordinary.
+        await client.EnsureShiftAsync();
         var cash = new RecordPaymentRequest { PayerId = payer.Id, PaymentDate = Today, Method = PaymentMethod.Cash, Amount = 200m };
         await ShouldRecordAsync(client, cash);
         await ShouldRecordAsync(client, cash);

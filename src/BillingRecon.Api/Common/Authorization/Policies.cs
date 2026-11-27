@@ -61,6 +61,18 @@ public static class Policies
     /// <summary>The dashboard (US-44, BR-902): whoever runs or audits the hospital (the matrix's "Dashboard" row, ADR 0037).</summary>
     public const string Dashboard = nameof(Dashboard);
 
+    /// <summary>Opening and closing a shift of one's own: whoever may record a payment (the matrix's shift row, ADR 0060).</summary>
+    public const string WorkShift = nameof(WorkShift);
+
+    /// <summary>
+    /// Reading shifts: every role, a Cashier and a BillingClerk only the shifts they opened, which the use case sees to
+    /// (ADR 0060).
+    /// </summary>
+    public const string ReadShifts = nameof(ReadShifts);
+
+    /// <summary>The day-end report of every shift (US-48, BR-903): whoever runs or audits the hospital (ADR 0060).</summary>
+    public const string DayEnd = nameof(DayEnd);
+
     /// <summary>Any signed-in user, whatever the roles: the service information.</summary>
     public const string SignedIn = nameof(SignedIn);
 
@@ -84,6 +96,9 @@ public static class Policies
         [ReadAudit] = [Role.TenantAdmin, Role.Supervisor, Role.BillingClerk, Role.Cashier, Role.Viewer],
         [Reports] = [Role.TenantAdmin, Role.Supervisor, Role.BillingClerk, Role.Cashier, Role.Viewer],
         [Dashboard] = [Role.TenantAdmin, Role.Supervisor, Role.Viewer],
+        [WorkShift] = [Role.TenantAdmin, Role.Supervisor, Role.BillingClerk, Role.Cashier],
+        [ReadShifts] = [Role.TenantAdmin, Role.Supervisor, Role.BillingClerk, Role.Cashier, Role.Viewer],
+        [DayEnd] = [Role.TenantAdmin, Role.Supervisor, Role.Viewer],
     };
 
     /// <summary>Every policy of the catalogue, <see cref="SignedIn"/> included.</summary>

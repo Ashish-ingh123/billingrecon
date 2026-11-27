@@ -64,9 +64,9 @@ public sealed partial class PermissionConventionTests
             .SelectMany(path => Decision().Matches(File.ReadAllText(RepositoryFiles.PathOf(path))).Select(match => (Path: path, Call: match.Value)))
             .ToArray();
 
-        // Nine documents, each approved and rejected: the seven of Phases 3 and 4, the prefix change, and since ADR 0053
-        // the opening batch.
-        calls.Length.ShouldBe(18);
+        // Ten documents, each approved and rejected: the seven of Phases 3 and 4, the prefix change, since ADR 0053 the
+        // opening batch, and since ADR 0060 the closing of a shift.
+        calls.Length.ShouldBe(20);
         calls.Where(call => !call.Call.Contains("(checker, currentUser.Roles,", StringComparison.Ordinal))
             .Select(call => $"{call.Path}: {call.Call}")
             .ShouldBeEmpty();

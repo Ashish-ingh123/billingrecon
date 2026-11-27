@@ -64,7 +64,7 @@ public sealed class SettingsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
         using var posted = await client.SendWithIfMatchAsync(HttpMethod.Post, BillingApi.Bill(draft.Id, "post"), body: null, PayersApi.ETag(draft.Version));
         posted.StatusCode.ShouldBe(HttpStatusCode.Accepted, await posted.Content.ReadAsStringAsync());
         (await posted.ReadAsAsync<BillDto>()).Status.ShouldBe(BillStatus.PendingApproval);
-        using var yesterday = await client.PostJsonAsync(new Uri("/api/v1/payments", UriKind.Relative), new RecordPaymentRequest { PayerId = payer.Id, PaymentDate = Today.AddDays(-1), Method = PaymentMethod.Cash, Amount = 10m });
+        using var yesterday = await client.PostJsonAsync(new Uri("/api/v1/payments", UriKind.Relative), new RecordPaymentRequest { PayerId = payer.Id, PaymentDate = Today.AddDays(-1), Method = PaymentMethod.UPI, Reference = "UTR-1", Amount = 10m });
         await yesterday.ShouldBeProblemAsync(HttpStatusCode.UnprocessableEntity, PaymentsErrors.PaymentDateTooOldCode);
 
         // BR-607: audited as the administrator's change, the row before and after.

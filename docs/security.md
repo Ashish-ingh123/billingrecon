@@ -76,6 +76,10 @@ role against the database.
 - So does a change of a document-number prefix (BR-802): a TenantAdmin asks, and the approval is the change. The
   approval threshold, the back-date window and the default due days are changed by a TenantAdmin alone, audited
   (BR-607).
+- So does the closing of a cashier's shift whose count differs from its expected cash (BR-314, ADR 0060): the cashier
+  is the maker, so a Supervisor who ran a shift never approves its closing. A closing without a difference needs no
+  second person, and a difference is recorded on the shift, not posted. Cash is taken only in the open shift of the
+  user who takes it (BR-311), so every rupee of cash is laid at one drawer and one person.
 - The checker is another user than the maker and holds Supervisor or TenantAdmin. Both are checked by the decision
   itself (`ApprovalRequest.Approve` and `Reject`), whatever the endpoint, and the role also by the policy of every
   approve and reject endpoint.

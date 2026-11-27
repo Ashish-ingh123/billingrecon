@@ -71,4 +71,12 @@ internal static class ReportMapping
 
     /// <summary>The rows to skip for a page.</summary>
     public static int Skip(int page, int pageSize) => (page - 1) * pageSize;
+    /// <summary>The state of a shift in the words of Reporting.</summary>
+    public static ReportShiftStatus ToReport(CashierShiftStatus status) => status switch
+    {
+        CashierShiftStatus.Open => ReportShiftStatus.Open,
+        CashierShiftStatus.PendingApproval => ReportShiftStatus.PendingApproval,
+        CashierShiftStatus.Closed => ReportShiftStatus.Closed,
+        _ => throw new ArgumentOutOfRangeException(nameof(status), status, "Not a state of a shift."),
+    };
 }

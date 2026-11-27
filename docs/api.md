@@ -495,7 +495,7 @@ not at all (BR-007). A payment is never edited or deleted (BR-006). Allocating i
 
 | Method and path | Success | Failures |
 |---|---|---|
-| `POST /api/v1/payments` (needs `Idempotency-Key`) | 201, the payment, `Location`, `ETag` | 400; 404 `payer_not_found`; 409 `idempotency_in_progress`; 422 `payer_inactive`, `payment_date_in_future`, `payment_date_too_old`, `payment_reference_already_recorded`, `idempotency_key_reuse` |
+| `POST /api/v1/payments` (needs `Idempotency-Key`) | 201, the payment, `Location`, `ETag` | 400; 404 `payer_not_found`; 409 `idempotency_in_progress`; 422 `payer_inactive`, `payment_date_in_future`, `payment_date_too_old`, `payment_reference_already_recorded`, `shift_not_open`, `shift_date_mismatch` (a cash payment, section 8.20), `idempotency_key_reuse` |
 | `GET /api/v1/payments/{id}` | 200, the payment, `ETag` | 404 `payment_not_found` |
 | `POST /api/v1/payments/{id}/allocations` (needs `Idempotency-Key` and `If-Match`) | 200, the payment with its allocations, `ETag` | 400; 404 `payment_not_found`, `bill_not_found`; 409 `concurrency_conflict`, `idempotency_in_progress`; 422 `allocation_exceeds_unapplied`, `allocation_exceeds_balance_due`, `allocation_payer_mismatch`, `bill_not_posted`, `idempotency_key_reuse`; 428 |
 | `GET /api/v1/payments/{id}/allocations` | 200, the payment with its allocations, `ETag` | 404 `payment_not_found` |
@@ -719,7 +719,7 @@ is never changed or reversed (BR-308): a refund made in error is corrected by re
 | `PUT /api/v1/refunds/{id}` (needs `If-Match`) | 200 | 400; 404; 409 `concurrency_conflict`, `refund_pending_approval`, `refund_already_posted` and the source codes of `POST`; 422 `refund_not_draft` and the date codes; 428 |
 | `POST /api/v1/refunds/{id}/void` (needs `If-Match`, `Idempotency-Key`) | 200 | 400; 404; 409 and 422 as `PUT`; 428 |
 | `POST /api/v1/refunds/{id}/post` (needs `If-Match`, `Idempotency-Key`; no body) | **202**, the refund in `PendingApproval` | 403 `approval_needs_user`; 404; 409 as `PUT`; 422 `refund_not_draft`, `refund_exceeds_available`, `credit_note_not_posted` and the date codes; 428 |
-| `POST /api/v1/refunds/{id}/approve` (needs `If-Match`, `Idempotency-Key`; body optional) | 200, the posted refund | 403 `approval_checker_is_maker`, `approval_needs_user`; 404; 409 `concurrency_conflict`, `refund_already_posted`, `payment_pending_reversal`, `payment_reversed`; 422 `refund_not_pending_approval`, `refund_not_draft`, `refund_exceeds_available`, `payer_inactive` and the date codes; 428 |
+| `POST /api/v1/refunds/{id}/approve` (needs `If-Match`, `Idempotency-Key`; body optional) | 200, the posted refund | 403 `approval_checker_is_maker`, `approval_needs_user`; 404; 409 `concurrency_conflict`, `refund_already_posted`, `payment_pending_reversal`, `payment_reversed`; 422 `refund_not_pending_approval`, `refund_not_draft`, `refund_exceeds_available`, `payer_inactive`, `shift_not_open` and `shift_date_mismatch` (a cash refund, section 8.20) and the date codes; 428 |
 | `POST /api/v1/refunds/{id}/reject` (needs `If-Match`, `Idempotency-Key`) | 200, the refund as a draft again | 400 without a comment; 403, 404, 409, 422 as `approve`; 428 |
 
 The body of a draft (unknown members are refused); `PUT` takes the same fields except the source, all required
@@ -905,7 +905,7 @@ The trails of a change (`entityType=PrefixChange`: `Requested`, `Approved`, `Rej
 
 ### 8.15 Reports (BR-901, US-40, US-42; ADR 0036)
 
-Read-only, for every role. Each figure ties to the ledger: the totals of the registers to the postings of their
+Read-only, for every role, the day-end report excepted (section 8.20). Each figure ties to the ledger: the totals of the registers to the postings of their
 documents, the balances to the accounts they cache (BR-404), the collection of a day to the Cash entries of that business
 date. A report reads committed rows and takes no lock.
 
@@ -914,6 +914,7 @@ date. A report reads committed rows and takes no lock.
 | `GET /api/v1/reports/bill-register` | page of posted bills, by bill date | `from`, `to`, `payerId`, `status` (`Posted`, `PartiallyPaid`, `Settled`) |
 | `GET /api/v1/reports/payment-register` | page of payments, by payment date, reversed ones included | `from`, `to`, `payerId`, `method`, `status` (`Posted`, `PendingReversal`, `Reversed`), `order` (`OldestFirst` by default, `NewestFirst`) |
 | `GET /api/v1/reports/daily-collection` | the collection of one day by method | `date` |
+| `GET /api/v1/reports/day-end` | every shift of one day with its cash, and the cash outside the shifts (section 8.20); for a TenantAdmin, a Supervisor and a Viewer only | `date` |
 | `GET /api/v1/reports/outstanding-by-payer` | page of payers with a balance, the largest net outstanding first | `search` |
 | `GET /api/v1/reports/payers/{payerId}/balance` | one payer's balances (US-40); 404 `payer_not_found` | |
 | `GET /api/v1/reports/unapplied-cash` | page of payments that hold unapplied cash, the oldest first | `payerId` |
@@ -1181,6 +1182,72 @@ sheet whose settings ask for it (`showCashierName`), or null where no user of th
 own, so that a payment and a refund answer the same wherever they are read. The name and nothing else of the user is
 answered, to whoever may read the document.
 
+### 8.20 Shifts of the cash counter and the day-end report (US-45 to US-48; BR-310 to BR-315, BR-903; ADR 0060)
+
+A user who takes cash opens a shift with the float of the drawer and closes it with a count by denomination. While it
+is open, the cash payments the user records and the cash refunds the user drafted join it: their ledger postings name
+the shift, and what its drawer should hold is the float and the Cash entries of those postings, read from the ledger
+(BR-312). A shift is not a financial document: it has no number and posts nothing, so its POSTs take no
+`Idempotency-Key`; a second opening is refused by the rule of one shift at a time, and a closing or a decision sent
+again by `If-Match`. A difference between the count and the expected cash is recorded on the shift with its reason and
+is never posted to the ledger (BR-314).
+
+| Method and path | Who | Success | Failures |
+|---|---|---|---|
+| `POST /api/v1/cashier-shifts` | TenantAdmin, Supervisor, BillingClerk, Cashier | 201, the shift (`Open`), `Location`, `ETag` | 400; 403 `shift_not_own`; 422 `shift_already_open` |
+| `GET /api/v1/cashier-shifts/{id}` | every role; a Cashier and a BillingClerk only a shift of their own | 200, the shift, `ETag` | 404 `shift_not_found` |
+| `GET /api/v1/cashier-shifts?cashierUserId=&mine=&status=&unclosed=&date=&page=&pageSize=` | every role; a Cashier and a BillingClerk get their own, whatever is asked | 200, a page, the newest first | 400 |
+| `POST /api/v1/cashier-shifts/{id}/close` (needs `If-Match`) | the cashier of the shift | 200, the shift `Closed`; **202**, the shift in `PendingApproval` | 400; 403 `shift_not_own`; 404 `shift_not_found`; 409 `concurrency_conflict`; 422 `shift_not_open`, `shift_difference_needs_reason`; 428 |
+| `POST /api/v1/cashier-shifts/{id}/approve` (needs `If-Match`; optional body `comment`) | TenantAdmin, Supervisor | 200, the shift `Closed` | 403 `approval_checker_is_maker`, `approval_checker_role`, `approval_needs_user`; 404; 409 `concurrency_conflict`; 422 `shift_not_pending_approval`; 428 |
+| `POST /api/v1/cashier-shifts/{id}/reject` (needs `If-Match`; body `comment`, required) | TenantAdmin, Supervisor | 200, the shift `Open` again | 400; 403; 404; 409; 422 `shift_not_pending_approval`; 428 |
+| `GET /api/v1/reports/day-end?date=` | TenantAdmin, Supervisor, Viewer | 200, the day-end report | 400 |
+
+**Opening.** The body is `openingFloat` (0 or more, at most two decimals). The shift belongs to the user who asks and
+takes today's business date in India, which it keeps however long it stays open. A user has one shift at a time: a
+second is refused while the first is `Open` or `PendingApproval` (422 `shift_already_open`), for two requests at the
+same instant by a unique index.
+
+**Cash in a shift (BR-311).** `POST /api/v1/payments` with `method` `Cash` needs the open shift of the user who
+records it (422 `shift_not_open`) and is dated the business date of that shift: a cash payment sent without
+`paymentDate` takes that date, and one dated another day is 422 `shift_date_mismatch`. A cash refund is paid out of
+the open shift of the user who drafted it, when a checker approves it: `POST /api/v1/refunds/{id}/approve` answers 422
+`shift_not_open` when that user has none, and 422 `shift_date_mismatch` when the refund is dated another day than that
+shift; the refund still waits, to be approved when the shift is open or rejected and drafted again. A cash payment
+whose reversal is approved while its shift is still open, on that shift's business date, comes out of that drawer; a
+later reversal leaves the closed shift as it was and is cash outside the shifts in the day-end report. Money by any
+other method needs no shift and names none. Every cash document that joins a shift changes the shift's version: a
+closing and a cash document sent at the same instant cannot both be committed, and the loser answers 409
+`concurrency_conflict`.
+
+**Closing.** The body is `count`, a list of `{ denomination, pieces }` (each of 2000, 500, 200, 100, 50, 20, 10, 5, 2
+and 1 at most once, 0 to 99,999 pieces; one left out has none), `looseChange` (the cash below one rupee, 0 to 0.99)
+and `reason`. The counted cash is the count and the loose change; the difference is counted less expected. With no
+difference the shift is closed at once (200). With one, `reason` is required (422 `shift_difference_needs_reason`) and
+the closing waits (202): an approval request is opened in the same transaction, with the cashier as its maker, and is
+listed in the checkers' inbox (section 8.6) as `CashierShift` with the action `Close`. A Supervisor or TenantAdmin who
+is not the cashier approves, which closes the shift, or rejects with a comment, which opens it again without its
+count. While it waits no cash joins the shift and its cashier opens no other. A closed shift never changes (BR-315).
+
+**A shift:** `id`, `cashierUserId`, `cashierName`, `businessDate`, `status` (`Open`, `PendingApproval`, `Closed`),
+`openingFloat`, `openedAtUtc`, `cashDocuments`, `cashReceived` and `cashPaidOut` (the debits and the credits to Cash of
+the postings that name the shift, read when the shift is read), `expectedCash` (the float and their difference),
+`count`, `looseChange`, `countedCash`, `difference` (above zero an excess, below zero a shortage),
+`differenceReason`, `countedAtUtc`, `closedAtUtc`, `version`. The count and what follows from it are null until the
+shift is counted.
+
+**The day-end report (BR-903)**, for a business date in India, today when none is given: `date`; `shifts`, every shift
+of that date in the order they were opened, each with `shiftId`, `cashierUserId`, `cashierName`, `status`,
+`openedAtUtc`, `closedAtUtc`, `openingFloat`, `received`, `paidOut`, `net`, `expectedCash`, `countedCash` and
+`difference`; `shiftsTotal`; `outsideShifts`, the cash of the date that no shift holds (a cash payment reversed after
+its shift was closed, and cash recorded before shifts existed); `cash`, the two together; `difference`, the
+differences of the counted shifts together; and `unclosedShifts`. Each of the three cash figures is `{ received,
+paidOut, net }`. The `net` of `cash` equals the `net` of the Cash row of the daily collection of that date (section
+8.15), always: both are the ledger's Cash entries of the cash documents of the date.
+
+The trail of a shift (`entityType=CashierShift`: `Opened`, `Closed`, `SubmittedForApproval`, `ClosingApproved`,
+`ClosingRejected`) is read by a TenantAdmin, a Supervisor and a Viewer. A cash document that joins a shift is not a
+change of the shift and leaves no record in its trail: the trail of the document says what happened.
+
 ## 9. Error-code catalogue
 
 Every `errorCode` the API can answer, with its status and what the client is told (the `detail`). Section 3 gives the
@@ -1344,6 +1411,13 @@ For a failure no use case reported: routing, model binding, content negotiation,
 | `refund_date_too_old` | 422 | The refund date cannot be earlier than …, the earliest date this hospital allows (BR-205). |
 | `refund_date_before_source_date` | 422 | The refund date cannot be before the date of the document it comes from, … (BR-307). |
 | `refund_exceeds_available` | 422 | … has … left to refund; a refund cannot be for more (BR-307). |
+| `shift_not_found` | 404 | The shift does not exist. Also the shift of another cashier, to a user who reads only their own. |
+| `shift_not_open` | 422 | Cash is taken and paid out in an open shift (BR-311). Open your shift first. For a refund: the cashier who drafted it has no open shift. Also a shift that is counted or closed already. |
+| `shift_already_open` | 422 | You have a shift that is open or waits for approval; a user has one shift at a time (BR-310). |
+| `shift_date_mismatch` | 422 | Cash in this shift is dated …, the business date of the shift (BR-311). Use that date, or close the shift and open a new one. |
+| `shift_not_own` | 403 | A shift is opened and closed by its own cashier. |
+| `shift_difference_needs_reason` | 422 | The counted cash differs from the expected cash by …; a difference needs a reason (BR-313). |
+| `shift_not_pending_approval` | 422 | The shift's closing is not waiting for approval, so there is nothing to approve or reject. |
 
 ### 9.7 Adjustments
 

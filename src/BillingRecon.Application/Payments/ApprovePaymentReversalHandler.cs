@@ -26,6 +26,8 @@ public sealed class ApprovePaymentReversalHandler(
     IClock clock,
     ICurrentUser currentUser,
     IPaymentRepository repository,
+    ICashierShiftRepository shifts,
+    IShiftCash shiftCash,
     IApprovalRequestRepository approvals,
     IBillSettlement bills,
     IReceivablesLedger ledger,
@@ -96,7 +98,21 @@ public sealed class ApprovePaymentReversalHandler(
             }
         }
 
-        var entered = await ledger.PostAsync(PostingTemplate.PaymentReversed(payment.Id, payment.PayerId, payment.Amount, today, payment.Number, payment.PostingId), ct);
+        // A cash payment reversed while the shift that took it is still open, on the business date of that shift, comes
+        // out of that drawer: the posting names the shift. Otherwise the shift is not touched, and the day-end report
+        // shows the reversal as cash outside the shifts (ADR 0060).
+        CashierShift? shift = null;
+        if (payment.Method == PaymentMethod.Cash
+            && await shiftCash.ShiftOfAsync(payment.PostingId, ct) is { } shiftId
+            && await shifts.GetAsync(shiftId, ct) is { } taken
+            && taken.Takes(today))
+        {
+            shift = taken;
+            shift.TakeCashDocument();
+        }
+
+        var template = PostingTemplate.PaymentReversed(payment.Id, payment.PayerId, payment.Amount, today, payment.Number, payment.PostingId);
+        var entered = await ledger.PostAsync(template with { ShiftId = shift?.Id }, ct);
         if (entered.IsFailure)
         {
             // The payment had its whole amount unapplied as it was read. A ledger that finds a balance going below

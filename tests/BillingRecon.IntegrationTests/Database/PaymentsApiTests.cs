@@ -123,6 +123,7 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
 
         // 18:45 UTC on the 17th is 00:15 on the 18th in India (BR-003).
         factory.Clock.Set(new DateTimeOffset(2026, 10, 17, 18, 45, 0, TimeSpan.Zero));
+        await client.EnsureShiftAsync();
         var payment = await RecordedAsync(client, new RecordPaymentRequest { PayerId = payer.Id, Method = PaymentMethod.Cash, Amount = 0.01m });
 
         payment.PaymentDate.ShouldBe(new DateOnly(2026, 10, 18));
@@ -359,6 +360,7 @@ public sealed class PaymentsApiTests(SqlServerFixture sqlServer) : DatabaseTest(
         var (_, payer) = await client.NewBillPartiesAsync();
         var (_, otherPayer) = await client.NewBillPartiesAsync();
         var older = await RecordedAsync(client, Upi(payer, 100m) with { PaymentDate = Today.AddDays(-2) });
+        await client.EnsureShiftAsync();
         var cash = await RecordedAsync(client, new RecordPaymentRequest { PayerId = payer.Id, Method = PaymentMethod.Cash, Amount = 200m });
         var theirs = await RecordedAsync(client, Upi(otherPayer, 300m));
 

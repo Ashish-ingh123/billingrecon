@@ -37,6 +37,7 @@ public sealed class RefundHandlerTests
     private readonly ICreditNoteSettlement _creditNotes = Substitute.For<ICreditNoteSettlement>();
     private readonly IActivePayers _payers = Substitute.For<IActivePayers>();
     private readonly IRefundRepository _repository = Substitute.For<IRefundRepository>();
+    private readonly ICashierShiftRepository _shifts = Substitute.For<ICashierShiftRepository>();
     private readonly IApprovalRequestRepository _approvals = Substitute.For<IApprovalRequestRepository>();
     private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
     private readonly ICorrelationContext _correlation = Substitute.For<ICorrelationContext>();
@@ -267,7 +268,7 @@ public sealed class RefundHandlerTests
     }
 
     private ApproveRefundHandler Approve() => new(
-        new ApproveRefundCommandValidator(), _clock, _currentUser, _payments, _creditNotes, _payers, _repository, _approvals, _settings, _numbers, _ledger, _unitOfWork);
+        new ApproveRefundCommandValidator(), _clock, _currentUser, _payments, _creditNotes, _payers, _repository, _shifts, _approvals, _settings, _numbers, _ledger, _unitOfWork);
 
     private PostRefundHandler Post() => new(_clock, _currentUser, _correlation, _payments, _creditNotes, _repository, _approvals, _settings, _unitOfWork);
 

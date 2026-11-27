@@ -87,7 +87,8 @@ public sealed class ReceivablesLedger(
             now,
             currentUser.UserId,
             correlation.CorrelationId,
-            template.ReversalOf);
+            template.ReversalOf,
+            template.ShiftId);
 
         foreach (var (account, subject, change) in posting.SubjectChanges())
         {

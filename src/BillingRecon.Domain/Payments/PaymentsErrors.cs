@@ -134,4 +134,62 @@ public static class PaymentsErrors
     /// <summary>The refund is for more than its payment or credit note has left (BR-307).</summary>
     public static Error RefundExceedsAvailable(string sourceNumber, Money available)
         => Error.BusinessRule(RefundExceedsAvailableCode, $"{sourceNumber} has {available} left to refund; a refund cannot be for more (BR-307).");
+
+    /// <summary>Code of <see cref="ShiftNotFound"/>.</summary>
+    public const string ShiftNotFoundCode = "shift_not_found";
+
+    /// <summary>Code of <see cref="ShiftNotOpen"/>.</summary>
+    public const string ShiftNotOpenCode = "shift_not_open";
+
+    /// <summary>Code of <see cref="ShiftAlreadyOpen"/>.</summary>
+    public const string ShiftAlreadyOpenCode = "shift_already_open";
+
+    /// <summary>Code of <see cref="ShiftDateMismatch"/>.</summary>
+    public const string ShiftDateMismatchCode = "shift_date_mismatch";
+
+    /// <summary>Code of <see cref="ShiftNotOwn"/>.</summary>
+    public const string ShiftNotOwnCode = "shift_not_own";
+
+    /// <summary>Code of <see cref="ShiftDifferenceNeedsReason"/>.</summary>
+    public const string ShiftDifferenceNeedsReasonCode = "shift_difference_needs_reason";
+
+    /// <summary>Code of <see cref="ShiftNotPendingApproval"/>.</summary>
+    public const string ShiftNotPendingApprovalCode = "shift_not_pending_approval";
+
+    /// <summary>No shift with that id exists for the tenant, or it is another cashier's and the user reads only their own.</summary>
+    public static Error ShiftNotFound() => Error.NotFound(ShiftNotFoundCode, "The shift does not exist.");
+
+    /// <summary>
+    /// Cash was to be taken or paid out, or a shift counted, and the cashier has no open shift (BR-311).
+    /// <paramref name="ofDrafter"/> says the shift asked for is that of the cashier who drafted a refund, not the caller's.
+    /// </summary>
+    public static Error ShiftNotOpen(bool ofDrafter = false)
+        => Error.BusinessRule(
+            ShiftNotOpenCode,
+            ofDrafter
+                ? "The cashier who drafted this refund has no open shift, and cash is paid out of an open shift (BR-311). Approve it when that shift is open, or reject it."
+                : "Cash is taken and paid out in an open shift (BR-311). Open your shift first.");
+
+    /// <summary>The user has a shift that is open or waits for approval, and opened another (BR-310).</summary>
+    public static Error ShiftAlreadyOpen()
+        => Error.BusinessRule(ShiftAlreadyOpenCode, "You have a shift that is open or waits for approval; a user has one shift at a time (BR-310).");
+
+    /// <summary>A cash document is dated another day than the shift it would join (BR-311).</summary>
+    public static Error ShiftDateMismatch(DateOnly shiftDate)
+        => Error.BusinessRule(
+            ShiftDateMismatchCode,
+            $"Cash in this shift is dated {shiftDate:yyyy-MM-dd}, the business date of the shift (BR-311). Use that date, or close the shift and open a new one.");
+
+    /// <summary>A user closed a shift that is another cashier's, or a request with no user opened one.</summary>
+    public static Error ShiftNotOwn() => Error.Forbidden(ShiftNotOwnCode, "A shift is opened and closed by its own cashier.");
+
+    /// <summary>The counted cash differs from the expected cash and no reason was given (BR-313).</summary>
+    public static Error ShiftDifferenceNeedsReason(Money difference)
+        => Error.BusinessRule(
+            ShiftDifferenceNeedsReasonCode,
+            $"The counted cash differs from the expected cash by {difference}; a difference needs a reason (BR-313).");
+
+    /// <summary>Approving or rejecting the closing of a shift that does not wait for approval.</summary>
+    public static Error ShiftNotPendingApproval()
+        => Error.BusinessRule(ShiftNotPendingApprovalCode, "The shift's closing is not waiting for approval, so there is nothing to approve or reject.");
 }
