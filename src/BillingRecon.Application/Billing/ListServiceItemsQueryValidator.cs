@@ -11,6 +11,7 @@ public sealed class ListServiceItemsQueryValidator : AbstractValidator<ListServi
         RuleLevelCascadeMode = CascadeMode.Stop;
 
         Include(new PagedQueryValidator());
+        RuleFor(query => query.Order).OneOf(ListServiceItemsQuery.Sorts);
 
         RuleFor(query => query.Search).OptionalText(ListServiceItemsQuery.SearchMaxLength, "search");
         RuleFor(query => query.Status).IsInEnum().WithMessage("The status is Active or Inactive.");

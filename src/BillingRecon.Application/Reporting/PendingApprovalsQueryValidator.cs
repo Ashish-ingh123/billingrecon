@@ -11,6 +11,7 @@ public sealed class PendingApprovalsQueryValidator : AbstractValidator<PendingAp
         RuleLevelCascadeMode = CascadeMode.Stop;
 
         Include(new PagedQueryValidator());
+        RuleFor(query => query.Sort).OneOf(PendingApprovalsQuery.Sorts);
 
         RuleFor(query => query.DocumentType).IsInEnum().WithMessage("The document type is not one the system knows.");
     }

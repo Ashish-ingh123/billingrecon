@@ -40,10 +40,25 @@ public sealed class ServiceItemReadService(BillingReconDbContext context) : ISer
                 EF.Functions.Like((string)(object)item.Code, pattern, LikePattern.Escape) || EF.Functions.Like(item.Name, pattern, LikePattern.Escape));
         }
 
+        // The filters of Prompt 12.2 (ADR 0063): each narrows the rows the search and the page are taken from.
+        if (query.Category is { } category)
+        {
+            items = items.Where(item => item.Category == category);
+        }
+
         var totalCount = await items.CountAsync(ct);
-        var page = await items
-            .OrderBy(item => item.Code)
-            .ThenBy(item => item.Id)
+        // The order asked for by name, or the list's own; each ends on a key that is one of a kind (ADR 0063).
+        IOrderedQueryable<ServiceItem> ordered = query.Order switch
+        {
+            { Column: "code", Descending: var down } => items.By(item => (string)(object)item.Code, down).Then(item => item.Id, down),
+            { Column: "name", Descending: var down } => items.By(item => item.Name, down).Then(item => item.Id, down),
+            { Column: "defaultUnitPrice", Descending: var down } => items.By(item => item.DefaultUnitPrice, down).Then(item => item.Id, down),
+            null => items
+                .OrderBy(item => item.Code)
+                .ThenBy(item => item.Id),
+            _ => throw new InvalidOperationException($"The order {query.Order} is not one of this list; its validator should have refused it."),
+        };
+        var page = await ordered
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToListAsync(ct);

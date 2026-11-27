@@ -9,6 +9,9 @@ namespace BillingRecon.Application.Reporting;
 /// </summary>
 public sealed record PaymentRegisterQuery : IPagedQuery
 {
+    /// <summary>The columns this list is sorted by on request (ADR 0063); each stands for an expression of the query service.</summary>
+    public static IReadOnlyList<string> Sorts { get; } = ["number", "paymentDate", "amount", "unappliedAmount"];
+
     /// <summary>The first payment date, with <see cref="To"/>; neither means the current month in India.</summary>
     public DateOnly? From { get; init; }
 
@@ -26,6 +29,15 @@ public sealed record PaymentRegisterQuery : IPagedQuery
 
     /// <summary>The order of the items: the oldest first unless the newest are asked for (the dashboard's recent payments).</summary>
     public ReportOrder Order { get; init; } = ReportOrder.OldestFirst;
+
+    /// <summary>Only the payments of this amount or more.</summary>
+    public decimal? AmountFrom { get; init; }
+
+    /// <summary>Only the payments of this amount or less.</summary>
+    public decimal? AmountTo { get; init; }
+
+    /// <summary>The order asked for, one of <see cref="Sorts"/>; null for the list's own order.</summary>
+    public ListSort? Sort { get; init; }
 
     /// <inheritdoc />
     public int Page { get; init; } = Paging.FirstPage;

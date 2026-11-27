@@ -42,8 +42,17 @@ public sealed class UserReadService(BillingReconDbContext context) : IUserReadSe
         }
 
         var totalCount = await users.CountAsync(ct);
-        var page = await users
-            .OrderBy(user => user.NormalizedEmail)
+        // The order asked for by name, or the list's own; each ends on a key that is one of a kind (ADR 0063).
+        IOrderedQueryable<User> ordered = query.Order switch
+        {
+            { Column: "displayName", Descending: var down } => users.By(user => user.DisplayName, down).Then(user => user.Id, down),
+            { Column: "email", Descending: var down } => users.By(user => user.NormalizedEmail, down).Then(user => user.Id, down),
+            { Column: "lastSignInAtUtc", Descending: var down } => users.By(user => user.LastSignInAtUtc, down).Then(user => user.Id, down),
+            null => users
+                .OrderBy(user => user.NormalizedEmail),
+            _ => throw new InvalidOperationException($"The order {query.Order} is not one of this list; its validator should have refused it."),
+        };
+        var page = await ordered
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToListAsync(ct);

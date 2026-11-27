@@ -455,6 +455,30 @@
             }
           },
           {
+            "name": "TotalFrom",
+            "in": "query",
+            "description": "Only the bills whose total is this amount or more.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "TotalTo",
+            "in": "query",
+            "description": "Only the bills whose total is this amount or less.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: one of the list's columns (`number`, `billDate`, `total`, `balanceDue`), with `-` in front for the largest or\nlatest first. The list's own order when left out.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Page",
             "in": "query",
             "description": "The page, from 1; the first when left out.",
@@ -581,6 +605,30 @@
             "description": "`OldestFirst` (when left out) or `NewestFirst`.",
             "schema": {
               "$ref": "#/components/schemas/ReportOrder"
+            }
+          },
+          {
+            "name": "AmountFrom",
+            "in": "query",
+            "description": "Only the payments of this amount or more.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AmountTo",
+            "in": "query",
+            "description": "Only the payments of this amount or less.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: one of the list's columns (`number`, `paymentDate`, `amount`, `unappliedAmount`), with `-` in front for the largest or\nlatest first. The list's own order when left out.",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -790,6 +838,14 @@
             }
           },
           {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: one of the list's columns (`name`, `receivable`, `netOutstanding`), with `-` in front for the largest or\nlatest first. The list's own order when left out.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Page",
             "in": "query",
             "description": "The page, from 1; the first when left out.",
@@ -938,6 +994,30 @@
             }
           },
           {
+            "name": "DateFrom",
+            "in": "query",
+            "description": "Only the documents dated on or after this day (`yyyy-MM-dd`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "DateTo",
+            "in": "query",
+            "description": "Only the documents dated on or before this day (`yyyy-MM-dd`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: one of the report's columns (`number`, then `paymentDate` and `unappliedAmount` for\nthe unapplied cash, `creditNoteDate` and `availableAmount` for the available credit), with `-` in\nfront for the largest or latest first. The report's own order when left out.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Page",
             "in": "query",
             "description": "The page, from 1; the first when left out.",
@@ -1025,6 +1105,30 @@
             }
           },
           {
+            "name": "DateFrom",
+            "in": "query",
+            "description": "Only the documents dated on or after this day (`yyyy-MM-dd`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "DateTo",
+            "in": "query",
+            "description": "Only the documents dated on or before this day (`yyyy-MM-dd`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: one of the report's columns (`number`, then `paymentDate` and `unappliedAmount` for\nthe unapplied cash, `creditNoteDate` and `availableAmount` for the available credit), with `-` in\nfront for the largest or latest first. The report's own order when left out.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Page",
             "in": "query",
             "description": "The page, from 1; the first when left out.",
@@ -1108,6 +1212,14 @@
             "description": "Only the requests about this kind of document.",
             "schema": {
               "$ref": "#/components/schemas/ApprovalDocumentType"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: one of the list's columns (`requestedAtUtc`), with `-` in front for the largest or\nlatest first. The list's own order when left out.",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -2137,6 +2249,30 @@
             "schema": {
               "type": "string",
               "format": "date"
+            }
+          },
+          {
+            "name": "DateFrom",
+            "in": "query",
+            "description": "Only the shifts of this business date or later (`yyyy-MM-dd`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "DateTo",
+            "in": "query",
+            "description": "Only the shifts of this business date or earlier (`yyyy-MM-dd`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: one of the list's columns (`businessDate`, `difference`), with `-` in front for the largest or\nlatest first. The list's own order when left out.",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -4416,6 +4552,46 @@
             }
           },
           {
+            "name": "AmountFrom",
+            "in": "query",
+            "description": "Only the payments of this amount or more.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AmountTo",
+            "in": "query",
+            "description": "Only the payments of this amount or less.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "CreatedBy",
+            "in": "query",
+            "description": "Only the payments this user made (the id of a user).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "query",
+            "description": "Only the payments of this origin: Standard, or Opening for the advances brought in at the cut-over.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: one of the list's columns (`number`, `paymentDate`, `amount`, `unappliedAmount`), with `-` in front for the largest or\nlatest first. The list's own order when left out.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Page",
             "in": "query",
             "description": "The page, from 1; the first when left out.",
@@ -4823,6 +4999,62 @@
             "name": "Search",
             "in": "query",
             "description": "Only the documents the text finds (Prompt 11.1): a part of the number, of the patient's name or MRN, of the\npayer's name, or exactly the amount it states. Fewer than two characters filter nothing.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "RefundDateFrom",
+            "in": "query",
+            "description": "Only the refunds dated on or after this day (`yyyy-MM-dd`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "RefundDateTo",
+            "in": "query",
+            "description": "Only the refunds dated on or before this day (`yyyy-MM-dd`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Method",
+            "in": "query",
+            "description": "Only the refunds paid by this method: Cash, Card, UPI, BankTransfer or Cheque.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AmountFrom",
+            "in": "query",
+            "description": "Only the refunds of this amount or more.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AmountTo",
+            "in": "query",
+            "description": "Only the refunds of this amount or less.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "CreatedBy",
+            "in": "query",
+            "description": "Only the refunds this user made (the id of a user).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: one of the list's columns (`number`, `refundDate`, `amount`), with `-` in front for the largest or\nlatest first. The list's own order when left out.",
             "schema": {
               "type": "string"
             }
@@ -6207,6 +6439,14 @@
             }
           },
           {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: one of the list's columns (`mrn`, `fullName`, `dateOfBirth`), with `-` in front for the largest or\nlatest first. The list's own order when left out.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Page",
             "in": "query",
             "description": "The page, from 1; the first when left out.",
@@ -6878,6 +7118,22 @@
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "name": "Kind",
+            "in": "query",
+            "description": "Only the payers of this kind.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: one of the list's columns (`name`, `kind`), with `-` in front for the largest or\nlatest first. The list's own order when left out.",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -9814,6 +10070,14 @@
             }
           },
           {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: one of the list's columns (`displayName`, `email`, `lastSignInAtUtc`), with `-` in front for the largest or\nlatest first. The list's own order when left out.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Page",
             "in": "query",
             "description": "From 1; 1 when left out.",
@@ -10760,6 +11024,36 @@
         }
       }
     },
+    "/api/v1/system/business-date": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Today in India by the server's clock (BR-003): the day a list's date shortcuts count from (Prompt 12.2,\nADR 0063). Anyone signed in; never cached.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessDateResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessDateResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessDateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/approval-requests": {
       "get": {
         "tags": [
@@ -10781,6 +11075,22 @@
             "description": "Only requests about this kind of document; every kind when left out.",
             "schema": {
               "$ref": "#/components/schemas/ApprovalDocumentType"
+            }
+          },
+          {
+            "name": "RequestedBy",
+            "in": "query",
+            "description": "Only the requests this user made (the id of a user).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: one of the list's columns (`requestedAtUtc`), with `-` in front for the largest or\nlatest first. The list's own order when left out.",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -11017,6 +11327,62 @@
             "name": "Search",
             "in": "query",
             "description": "Only the documents the text finds (Prompt 11.1): a part of the number, of the patient's name or MRN, of the\npayer's name, or exactly the amount it states. Fewer than two characters filter nothing.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "TotalFrom",
+            "in": "query",
+            "description": "Only the bills whose total is this amount or more.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "TotalTo",
+            "in": "query",
+            "description": "Only the bills whose total is this amount or less.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "BalanceDueFrom",
+            "in": "query",
+            "description": "Only the bills that still owe this amount or more.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "BalanceDueTo",
+            "in": "query",
+            "description": "Only the bills that still owe this amount or less.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "CreatedBy",
+            "in": "query",
+            "description": "Only the bills this user made (the id of a user).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "query",
+            "description": "Only the bills of this origin: Standard, or Opening for those brought in at the cut-over.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: one of the list's columns (`number`, `billDate`, `total`, `balanceDue`), with `-` in front for the largest or\nlatest first. The list's own order when left out.",
             "schema": {
               "type": "string"
             }
@@ -13039,6 +13405,54 @@
             }
           },
           {
+            "name": "CreditNoteDateFrom",
+            "in": "query",
+            "description": "Only the credit notes dated on or after this day (`yyyy-MM-dd`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "CreditNoteDateTo",
+            "in": "query",
+            "description": "Only the credit notes dated on or before this day (`yyyy-MM-dd`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "TotalFrom",
+            "in": "query",
+            "description": "Only the credit notes whose total is this amount or more.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "TotalTo",
+            "in": "query",
+            "description": "Only the credit notes whose total is this amount or less.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "CreatedBy",
+            "in": "query",
+            "description": "Only the credit notes this user made (the id of a user).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: one of the list's columns (`number`, `creditNoteDate`, `total`, `availableAmount`), with `-` in front for the largest or\nlatest first. The list's own order when left out.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Page",
             "in": "query",
             "description": "The page, from 1; the first when left out.",
@@ -14468,6 +14882,22 @@
             }
           },
           {
+            "name": "Category",
+            "in": "query",
+            "description": "Only the items of exactly this category.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: one of the list's columns (`code`, `name`, `defaultUnitPrice`), with `-` in front for the largest or\nlatest first. The list's own order when left out.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Page",
             "in": "query",
             "description": "The page, from 1; the first when left out.",
@@ -15249,6 +15679,54 @@
             "name": "Search",
             "in": "query",
             "description": "Only the documents the text finds (Prompt 11.1): a part of the number, of the patient's name or MRN, of the\npayer's name, or exactly the amount it states. Fewer than two characters filter nothing.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AdjustmentDateFrom",
+            "in": "query",
+            "description": "Only the adjustments dated on or after this day (`yyyy-MM-dd`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AdjustmentDateTo",
+            "in": "query",
+            "description": "Only the adjustments dated on or before this day (`yyyy-MM-dd`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AmountFrom",
+            "in": "query",
+            "description": "Only the adjustments of this amount or more.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AmountTo",
+            "in": "query",
+            "description": "Only the adjustments of this amount or less.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "CreatedBy",
+            "in": "query",
+            "description": "Only the adjustments this user made (the id of a user).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: one of the list's columns (`number`, `adjustmentDate`, `amount`), with `-` in front for the largest or\nlatest first. The list's own order when left out.",
             "schema": {
               "type": "string"
             }
@@ -17614,6 +18092,20 @@
           }
         },
         "description": "A bill as a list shows it: everything but its lines and its void details, which the bill itself returns."
+      },
+      "BusinessDateResponse": {
+        "required": [
+          "today"
+        ],
+        "type": "object",
+        "properties": {
+          "today": {
+            "type": "string",
+            "description": "Today in India, as `yyyy-MM-dd`.",
+            "format": "date"
+          }
+        },
+        "description": "The business date of the server (Prompt 12.2, ADR 0063): today in India (BR-003), from the server's clock and never\nthe browser's, so that \"Today\" and \"This month\" of a list's date filter are the server's days."
       },
       "CashCountLineDto": {
         "required": [

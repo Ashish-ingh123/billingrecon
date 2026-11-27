@@ -11,6 +11,7 @@ public sealed class AvailableCreditQueryValidator : AbstractValidator<AvailableC
         RuleLevelCascadeMode = CascadeMode.Stop;
 
         Include(new PagedQueryValidator());
+        RuleFor(query => query.Sort).OneOf(AvailableCreditQuery.Sorts);
 
         RuleFor(query => query.PayerId)
             .Must(payerId => payerId is null || payerId.Value.Value != Guid.Empty)

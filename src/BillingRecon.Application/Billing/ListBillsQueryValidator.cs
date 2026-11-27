@@ -14,6 +14,7 @@ public sealed class ListBillsQueryValidator : AbstractValidator<ListBillsQuery>
         RuleLevelCascadeMode = CascadeMode.Stop;
 
         Include(new PagedQueryValidator());
+        RuleFor(query => query.Order).OneOf(ListBillsQuery.Sorts);
         RuleFor(query => query.Search).OptionalText(DocumentSearch.MaxLength, "search");
 
         RuleFor(query => query.PatientId)

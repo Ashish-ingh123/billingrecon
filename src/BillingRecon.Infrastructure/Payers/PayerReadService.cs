@@ -45,10 +45,24 @@ public sealed class PayerReadService(BillingReconDbContext context) : IPayerRead
             payers = payers.Where(payer => payer.Name.Contains(search));
         }
 
+        // The filters of Prompt 12.2 (ADR 0063): each narrows the rows the search and the page are taken from.
+        if (query.Kind is { } kind)
+        {
+            payers = payers.Where(payer => payer.Kind == kind);
+        }
+
         var totalCount = await payers.CountAsync(ct);
-        var page = await payers
-            .OrderBy(payer => payer.Name)
-            .ThenBy(payer => payer.Id)
+        // The order asked for by name, or the list's own; each ends on a key that is one of a kind (ADR 0063).
+        IOrderedQueryable<Payer> ordered = query.Order switch
+        {
+            { Column: "name", Descending: var down } => payers.By(payer => payer.Name, down).Then(payer => payer.Id, down),
+            { Column: "kind", Descending: var down } => payers.By(payer => payer.Kind, down).Then(payer => payer.Name, down).Then(payer => payer.Id, down),
+            null => payers
+                .OrderBy(payer => payer.Name)
+                .ThenBy(payer => payer.Id),
+            _ => throw new InvalidOperationException($"The order {query.Order} is not one of this list; its validator should have refused it."),
+        };
+        var page = await ordered
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToListAsync(ct);

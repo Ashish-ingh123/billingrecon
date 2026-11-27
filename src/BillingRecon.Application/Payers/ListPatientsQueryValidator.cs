@@ -11,6 +11,7 @@ public sealed class ListPatientsQueryValidator : AbstractValidator<ListPatientsQ
         RuleLevelCascadeMode = CascadeMode.Stop;
 
         Include(new PagedQueryValidator());
+        RuleFor(query => query.Order).OneOf(ListPatientsQuery.Sorts);
 
         RuleFor(query => query.Search).OptionalText(ListPatientsQuery.SearchMaxLength, "search");
         RuleFor(query => query.Status).IsInEnum().WithMessage("The status is Active or Inactive.");

@@ -66,6 +66,27 @@ public sealed class PaymentReadService(BillingReconDbContext context, IPartySear
             payments = payments.Where(payment => payment.PaymentDate <= to);
         }
 
+        // The filters of Prompt 12.2 (ADR 0063): each narrows the rows the search and the page are taken from.
+        if (query.AmountFrom is { } amountFrom)
+        {
+            payments = payments.Where(payment => payment.Amount >= Money.Of(amountFrom));
+        }
+
+        if (query.AmountTo is { } amountTo)
+        {
+            payments = payments.Where(payment => payment.Amount <= Money.Of(amountTo));
+        }
+
+        if (query.CreatedBy is { } createdBy)
+        {
+            payments = payments.Where(payment => payment.CreatedByUserId == createdBy);
+        }
+
+        if (query.Origin is { } origin)
+        {
+            payments = payments.Where(payment => payment.Origin == origin);
+        }
+
         // One box (Prompt 11.1; ADR 0036, amended 2026-11-26). Each part of the search is a query of its own, so that
         // each is answered by its own index, and the documents are those of any part: an OR over them reads every row.
         int? fewFound = null;
@@ -84,10 +105,20 @@ public sealed class PaymentReadService(BillingReconDbContext context, IPartySear
         }
 
         var totalCount = fewFound ?? await payments.CountAsync(ct);
-        var page = await payments
-            .OrderByDescending(payment => payment.PaymentDate)
-            .ThenByDescending(payment => payment.FiscalYear)
-            .ThenByDescending(payment => payment.SequenceNumber)
+        // The order asked for by name, or the list's own; each ends on a key that is one of a kind (ADR 0063).
+        IOrderedQueryable<Payment> ordered = query.Order switch
+        {
+            { Column: "number", Descending: var down } => payments.By(payment => payment.FiscalYear, down).Then(payment => payment.SequenceNumber, down).Then(payment => payment.Id, down),
+            { Column: "paymentDate", Descending: var down } => payments.By(payment => payment.PaymentDate, down).Then(payment => payment.Id, down),
+            { Column: "amount", Descending: var down } => payments.By(payment => payment.Amount, down).Then(payment => payment.Id, down),
+            { Column: "unappliedAmount", Descending: var down } => payments.By(payment => payment.UnappliedAmount, down).Then(payment => payment.Id, down),
+            null => payments
+                .OrderByDescending(payment => payment.PaymentDate)
+                .ThenByDescending(payment => payment.FiscalYear)
+                .ThenByDescending(payment => payment.SequenceNumber),
+            _ => throw new InvalidOperationException($"The order {query.Order} is not one of this list; its validator should have refused it."),
+        };
+        var page = await ordered
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToListAsync(ct);

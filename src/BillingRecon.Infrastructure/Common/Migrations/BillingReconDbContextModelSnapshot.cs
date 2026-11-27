@@ -118,6 +118,9 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("TenantId", "AdjustmentDate")
+                        .HasDatabaseName("IX_Adjustments_TenantId_AdjustmentDate");
+
                     b.HasIndex("TenantId", "Amount")
                         .HasDatabaseName("IX_Adjustments_TenantId_Amount");
 
@@ -344,6 +347,9 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "BalanceDue")
+                        .HasDatabaseName("IX_Bills_TenantId_BalanceDue");
 
                     b.HasIndex("TenantId", "BillDate")
                         .HasDatabaseName("IX_Bills_TenantId_BillDate");
@@ -597,6 +603,9 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "CreditNoteDate")
+                        .HasDatabaseName("IX_CreditNotes_TenantId_CreditNoteDate");
 
                     b.HasIndex("TenantId", "Number")
                         .IsUnique()
@@ -2317,6 +2326,9 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                     SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("TenantId", "PaymentDate"), new[] { "Method", "Amount", "Status" });
 
+                    b.HasIndex("TenantId", "UnappliedAmount")
+                        .HasDatabaseName("IX_Payments_TenantId_UnappliedAmount");
+
                     b.HasIndex("TenantId", "PayerId", "Status")
                         .HasDatabaseName("IX_Payments_TenantId_PayerId_Status");
 
@@ -2541,6 +2553,9 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                     b.HasIndex("TenantId", "PayerId")
                         .HasDatabaseName("IX_Refunds_TenantId_PayerId");
+
+                    b.HasIndex("TenantId", "RefundDate")
+                        .HasDatabaseName("IX_Refunds_TenantId_RefundDate");
 
                     b.HasIndex("TenantId", "SourceCreditNoteId")
                         .HasDatabaseName("IX_Refunds_TenantId_SourceCreditNoteId");

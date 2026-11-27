@@ -13,6 +13,7 @@ public sealed class ListUsersQueryValidator : AbstractValidator<ListUsersQuery>
         RuleLevelCascadeMode = CascadeMode.Stop;
 
         Include(new PagedQueryValidator());
+        RuleFor(query => query.Order).OneOf(ListUsersQuery.Sorts);
         RuleFor(query => query.Status).IsInEnum().WithMessage("The status is Active or Disabled.");
         RuleFor(query => query.Role).IsInEnum().WithMessage("The role is TenantAdmin, Supervisor, BillingClerk, Cashier or Viewer.");
         RuleFor(query => query.Email)

@@ -73,6 +73,7 @@ at the next sign-in. In short:
 | Reports (section 8.15) | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Dashboard (section 8.16) | ✓ | ✓ | | | ✓ |
 | `GET /api/v1/system/info` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `GET /api/v1/system/business-date` | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 A checker also has to be another user than the maker (BR-603): a decision by the maker is 403
 `approval_checker_is_maker`, and the decision itself checks the role again (403 `approval_checker_role`), whatever the
@@ -158,6 +159,45 @@ with field errors lists the messages per field under `errors`, keyed by the JSON
   filter, and `totalCount` is of what it finds. At most 100 characters (400 beyond that); **a text of fewer than two
   characters filters nothing**, where the lists of patients, payers and items search from one: one character is in
   almost every number. The order of the list is unchanged.
+- **Filters and orders of Prompt 12.2** (ADR 0063). The lists below take, beside their earlier filters, the ones in the
+  table, and `sort`: one of the list's named columns, ascending, or with `-` in front the largest or latest first
+  (`sort=total`, `sort=-total`), whatever its case. A column that is not named, or anything else, is **400
+  `sort_not_supported`**, whose message lists the columns. Every order ends on a key that is one of a kind (the
+  document's id, or for a number its fiscal year and sequence and then its id), so that pages never repeat or skip a
+  row. With no `sort`, a list keeps its own order as before.
+- **An amount** is a number of rupees from 0 with at most two decimals (`1500`, `1500.50`), compared with the column
+  as `>=` for `...From` and `<=` for `...To`; **a date** is `yyyy-MM-dd`, a business date in India, both ends included;
+  **`createdBy`** and **`requestedBy`** are the id of a user; **`origin`** is `Standard` or `Opening` (brought in at the
+  cut-over, ADR 0053). One that cannot be read, or a range whose end is before its start, is **400
+  `filter_invalid`**, with each such parameter named in `errors`. **A filter left empty filters nothing.** Every filter
+  combines with the others, with `search`, with the order and with the paging; `totalCount`, and the totals of a
+  report, are of the rows they leave.
+
+| List | New filters | `sort` |
+|---|---|---|
+| `GET /api/v1/bills` | `totalFrom`, `totalTo`, `balanceDueFrom`, `balanceDueTo`, `createdBy`, `origin` | `number`, `billDate`, `total`, `balanceDue` |
+| `GET /api/v1/payments` | `amountFrom`, `amountTo`, `createdBy`, `origin` | `number`, `paymentDate`, `amount`, `unappliedAmount` |
+| `GET /api/v1/credit-notes` | `creditNoteDateFrom`, `creditNoteDateTo`, `totalFrom`, `totalTo`, `createdBy` | `number`, `creditNoteDate`, `total`, `availableAmount` |
+| `GET /api/v1/adjustments` | `adjustmentDateFrom`, `adjustmentDateTo`, `amountFrom`, `amountTo`, `createdBy` | `number`, `adjustmentDate`, `amount` |
+| `GET /api/v1/refunds` | `refundDateFrom`, `refundDateTo`, `method`, `amountFrom`, `amountTo`, `createdBy` | `number`, `refundDate`, `amount` |
+| `GET /api/v1/patients` | | `mrn`, `fullName`, `dateOfBirth` |
+| `GET /api/v1/payers` | `kind` | `name`, `kind` |
+| `GET /api/v1/service-items` | `category` (the whole category, as text) | `code`, `name`, `defaultUnitPrice` |
+| `GET /api/v1/users` | | `displayName`, `email`, `lastSignInAtUtc` |
+| `GET /api/v1/cashier-shifts` | `dateFrom`, `dateTo` | `businessDate`, `difference` |
+| `GET /api/v1/approval-requests` | `requestedBy` | `requestedAtUtc` |
+| `GET /api/v1/reports/bill-register` | `totalFrom`, `totalTo` | `number`, `billDate`, `total`, `balanceDue` |
+| `GET /api/v1/reports/payment-register` | `amountFrom`, `amountTo` | `number`, `paymentDate`, `amount`, `unappliedAmount` (`order` stays for the dashboard and applies when no `sort` is given) |
+| `GET /api/v1/reports/outstanding-by-payer` | | `name`, `receivable`, `netOutstanding` |
+| `GET /api/v1/reports/unapplied-cash` | `dateFrom`, `dateTo` | `number`, `paymentDate`, `unappliedAmount` |
+| `GET /api/v1/reports/available-credit` | `dateFrom`, `dateTo` | `number`, `creditNoteDate`, `availableAmount` |
+| `GET /api/v1/reports/pending-approvals` | | `requestedAtUtc` |
+
+  The cost was measured on 100,000 bills of one hospital on LocalDB 2019: every filter and order of the bills answers
+  within 200 ms, most within 25 ms (ADR 0063). Migration `0034_ListIndexes` adds the indexes the new orders need.
+- **`GET /api/v1/system/business-date`** (anyone signed in) answers `{ "today": "2026-11-27" }`: today in India by the
+  server's clock, never cached. The screens count the shortcuts of a date filter (today, this week, this month, the
+  last 30 days) from it, never from the browser's clock.
 
 ## 7. Idempotency (BR-803, ADR 0006)
 
@@ -1392,6 +1432,8 @@ For a failure no use case reported: routing, model binding, content negotiation,
 | `approval_already_decided` | 409 | This request has already been decided. Read the document again. |
 | `approval_needs_user` | 403 | This action needs a signed-in user: an approval is asked for and given by people (BR-603). |
 | `approval_checker_role` | 403 | Only a Supervisor or a TenantAdmin may approve or reject (BR-603). |
+| `sort_not_supported` | 400 | This list is not sorted by "…". It is sorted by one of: …; a "-" in front gives the largest or latest first. |
+| `filter_invalid` | 400 | A filter of this list cannot be read. The errors are listed per filter. |
 
 ### 9.3 Identity: tenants, users, sign-in, settings, prefixes
 

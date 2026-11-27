@@ -62,7 +62,13 @@ public sealed class ReportsController(ILogger<ReportsController> logger, IAuthor
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var result = await handler.HandleAsync(request.ToQuery(), ct);
+        var query = request.ToQuery();
+        if (query.IsFailure)
+        {
+            return Problem(query.Error);
+        }
+
+        var result = await handler.HandleAsync(query.Value, ct);
 
         return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
     }
@@ -79,7 +85,13 @@ public sealed class ReportsController(ILogger<ReportsController> logger, IAuthor
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var result = await handler.HandleAsync(request.ToQuery(), ct);
+        var query = request.ToQuery();
+        if (query.IsFailure)
+        {
+            return Problem(query.Error);
+        }
+
+        var result = await handler.HandleAsync(query.Value, ct);
 
         return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
     }
@@ -129,7 +141,13 @@ public sealed class ReportsController(ILogger<ReportsController> logger, IAuthor
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var result = await handler.HandleAsync(request.ToQuery(), ct);
+        var query = request.ToQuery();
+        if (query.IsFailure)
+        {
+            return Problem(query.Error);
+        }
+
+        var result = await handler.HandleAsync(query.Value, ct);
 
         return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
     }
@@ -161,7 +179,13 @@ public sealed class ReportsController(ILogger<ReportsController> logger, IAuthor
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var result = await handler.HandleAsync(request.ToUnappliedCashQuery(), ct);
+        var query = request.ToUnappliedCashQuery();
+        if (query.IsFailure)
+        {
+            return Problem(query.Error);
+        }
+
+        var result = await handler.HandleAsync(query.Value, ct);
 
         return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
     }
@@ -178,7 +202,13 @@ public sealed class ReportsController(ILogger<ReportsController> logger, IAuthor
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var result = await handler.HandleAsync(request.ToAvailableCreditQuery(), ct);
+        var query = request.ToAvailableCreditQuery();
+        if (query.IsFailure)
+        {
+            return Problem(query.Error);
+        }
+
+        var result = await handler.HandleAsync(query.Value, ct);
 
         return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
     }
@@ -200,7 +230,13 @@ public sealed class ReportsController(ILogger<ReportsController> logger, IAuthor
 
         // A row names a document, its payer and its amount: the caller is shown the kinds its role may read (R8).
         var visible = await PendingApprovalPolicies.VisibleToAsync(authorization, User);
-        var result = await handler.HandleAsync(request.ToQuery() with { VisibleDocumentTypes = visible }, ct);
+        var query = request.ToQuery();
+        if (query.IsFailure)
+        {
+            return Problem(query.Error);
+        }
+
+        var result = await handler.HandleAsync(query.Value with { VisibleDocumentTypes = visible }, ct);
 
         return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
     }

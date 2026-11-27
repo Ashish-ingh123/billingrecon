@@ -11,6 +11,7 @@ public sealed class ListPayersQueryValidator : AbstractValidator<ListPayersQuery
         RuleLevelCascadeMode = CascadeMode.Stop;
 
         Include(new PagedQueryValidator());
+        RuleFor(query => query.Order).OneOf(ListPayersQuery.Sorts);
 
         RuleFor(query => query.Search).OptionalText(ListPayersQuery.SearchMaxLength, "search");
         RuleFor(query => query.Status).IsInEnum().WithMessage("The status is Active or Inactive.");

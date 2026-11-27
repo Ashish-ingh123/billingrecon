@@ -23,10 +23,24 @@ public sealed class ApprovalRequestReadService(BillingReconDbContext context) : 
             requests = requests.Where(request => request.DocumentType == documentType);
         }
 
+        // The filters of Prompt 12.2 (ADR 0063): each narrows the rows the search and the page are taken from.
+        if (query.RequestedBy is { } requestedBy)
+        {
+            requests = requests.Where(request => request.MakerUserId == requestedBy);
+        }
+
         var totalCount = await requests.CountAsync(ct);
-        var page = await requests
-            .OrderBy(request => request.RequestedAtUtc)
-            .ThenBy(request => request.Id)
+        // The order asked for by name, or the list's own; each ends on a key that is one of a kind (ADR 0063).
+        IOrderedQueryable<ApprovalRequest> ordered = query.Order switch
+        {
+            { Column: "requestedAtUtc", Descending: var down } => requests.By(request => request.RequestedAtUtc, down).Then(request => request.Id, down),
+            null => requests
+                .OrderBy(request => request.RequestedAtUtc)
+                .ThenBy(request => request.Id)
+,
+            _ => throw new InvalidOperationException($"The order {query.Order} is not one of this list; its validator should have refused it."),
+        };
+        var page = await ordered
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToListAsync(ct);

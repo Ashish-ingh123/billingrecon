@@ -49,10 +49,29 @@ public sealed class CashierShiftReadService(BillingReconDbContext context, IShif
             shifts = shifts.Where(shift => shift.BusinessDate == date);
         }
 
+        // The filters of Prompt 12.2 (ADR 0063): each narrows the rows the search and the page are taken from.
+        if (query.DateFrom is { } dateFrom)
+        {
+            shifts = shifts.Where(shift => shift.BusinessDate >= dateFrom);
+        }
+
+        if (query.DateTo is { } dateTo)
+        {
+            shifts = shifts.Where(shift => shift.BusinessDate <= dateTo);
+        }
+
         var totalCount = await shifts.CountAsync(ct);
-        var page = await shifts
-            .OrderByDescending(shift => shift.OpenedAtUtc)
-            .ThenBy(shift => shift.Id)
+        // The order asked for by name, or the list's own; each ends on a key that is one of a kind (ADR 0063).
+        IOrderedQueryable<CashierShift> ordered = query.Order switch
+        {
+            { Column: "businessDate", Descending: var down } => shifts.By(shift => shift.BusinessDate, down).Then(shift => shift.OpenedAtUtc, down).Then(shift => shift.Id, down),
+            { Column: "difference", Descending: var down } => shifts.By(shift => shift.Difference, down).Then(shift => shift.Id, down),
+            null => shifts
+                .OrderByDescending(shift => shift.OpenedAtUtc)
+                .ThenBy(shift => shift.Id),
+            _ => throw new InvalidOperationException($"The order {query.Order} is not one of this list; its validator should have refused it."),
+        };
+        var page = await ordered
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToListAsync(ct);

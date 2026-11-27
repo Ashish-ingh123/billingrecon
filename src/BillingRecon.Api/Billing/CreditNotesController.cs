@@ -69,7 +69,13 @@ public sealed class CreditNotesController : ApiControllerBase
         [FromServices] IQueryHandler<ListCreditNotesQuery, PageOf<CreditNoteSummaryDto>> handler,
         CancellationToken ct)
     {
-        var result = await handler.HandleAsync(request.ToQuery(), ct);
+        var query = request.ToQuery();
+        if (query.IsFailure)
+        {
+            return Problem(query.Error);
+        }
+
+        var result = await handler.HandleAsync(query.Value, ct);
 
         return result.IsSuccess ? Ok(result.Value) : Problem(result.Error);
     }

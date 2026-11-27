@@ -1,3 +1,4 @@
+using BillingRecon.Api.Common;
 using BillingRecon.Application.Common;
 using BillingRecon.Application.Payments;
 using BillingRecon.Domain.Common;
@@ -23,6 +24,18 @@ public sealed record ListCashierShiftsRequest
     /// <summary>Only the shifts of this business date.</summary>
     public DateOnly? Date { get; init; }
 
+    /// <summary>Only the shifts of this business date or later (<c>yyyy-MM-dd</c>).</summary>
+    public string? DateFrom { get; init; }
+
+    /// <summary>Only the shifts of this business date or earlier (<c>yyyy-MM-dd</c>).</summary>
+    public string? DateTo { get; init; }
+
+    /// <summary>
+    /// The order: one of the list's columns (<c>businessDate</c>, <c>difference</c>), with <c>-</c> in front for the largest or
+    /// latest first. The list's own order when left out.
+    /// </summary>
+    public string? Sort { get; init; }
+
     /// <summary>The page, from 1.</summary>
     public int? Page { get; init; }
 
@@ -30,14 +43,26 @@ public sealed record ListCashierShiftsRequest
     public int? PageSize { get; init; }
 
     /// <summary>The query of the use case.</summary>
-    public ListCashierShiftsQuery ToQuery() => new()
+    public Result<ListCashierShiftsQuery> ToQuery()
     {
-        CashierUserId = CashierUserId is { } cashier ? new UserId(cashier) : null,
-        Mine = Mine ?? false,
-        Status = Status,
-        Unclosed = Unclosed ?? false,
-        Date = Date,
-        Page = Page ?? Paging.FirstPage,
-        PageSize = PageSize ?? Paging.DefaultPageSize,
-    };
+        var read = new FilterReader();
+        var dateFrom = read.Date(DateFrom, "dateFrom");
+        var dateTo = read.Date(DateTo, "dateTo");
+        read.InOrder(dateFrom, dateTo, "dateTo");
+        var order = read.Sort(Sort, ListCashierShiftsQuery.Sorts);
+
+        return read.Answer(new ListCashierShiftsQuery
+        {
+            CashierUserId = CashierUserId is { } cashier ? new UserId(cashier) : null,
+            Mine = Mine ?? false,
+            Status = Status,
+            Unclosed = Unclosed ?? false,
+            Date = Date,
+            Page = Page ?? Paging.FirstPage,
+            PageSize = PageSize ?? Paging.DefaultPageSize,
+            DateFrom = dateFrom,
+            DateTo = dateTo,
+            Order = order,
+        });
+    }
 }

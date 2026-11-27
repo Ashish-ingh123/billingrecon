@@ -45,6 +45,32 @@ public sealed class AdjustmentReadService(BillingReconDbContext context, IPartyS
             adjustments = adjustments.Where(adjustment => adjustment.Kind == kind);
         }
 
+        // The filters of Prompt 12.2 (ADR 0063): each narrows the rows the search and the page are taken from.
+        if (query.AdjustmentDateFrom is { } adjustmentDateFrom)
+        {
+            adjustments = adjustments.Where(adjustment => adjustment.AdjustmentDate >= adjustmentDateFrom);
+        }
+
+        if (query.AdjustmentDateTo is { } adjustmentDateTo)
+        {
+            adjustments = adjustments.Where(adjustment => adjustment.AdjustmentDate <= adjustmentDateTo);
+        }
+
+        if (query.AmountFrom is { } amountFrom)
+        {
+            adjustments = adjustments.Where(adjustment => adjustment.Amount >= Money.Of(amountFrom));
+        }
+
+        if (query.AmountTo is { } amountTo)
+        {
+            adjustments = adjustments.Where(adjustment => adjustment.Amount <= Money.Of(amountTo));
+        }
+
+        if (query.CreatedBy is { } createdBy)
+        {
+            adjustments = adjustments.Where(adjustment => adjustment.CreatedByUserId == createdBy);
+        }
+
         // One box (Prompt 11.1; ADR 0036, amended 2026-11-26). Each part of the search is a query of its own, so that
         // each is answered by its own index, and the documents are those of any part: an OR over them reads every row.
         int? fewFound = null;
@@ -62,10 +88,19 @@ public sealed class AdjustmentReadService(BillingReconDbContext context, IPartyS
         }
 
         var totalCount = fewFound ?? await adjustments.CountAsync(ct);
-        var page = await adjustments
-            .OrderByDescending(adjustment => adjustment.AdjustmentDate)
-            .ThenByDescending(adjustment => adjustment.CreatedAtUtc)
-            .ThenBy(adjustment => adjustment.Id)
+        // The order asked for by name, or the list's own; each ends on a key that is one of a kind (ADR 0063).
+        IOrderedQueryable<Adjustment> ordered = query.Order switch
+        {
+            { Column: "number", Descending: var down } => adjustments.By(adjustment => adjustment.FiscalYear, down).Then(adjustment => adjustment.SequenceNumber, down).Then(adjustment => adjustment.Id, down),
+            { Column: "adjustmentDate", Descending: var down } => adjustments.By(adjustment => adjustment.AdjustmentDate, down).Then(adjustment => adjustment.Id, down),
+            { Column: "amount", Descending: var down } => adjustments.By(adjustment => adjustment.Amount, down).Then(adjustment => adjustment.Id, down),
+            null => adjustments
+                .OrderByDescending(adjustment => adjustment.AdjustmentDate)
+                .ThenByDescending(adjustment => adjustment.CreatedAtUtc)
+                .ThenBy(adjustment => adjustment.Id),
+            _ => throw new InvalidOperationException($"The order {query.Order} is not one of this list; its validator should have refused it."),
+        };
+        var page = await ordered
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToListAsync(ct);

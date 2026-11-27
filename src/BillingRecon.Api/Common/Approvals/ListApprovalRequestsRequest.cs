@@ -12,6 +12,15 @@ public sealed record ListApprovalRequestsRequest
     /// <summary>Only requests about this kind of document; every kind when left out.</summary>
     public ApprovalDocumentType? DocumentType { get; init; }
 
+    /// <summary>Only the requests this user made (the id of a user).</summary>
+    public string? RequestedBy { get; init; }
+
+    /// <summary>
+    /// The order: one of the list's columns (<c>requestedAtUtc</c>), with <c>-</c> in front for the largest or
+    /// latest first. The list's own order when left out.
+    /// </summary>
+    public string? Sort { get; init; }
+
     /// <summary>The page, from 1; the first when left out.</summary>
     public int? Page { get; init; }
 
@@ -19,11 +28,20 @@ public sealed record ListApprovalRequestsRequest
     public int? PageSize { get; init; }
 
     /// <summary>The query, with the defaults of <see cref="Paging"/>.</summary>
-    public ListApprovalRequestsQuery ToQuery() => new()
+    public Result<ListApprovalRequestsQuery> ToQuery()
     {
-        Status = Status ?? ApprovalStatus.Pending,
-        DocumentType = DocumentType,
-        Page = Page ?? Paging.FirstPage,
-        PageSize = PageSize ?? Paging.DefaultPageSize,
-    };
+        var read = new FilterReader();
+        var requestedBy = read.Id(RequestedBy, "requestedBy");
+        var order = read.Sort(Sort, ListApprovalRequestsQuery.Sorts);
+
+        return read.Answer(new ListApprovalRequestsQuery
+        {
+            Status = Status ?? ApprovalStatus.Pending,
+            DocumentType = DocumentType,
+            Page = Page ?? Paging.FirstPage,
+            PageSize = PageSize ?? Paging.DefaultPageSize,
+            RequestedBy = requestedBy is { } requestedById ? new UserId(requestedById) : null,
+            Order = order,
+        });
+    }
 }

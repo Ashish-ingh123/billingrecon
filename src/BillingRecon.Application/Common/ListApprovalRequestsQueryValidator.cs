@@ -10,6 +10,7 @@ public sealed class ListApprovalRequestsQueryValidator : AbstractValidator<ListA
         RuleLevelCascadeMode = CascadeMode.Stop;
 
         Include(new PagedQueryValidator());
+        RuleFor(query => query.Order).OneOf(ListApprovalRequestsQuery.Sorts);
 
         RuleFor(query => query.Status).IsInEnum().WithMessage("The status is Pending, Approved or Rejected.");
         RuleFor(query => query.DocumentType).IsInEnum().WithMessage("The document type is not one the system knows.");

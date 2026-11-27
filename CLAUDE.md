@@ -1379,3 +1379,13 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    desktop"` and copy `desktop-light.png`), and the README. **Phase 10 is written.** `v1.2.0` is proposed for the tip of
    `phase-10-operations`, after the merge; the merge, the push, the tags and CI are the owner's. Next is no prompt of
    `docs/build-prompts.md`: what is left is `docs/go-live.md` (C1 to C20) and runbook section 8.
+
+10. **Prompt 12.2a (2026-11-27, ADR 0063), on `phase-12-tables`:** the API of the tables. A list's order is
+   `sort=<name>` or `sort=-<name>`, one of the names in its query's `Sorts`, mapped to an expression by a `switch` in
+   its query service that ends on a one-of-a-kind key; any other name is 400 `sort_not_supported`. The filters of 12.2
+   are bound as text and read by `FilterReader` (Api, Common): 400 `filter_invalid` names each one it cannot read; an
+   empty one filters nothing. `GET /api/v1/system/business-date` is today in India from the server. A request record's
+   `ToQuery()` of those lists answers `Result<TQuery>`, and its controller answers the failure first. Migration
+   `0034_ListIndexes`; **the next free migration is `0035` and the next ADR `0064`.** `ListFiltersApiTests` holds them,
+   with 100,000 bills seeded in SQL by copying a draft (drafts have no posting). Owed: runbook section 8, row 12.2a.
+   12.2b is the shared table on TanStack and the five document lists; 12.2c the rest of the screens.

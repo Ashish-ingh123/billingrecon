@@ -117,4 +117,26 @@ public static class CommonErrors
     /// </summary>
     public static Error AccountingLedgerNotMapped(IReadOnlyCollection<string> ledgers)
         => Error.BusinessRule(AccountingLedgerNotMappedCode, $"The accountant's export needs a ledger name for: {string.Join(", ", ledgers)}. An administrator sets them under Administration, Settings.");
+    /// <summary>Code of <see cref="SortNotSupported"/>.</summary>
+    public const string SortNotSupportedCode = "sort_not_supported";
+
+    /// <summary>
+    /// A list was asked for in an order its endpoint does not offer (ADR 0063). The message names the columns it does,
+    /// each of which may be led by <c>-</c> for the largest or latest first.
+    /// </summary>
+    public static Error SortNotSupported(string asked, IReadOnlyCollection<string> columns)
+        => Error.Validation(
+            SortNotSupportedCode,
+            $"This list is not sorted by \"{asked}\". It is sorted by one of: {string.Join(", ", columns)}; a \"-\" in front gives the largest or latest first.",
+            new Dictionary<string, string[]> { ["sort"] = [$"One of: {string.Join(", ", columns)}."] });
+
+    /// <summary>Code of <see cref="FilterInvalid"/>.</summary>
+    public const string FilterInvalidCode = "filter_invalid";
+
+    /// <summary>
+    /// A filter of a list could not be read: an amount that is no amount, a date that is no date, a range whose end
+    /// is before its start (ADR 0063). The errors are listed per parameter. A filter left empty filters nothing.
+    /// </summary>
+    public static Error FilterInvalid(IReadOnlyDictionary<string, string[]> fieldErrors)
+        => Error.Validation(FilterInvalidCode, "A filter of this list cannot be read. The errors are listed per filter.", fieldErrors);
 }

@@ -11,6 +11,7 @@ public sealed class BillRegisterQueryValidator : AbstractValidator<BillRegisterQ
         RuleLevelCascadeMode = CascadeMode.Stop;
 
         Include(new PagedQueryValidator());
+        RuleFor(query => query.Sort).OneOf(BillRegisterQuery.Sorts);
 
         this.AddPeriodRules(query => query.From, query => query.To);
 

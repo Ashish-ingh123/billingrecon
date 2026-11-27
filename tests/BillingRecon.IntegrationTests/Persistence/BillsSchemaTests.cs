@@ -140,8 +140,9 @@ public sealed class BillsSchemaTests : IDisposable
         // Four for drafts, since Prompt 3.5 the two filtered unique indexes of the number (BR-801), and since Prompt 3.6
         // the filtered index of the bills that wait for approval (BR-207), and since Prompt 10.3 the unique index of the
         // old numbers of opening receivables (ADR 0053), and since Prompt 11.1 the index of the total for the search by an
-        // exact amount (ADR 0036, amended).
-        indexes.Length.ShouldBe(9, string.Join(Environment.NewLine, indexes));
+        // exact amount (ADR 0036, amended), and since Prompt 12.2 the index of the balance due for that
+        // order and filter (ADR 0063).
+        indexes.Length.ShouldBe(10, string.Join(Environment.NewLine, indexes));
     }
 
     [Fact]

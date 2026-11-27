@@ -49,6 +49,37 @@ public sealed class RefundReadService(BillingReconDbContext context, IPartySearc
             refunds = refunds.Where(refund => refund.SourceCreditNoteId == creditNoteId);
         }
 
+        // The filters of Prompt 12.2 (ADR 0063): each narrows the rows the search and the page are taken from.
+        if (query.RefundDateFrom is { } refundDateFrom)
+        {
+            refunds = refunds.Where(refund => refund.RefundDate >= refundDateFrom);
+        }
+
+        if (query.RefundDateTo is { } refundDateTo)
+        {
+            refunds = refunds.Where(refund => refund.RefundDate <= refundDateTo);
+        }
+
+        if (query.Method is { } method)
+        {
+            refunds = refunds.Where(refund => refund.Method == method);
+        }
+
+        if (query.AmountFrom is { } amountFrom)
+        {
+            refunds = refunds.Where(refund => refund.Amount >= Money.Of(amountFrom));
+        }
+
+        if (query.AmountTo is { } amountTo)
+        {
+            refunds = refunds.Where(refund => refund.Amount <= Money.Of(amountTo));
+        }
+
+        if (query.CreatedBy is { } createdBy)
+        {
+            refunds = refunds.Where(refund => refund.CreatedByUserId == createdBy);
+        }
+
         // One box (Prompt 11.1; ADR 0036, amended 2026-11-26). Each part of the search is a query of its own, so that
         // each is answered by its own index, and the documents are those of any part: an OR over them reads every row.
         int? fewFound = null;
@@ -66,10 +97,19 @@ public sealed class RefundReadService(BillingReconDbContext context, IPartySearc
         }
 
         var totalCount = fewFound ?? await refunds.CountAsync(ct);
-        var page = await refunds
-            .OrderByDescending(refund => refund.RefundDate)
-            .ThenByDescending(refund => refund.CreatedAtUtc)
-            .ThenBy(refund => refund.Id)
+        // The order asked for by name, or the list's own; each ends on a key that is one of a kind (ADR 0063).
+        IOrderedQueryable<Refund> ordered = query.Order switch
+        {
+            { Column: "number", Descending: var down } => refunds.By(refund => refund.FiscalYear, down).Then(refund => refund.SequenceNumber, down).Then(refund => refund.Id, down),
+            { Column: "refundDate", Descending: var down } => refunds.By(refund => refund.RefundDate, down).Then(refund => refund.Id, down),
+            { Column: "amount", Descending: var down } => refunds.By(refund => refund.Amount, down).Then(refund => refund.Id, down),
+            null => refunds
+                .OrderByDescending(refund => refund.RefundDate)
+                .ThenByDescending(refund => refund.CreatedAtUtc)
+                .ThenBy(refund => refund.Id),
+            _ => throw new InvalidOperationException($"The order {query.Order} is not one of this list; its validator should have refused it."),
+        };
+        var page = await ordered
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToListAsync(ct);

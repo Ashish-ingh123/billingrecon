@@ -12,6 +12,7 @@ public sealed class ListCashierShiftsQueryValidator : AbstractValidator<ListCash
         RuleLevelCascadeMode = CascadeMode.Stop;
 
         Include(new PagedQueryValidator());
+        RuleFor(query => query.Order).OneOf(ListCashierShiftsQuery.Sorts);
         RuleFor(query => query.Status).IsInEnum().WithMessage("The status is Open, PendingApproval or Closed.");
         RuleFor(query => query.CashierUserId)
             .Must(cashier => cashier is not { } given || given.Value != Guid.Empty)

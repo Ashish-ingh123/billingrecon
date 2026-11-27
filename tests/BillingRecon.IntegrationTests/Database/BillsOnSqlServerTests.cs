@@ -66,6 +66,7 @@ public sealed class BillsOnSqlServerTests(SqlServerFixture sqlServer) : Database
                 "UX_Bills_TenantId_LegacyNumber:TenantId:1:1",
                 "IX_Bills_TenantId_Status:TenantId:0:1",
                 "IX_Bills_TenantId_Total:TenantId:0:0",
+                "IX_Bills_TenantId_BalanceDue:TenantId:0:0",
                 "UX_BillLines_TenantId_BillId_LineNo:TenantId:1:0",
             ],
             ignoreOrder: true);

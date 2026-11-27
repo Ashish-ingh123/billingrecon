@@ -99,6 +99,9 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         // The search of the list by an exact amount (Prompt 11.1; ADR 0036, amended 2026-11-26).
         builder.HasIndex(payment => new { payment.TenantId, payment.Amount }).HasDatabaseName("IX_Payments_TenantId_Amount");
 
+        // The filter and the order of the list by this column (Prompt 12.2, ADR 0063).
+        builder.HasIndex(payment => new { payment.TenantId, payment.UnappliedAmount }).HasDatabaseName("IX_Payments_TenantId_UnappliedAmount");
+
         builder.Property(payment => payment.Method).HasMaxLength(MethodMaxLength);
         builder.Property(payment => payment.Status).HasMaxLength(StatusMaxLength);
         builder.Property(payment => payment.Reference).HasMaxLength(Payment.ReferenceMaxLength);

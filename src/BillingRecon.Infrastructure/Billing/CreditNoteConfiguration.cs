@@ -53,6 +53,9 @@ public sealed class CreditNoteConfiguration : IEntityTypeConfiguration<CreditNot
         // The search of the list by an exact amount (Prompt 11.1; ADR 0036, amended 2026-11-26).
         builder.HasIndex(creditNote => new { creditNote.TenantId, creditNote.Total }).HasDatabaseName("IX_CreditNotes_TenantId_Total");
 
+        // The filter and the order of the list by this column (Prompt 12.2, ADR 0063).
+        builder.HasIndex(creditNote => new { creditNote.TenantId, creditNote.CreditNoteDate }).HasDatabaseName("IX_CreditNotes_TenantId_CreditNoteDate");
+
         // The gapless number of a posted credit note (BR-801): unique in the tenant, and one credit note per position
         // of the series of a fiscal year. Drafts have neither, so both indexes leave them out.
         builder.Property(creditNote => creditNote.Number).HasMaxLength(DocumentNumber.MaxLength).IsUnicode(false);

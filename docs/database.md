@@ -278,7 +278,7 @@ open question (ADR 0015, built note of 2026-10-17).
 | PatientId | uniqueidentifier | | FK `Patients`; `IX_Bills_TenantId_PatientId` |
 | PayerId | uniqueidentifier | | FK `Payers`; `IX_Bills_TenantId_PayerId_Status INCLUDE (BalanceDue, Total)` |
 | BillDate | date | | `IX_Bills_TenantId_BillDate` |
-| | | | Since migration `0028_DocumentSearch` (Prompt 11.1): `IX_Bills_TenantId_Total`, and on the other documents `IX_CreditNotes_TenantId_Total`, `IX_Payments_TenantId_Amount`, `IX_Adjustments_TenantId_Amount`, `IX_Refunds_TenantId_Amount`: the search of a list by an exact amount (ADR 0036, amended 2026-11-26) |
+| | | | Since migration `0028_DocumentSearch` (Prompt 11.1): `IX_Bills_TenantId_Total`, and on the other documents `IX_CreditNotes_TenantId_Total`, `IX_Payments_TenantId_Amount`, `IX_Adjustments_TenantId_Amount`, `IX_Refunds_TenantId_Amount`: the search of a list by an exact amount (ADR 0036, amended 2026-11-26). Since migration `0034_ListIndexes` (Prompt 12.2): `IX_Bills_TenantId_BalanceDue`, `IX_Payments_TenantId_UnappliedAmount`, `IX_CreditNotes_TenantId_CreditNoteDate`, `IX_Adjustments_TenantId_AdjustmentDate`, `IX_Refunds_TenantId_RefundDate`: the orders and filters of the lists by those columns (ADR 0063) |
 | DueDate | date | | CK `DueDate >= BillDate` (BR-205) |
 | EncounterReference | nvarchar(50) | • | HIS visit / admission id, free text |
 | Notes | nvarchar(1000) | • | |

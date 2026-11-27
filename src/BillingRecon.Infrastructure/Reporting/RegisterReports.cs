@@ -1,5 +1,6 @@
 using BillingRecon.Application.Reporting;
 using BillingRecon.Domain.Billing;
+using BillingRecon.Domain.Common;
 using BillingRecon.Domain.Payers;
 using BillingRecon.Domain.Payments;
 using BillingRecon.Infrastructure.Common.Persistence;
@@ -35,32 +36,57 @@ public sealed class RegisterReports(BillingReconDbContext context) : IRegisterRe
             bills = bills.Where(bill => bill.Status == billStatus);
         }
 
+        // The filters of Prompt 12.2 (ADR 0063); the totals below are of the rows they leave.
+        if (query.TotalFrom is { } totalFrom)
+        {
+            bills = bills.Where(bill => bill.Total >= Money.Of(totalFrom));
+        }
+
+        if (query.TotalTo is { } totalTo)
+        {
+            bills = bills.Where(bill => bill.Total <= Money.Of(totalTo));
+        }
+
         var amounts = await bills.Select(bill => new { bill.Total, bill.BalanceDue }).ToListAsync(ct);
         var totals = new BillRegisterTotalsDto(
             amounts.Count,
             ReportMapping.Sum(amounts.Select(amount => amount.Total)),
             ReportMapping.Sum(amounts.Select(amount => amount.BalanceDue)));
 
-        var rows = await (
-                from bill in bills
-                join patient in context.Set<Patient>().AsNoTracking() on bill.PatientId equals patient.Id
-                join payer in context.Set<Payer>().AsNoTracking() on bill.PayerId equals payer.Id
-                orderby bill.BillDate, bill.FiscalYear, bill.SequenceNumber
-                select new
-                {
-                    bill.Id,
-                    bill.Number,
-                    bill.BillDate,
-                    bill.DueDate,
-                    bill.PatientId,
-                    PatientName = patient.FullName,
-                    bill.PayerId,
-                    PayerName = payer.Name,
-                    bill.Total,
-                    bill.BalanceDue,
-                    bill.Status,
-                    bill.PostedAtUtc,
-                })
+        var joined =
+            from bill in bills
+            join patient in context.Set<Patient>().AsNoTracking() on bill.PatientId equals patient.Id
+            join payer in context.Set<Payer>().AsNoTracking() on bill.PayerId equals payer.Id
+            select new
+            {
+                bill.Id,
+                bill.Number,
+                bill.BillDate,
+                bill.DueDate,
+                bill.PatientId,
+                PatientName = patient.FullName,
+                bill.PayerId,
+                PayerName = payer.Name,
+                bill.Total,
+                bill.BalanceDue,
+                bill.Status,
+                bill.PostedAtUtc,
+                bill.FiscalYear,
+                bill.SequenceNumber,
+            };
+
+        // The order asked for by name, or the register's own; each ends on a key that is one of a kind (ADR 0063).
+        var ordered = query.Sort switch
+        {
+            { Column: "number", Descending: var down } => joined.By(row => row.FiscalYear, down).Then(row => row.SequenceNumber, down).Then(row => row.Id, down),
+            { Column: "billDate", Descending: var down } => joined.By(row => row.BillDate, down).Then(row => row.Id, down),
+            { Column: "total", Descending: var down } => joined.By(row => row.Total, down).Then(row => row.Id, down),
+            { Column: "balanceDue", Descending: var down } => joined.By(row => row.BalanceDue, down).Then(row => row.Id, down),
+            null => joined.OrderBy(row => row.BillDate).ThenBy(row => row.FiscalYear).ThenBy(row => row.SequenceNumber),
+            _ => throw new InvalidOperationException($"The order {query.Sort} is not one of this report; its validator should have refused it."),
+        };
+
+        var rows = await ordered
             .Skip(ReportMapping.Skip(query.Page, query.PageSize))
             .Take(query.PageSize)
             .ToListAsync(ct);
@@ -111,6 +137,17 @@ public sealed class RegisterReports(BillingReconDbContext context) : IRegisterRe
             payments = payments.Where(payment => payment.Status == paymentStatus);
         }
 
+        // The filters of Prompt 12.2 (ADR 0063); the totals below are of the rows they leave.
+        if (query.AmountFrom is { } amountFrom)
+        {
+            payments = payments.Where(payment => payment.Amount >= Money.Of(amountFrom));
+        }
+
+        if (query.AmountTo is { } amountTo)
+        {
+            payments = payments.Where(payment => payment.Amount <= Money.Of(amountTo));
+        }
+
         var amounts = await payments.Select(payment => new { payment.Amount, payment.UnappliedAmount }).ToListAsync(ct);
         var totals = new PaymentRegisterTotalsDto(
             amounts.Count,
@@ -137,10 +174,19 @@ public sealed class RegisterReports(BillingReconDbContext context) : IRegisterRe
                 payment.ReversedAtUtc,
             };
 
-        // Chronological, or the newest first for the dashboard's recent payments (ADR 0037).
-        var ordered = query.Order == ReportOrder.NewestFirst
-            ? joined.OrderByDescending(row => row.PaymentDate).ThenByDescending(row => row.FiscalYear).ThenByDescending(row => row.SequenceNumber)
-            : joined.OrderBy(row => row.PaymentDate).ThenBy(row => row.FiscalYear).ThenBy(row => row.SequenceNumber);
+        // The order asked for by name (ADR 0063); or chronological, or the newest first for the dashboard's recent
+        // payments (ADR 0037).
+        var ordered = query.Sort switch
+        {
+            { Column: "number", Descending: var down } => joined.By(row => row.FiscalYear, down).Then(row => row.SequenceNumber, down).Then(row => row.Id, down),
+            { Column: "paymentDate", Descending: var down } => joined.By(row => row.PaymentDate, down).Then(row => row.Id, down),
+            { Column: "amount", Descending: var down } => joined.By(row => row.Amount, down).Then(row => row.Id, down),
+            { Column: "unappliedAmount", Descending: var down } => joined.By(row => row.UnappliedAmount, down).Then(row => row.Id, down),
+            null => query.Order == ReportOrder.NewestFirst
+                ? joined.OrderByDescending(row => row.PaymentDate).ThenByDescending(row => row.FiscalYear).ThenByDescending(row => row.SequenceNumber)
+                : joined.OrderBy(row => row.PaymentDate).ThenBy(row => row.FiscalYear).ThenBy(row => row.SequenceNumber),
+            _ => throw new InvalidOperationException($"The order {query.Sort} is not one of this report; its validator should have refused it."),
+        };
 
         var rows = await ordered
             .Skip(ReportMapping.Skip(query.Page, query.PageSize))

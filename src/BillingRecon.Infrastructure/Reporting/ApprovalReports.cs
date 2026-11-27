@@ -37,9 +37,14 @@ public sealed class ApprovalReports(BillingReconDbContext context, IClock clock)
 
         var count = await pending.CountAsync(ct);
         var oldest = count == 0 ? null : (DateTimeOffset?)await pending.MinAsync(request => request.RequestedAtUtc, ct);
-        var requests = await pending
-            .OrderBy(request => request.RequestedAtUtc)
-            .ThenBy(request => request.Id)
+        // The order asked for by name, or the report's own, the longest waiting first (ADR 0063).
+        var ordered = query.Sort switch
+        {
+            { Column: "requestedAtUtc", Descending: var down } => pending.By(request => request.RequestedAtUtc, down).Then(request => request.Id, down),
+            null => pending.OrderBy(request => request.RequestedAtUtc).ThenBy(request => request.Id),
+            _ => throw new InvalidOperationException($"The order {query.Sort} is not one of this report; its validator should have refused it."),
+        };
+        var requests = await ordered
             .Skip(ReportMapping.Skip(query.Page, query.PageSize))
             .Take(query.PageSize)
             .ToListAsync(ct);

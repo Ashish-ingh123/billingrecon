@@ -11,6 +11,7 @@ public sealed class UnappliedCashQueryValidator : AbstractValidator<UnappliedCas
         RuleLevelCascadeMode = CascadeMode.Stop;
 
         Include(new PagedQueryValidator());
+        RuleFor(query => query.Sort).OneOf(UnappliedCashQuery.Sorts);
 
         RuleFor(query => query.PayerId)
             .Must(payerId => payerId is null || payerId.Value.Value != Guid.Empty)

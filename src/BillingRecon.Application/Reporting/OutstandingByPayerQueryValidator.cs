@@ -11,6 +11,7 @@ public sealed class OutstandingByPayerQueryValidator : AbstractValidator<Outstan
         RuleLevelCascadeMode = CascadeMode.Stop;
 
         Include(new PagedQueryValidator());
+        RuleFor(query => query.Sort).OneOf(OutstandingByPayerQuery.Sorts);
 
         RuleFor(query => query.Search).OptionalText(OutstandingByPayerQuery.SearchMaxLength, "search");
     }

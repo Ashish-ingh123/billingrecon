@@ -9,6 +9,9 @@ namespace BillingRecon.Application.Billing;
 /// </summary>
 public sealed record ListServiceItemsQuery : IPagedQuery
 {
+    /// <summary>The columns this list is sorted by on request (ADR 0063); each stands for an expression of the query service.</summary>
+    public static IReadOnlyList<string> Sorts { get; } = ["code", "name", "defaultUnitPrice"];
+
     /// <summary>Longest allowed <see cref="Search"/>.</summary>
     public const int SearchMaxLength = 200;
 
@@ -17,6 +20,12 @@ public sealed record ListServiceItemsQuery : IPagedQuery
 
     /// <summary>Active or Inactive; both when null.</summary>
     public ServiceItemStatus? Status { get; init; }
+
+    /// <summary>Only the items of exactly this category.</summary>
+    public string? Category { get; init; }
+
+    /// <summary>The order asked for, one of <see cref="Sorts"/>; null for the list's own order.</summary>
+    public ListSort? Order { get; init; }
 
     /// <inheritdoc />
     public int Page { get; init; } = Paging.FirstPage;

@@ -387,6 +387,15 @@ export interface paths {
                     PayerId?: string;
                     /** @description Only the bills in this state. */
                     Status?: components["schemas"]["ReportBillStatus"];
+                    /** @description Only the bills whose total is this amount or more. */
+                    TotalFrom?: string;
+                    /** @description Only the bills whose total is this amount or less. */
+                    TotalTo?: string;
+                    /**
+                     * @description The order: one of the list's columns (`number`, `billDate`, `total`, `balanceDue`), with `-` in front for the largest or
+                     *     latest first. The list's own order when left out.
+                     */
+                    Sort?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */
@@ -453,6 +462,15 @@ export interface paths {
                     Status?: components["schemas"]["ReportPaymentStatus"];
                     /** @description `OldestFirst` (when left out) or `NewestFirst`. */
                     Order?: components["schemas"]["ReportOrder"];
+                    /** @description Only the payments of this amount or more. */
+                    AmountFrom?: string;
+                    /** @description Only the payments of this amount or less. */
+                    AmountTo?: string;
+                    /**
+                     * @description The order: one of the list's columns (`number`, `paymentDate`, `amount`, `unappliedAmount`), with `-` in front for the largest or
+                     *     latest first. The list's own order when left out.
+                     */
+                    Sort?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */
@@ -614,6 +632,11 @@ export interface paths {
                 query?: {
                     /** @description Only payers whose name contains this text. */
                     Search?: string;
+                    /**
+                     * @description The order: one of the list's columns (`name`, `receivable`, `netOutstanding`), with `-` in front for the largest or
+                     *     latest first. The list's own order when left out.
+                     */
+                    Sort?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */
@@ -721,6 +744,16 @@ export interface paths {
                 query?: {
                     /** @description Only the documents of this payer. */
                     PayerId?: string;
+                    /** @description Only the documents dated on or after this day (`yyyy-MM-dd`). */
+                    DateFrom?: string;
+                    /** @description Only the documents dated on or before this day (`yyyy-MM-dd`). */
+                    DateTo?: string;
+                    /**
+                     * @description The order: one of the report's columns (`number`, then `paymentDate` and `unappliedAmount` for
+                     *     the unapplied cash, `creditNoteDate` and `availableAmount` for the available credit), with `-` in
+                     *     front for the largest or latest first. The report's own order when left out.
+                     */
+                    Sort?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */
@@ -777,6 +810,16 @@ export interface paths {
                 query?: {
                     /** @description Only the documents of this payer. */
                     PayerId?: string;
+                    /** @description Only the documents dated on or after this day (`yyyy-MM-dd`). */
+                    DateFrom?: string;
+                    /** @description Only the documents dated on or before this day (`yyyy-MM-dd`). */
+                    DateTo?: string;
+                    /**
+                     * @description The order: one of the report's columns (`number`, then `paymentDate` and `unappliedAmount` for
+                     *     the unapplied cash, `creditNoteDate` and `availableAmount` for the available credit), with `-` in
+                     *     front for the largest or latest first. The report's own order when left out.
+                     */
+                    Sort?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */
@@ -836,6 +879,11 @@ export interface paths {
                 query?: {
                     /** @description Only the requests about this kind of document. */
                     DocumentType?: components["schemas"]["ApprovalDocumentType"];
+                    /**
+                     * @description The order: one of the list's columns (`requestedAtUtc`), with `-` in front for the largest or
+                     *     latest first. The list's own order when left out.
+                     */
+                    Sort?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */
@@ -1422,6 +1470,15 @@ export interface paths {
                     Unclosed?: boolean;
                     /** @description Only the shifts of this business date. */
                     Date?: string;
+                    /** @description Only the shifts of this business date or later (`yyyy-MM-dd`). */
+                    DateFrom?: string;
+                    /** @description Only the shifts of this business date or earlier (`yyyy-MM-dd`). */
+                    DateTo?: string;
+                    /**
+                     * @description The order: one of the list's columns (`businessDate`, `difference`), with `-` in front for the largest or
+                     *     latest first. The list's own order when left out.
+                     */
+                    Sort?: string;
                     /** @description The page, from 1. */
                     Page?: number | string;
                     /** @description The size of a page, at most 100. */
@@ -2772,6 +2829,19 @@ export interface paths {
                      *     payer's name, or exactly the amount it states. Fewer than two characters filter nothing.
                      */
                     Search?: string;
+                    /** @description Only the payments of this amount or more. */
+                    AmountFrom?: string;
+                    /** @description Only the payments of this amount or less. */
+                    AmountTo?: string;
+                    /** @description Only the payments this user made (the id of a user). */
+                    CreatedBy?: string;
+                    /** @description Only the payments of this origin: Standard, or Opening for the advances brought in at the cut-over. */
+                    Origin?: string;
+                    /**
+                     * @description The order: one of the list's columns (`number`, `paymentDate`, `amount`, `unappliedAmount`), with `-` in front for the largest or
+                     *     latest first. The list's own order when left out.
+                     */
+                    Sort?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */
@@ -3008,6 +3078,23 @@ export interface paths {
                      *     payer's name, or exactly the amount it states. Fewer than two characters filter nothing.
                      */
                     Search?: string;
+                    /** @description Only the refunds dated on or after this day (`yyyy-MM-dd`). */
+                    RefundDateFrom?: string;
+                    /** @description Only the refunds dated on or before this day (`yyyy-MM-dd`). */
+                    RefundDateTo?: string;
+                    /** @description Only the refunds paid by this method: Cash, Card, UPI, BankTransfer or Cheque. */
+                    Method?: string;
+                    /** @description Only the refunds of this amount or more. */
+                    AmountFrom?: string;
+                    /** @description Only the refunds of this amount or less. */
+                    AmountTo?: string;
+                    /** @description Only the refunds this user made (the id of a user). */
+                    CreatedBy?: string;
+                    /**
+                     * @description The order: one of the list's columns (`number`, `refundDate`, `amount`), with `-` in front for the largest or
+                     *     latest first. The list's own order when left out.
+                     */
+                    Sort?: string;
                     /** @description From 1; 1 when left out. */
                     Page?: number | string;
                     /** @description From 1 to the largest page size; the default page size when left out. */
@@ -3885,6 +3972,11 @@ export interface paths {
                     Search?: string;
                     /** @description Active or Inactive; both when left out. */
                     Status?: components["schemas"]["PatientStatus"];
+                    /**
+                     * @description The order: one of the list's columns (`mrn`, `fullName`, `dateOfBirth`), with `-` in front for the largest or
+                     *     latest first. The list's own order when left out.
+                     */
+                    Sort?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */
@@ -4254,6 +4346,13 @@ export interface paths {
                     Status?: components["schemas"]["PayerStatus"];
                     /** @description Only the payer linked to this patient. */
                     PatientId?: string;
+                    /** @description Only the payers of this kind. */
+                    Kind?: string;
+                    /**
+                     * @description The order: one of the list's columns (`name`, `kind`), with `-` in front for the largest or
+                     *     latest first. The list's own order when left out.
+                     */
+                    Sort?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */
@@ -6365,6 +6464,11 @@ export interface paths {
                     Role?: components["schemas"]["Role"];
                     /** @description Only the users whose address holds this text anywhere, without regard to case. */
                     Email?: string;
+                    /**
+                     * @description The order: one of the list's columns (`displayName`, `email`, `lastSignInAtUtc`), with `-` in front for the largest or
+                     *     latest first. The list's own order when left out.
+                     */
+                    Sort?: string;
                     /** @description From 1; 1 when left out. */
                     Page?: number | string;
                     /** @description From 1 to the largest page size; the default page size when left out. */
@@ -7028,6 +7132,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/system/business-date": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Today in India by the server's clock (BR-003): the day a list's date shortcuts count from (Prompt 12.2,
+         *     ADR 0063). Anyone signed in; never cached.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["BusinessDateResponse"];
+                        "application/json": components["schemas"]["BusinessDateResponse"];
+                        "text/json": components["schemas"]["BusinessDateResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/approval-requests": {
         parameters: {
             query?: never;
@@ -7043,6 +7188,13 @@ export interface paths {
                     Status?: components["schemas"]["ApprovalStatus"];
                     /** @description Only requests about this kind of document; every kind when left out. */
                     DocumentType?: components["schemas"]["ApprovalDocumentType"];
+                    /** @description Only the requests this user made (the id of a user). */
+                    RequestedBy?: string;
+                    /**
+                     * @description The order: one of the list's columns (`requestedAtUtc`), with `-` in front for the largest or
+                     *     latest first. The list's own order when left out.
+                     */
+                    Sort?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */
@@ -7112,6 +7264,23 @@ export interface paths {
                      *     payer's name, or exactly the amount it states. Fewer than two characters filter nothing.
                      */
                     Search?: string;
+                    /** @description Only the bills whose total is this amount or more. */
+                    TotalFrom?: string;
+                    /** @description Only the bills whose total is this amount or less. */
+                    TotalTo?: string;
+                    /** @description Only the bills that still owe this amount or more. */
+                    BalanceDueFrom?: string;
+                    /** @description Only the bills that still owe this amount or less. */
+                    BalanceDueTo?: string;
+                    /** @description Only the bills this user made (the id of a user). */
+                    CreatedBy?: string;
+                    /** @description Only the bills of this origin: Standard, or Opening for those brought in at the cut-over. */
+                    Origin?: string;
+                    /**
+                     * @description The order: one of the list's columns (`number`, `billDate`, `total`, `balanceDue`), with `-` in front for the largest or
+                     *     latest first. The list's own order when left out.
+                     */
+                    Sort?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */
@@ -8326,6 +8495,21 @@ export interface paths {
                      *     payer's name, or exactly the amount it states. Fewer than two characters filter nothing.
                      */
                     Search?: string;
+                    /** @description Only the credit notes dated on or after this day (`yyyy-MM-dd`). */
+                    CreditNoteDateFrom?: string;
+                    /** @description Only the credit notes dated on or before this day (`yyyy-MM-dd`). */
+                    CreditNoteDateTo?: string;
+                    /** @description Only the credit notes whose total is this amount or more. */
+                    TotalFrom?: string;
+                    /** @description Only the credit notes whose total is this amount or less. */
+                    TotalTo?: string;
+                    /** @description Only the credit notes this user made (the id of a user). */
+                    CreatedBy?: string;
+                    /**
+                     * @description The order: one of the list's columns (`number`, `creditNoteDate`, `total`, `availableAmount`), with `-` in front for the largest or
+                     *     latest first. The list's own order when left out.
+                     */
+                    Sort?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */
@@ -9202,6 +9386,13 @@ export interface paths {
                     Search?: string;
                     /** @description Active or Inactive; both when left out. */
                     Status?: components["schemas"]["ServiceItemStatus"];
+                    /** @description Only the items of exactly this category. */
+                    Category?: string;
+                    /**
+                     * @description The order: one of the list's columns (`code`, `name`, `defaultUnitPrice`), with `-` in front for the largest or
+                     *     latest first. The list's own order when left out.
+                     */
+                    Sort?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */
@@ -9653,6 +9844,21 @@ export interface paths {
                      *     payer's name, or exactly the amount it states. Fewer than two characters filter nothing.
                      */
                     Search?: string;
+                    /** @description Only the adjustments dated on or after this day (`yyyy-MM-dd`). */
+                    AdjustmentDateFrom?: string;
+                    /** @description Only the adjustments dated on or before this day (`yyyy-MM-dd`). */
+                    AdjustmentDateTo?: string;
+                    /** @description Only the adjustments of this amount or more. */
+                    AmountFrom?: string;
+                    /** @description Only the adjustments of this amount or less. */
+                    AmountTo?: string;
+                    /** @description Only the adjustments this user made (the id of a user). */
+                    CreatedBy?: string;
+                    /**
+                     * @description The order: one of the list's columns (`number`, `adjustmentDate`, `amount`), with `-` in front for the largest or
+                     *     latest first. The list's own order when left out.
+                     */
+                    Sort?: string;
                     /** @description The page, from 1; the first when left out. */
                     Page?: number | string;
                     /** @description Items per page, 1 to 100; 20 when left out. */
@@ -10800,6 +11006,17 @@ export interface components {
             /** Format: date-time */
             updatedAtUtc: string;
             version: string;
+        };
+        /**
+         * @description The business date of the server (Prompt 12.2, ADR 0063): today in India (BR-003), from the server's clock and never
+         *     the browser's, so that "Today" and "This month" of a list's date filter are the server's days.
+         */
+        BusinessDateResponse: {
+            /**
+             * Format: date
+             * @description Today in India, as `yyyy-MM-dd`.
+             */
+            today: string;
         };
         /** @description One denomination of a count: the value of the note or coin in rupees, and how many pieces. */
         CashCountLineDto: {

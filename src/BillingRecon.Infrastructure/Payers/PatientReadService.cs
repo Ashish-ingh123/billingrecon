@@ -46,9 +46,18 @@ public sealed class PatientReadService(BillingReconDbContext context) : IPatient
         }
 
         var totalCount = await patients.CountAsync(ct);
-        var page = await patients
-            .OrderBy(patient => patient.FullName)
-            .ThenBy(patient => patient.Id)
+        // The order asked for by name, or the list's own; each ends on a key that is one of a kind (ADR 0063).
+        IOrderedQueryable<Patient> ordered = query.Order switch
+        {
+            { Column: "mrn", Descending: var down } => patients.By(patient => (string)(object)patient.Mrn, down).Then(patient => patient.Id, down),
+            { Column: "fullName", Descending: var down } => patients.By(patient => patient.FullName, down).Then(patient => patient.Id, down),
+            { Column: "dateOfBirth", Descending: var down } => patients.By(patient => patient.DateOfBirth, down).Then(patient => patient.Id, down),
+            null => patients
+                .OrderBy(patient => patient.FullName)
+                .ThenBy(patient => patient.Id),
+            _ => throw new InvalidOperationException($"The order {query.Order} is not one of this list; its validator should have refused it."),
+        };
+        var page = await ordered
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToListAsync(ct);

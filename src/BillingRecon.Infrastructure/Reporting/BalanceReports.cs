@@ -49,10 +49,16 @@ public sealed class BalanceReports(BillingReconDbContext context) : IBalanceRepo
             ReportMapping.Sum(all.Select(balance => balance.CreditAvailable)),
             ReportMapping.Sum(all.Select(balance => balance.NetOutstanding)));
 
-        var rows = await balances
-            .OrderByDescending(balance => balance.NetOutstanding)
-            .ThenBy(balance => balance.Name)
-            .ThenBy(balance => balance.PayerId)
+        // The order asked for by name, or the report's own: who owes most first (ADR 0063).
+        var ordered = query.Sort switch
+        {
+            { Column: "name", Descending: var down } => balances.By(balance => balance.Name, down).Then(balance => balance.PayerId, down),
+            { Column: "receivable", Descending: var down } => balances.By(balance => balance.Receivable, down).Then(balance => balance.PayerId, down),
+            { Column: "netOutstanding", Descending: var down } => balances.By(balance => balance.NetOutstanding, down).Then(balance => balance.PayerId, down),
+            null => balances.OrderByDescending(balance => balance.NetOutstanding).ThenBy(balance => balance.Name).ThenBy(balance => balance.PayerId),
+            _ => throw new InvalidOperationException($"The order {query.Sort} is not one of this report; its validator should have refused it."),
+        };
+        var rows = await ordered
             .Skip(ReportMapping.Skip(query.Page, query.PageSize))
             .Take(query.PageSize)
             .ToListAsync(ct);
@@ -99,25 +105,49 @@ public sealed class BalanceReports(BillingReconDbContext context) : IBalanceRepo
             payments = payments.Where(payment => payment.PayerId == payerId);
         }
 
+        // The filters of Prompt 12.2 (ADR 0063); the totals below are of the rows they leave.
+        if (query.DateFrom is { } dateFrom)
+        {
+            payments = payments.Where(payment => payment.PaymentDate >= dateFrom);
+        }
+
+        if (query.DateTo is { } dateTo)
+        {
+            payments = payments.Where(payment => payment.PaymentDate <= dateTo);
+        }
+
         var amounts = await payments.Select(payment => payment.UnappliedAmount).ToListAsync(ct);
         var totals = new UnappliedCashTotalsDto(amounts.Count, ReportMapping.Sum(amounts));
 
-        var rows = await (
-                from payment in payments
-                join payer in context.Set<Payer>().AsNoTracking() on payment.PayerId equals payer.Id
-                orderby payment.PaymentDate, payment.FiscalYear, payment.SequenceNumber
-                select new
-                {
-                    payment.Id,
-                    payment.Number,
-                    payment.PaymentDate,
-                    payment.PayerId,
-                    PayerName = payer.Name,
-                    payment.Method,
-                    payment.Amount,
-                    payment.UnappliedAmount,
-                    payment.Status,
-                })
+        var joined =
+            from payment in payments
+            join payer in context.Set<Payer>().AsNoTracking() on payment.PayerId equals payer.Id
+            select new
+            {
+                payment.Id,
+                payment.Number,
+                payment.PaymentDate,
+                payment.PayerId,
+                PayerName = payer.Name,
+                payment.Method,
+                payment.Amount,
+                payment.UnappliedAmount,
+                payment.Status,
+                payment.FiscalYear,
+                payment.SequenceNumber,
+            };
+
+        // The order asked for by name, or the report's own, the oldest first (ADR 0063).
+        var ordered = query.Sort switch
+        {
+            { Column: "number", Descending: var down } => joined.By(row => row.FiscalYear, down).Then(row => row.SequenceNumber, down).Then(row => row.Id, down),
+            { Column: "paymentDate", Descending: var down } => joined.By(row => row.PaymentDate, down).Then(row => row.Id, down),
+            { Column: "unappliedAmount", Descending: var down } => joined.By(row => row.UnappliedAmount, down).Then(row => row.Id, down),
+            null => joined.OrderBy(row => row.PaymentDate).ThenBy(row => row.FiscalYear).ThenBy(row => row.SequenceNumber),
+            _ => throw new InvalidOperationException($"The order {query.Sort} is not one of this report; its validator should have refused it."),
+        };
+
+        var rows = await ordered
             .Skip(ReportMapping.Skip(query.Page, query.PageSize))
             .Take(query.PageSize)
             .ToListAsync(ct);
@@ -151,26 +181,50 @@ public sealed class BalanceReports(BillingReconDbContext context) : IBalanceRepo
             creditNotes = creditNotes.Where(creditNote => creditNote.PayerId == payerId);
         }
 
+        // The filters of Prompt 12.2 (ADR 0063); the totals below are of the rows they leave.
+        if (query.DateFrom is { } dateFrom)
+        {
+            creditNotes = creditNotes.Where(creditNote => creditNote.CreditNoteDate >= dateFrom);
+        }
+
+        if (query.DateTo is { } dateTo)
+        {
+            creditNotes = creditNotes.Where(creditNote => creditNote.CreditNoteDate <= dateTo);
+        }
+
         var amounts = await creditNotes.Select(creditNote => creditNote.AvailableAmount).ToListAsync(ct);
         var totals = new AvailableCreditTotalsDto(amounts.Count, ReportMapping.Sum(amounts));
 
-        var rows = await (
-                from creditNote in creditNotes
-                join bill in context.Set<Bill>().AsNoTracking() on creditNote.BillId equals bill.Id
-                join payer in context.Set<Payer>().AsNoTracking() on creditNote.PayerId equals payer.Id
-                orderby creditNote.CreditNoteDate, creditNote.FiscalYear, creditNote.SequenceNumber
-                select new
-                {
-                    creditNote.Id,
-                    creditNote.Number,
-                    creditNote.CreditNoteDate,
-                    creditNote.BillId,
-                    BillNumber = bill.Number,
-                    creditNote.PayerId,
-                    PayerName = payer.Name,
-                    creditNote.Total,
-                    creditNote.AvailableAmount,
-                })
+        var joined =
+            from creditNote in creditNotes
+            join bill in context.Set<Bill>().AsNoTracking() on creditNote.BillId equals bill.Id
+            join payer in context.Set<Payer>().AsNoTracking() on creditNote.PayerId equals payer.Id
+            select new
+            {
+                creditNote.Id,
+                creditNote.Number,
+                creditNote.CreditNoteDate,
+                creditNote.BillId,
+                BillNumber = bill.Number,
+                creditNote.PayerId,
+                PayerName = payer.Name,
+                creditNote.Total,
+                creditNote.AvailableAmount,
+                creditNote.FiscalYear,
+                creditNote.SequenceNumber,
+            };
+
+        // The order asked for by name, or the report's own, the oldest first (ADR 0063).
+        var ordered = query.Sort switch
+        {
+            { Column: "number", Descending: var down } => joined.By(row => row.FiscalYear, down).Then(row => row.SequenceNumber, down).Then(row => row.Id, down),
+            { Column: "creditNoteDate", Descending: var down } => joined.By(row => row.CreditNoteDate, down).Then(row => row.Id, down),
+            { Column: "availableAmount", Descending: var down } => joined.By(row => row.AvailableAmount, down).Then(row => row.Id, down),
+            null => joined.OrderBy(row => row.CreditNoteDate).ThenBy(row => row.FiscalYear).ThenBy(row => row.SequenceNumber),
+            _ => throw new InvalidOperationException($"The order {query.Sort} is not one of this report; its validator should have refused it."),
+        };
+
+        var rows = await ordered
             .Skip(ReportMapping.Skip(query.Page, query.PageSize))
             .Take(query.PageSize)
             .ToListAsync(ct);

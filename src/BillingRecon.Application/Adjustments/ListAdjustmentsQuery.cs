@@ -10,6 +10,9 @@ namespace BillingRecon.Application.Adjustments;
 /// </summary>
 public sealed record ListAdjustmentsQuery : IPagedQuery
 {
+    /// <summary>The columns this list is sorted by on request (ADR 0063); each stands for an expression of the query service.</summary>
+    public static IReadOnlyList<string> Sorts { get; } = ["number", "adjustmentDate", "amount"];
+
     /// <summary>Only the adjustments of this bill.</summary>
     public BillId? BillId { get; init; }
 
@@ -27,6 +30,24 @@ public sealed record ListAdjustmentsQuery : IPagedQuery
     /// payer's name, or exactly the amount it states. Fewer than two characters filter nothing.
     /// </summary>
     public string? Search { get; init; }
+
+    /// <summary>Only the adjustments dated on or after this day (<c>yyyy-MM-dd</c>).</summary>
+    public DateOnly? AdjustmentDateFrom { get; init; }
+
+    /// <summary>Only the adjustments dated on or before this day (<c>yyyy-MM-dd</c>).</summary>
+    public DateOnly? AdjustmentDateTo { get; init; }
+
+    /// <summary>Only the adjustments of this amount or more.</summary>
+    public decimal? AmountFrom { get; init; }
+
+    /// <summary>Only the adjustments of this amount or less.</summary>
+    public decimal? AmountTo { get; init; }
+
+    /// <summary>Only the adjustments this user made (the id of a user).</summary>
+    public UserId? CreatedBy { get; init; }
+
+    /// <summary>The order asked for, one of <see cref="Sorts"/>; null for the list's own order.</summary>
+    public ListSort? Order { get; init; }
 
     /// <inheritdoc />
     public int Page { get; init; } = Paging.FirstPage;

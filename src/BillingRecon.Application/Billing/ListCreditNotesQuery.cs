@@ -10,6 +10,9 @@ namespace BillingRecon.Application.Billing;
 /// </summary>
 public sealed record ListCreditNotesQuery : IPagedQuery
 {
+    /// <summary>The columns this list is sorted by on request (ADR 0063); each stands for an expression of the query service.</summary>
+    public static IReadOnlyList<string> Sorts { get; } = ["number", "creditNoteDate", "total", "availableAmount"];
+
     /// <summary>Only the credit notes against this bill.</summary>
     public BillId? BillId { get; init; }
 
@@ -24,6 +27,24 @@ public sealed record ListCreditNotesQuery : IPagedQuery
     /// payer's name, or exactly the amount it states. Fewer than two characters filter nothing.
     /// </summary>
     public string? Search { get; init; }
+
+    /// <summary>Only the credit notes dated on or after this day (<c>yyyy-MM-dd</c>).</summary>
+    public DateOnly? CreditNoteDateFrom { get; init; }
+
+    /// <summary>Only the credit notes dated on or before this day (<c>yyyy-MM-dd</c>).</summary>
+    public DateOnly? CreditNoteDateTo { get; init; }
+
+    /// <summary>Only the credit notes whose total is this amount or more.</summary>
+    public decimal? TotalFrom { get; init; }
+
+    /// <summary>Only the credit notes whose total is this amount or less.</summary>
+    public decimal? TotalTo { get; init; }
+
+    /// <summary>Only the credit notes this user made (the id of a user).</summary>
+    public UserId? CreatedBy { get; init; }
+
+    /// <summary>The order asked for, one of <see cref="Sorts"/>; null for the list's own order.</summary>
+    public ListSort? Order { get; init; }
 
     /// <inheritdoc />
     public int Page { get; init; } = Paging.FirstPage;

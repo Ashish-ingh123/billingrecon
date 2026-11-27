@@ -51,6 +51,37 @@ public sealed class BillReadService(BillingReconDbContext context, IPartySearch 
             bills = bills.Where(bill => bill.BillDate <= to);
         }
 
+        // The filters of Prompt 12.2 (ADR 0063): each narrows the rows the search and the page are taken from.
+        if (query.TotalFrom is { } totalFrom)
+        {
+            bills = bills.Where(bill => bill.Total >= Money.Of(totalFrom));
+        }
+
+        if (query.TotalTo is { } totalTo)
+        {
+            bills = bills.Where(bill => bill.Total <= Money.Of(totalTo));
+        }
+
+        if (query.BalanceDueFrom is { } balanceDueFrom)
+        {
+            bills = bills.Where(bill => bill.BalanceDue >= Money.Of(balanceDueFrom));
+        }
+
+        if (query.BalanceDueTo is { } balanceDueTo)
+        {
+            bills = bills.Where(bill => bill.BalanceDue <= Money.Of(balanceDueTo));
+        }
+
+        if (query.CreatedBy is { } createdBy)
+        {
+            bills = bills.Where(bill => bill.CreatedByUserId == createdBy);
+        }
+
+        if (query.Origin is { } origin)
+        {
+            bills = bills.Where(bill => bill.Origin == origin);
+        }
+
         // One box (Prompt 11.1; ADR 0036, amended 2026-11-26). Each part of the search is a query of its own, so that
         // each is answered by its own index, and the documents are those of any part: an OR over them reads every row.
         int? fewFound = null;
@@ -71,10 +102,20 @@ public sealed class BillReadService(BillingReconDbContext context, IPartySearch 
 
         // The lines are not loaded: a list shows the summary of each bill.
         var totalCount = fewFound ?? await bills.CountAsync(ct);
-        var page = await bills
-            .OrderByDescending(bill => bill.BillDate)
-            .ThenByDescending(bill => bill.CreatedAtUtc)
-            .ThenBy(bill => bill.Id)
+        // The order asked for by name, or the list's own; each ends on a key that is one of a kind (ADR 0063).
+        IOrderedQueryable<Bill> ordered = query.Order switch
+        {
+            { Column: "number", Descending: var down } => bills.By(bill => bill.FiscalYear, down).Then(bill => bill.SequenceNumber, down).Then(bill => bill.Id, down),
+            { Column: "billDate", Descending: var down } => bills.By(bill => bill.BillDate, down).Then(bill => bill.Id, down),
+            { Column: "total", Descending: var down } => bills.By(bill => bill.Total, down).Then(bill => bill.Id, down),
+            { Column: "balanceDue", Descending: var down } => bills.By(bill => bill.BalanceDue, down).Then(bill => bill.Id, down),
+            null => bills
+                .OrderByDescending(bill => bill.BillDate)
+                .ThenByDescending(bill => bill.CreatedAtUtc)
+                .ThenBy(bill => bill.Id),
+            _ => throw new InvalidOperationException($"The order {query.Order} is not one of this list; its validator should have refused it."),
+        };
+        var page = await ordered
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToListAsync(ct);

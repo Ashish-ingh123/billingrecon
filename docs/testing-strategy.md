@@ -362,3 +362,10 @@ nothing), `DatabaseSettingsOnSqlServerTests` in the `Database` collection (the A
 production compose file sets no secret, takes every secret from the host's directory, builds nothing, pins every tag,
 runs the release's tag, and publishes only nginx). The deployment itself is proved by walking runbook section 19 on a
 staging server, which has not happened.
+
+**The filters and orders of the lists** (Prompt 12.2a; ADR 0063): on SQL Server, `ListFiltersApiTests`: each filter
+alone and combined with the old ones and the search, each order both ways, four pages of equal rows with no repeat
+and no gap, an unknown order and an unreadable filter refused with their codes, another hospital's rows never found,
+a register's totals against the ledger summed in SQL, the business date turning at midnight in India, and the cost on
+100,000 bills copied in SQL from one draft (no posting, so no drift), each order and filter timed after a warm-up and
+held under 1.5 seconds; the timings are printed with the test's output.

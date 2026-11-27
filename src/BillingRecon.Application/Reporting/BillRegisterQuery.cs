@@ -9,6 +9,9 @@ namespace BillingRecon.Application.Reporting;
 /// </summary>
 public sealed record BillRegisterQuery : IPagedQuery
 {
+    /// <summary>The columns this list is sorted by on request (ADR 0063); each stands for an expression of the query service.</summary>
+    public static IReadOnlyList<string> Sorts { get; } = ["number", "billDate", "total", "balanceDue"];
+
     /// <summary>The first bill date, with <see cref="To"/>; neither means the current month in India.</summary>
     public DateOnly? From { get; init; }
 
@@ -20,6 +23,15 @@ public sealed record BillRegisterQuery : IPagedQuery
 
     /// <summary>Only the bills in this state.</summary>
     public ReportBillStatus? Status { get; init; }
+
+    /// <summary>Only the bills whose total is this amount or more.</summary>
+    public decimal? TotalFrom { get; init; }
+
+    /// <summary>Only the bills whose total is this amount or less.</summary>
+    public decimal? TotalTo { get; init; }
+
+    /// <summary>The order asked for, one of <see cref="Sorts"/>; null for the list's own order.</summary>
+    public ListSort? Sort { get; init; }
 
     /// <inheritdoc />
     public int Page { get; init; } = Paging.FirstPage;

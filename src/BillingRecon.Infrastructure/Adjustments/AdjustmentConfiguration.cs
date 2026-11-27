@@ -45,6 +45,9 @@ public sealed class AdjustmentConfiguration : IEntityTypeConfiguration<Adjustmen
         // The search of the list by an exact amount (Prompt 11.1; ADR 0036, amended 2026-11-26).
         builder.HasIndex(adjustment => new { adjustment.TenantId, adjustment.Amount }).HasDatabaseName("IX_Adjustments_TenantId_Amount");
 
+        // The filter and the order of the list by this column (Prompt 12.2, ADR 0063).
+        builder.HasIndex(adjustment => new { adjustment.TenantId, adjustment.AdjustmentDate }).HasDatabaseName("IX_Adjustments_TenantId_AdjustmentDate");
+
         // The gapless number of a posted adjustment (BR-801): unique in the tenant, and one adjustment per position of
         // the series of a fiscal year. Drafts have neither, so both indexes leave them out.
         builder.Property(adjustment => adjustment.Number).HasMaxLength(DocumentNumber.MaxLength).IsUnicode(false);

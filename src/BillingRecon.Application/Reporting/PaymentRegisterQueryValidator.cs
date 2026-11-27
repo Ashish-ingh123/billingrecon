@@ -11,6 +11,7 @@ public sealed class PaymentRegisterQueryValidator : AbstractValidator<PaymentReg
         RuleLevelCascadeMode = CascadeMode.Stop;
 
         Include(new PagedQueryValidator());
+        RuleFor(query => query.Sort).OneOf(PaymentRegisterQuery.Sorts);
 
         this.AddPeriodRules(query => query.From, query => query.To);
 

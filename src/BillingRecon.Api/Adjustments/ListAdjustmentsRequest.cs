@@ -1,3 +1,4 @@
+using BillingRecon.Api.Common;
 using BillingRecon.Application.Adjustments;
 using BillingRecon.Application.Common;
 using BillingRecon.Domain.Adjustments;
@@ -26,6 +27,27 @@ public sealed record ListAdjustmentsRequest
     /// </summary>
     public string? Search { get; init; }
 
+    /// <summary>Only the adjustments dated on or after this day (<c>yyyy-MM-dd</c>).</summary>
+    public string? AdjustmentDateFrom { get; init; }
+
+    /// <summary>Only the adjustments dated on or before this day (<c>yyyy-MM-dd</c>).</summary>
+    public string? AdjustmentDateTo { get; init; }
+
+    /// <summary>Only the adjustments of this amount or more.</summary>
+    public string? AmountFrom { get; init; }
+
+    /// <summary>Only the adjustments of this amount or less.</summary>
+    public string? AmountTo { get; init; }
+
+    /// <summary>Only the adjustments this user made (the id of a user).</summary>
+    public string? CreatedBy { get; init; }
+
+    /// <summary>
+    /// The order: one of the list's columns (<c>number</c>, <c>adjustmentDate</c>, <c>amount</c>), with <c>-</c> in front for the largest or
+    /// latest first. The list's own order when left out.
+    /// </summary>
+    public string? Sort { get; init; }
+
     /// <summary>The page, from 1; the first when left out.</summary>
     public int? Page { get; init; }
 
@@ -33,14 +55,33 @@ public sealed record ListAdjustmentsRequest
     public int? PageSize { get; init; }
 
     /// <summary>The query, with the defaults of <see cref="Paging"/>.</summary>
-    public ListAdjustmentsQuery ToQuery() => new()
+    public Result<ListAdjustmentsQuery> ToQuery()
     {
-        BillId = BillId is { } billId ? new BillId(billId) : null,
-        PayerId = PayerId is { } payerId ? new PayerId(payerId) : null,
-        Status = Status,
-        Kind = Kind,
-        Search = Search,
-        Page = Page ?? Paging.FirstPage,
-        PageSize = PageSize ?? Paging.DefaultPageSize,
-    };
+        var read = new FilterReader();
+        var adjustmentDateFrom = read.Date(AdjustmentDateFrom, "adjustmentDateFrom");
+        var adjustmentDateTo = read.Date(AdjustmentDateTo, "adjustmentDateTo");
+        var amountFrom = read.Amount(AmountFrom, "amountFrom");
+        var amountTo = read.Amount(AmountTo, "amountTo");
+        var createdBy = read.Id(CreatedBy, "createdBy");
+        read.InOrder(adjustmentDateFrom, adjustmentDateTo, "adjustmentDateTo");
+        read.InOrder(amountFrom, amountTo, "amountTo");
+        var order = read.Sort(Sort, ListAdjustmentsQuery.Sorts);
+
+        return read.Answer(new ListAdjustmentsQuery
+        {
+            BillId = BillId is { } billId ? new BillId(billId) : null,
+            PayerId = PayerId is { } payerId ? new PayerId(payerId) : null,
+            Status = Status,
+            Kind = Kind,
+            Search = Search,
+            Page = Page ?? Paging.FirstPage,
+            PageSize = PageSize ?? Paging.DefaultPageSize,
+            AdjustmentDateFrom = adjustmentDateFrom,
+            AdjustmentDateTo = adjustmentDateTo,
+            AmountFrom = amountFrom,
+            AmountTo = amountTo,
+            CreatedBy = createdBy is { } createdById ? new UserId(createdById) : null,
+            Order = order,
+        });
+    }
 }

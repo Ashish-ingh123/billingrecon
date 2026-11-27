@@ -12,6 +12,7 @@ public sealed class ListRefundsQueryValidator : AbstractValidator<ListRefundsQue
         RuleLevelCascadeMode = CascadeMode.Stop;
 
         Include(new PagedQueryValidator());
+        RuleFor(query => query.Order).OneOf(ListRefundsQuery.Sorts);
         RuleFor(query => query.Search).OptionalText(DocumentSearch.MaxLength, "search");
         RuleFor(query => query.PayerId)
             .Must(payerId => payerId is null || payerId.Value.Value != Guid.Empty)

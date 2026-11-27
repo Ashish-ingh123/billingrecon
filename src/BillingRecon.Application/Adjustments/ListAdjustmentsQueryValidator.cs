@@ -14,6 +14,7 @@ public sealed class ListAdjustmentsQueryValidator : AbstractValidator<ListAdjust
         RuleLevelCascadeMode = CascadeMode.Stop;
 
         Include(new PagedQueryValidator());
+        RuleFor(query => query.Order).OneOf(ListAdjustmentsQuery.Sorts);
         RuleFor(query => query.Search).OptionalText(DocumentSearch.MaxLength, "search");
 
         RuleFor(query => query.BillId)
