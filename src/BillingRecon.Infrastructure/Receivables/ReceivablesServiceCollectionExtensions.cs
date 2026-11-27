@@ -23,6 +23,11 @@ public static class ReceivablesServiceCollectionExtensions
         services.AddScoped<IOpeningBatchRepository, OpeningBatchRepository>();
         services.AddScoped<IOpeningBatchReadService, OpeningBatchReadService>();
 
+        // The reconciliation of every hospital each night, with an alert on drift (ADR 0056).
+        services.AddScoped<NightlyReconciliation>();
+        services.AddSingleton<NightlyReconciler>();
+        services.AddHostedService(provider => provider.GetRequiredService<NightlyReconciler>());
+
         return services;
     }
 }

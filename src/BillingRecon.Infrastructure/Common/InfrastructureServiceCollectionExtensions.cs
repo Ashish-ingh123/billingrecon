@@ -5,6 +5,7 @@ using BillingRecon.Infrastructure.Common.Health;
 using BillingRecon.Infrastructure.Common.Idempotency;
 using BillingRecon.Infrastructure.Common.Logging;
 using BillingRecon.Infrastructure.Common.Numbering;
+using BillingRecon.Infrastructure.Common.Operations;
 using BillingRecon.Infrastructure.Common.Persistence;
 using BillingRecon.Infrastructure.Common.Settings;
 using BillingRecon.Infrastructure.Common.Time;
@@ -145,6 +146,13 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IIdempotencyStore, IdempotencyStore>();
         services.AddScoped<IdempotencyKeySweep>();
         services.AddHostedService<IdempotencyKeySweeper>();
+
+        // The operator's alerts (ADR 0056); the nightly reconciliation that raises them is registered by AddReceivables.
+        services.AddOptions<AlertOptions>()
+            .BindConfiguration(AlertOptions.SectionName)
+            .Validate(AlertOptions.IsUsable, AlertOptions.InvalidMessage)
+            .ValidateOnStart();
+        services.AddScoped<IOperationsAlerts, OperationsAlerts>();
 
         // Gapless document numbers, taken in the transaction this unit of work commits (BR-801, ADR 0008). How long the
         // request waited for its series and held it is measured, and is the API's Server-Timing when that is on (ADR 0046).

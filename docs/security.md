@@ -160,6 +160,17 @@ provider and region, and so the answer a DPDP review needs, is the owner's to de
   the correlation id and the record before and after (BR-701 to BR-703, ADR 0020). The images hold the patient data of
   the record (section 10, row I9).
 
+- **Retention (ADR 0056).** The audit trail is never deleted or changed by the application, whose login cannot, and is
+  kept at least eight years (the books of account, Companies Act 2013 section 128; to be confirmed by the legal review,
+  `docs/go-live.md` G6). The logs in Seq are kept 30 days; backups 35 days (ADR 0055).
+- **The limits of one instance (ADR 0056), accepted.** The API runs as one instance. The sign-in limits (section 2),
+  the queue of mails and the two scheduled jobs (the sweep of idempotency keys, the nightly reconciliation) live in its
+  process: a restart forgets the limits' counts and a mail that waited; a second instance would halve the limits'
+  effect and run each job twice, which costs reads and a second alert mail and changes nothing twice. Lifted, when a
+  second instance is needed, by a lease row for the jobs and the limits in the database.
+- **Alerts (ADR 0056).** Drift found by the nightly reconciliation and a failed job are mailed to the operator
+  (`Alerts:MailTo`); the text names hospitals by their code and documents by their number, no patient and no payer.
+
 ## 9. The database logins (ADR 0034)
 
 - The API connects as `billingrecon_app`, a member of the database role `billingrecon_application` alone; the

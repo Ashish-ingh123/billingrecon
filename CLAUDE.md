@@ -1352,3 +1352,14 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
      `TWO_STEP_REQUIRED=false`, or an update.
    - Then 10.6 (operations; ADR 0056 is kept for it) and 10.7 (readiness: go-live document, acceptance script,
      training notes, cut-over, `v1.2.0` proposed).
+
+8. **Prompt 10.6a (2026-11-27, ADR 0056), on `phase-10-operations`:** the operator's alerts. `IOperationsAlerts`
+   (Infrastructure, Common/Operations) logs an error and mails `Alerts:MailTo` through the queue of the mail server of
+   ADR 0061; `ALERT_MAIL_TO` in the compose files. `NightlyReconciliation` (Infrastructure, **Receivables**: Common may
+   not use a business module, so it is registered by `AddReceivables`) runs the report's query for every hospital,
+   suspended ones too, as each one's operator, at 02:00 IST (`NightlyReconciler.NextRunAfter`), and sends one alert
+   naming the hospitals with drift. A failed sweep of idempotency keys alerts too. `RunOnceAsync` of both jobs is
+   public so a test calls one run; a test with mail registers `Support/CapturedMails` and configures `MailOptions` and
+   `AlertOptions`. **A posted bill's `BalanceDue` cannot be seeded off its status (`CK_Bills_StatusMatchesBalance`):
+   seed drift in `PayerBalances`.** No migration; the next free migration is still `0034`, the next ADR `0063`. Owed:
+   runbook section 8, row 10.6a. 10.6b is the watchdog on the server, Seq's retention and the on-call page.

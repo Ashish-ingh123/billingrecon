@@ -282,6 +282,11 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   The screens (Prompt 11.4b): `reports/AccountingExport.test.tsx` (the card for those who may export, the summary, the
   ledgers without a name holding the file back, the file saved under the API's name, the names saved with the version
   read), and both pages in `e2e/routes.spec.ts`.
+- **Operations** (Prompt 10.6a; ADR 0056): `OperationsScheduleTests` (02:00 IST, the next one after now; the address
+  of the alerts) and on SQL Server `OperationsApiTests`: drift seeded with SQL in one of two hospitals sends one alert
+  that names it and not the other, a clean night sends none, a sweep and a reconciliation against a database that is
+  not there are alerts, and without an address nothing is mailed. The jobs' runs are called directly; their schedules
+  (`Task.Delay` until the next run) are not under test.
 - **The lens and Tab in a search** (Prompt 10.4d; ADR 0039 and ADR 0040, amended 2026-11-26): `SearchTab.test.tsx` (the
   lens on every search box, drawn and not read; the spinner in its place; Clear; a list's search sent when its box is
   left and not when unchanged; a picker by Tab with one result, several, none, a late answer and a late answer after

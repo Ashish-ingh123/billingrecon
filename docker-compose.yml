@@ -106,6 +106,8 @@ services:
       Mail__Password: "${MAIL_PASSWORD:-}"
       Mail__From: "${MAIL_FROM:-}"
       Mail__PublicBaseUrl: "${MAIL_PUBLIC_BASE_URL:-}"
+      # The operator's alerts (ADR 0056), through the mail server above; empty: in the log only.
+      Alerts__MailTo: "${ALERT_MAIL_TO:-}"
       AllowedHosts: "localhost;frontend"
       ReverseProxy__KnownProxies__0: "172.28.0.10"
       Seq__ServerUrl: "http://seq"

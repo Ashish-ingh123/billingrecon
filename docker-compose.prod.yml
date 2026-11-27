@@ -80,6 +80,8 @@ services:
       Mail__User: "${MAIL_USER:-}"
       Mail__From: "${MAIL_FROM:-}"
       Mail__PublicBaseUrl: "https://${DOMAIN}"
+      # The operator's alerts (ADR 0056): drift and failed jobs, through the mail server above.
+      Alerts__MailTo: "${ALERT_MAIL_TO:-}"
     # The API reads its secrets from these files (SecretFiles): Database__ConnectionString, Jwt__SigningKey,
     # TwoStep__EncryptionKey, the key of the second step of a sign-in (ADR 0061), and the password of the mail server
     # (an empty file where there is none).

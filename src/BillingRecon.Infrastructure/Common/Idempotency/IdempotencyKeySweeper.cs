@@ -1,4 +1,5 @@
 using System.Data.Common;
+using BillingRecon.Infrastructure.Common.Operations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -35,7 +36,8 @@ public sealed class IdempotencyKeySweeper(IServiceScopeFactory scopeFactory, ILo
         }
     }
 
-    private async Task RunOnceAsync(CancellationToken ct)
+    /// <summary>One sweep, as the schedule makes it; a failure is logged and raised as an operations alert (ADR 0056).</summary>
+    public async Task RunOnceAsync(CancellationToken ct)
     {
         try
         {
@@ -47,6 +49,10 @@ public sealed class IdempotencyKeySweeper(IServiceScopeFactory scopeFactory, ILo
         catch (Exception exception) when (exception is DbException or DbUpdateException or InvalidOperationException or TimeoutException)
         {
             logger.LogError(exception, "The sweep of expired idempotency keys failed; it runs again in {Hours} hours", Every.TotalHours);
+            await using var scope = scopeFactory.CreateAsyncScope();
+            scope.ServiceProvider.GetRequiredService<IOperationsAlerts>().Raise(
+                "The sweep of expired idempotency keys failed",
+                $"It failed with {exception.GetType().Name} and runs again in {Every.TotalHours:0} hours. The error is in the log; docs/runbook.md section 7 has the manual procedure.");
         }
     }
 }
