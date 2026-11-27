@@ -276,6 +276,7 @@ Acceptance criteria cite the rules they verify. "Given/when/then" is abbreviated
 | US-46 | As a Cashier I close my shift with a count by denomination. | The expected cash equals the ledger's Cash entries of the shift plus the float (BR-312); a difference needs a reason (BR-313); without one the shift is closed at once (BR-314); no drift (BR-404). |
 | US-47 | As a Supervisor I approve or reject the closing of a shift with a difference. | Its cashier cannot decide it (BR-603, BR-314); an approval closes it and posts nothing; a rejection opens it again for a recount (BR-605); a closed shift does not change (BR-315). |
 | US-48 | As a Supervisor, a TenantAdmin or a Viewer I read the day-end report of a business date. | Every shift is listed; its cash total equals the daily collection's Cash row (BR-903); another hospital's shifts never appear; a Cashier or a BillingClerk is refused with 403. |
+| US-49 | As a Cashier I print the closing slip of my shift. | Printed once the shift is counted, on the hospital's letterhead and by its print settings for a closing slip (A4, A5 or the roll); it shows the float, the cash taken and paid out, the count, the expected and counted cash and the difference with its reason (BR-313); its print is not recorded, as it is no financial document. |
 
 ---
 

@@ -30,7 +30,7 @@ import {
 import { AdministrationTabs } from './AdministrationTabs';
 import styles from './Administration.module.css';
 
-const documentTypes: readonly PrintedDocumentType[] = ['Bill', 'Payment', 'Refund'];
+const documentTypes: readonly PrintedDocumentType[] = ['Bill', 'Payment', 'Refund', 'ShiftClosing'];
 
 /** The settings as a form holds them: a measure as the text that was typed, a text that is none as an empty one. */
 interface PrintValues {
@@ -369,11 +369,13 @@ function PrintSettingsForm({ initial, letterhead }: { initial: DocumentSettings;
 
         <fieldset className={styles.switches}>
           <legend>What is shown</legend>
-          {switchOf('showPayer', 'The payer')}
-          {switchOf('showPatientContact', 'The patient’s phone and address')}
+          {documentType !== 'ShiftClosing' && switchOf('showPayer', 'The payer')}
+          {documentType !== 'ShiftClosing' && switchOf('showPatientContact', 'The patient’s phone and address')}
           {switchOf('showAmountInWords', 'The amount in words')}
           {switchOf('showSignatureBlock', 'The signature block')}
-          {documentType !== 'Bill' && switchOf('showCashierName', 'The cashier’s name')}
+          {documentType !== 'Bill' &&
+            documentType !== 'ShiftClosing' &&
+            switchOf('showCashierName', 'The cashier’s name')}
           {documentType === 'Bill' && (
             <>
               <label className={styles.switch}>

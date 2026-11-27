@@ -75,7 +75,8 @@ export const defaultLayout: PrintLayout = {
 /** The limits of a layout, as the API holds them. */
 export const layoutLimits = { marginMinMm: 5, marginMaxMm: 25, stationeryTopMaxMm: 80, footerLine: 200, terms: 1000 };
 
-/** The papers a kind of document may be printed on: a roll is for a receipt or a refund voucher, never for a bill. */
+/** The papers a kind of document may be printed on: a roll is for a receipt, a refund voucher or a
+ * closing slip, never for a bill. */
 export function papersOf(documentType: PrintedDocumentType): readonly PaperSize[] {
   return documentType === 'Bill' ? ['A4', 'A5'] : ['A4', 'A5', 'Roll80'];
 }
@@ -85,6 +86,7 @@ export const documentLabels: Record<PrintedDocumentType, string> = {
   Bill: 'Bill',
   Payment: 'Receipt',
   Refund: 'Refund voucher',
+  ShiftClosing: 'Shift closing slip',
 };
 
 /** How every kind of document is printed: three answers, a kind never saved answering the defaults. */

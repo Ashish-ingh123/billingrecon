@@ -1,7 +1,7 @@
 # Traceability: user stories to the tests that prove them (R1)
 
 - **Status:** written 2026-11-24 with the release of R1 (Prompt 8.3). Every user story of `docs/requirements.md`
-  section 4, US-01 to US-48, has a row, and every row names the tests that prove its acceptance criteria.
+  section 4, US-01 to US-49, has a row, and every row names the tests that prove its acceptance criteria.
   `TraceabilityTests` (tests/BillingRecon.ArchitectureTests) fails when a story has no row, a row has no test, or a test
   a row names no longer exists; a new story or a renamed test is therefore caught by the build.
 
@@ -49,6 +49,7 @@ Where a clause is proven by a test whose name does not say so, or only partly, t
 | US-46 | Expected cash equals the ledger's entries of the shift; a difference needs a reason; no difference closes at once | BR-312, BR-313, BR-314, BR-404, BR-804 | `tests/BillingRecon.IntegrationTests/Database/CashierShiftsApiTests.cs#US45_US46_a_cashier_opens_a_shift_takes_and_pays_out_cash_and_closes_it_on_the_cash_the_ledger_has`<br>`tests/BillingRecon.IntegrationTests/Database/CashierShiftsApiTests.cs#BR804_a_closing_and_a_cash_payment_at_once_never_close_the_shift_on_a_figure_the_ledger_no_longer_has`<br>`tests/BillingRecon.Application.Tests/Payments/CashierShiftHandlerTests.cs#BR312_BR313_a_closing_counts_against_the_float_and_the_cash_the_ledger_answers_for_the_shift`<br>`tests/BillingRecon.Domain.Tests/Payments/CashierShiftTests.cs#BR313_a_count_that_is_the_expected_cash_closes_the_shift_at_once`<br>`tests/BillingRecon.Domain.Tests/Payments/CashierShiftTests.cs#BR313_BR314_a_count_that_differs_needs_its_reason_and_then_waits_for_a_checker` |
 | US-47 | The cashier cannot decide; approval closes and posts nothing; rejection reopens; a closed shift does not change | BR-314, BR-315, BR-603, BR-605 | `tests/BillingRecon.IntegrationTests/Database/CashierShiftsApiTests.cs#US47_a_closing_with_a_difference_waits_its_cashier_cannot_approve_it_and_a_second_person_decides`<br>`tests/BillingRecon.Application.Tests/Payments/CashierShiftHandlerTests.cs#BR603_the_cashier_of_a_shift_decides_nothing_and_a_second_person_approves_or_rejects`<br>`tests/BillingRecon.Application.Tests/Payments/CashierShiftHandlerTests.cs#BR605_a_rejection_needs_its_comment_and_opens_the_shift_again`<br>`tests/BillingRecon.Domain.Tests/Payments/CashierShiftTests.cs#BR314_BR315_an_approval_closes_the_shift_with_its_difference_and_a_closed_shift_does_nothing_more` |
 | US-48 | The day-end total equals the daily collection; tenant isolated; cashier and clerk 403 | BR-903, BR-002 | `tests/BillingRecon.IntegrationTests/Database/CashierShiftsApiTests.cs#BR903_the_day_end_report_of_every_shift_equals_the_daily_collection`<br>`tests/BillingRecon.IntegrationTests/Database/CashierShiftsApiTests.cs#A_cashier_reads_and_closes_only_their_own_shift_and_another_hospital_sees_none` |
+| US-49 | The slip prints on the letterhead by its own print settings, with the count and the difference; not recorded | BR-313 | `frontend/src/shifts/Shifts.test.tsx#prints the closing slip on the letterhead without recording a print`<br>`frontend/src/shifts/Shifts.test.tsx#has no slip for a shift that is still open`<br>`tests/BillingRecon.IntegrationTests/Database/PrintSettingsApiTests.cs#ADR0060_the_closing_slip_of_a_shift_has_print_settings_of_its_own_and_may_be_printed_on_a_roll` |
 
 ## Notes
 
@@ -72,8 +73,9 @@ Where a clause is proven by a test whose name does not say so, or only partly, t
   (`PaymentsApiTests`), and the dashboard's and the collection's day boundaries are tested at 23:59 and 00:01 in India.
 - **US-44:** the row names six of its tests; the trend and the four panels have more in `DashboardApiTests` and
   `Dashboard.test.tsx`. A BillingClerk's and a Cashier's 403 are rows of `PermissionMatrixApiTests`.
-- **US-45 to US-48 (Prompt 11.2):** the screens of the shift and its printed closing slip come with Prompt 11.2b; these
-  rows are the proof of the API's, the Domain's and the Application's tests. A Cashier's and a BillingClerk's 403 on the
+- **US-45 to US-49 (Prompt 11.2):** the rows of US-45 to US-48 name the API's, the Domain's and the Application's tests;
+  the screens of 11.2b are proven by `frontend/src/shifts/Shifts.test.tsx` (the count in exact paise, a difference that
+  asks its reason, cash that asks for an open shift) and by the shift routes of `frontend/e2e/routes.spec.ts`. A Cashier's and a BillingClerk's 403 on the
   day-end report are also rows of `PermissionMatrixApiTests`.
 - **US-01:** no screen manages users in R1 (no prompt builds it), so its proof is the API's, the Domain's and the
   Application's tests.

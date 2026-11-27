@@ -39,6 +39,11 @@ export const documentStatuses = {
   payment: { Posted: posted, PendingReversal: waitingForReversal, Reversed: reversed },
   allocation: { Active: applied, PendingReversal: waitingForReversal, Reversed: reversed },
   refund: { Draft: draft, PendingApproval: waitingForApproval, Posted: posted, Voided: voided },
+  shift: {
+    Open: { label: 'Open', tone: 'success', icon: 'clock' },
+    PendingApproval: waitingForApproval,
+    Closed: { label: 'Closed', tone: 'muted', icon: 'check-circle' },
+  },
   record: {
     Active: { label: 'Active', tone: 'success', icon: 'check-circle' },
     Inactive: { label: 'Inactive', tone: 'muted', icon: 'ban' },
@@ -51,6 +56,7 @@ export const documentStatuses = {
   payment: Record<Schemas['PaymentStatus'], StatusLook>;
   allocation: Record<Schemas['PaymentAllocationDto']['status'], StatusLook>;
   refund: Record<Schemas['RefundStatus'], StatusLook>;
+  shift: Record<Schemas['CashierShiftStatus'], StatusLook>;
   record: Record<'Active' | 'Inactive', StatusLook>;
 };
 

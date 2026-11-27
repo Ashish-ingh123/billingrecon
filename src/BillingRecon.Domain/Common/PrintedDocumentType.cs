@@ -11,4 +11,7 @@ public enum PrintedDocumentType
 
     /// <summary>A posted refund: its voucher.</summary>
     Refund = 2,
+
+    /// <summary>The closing slip of a cashier's shift (ADR 0060, amended): it has print settings, and its print is not recorded.</summary>
+    ShiftClosing = 3,
 }

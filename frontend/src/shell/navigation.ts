@@ -78,6 +78,14 @@ export const sections: readonly Section[] = [
     builtBy: '7.4',
   },
   {
+    path: '/shifts',
+    icon: 'clock',
+    label: 'Shifts',
+    roles: everyone,
+    purpose: 'Open a shift of the cash counter with its float, and close it with a count of the drawer.',
+    builtBy: '11.2b',
+  },
+  {
     path: '/credit-notes',
     icon: 'receipt-minus',
     label: 'Credit notes',

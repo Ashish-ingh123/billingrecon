@@ -53,6 +53,7 @@ const built = new Set([
   '/bills',
   '/payments',
   '/refunds',
+  '/shifts',
   '/credit-notes',
   '/adjustments',
   '/approvals',
@@ -193,6 +194,24 @@ export const routes: RouteObject[] = [
             'ManageTenant',
             async () => (await import('./administration/SettingsPage')).SettingsPage,
           ),
+          // The shifts of the cash counter (Prompt 11.2b, ADR 0060): read by all, a cashier's own; opened and closed
+          // by whoever may record a payment. The closing slip is printed by whoever may read the shift.
+          ...screens(
+            '/shifts',
+            { read: 'ReadShifts', write: 'WorkShift' },
+            {
+              List: async () => (await import('./shifts/ShiftsPage')).ShiftsPage,
+              One: async () => (await import('./shifts/ShiftPage')).ShiftPage,
+              New: async () => (await import('./shifts/OpenShiftPage')).OpenShiftPage,
+              Edit: async () => (await import('./shifts/CloseShiftPage')).CloseShiftPage,
+            },
+            'close',
+          ),
+          guarded(
+            '/shifts/:id/print',
+            'ReadShifts',
+            async () => (await import('./printing/PrintedShiftSlipPage')).PrintedShiftSlipPage,
+          ),
           // The printed documents (Prompt 10.4b, ADR 0054): whoever may read a document may print it.
           guarded(
             '/bills/:id/print',
@@ -252,6 +271,7 @@ export const routes: RouteObject[] = [
             'Reports',
             async () => (await import('./reports/DailyCollectionPage')).DailyCollectionPage,
           ),
+          guarded('/reports/day-end', 'DayEnd', async () => (await import('./reports/DayEndPage')).DayEndPage),
           guarded(
             '/reports/outstanding',
             'Reports',

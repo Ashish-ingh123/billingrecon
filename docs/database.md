@@ -1101,7 +1101,8 @@ Built 2026-11-25 (Prompt 10.4).
   `Email nvarchar(256)`; `Gstin char(15)`. They share the row's `RowVersion` with the settings.
 - **`ServiceItems`** and **`BillLines`** each gain `SacCode char(6) NULL`: the item's services accounting code, and on a
   line the code its item had when the line was written.
-- **`DocumentPrints`**: `Id`, `TenantId`, `DocumentType nvarchar(20)` (`Bill`, `Payment`, `Refund`), `DocumentId
+- **`DocumentPrints`**: `Id`, `TenantId`, `DocumentType nvarchar(20)` (`Bill`, `Payment`, `Refund`; the CHECK also admits
+  `ShiftClosing` since migration `0030_ShiftClosingSlip`, though no print of a closing slip is recorded), `DocumentId
   uniqueidentifier`, `CopyNumber int` (`CK_DocumentPrints_CopyNumber`: 1 or more), `PrintedAtUtc`, `PrintedByUserId`
   (a key to `Users`). `UX_DocumentPrints_TenantId_DocumentType_DocumentId_CopyNumber` makes the copy numbers of a
   document gapless from 1 and answers how many it has. No key to the document: it is one of three tables.
@@ -1128,7 +1129,8 @@ Built 2026-11-26 (Prompt 10.4c).
 
 Built 2026-11-26 (Prompt 10.4c-2).
 
-- **`PrintSettings`**: `Id`, `TenantId`, `DocumentType varchar(20)` (`Bill`, `Payment`, `Refund`), `Paper varchar(20)`
+- **`PrintSettings`**: `Id`, `TenantId`, `DocumentType varchar(20)` (`Bill`, `Payment`, `Refund`, and since
+  migration `0030_ShiftClosingSlip` (Prompt 11.2b, ADR 0060 amended) `ShiftClosing`, the closing slip of a shift), `Paper varchar(20)`
   (`A4`, `A5`, `Roll80`), `MarginTopMm`, `MarginRightMm`, `MarginBottomMm`, `MarginLeftMm int` (each 5 to 25),
   `LogoPosition varchar(20)` (`Left`, `Centre`, `Right`), `LogoSize varchar(20)` (`Small`, `Medium`, `Large`),
   `PrePrintedStationery bit`, `StationeryTopMm int` (0 to 80), seven `bit` switches (`ShowPatientContact`, `ShowPayer`,

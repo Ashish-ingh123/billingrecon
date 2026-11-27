@@ -58,7 +58,7 @@ async function signOut(page: Page) {
 
 /**
  * The signed-in cashier's shift of today (Prompt 11.2, ADR 0060): cash is taken in an open shift, on the business date
- * of that shift. Asked of the API with the page's own token until the shift has its screens (Prompt 11.2b): an open
+ * of that shift. Asked of the API with the page's own token (the journey is about the payment; the shift's screens have tests of their own): an open
  * shift of an earlier day is counted to exactly its expected cash and closed, and today's is opened.
  */
 async function shiftOfToday(page: Page) {

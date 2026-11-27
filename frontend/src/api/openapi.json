@@ -20242,7 +20242,8 @@
         "enum": [
           "Bill",
           "Payment",
-          "Refund"
+          "Refund",
+          "ShiftClosing"
         ],
         "description": "The kinds of document that are printed for a patient or a payer (ADR 0054). The member names are stored as text."
       },

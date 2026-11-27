@@ -499,6 +499,9 @@ frontend/                      React + TypeScript + Vite (ADR 0038): index.html 
                                src/administration (api.ts, the users list, a user's page, the user forms with
                                RoleChoices, the settings with the prefix request) and src/auth/ChangePasswordPage.tsx
                                (ADR 0051).
+                               src/shifts (api.ts, the list with the user's own shift, opening, counting and closing, a
+                               shift's page), src/reports/DayEndPage.tsx, and src/printing/ShiftSlipBody.tsx with
+                               PrintedShiftSlipPage.tsx (ADR 0060, amended).
                                e2e/journey.spec.ts with playwright.config.ts and tsconfig.e2e.json: the browser journey
                                (ADR 0046).
 docs/                          Design documents and ADRs (see section 7)
@@ -1206,12 +1209,23 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    its row version, which is what keeps a closing and a payment at the same instant from both committing (409); it
    raises no event. `GET /api/v1/reports/day-end` (policy `DayEnd`) lists every shift of a date and the cash outside
    the shifts, and equals the Cash row of the daily collection. A Cashier and a BillingClerk read their own shifts
-   only (`ShiftReaders`, 404 otherwise). Migration `0029_CashierShifts`; the next free migration is `0030` and the next
-   ADR 0061. **A test that records cash opens the shift of its user first** (`Support/ShiftsApi.EnsureShiftAsync`, or
+   only (`ShiftReaders`, 404 otherwise). Migration `0029_CashierShifts`; the next
+   ADR is 0061. **A test that records cash opens the shift of its user first** (`Support/ShiftsApi.EnsureShiftAsync`, or
    `FreshShiftAsync` when the scenario moves through the days), and so do `deploy/demo/seed.mjs`, `deploy/load/load.mjs`
    and the browser journey. A new use case that moves cash asks `CashShifts.RequireAsync` before it takes its number,
    calls `TakeCashDocument()` and sets the template's `ShiftId`; a new kind of approval request needs its line in
    `PendingApprovalPolicies`, `AuditTrailPolicies`, the frontend's `approvals/api.ts` and the count of
    `PermissionConventionTests`. The checker's inbox decides a shift's closing already; the screens of the shift and
-   the printed closing slip are 11.2b. Owed: runbook section 8, row 11.2a (SQL Server 2022, the load test again, the
+   the printed closing slip are 11.2b, below. Owed: runbook section 8, row 11.2a (SQL Server 2022, the load test again, the
    demo and the journey with Docker); backlog B38 to B40.
+   **Prompt 11.2b (2026-11-27, ADR 0060 "Amended 2026-11-27"):** the screens. One section, Shifts (`frontend/src/shifts`:
+   `/shifts` with the user's own shift and the list, `/shifts/new`, `/shifts/:id`, `/shifts/:id/close`); the count is
+   added up in exact paise (`countedPaise`) against the expected cash the API answered, the difference said in words,
+   and a 409 starts the count again from the shift as it is now. Record payment reads the user's shift when Cash is
+   chosen: no open shift disables it, an open one fixes the date. The day-end report is `/reports/day-end`, in the
+   index for the `DayEnd` roles only. The closing slip is `/shifts/:id/print` (`printing/ShiftSlipBody`,
+   `PrintedShiftSlipPage`), laid out by a fourth kind of print settings, `PrintedDocumentType.ShiftClosing` (migration
+   `0030_ShiftClosingSlip`); its print is not recorded. A shift's statuses are in `components/documentStatuses.ts`. An
+   amount the API may answer below zero is read with `signedPaise`, never `paiseOfServer`. US-49. The next free
+   migration is `0031`. Owed: runbook section 8, row 11.2b (nginx, SQL Server 2022, paper). **Stage 6 is done; stage 7
+   is 11.3, two-step sign-in and a forgotten password.**

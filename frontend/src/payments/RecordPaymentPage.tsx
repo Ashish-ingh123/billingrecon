@@ -1,10 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useApiClient } from '../api/ApiClientContext';
 import { isRetryable, useIdempotentRequest } from '../api/useIdempotentRequest';
 import { PayerPicker } from '../bills/pickers';
+import { Banner } from '../components/Banner';
 import buttons from '../components/buttons.module.css';
 import fieldStyles from '../components/Field.module.css';
 import { SelectField, TextField } from '../components/Field';
@@ -12,9 +13,10 @@ import forms from '../components/forms.module.css';
 import { PageHeader } from '../components/PageHeader';
 import { ProblemAlert } from '../components/ProblemAlert';
 import { useRecordForm } from '../components/useRecordForm';
-import { todayInIndia } from '../format';
+import { formatDate, todayInIndia } from '../format';
 import { checkAmount } from '../money';
 import { usePayer, type Payer } from '../payers/api';
+import { useMyShift } from '../shifts/api';
 import {
   checkReference,
   methodLabels,
@@ -67,6 +69,20 @@ function RecordPaymentForm({ initialPayer }: { initialPayer: Payer | null }) {
     defaultValues: { paymentDate: todayInIndia(), method: '', reference: '', amount: '', notes: '' },
   });
   const method = useWatch({ control: form.control, name: 'method' });
+
+  // Cash is taken in the user's open shift, on the business date of that shift (BR-311, ADR 0060): the shift is read
+  // when cash is chosen, the date follows it, and without an open shift nothing is sent.
+  const cash = method === 'Cash';
+  const myShift = useMyShift(cash);
+  const openShift = cash && myShift.data?.status === 'Open' ? myShift.data : null;
+  const noShift = cash && myShift.data !== undefined && openShift === null;
+  const shiftDate = openShift?.businessDate;
+  const { setValue } = form;
+  useEffect(() => {
+    if (shiftDate !== undefined) {
+      setValue('paymentDate', shiftDate);
+    }
+  }, [shiftDate, setValue]);
   const outcome = useRecordForm<Payment, PaymentValues>({ form, fields: [...paymentFields] });
   const {
     register,
@@ -83,6 +99,7 @@ function RecordPaymentForm({ initialPayer }: { initialPayer: Payer | null }) {
     onSuccess: (payment) => {
       queryClient.removeQueries({ queryKey: paymentKeys.one(payment.id) });
       paymentsChanged(queryClient);
+      void queryClient.invalidateQueries({ queryKey: ['shifts'] });
       void navigate(`/payments/${payment.id}`);
     },
     onError: async (error) => {
@@ -112,6 +129,21 @@ function RecordPaymentForm({ initialPayer }: { initialPayer: Payer | null }) {
             Nothing is done twice: recording again with nothing changed finishes the same request.
           </p>
         )}
+        {noShift && (
+          <Banner tone="warning" title="You have no open shift" live>
+            {myShift.data === null ? (
+              <>
+                Cash is taken in an open shift. <Link to="/shifts/new">Open a shift</Link> with the float of your
+                drawer, then record the payment; or choose another method.
+              </>
+            ) : (
+              <>
+                Your shift is counted and waits for approval, so it takes no cash.{' '}
+                <Link to="/shifts">See your shift</Link>, or choose another method.
+              </>
+            )}
+          </Banner>
+        )}
         <div className={forms.grid}>
           <div className={forms.wide}>
             <PayerPicker
@@ -131,6 +163,12 @@ function RecordPaymentForm({ initialPayer }: { initialPayer: Payer | null }) {
             requiredMark
             type="date"
             max={todayInIndia()}
+            readOnly={openShift !== null}
+            hint={
+              openShift === null
+                ? undefined
+                : `Cash is dated ${formatDate(openShift.businessDate)}, the business date of your open shift.`
+            }
             error={errors.paymentDate?.message}
             {...register('paymentDate', { validate: (value) => value !== '' || 'Enter the payment date.' })}
           />
@@ -185,7 +223,7 @@ function RecordPaymentForm({ initialPayer }: { initialPayer: Payer | null }) {
           <button
             type="submit"
             className={buttons.primary}
-            disabled={recording.isPending}
+            disabled={recording.isPending || noShift}
             aria-busy={recording.isPending}
           >
             {recording.isPending ? 'Recording…' : 'Record payment'}

@@ -1139,11 +1139,12 @@ not the mark of the original or a duplicate.
 
 | Method and path | Who | Success | Failures |
 |---|---|---|---|
-| `GET /api/v1/settings/print` | Anyone signed in (`SignedIn`) | 200, three answers | |
+| `GET /api/v1/settings/print` | Anyone signed in (`SignedIn`) | 200, four answers | |
 | `PUT /api/v1/settings/print/{documentType}` | TenantAdmin (`ManageTenant`) | 200, the settings, `ETag` | 400; 409 `concurrency_conflict`; 428 |
 
-`documentType` is `Bill`, `Payment` (its receipt) or `Refund` (its voucher). `GET` always answers the three, in that
-order; a kind the hospital never saved answers **the defaults**, which are the sheet as it was before there were
+`documentType` is `Bill`, `Payment` (its receipt), `Refund` (its voucher) or, since Prompt 11.2b, `ShiftClosing` (the
+closing slip of a shift, section 8.20, which may be printed on the roll and whose print is not recorded). `GET` always
+answers the four, in that order; a kind the hospital never saved answers **the defaults**, which are the sheet as it was before there were
 settings, with the version `AAAAAAAAAAA=` (eight zero bytes). `PUT` sends every part and needs `If-Match` with the
 version read: the version of none for a first save, which makes the row, and the row's own after that. Each part:
 

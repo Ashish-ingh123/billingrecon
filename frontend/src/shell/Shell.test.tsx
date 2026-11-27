@@ -17,7 +17,7 @@ describe('the shell of a signed-in user', () => {
     expect(screen.getByText('Administrator')).toBeInTheDocument();
 
     const navigation = screen.getByRole('navigation', { name: 'Main' });
-    expect(within(navigation).getAllByRole('link')).toHaveLength(12);
+    expect(within(navigation).getAllByRole('link')).toHaveLength(13);
     expect(within(navigation).getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
   });
 
@@ -35,6 +35,7 @@ describe('the shell of a signed-in user', () => {
       'Bills',
       'Payments',
       'Refunds',
+      'Shifts',
       'Credit notes',
       'Reports',
     ]);

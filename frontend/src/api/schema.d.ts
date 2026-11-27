@@ -11325,7 +11325,7 @@ export interface components {
          * @description The kinds of document that are printed for a patient or a payer (ADR 0054). The member names are stored as text.
          * @enum {unknown}
          */
-        PrintedDocumentType: "Bill" | "Payment" | "Refund";
+        PrintedDocumentType: "Bill" | "Payment" | "Refund" | "ShiftClosing";
         /**
          * @description How the hospital prints one kind of document (ADR 0059; docs/api.md section 8.19). A kind the hospital has saved no
          *     settings for answers the defaults with string PrintSettingsMapping.NoVersion as its version, which is what

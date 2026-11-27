@@ -34,7 +34,7 @@ public sealed class PrintSettingsHandlerTests
 
         var result = await new GetPrintSettingsHandler(_settings).HandleAsync(new GetPrintSettingsQuery(), CancellationToken.None);
 
-        result.Value.Select(answer => answer.DocumentType).ShouldBe([PrintedDocumentType.Bill, PrintedDocumentType.Payment, PrintedDocumentType.Refund]);
+        result.Value.Select(answer => answer.DocumentType).ShouldBe([PrintedDocumentType.Bill, PrintedDocumentType.Payment, PrintedDocumentType.Refund, PrintedDocumentType.ShiftClosing]);
         result.Value.ShouldAllBe(answer => answer.Version == PrintSettingsMapping.NoVersion && answer.Paper == PaperSize.A4 && answer.MarginTopMm == 14 && answer.MarginLeftMm == 12);
         PrintSettingsMapping.NoVersion.ShouldBe("AAAAAAAAAAA=");
     }

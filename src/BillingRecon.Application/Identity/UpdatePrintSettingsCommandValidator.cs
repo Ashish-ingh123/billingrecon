@@ -14,7 +14,7 @@ public sealed class UpdatePrintSettingsCommandValidator : AbstractValidator<Upda
     public UpdatePrintSettingsCommandValidator()
     {
         RuleFor(command => command.ExpectedVersion).ExpectedVersion();
-        RuleFor(command => command.DocumentType).IsInEnum().WithMessage("The document is Bill, Payment or Refund.");
+        RuleFor(command => command.DocumentType).IsInEnum().WithMessage("The document is Bill, Payment, Refund or ShiftClosing.");
 
         RuleFor(command => command.Layout).Custom((layout, context) =>
         {

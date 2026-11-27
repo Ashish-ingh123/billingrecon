@@ -1,4 +1,6 @@
 import { Link } from 'react-router';
+import { useSession } from '../auth/AuthContext';
+import { can, type Policy } from '../auth/permissions';
 import { Icon, type IconName } from '../brand/Icon';
 import { PageHeader } from '../components/PageHeader';
 import styles from './Reports.module.css';
@@ -6,7 +8,7 @@ import styles from './Reports.module.css';
 /** The six reports of R1 (BR-901) and their screens, as the index shows them (ADR 0043 point 2). */
 const reportGroups: readonly {
   title: string;
-  reports: readonly { to: string; name: string; about: string; icon: IconName }[];
+  reports: readonly { to: string; name: string; about: string; icon: IconName; policy?: Policy }[];
 }[] = [
   {
     title: 'Bills',
@@ -29,6 +31,13 @@ const reportGroups: readonly {
         icon: 'wallet',
       },
       { to: '/reports/collection', name: 'Daily collection', about: 'The money of one day by method.', icon: 'card' },
+      {
+        to: '/reports/day-end',
+        name: 'Day-end report',
+        about: 'Every shift of one day with its cash, and the cash outside the shifts.',
+        icon: 'clock',
+        policy: 'DayEnd',
+      },
     ],
   },
   {
@@ -85,6 +94,8 @@ const reportGroups: readonly {
 
 /** The reports (BR-901): every role reads them; each shows the server's figures and exports every row as CSV. */
 export function ReportsIndex() {
+  const { roles } = useSession();
+
   return (
     <section aria-labelledby="page-title">
       <PageHeader
@@ -96,20 +107,22 @@ export function ReportsIndex() {
           <li key={group.title} className={styles.group}>
             <h2>{group.title}</h2>
             <ul className={styles.cards}>
-              {group.reports.map((report) => (
-                // A card that opens its report: only the name is the link, and the card takes its click (ADR 0050).
-                <li key={report.to} className={styles.card}>
-                  <span className={styles.cardIcon} aria-hidden="true">
-                    <Icon name={report.icon} />
-                  </span>
-                  <span>
-                    <Link className={styles.cardLink} to={report.to}>
-                      {report.name}
-                    </Link>
-                    <p>{report.about}</p>
-                  </span>
-                </li>
-              ))}
+              {group.reports
+                .filter((report) => report.policy === undefined || can(report.policy, roles))
+                .map((report) => (
+                  // A card that opens its report: only the name is the link, and the card takes its click (ADR 0050).
+                  <li key={report.to} className={styles.card}>
+                    <span className={styles.cardIcon} aria-hidden="true">
+                      <Icon name={report.icon} />
+                    </span>
+                    <span>
+                      <Link className={styles.cardLink} to={report.to}>
+                        {report.name}
+                      </Link>
+                      <p>{report.about}</p>
+                    </span>
+                  </li>
+                ))}
             </ul>
           </li>
         ))}

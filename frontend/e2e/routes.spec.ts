@@ -14,6 +14,7 @@ import {
   screenshots,
   sessionOf,
   trail,
+  userId,
   type Answers,
 } from './stubbed';
 
@@ -197,6 +198,69 @@ const figure = (value: number, previous: number | null, changePercent: number | 
   changePercent,
 });
 
+// Since Prompt 11.2b (ADR 0060): the signed-in user's open shift, a colleague's counted one, and their day.
+const openShift = {
+  id: 'fe000000-0000-4000-8000-000000000001',
+  cashierUserId: userId,
+  cashierName: 'Asha Rao',
+  businessDate: '2026-11-23',
+  status: 'Open',
+  openingFloat: 1000,
+  openedAtUtc: '2026-11-23T03:00:00+00:00',
+  cashDocuments: 1,
+  cashReceived: 2000,
+  cashPaidOut: 0,
+  expectedCash: 3000,
+  count: null,
+  looseChange: null,
+  countedCash: null,
+  difference: null,
+  differenceReason: null,
+  countedAtUtc: null,
+  closedAtUtc: null,
+  version: 'AAAAAAAAEAA=',
+};
+const countedShift = {
+  ...openShift,
+  id: 'fe000000-0000-4000-8000-000000000002',
+  cashierUserId: 'd0000000-0000-4000-8000-000000000077',
+  cashierName: 'Chetan Cashier',
+  status: 'PendingApproval',
+  count: [2000, 500, 200, 100, 50, 20, 10, 5, 2, 1].map((denomination) => ({
+    denomination,
+    pieces: denomination === 500 ? 5 : denomination === 200 ? 2 : 0,
+  })),
+  looseChange: 0,
+  countedCash: 2900,
+  difference: -100,
+  differenceReason: 'A note of 100 is missing',
+  countedAtUtc: '2026-11-23T11:30:00+00:00',
+  version: 'AAAAAAAAEQA=',
+};
+const dayEnd = {
+  date: '2026-11-23',
+  shifts: [openShift, countedShift].map((shift) => ({
+    shiftId: shift.id,
+    cashierUserId: shift.cashierUserId,
+    cashierName: shift.cashierName,
+    status: shift.status,
+    openedAtUtc: shift.openedAtUtc,
+    closedAtUtc: null,
+    openingFloat: shift.openingFloat,
+    received: shift.cashReceived,
+    paidOut: shift.cashPaidOut,
+    net: shift.cashReceived - shift.cashPaidOut,
+    expectedCash: shift.expectedCash,
+    countedCash: shift.countedCash,
+    difference: shift.difference,
+  })),
+  shiftsTotal: { received: 4000, paidOut: 0, net: 4000 },
+  outsideShifts: { received: 0, paidOut: 0, net: 0 },
+  cash: { received: 4000, paidOut: 0, net: 4000 },
+  difference: -100,
+  unclosedShifts: 2,
+};
+
 const answers: Answers = {
   'GET /api/v1/patients': () => pageOf([patient]),
   [`GET /api/v1/patients/${patient.id}`]: () => patient,
@@ -211,6 +275,10 @@ const answers: Answers = {
   'GET /api/v1/payments': () => pageOf([payment]),
   [`GET /api/v1/payments/${payment.id}`]: () => payment,
   [`GET /api/v1/payments/${payment.id}/allocations`]: () => ({ payment, allocations: [allocation] }),
+  'GET /api/v1/cashier-shifts': () => pageOf([openShift, countedShift]),
+  [`GET /api/v1/cashier-shifts/${openShift.id}`]: () => openShift,
+  [`GET /api/v1/cashier-shifts/${countedShift.id}`]: () => countedShift,
+  'GET /api/v1/reports/day-end': () => dayEnd,
   'GET /api/v1/refunds': () => pageOf([refund]),
   [`GET /api/v1/refunds/${refund.id}`]: () => refund,
   'GET /api/v1/credit-notes': () => pageOf([creditNote, draftCreditNote]),
@@ -332,6 +400,14 @@ const routes: readonly (readonly [string, string | RegExp])[] = [
   ['/reports/bills', 'Bill register'],
   ['/reports/payments', 'Payment register'],
   ['/reports/collection', 'Daily collection'],
+  // Since Prompt 11.2b: the shifts of the cash counter, the closing slip and the day-end report (ADR 0060).
+  ['/shifts', 'Shifts'],
+  ['/shifts/new', 'Open a shift'],
+  [`/shifts/${openShift.id}`, /^Shift of/],
+  [`/shifts/${openShift.id}/close`, 'Close the shift'],
+  [`/shifts/${countedShift.id}`, /^Shift of/],
+  [`/shifts/${countedShift.id}/print`, /^Print/],
+  ['/reports/day-end', 'Day-end report'],
   ['/reports/outstanding', 'Outstanding by payer'],
   ['/reports/unapplied-cash', 'Unapplied cash'],
   ['/reports/available-credit', 'Available credit'],

@@ -1012,7 +1012,7 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         {
                             t.HasCheckConstraint("CK_DocumentPrints_CopyNumber", "[CopyNumber] >= 1");
 
-                            t.HasCheckConstraint("CK_DocumentPrints_DocumentType", "[DocumentType] IN ('Bill', 'Payment', 'Refund')");
+                            t.HasCheckConstraint("CK_DocumentPrints_DocumentType", "[DocumentType] IN ('Bill', 'Payment', 'Refund', 'ShiftClosing')");
                         });
                 });
 
@@ -1348,7 +1348,7 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                             t.HasCheckConstraint("CK_PrintSettings_BillShowsTax", "[DocumentType] <> 'Bill' OR ([ShowSacColumn] = 1 AND [ShowTaxSplit] = 1)");
 
-                            t.HasCheckConstraint("CK_PrintSettings_DocumentType", "[DocumentType] IN ('Bill', 'Payment', 'Refund')");
+                            t.HasCheckConstraint("CK_PrintSettings_DocumentType", "[DocumentType] IN ('Bill', 'Payment', 'Refund', 'ShiftClosing')");
 
                             t.HasCheckConstraint("CK_PrintSettings_LogoPosition", "[LogoPosition] IN ('Left', 'Centre', 'Right')");
 

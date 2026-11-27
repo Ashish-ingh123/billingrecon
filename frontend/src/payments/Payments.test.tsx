@@ -38,6 +38,8 @@ describe('recording a payment (US-30, BR-301)', () => {
     const api = routedApi({
       [`GET /api/v1/payers/${ashasPayer.id}`]: () => json(200, ashasPayer),
       'POST /api/v1/payments': () => json(201, cash),
+      // Cash is taken in the user's open shift, of today here (BR-311, Prompt 11.2).
+      'GET /api/v1/cashier-shifts': () => json(200, page([{ status: 'Open', businessDate: todayInIndia() }])),
       ...paymentRoutes(),
     });
     const { user, router } = renderApp(`/payments/new?payerId=${ashasPayer.id}`, {

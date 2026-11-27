@@ -1,6 +1,7 @@
 import type { Bill } from '../bills/api';
 import type { PaymentWithAllocations } from '../payments/api';
 import type { Refund } from '../refunds/api';
+import type { CashierShift } from '../shifts/api';
 
 /**
  * A sample document for the preview of the print settings (ADR 0059): invented, and the same for every hospital. A
@@ -131,3 +132,37 @@ export const sampleRefund: Refund = {
 };
 
 export const sampleCashier = 'Meera Nair';
+
+/** A shift counted five rupees short and approved, so that the preview shows a difference and its reason. */
+export const sampleShift: CashierShift = {
+  id: '00000000-0000-4000-8000-0000000000c1',
+  cashierUserId: '00000000-0000-4000-8000-0000000000c2',
+  cashierName: sampleCashier,
+  businessDate: '2026-04-06',
+  status: 'Closed',
+  openingFloat: 1000,
+  openedAtUtc: '2026-04-06T03:00:00+00:00',
+  cashDocuments: 14,
+  cashReceived: 8450.5,
+  cashPaidOut: 250.5,
+  expectedCash: 9200,
+  count: [
+    { denomination: 2000, pieces: 0 },
+    { denomination: 500, pieces: 14 },
+    { denomination: 200, pieces: 6 },
+    { denomination: 100, pieces: 9 },
+    { denomination: 50, pieces: 1 },
+    { denomination: 20, pieces: 2 },
+    { denomination: 10, pieces: 0 },
+    { denomination: 5, pieces: 1 },
+    { denomination: 2, pieces: 0 },
+    { denomination: 1, pieces: 0 },
+  ],
+  looseChange: 0,
+  countedCash: 9195,
+  difference: -5,
+  differenceReason: 'A five-rupee coin given in change by mistake',
+  countedAtUtc: '2026-04-06T11:30:00+00:00',
+  closedAtUtc: '2026-04-06T11:45:00+00:00',
+  version: 'AAAAAAAAAAQ=',
+};

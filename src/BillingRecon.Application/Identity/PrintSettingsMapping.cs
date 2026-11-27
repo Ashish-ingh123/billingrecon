@@ -11,7 +11,7 @@ public static class PrintSettingsMapping
     public static string NoVersion { get; } = Convert.ToBase64String(new byte[8]);
 
     /// <summary>The kinds of document that are printed, in the order they are answered.</summary>
-    public static IReadOnlyList<PrintedDocumentType> DocumentTypes { get; } = [PrintedDocumentType.Bill, PrintedDocumentType.Payment, PrintedDocumentType.Refund];
+    public static IReadOnlyList<PrintedDocumentType> DocumentTypes { get; } = [PrintedDocumentType.Bill, PrintedDocumentType.Payment, PrintedDocumentType.Refund, PrintedDocumentType.ShiftClosing];
 
     /// <summary><paramref name="settings"/>, with their version.</summary>
     public static PrintSettingsDto ToDto(this PrintSettings settings)

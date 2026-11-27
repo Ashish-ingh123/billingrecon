@@ -57,7 +57,7 @@ public sealed class PrintSettingsApiTests(SqlServerFixture sqlServer) : Database
 
         // Nothing saved: three answers, the defaults, each with the version of none.
         var before = await ReadAsync(cashier);
-        before.Select(answer => answer.DocumentType).ShouldBe([PrintedDocumentType.Bill, PrintedDocumentType.Payment, PrintedDocumentType.Refund]);
+        before.Select(answer => answer.DocumentType).ShouldBe([PrintedDocumentType.Bill, PrintedDocumentType.Payment, PrintedDocumentType.Refund, PrintedDocumentType.ShiftClosing]);
         before.ShouldAllBe(answer => answer.Version == PrintSettingsMapping.NoVersion);
         before[1].ShouldBe(PrintSettingsMapping.DefaultDto(PrintedDocumentType.Payment));
 
@@ -157,6 +157,26 @@ public sealed class PrintSettingsApiTests(SqlServerFixture sqlServer) : Database
         var rowsChanged = async (string sql) => await Should.ThrowAsync<Exception>(() => direct.Database.ExecuteSqlRawAsync(sql));
         (await rowsChanged("UPDATE [PrintSettings] SET [ShowTaxSplit] = 0 WHERE [DocumentType] = 'Bill'")).ToString().ShouldContain("CK_PrintSettings_BillShowsTax");
         (await rowsChanged("UPDATE [PrintSettings] SET [Paper] = 'Roll80' WHERE [DocumentType] = 'Bill'")).ToString().ShouldContain("CK_PrintSettings_BillPaper");
+    }
+
+    [Fact]
+    public async Task ADR0060_the_closing_slip_of_a_shift_has_print_settings_of_its_own_and_may_be_printed_on_a_roll()
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var admin = await NewApiTenantAsync();
+        using var administrator = factory.CreateClientFor(admin, "TenantAdmin");
+
+        using var saved = await administrator.SendWithIfMatchAsync(
+            HttpMethod.Put, Of("ShiftClosing"), Defaults with { Paper = PaperSize.Roll80, ShowAmountInWords = false, FooterLine = "Counted in the presence of the supervisor" }, PayersApi.ETag(PrintSettingsMapping.NoVersion));
+        saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
+
+        using var read = await administrator.GetAsync(new Uri("/api/v1/settings/print", UriKind.Relative));
+        var slip = (await read.ReadAsAsync<List<PrintSettingsDto>>()).Single(answer => answer.DocumentType == PrintedDocumentType.ShiftClosing);
+        (slip.Paper, slip.ShowAmountInWords, slip.FooterLine).ShouldBe((PaperSize.Roll80, false, "Counted in the presence of the supervisor"));
+
+        // The row is the slip's alone: the receipt still prints by the defaults.
+        await using var context = ApiContext(admin);
+        (await context.Set<PrintSettings>().Select(settings => settings.DocumentType).ToListAsync()).ShouldBe([PrintedDocumentType.ShiftClosing]);
     }
 
     [Fact]

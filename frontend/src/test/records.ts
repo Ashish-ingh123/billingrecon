@@ -321,8 +321,8 @@ export function problem(status: number, errorCode: string, detail: string, error
  * How a hospital that saved no print settings prints each kind of document, as `GET /api/v1/settings/print` answers it
  * (ADR 0059): the defaults, which are the sheet as it was before there were settings.
  */
-export function printSettings(overrides: Partial<Record<'Bill' | 'Payment' | 'Refund', object>> = {}) {
-  return (['Bill', 'Payment', 'Refund'] as const).map((documentType) => ({
+export function printSettings(overrides: Partial<Record<'Bill' | 'Payment' | 'Refund' | 'ShiftClosing', object>> = {}) {
+  return (['Bill', 'Payment', 'Refund', 'ShiftClosing'] as const).map((documentType) => ({
     documentType,
     paper: 'A4',
     marginTopMm: 14,

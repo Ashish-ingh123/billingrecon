@@ -251,6 +251,9 @@ against the one-command local run with the demo hospital (`docs/runbook.md` sect
   three races through `RaceGate` (two openings; a closing against a cash payment, each way), which were seen to fail
   with the shift's count of cash documents removed. A database test that records cash opens the shift of its user
   first (`Support/ShiftsApi`).
+  The screens (11.2b): `frontend/src/shifts/Shifts.test.tsx` (the count added up in exact paise, a difference in words
+  that asks its reason, a conflict that starts the count again, the slip printed without a recorded print, cash that
+  asks for an open shift and takes its date), and the seven shift routes of `e2e/routes.spec.ts` in both themes with axe.
 - **The lens and Tab in a search** (Prompt 10.4d; ADR 0039 and ADR 0040, amended 2026-11-26): `SearchTab.test.tsx` (the
   lens on every search box, drawn and not read; the spinner in its place; Clear; a list's search sent when its box is
   left and not when unchanged; a picker by Tab with one result, several, none, a late answer and a late answer after

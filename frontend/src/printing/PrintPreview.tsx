@@ -2,20 +2,22 @@ import { useLetterheadImage, type Letterhead } from './api';
 import { BillBody } from './BillBody';
 import { ReceiptBody } from './ReceiptBody';
 import { RefundBody } from './RefundBody';
-import { sampleBill, sampleCashier, samplePatient, sampleReceipt, sampleRefund } from './samples';
+import { sampleBill, sampleCashier, samplePatient, sampleReceipt, sampleRefund, sampleShift } from './samples';
 import { useLayoutRules, type PrintedDocumentType, type PrintLayout } from './settings';
 import { SheetFrame } from './SheetFrame';
+import { ShiftSlipBody } from './ShiftSlipBody';
 import { billDocumentKind, billDocumentTitles } from './tax';
 
 const titles: Record<PrintedDocumentType, string> = {
   Bill: billDocumentTitles[billDocumentKind(sampleBill)],
   Payment: 'Receipt',
   Refund: 'Refund Voucher',
+  ShiftClosing: 'Shift Closing Slip',
 };
 
 /**
- * The preview of the print settings (ADR 0059): a sample bill, receipt or refund voucher drawn by the very components
- * that print (`SheetFrame` and the three bodies), on the hospital's own letterhead with its logo and signature, laid
+ * The preview of the print settings (ADR 0059): a sample bill, receipt, refund voucher or closing slip drawn by the very
+ * components that print (`SheetFrame` and the four bodies), on the hospital's own letterhead with its logo and signature, laid
  * out by the settings as they stand in the form, saved or not. What is seen here is what a print gives; only the
  * document is invented, and the mark says "Preview" where a print says Original or Duplicate.
  */
@@ -72,6 +74,7 @@ export function PrintPreview({
           source={<>Payment {sampleReceipt.payment.number}</>}
         />
       )}
+      {documentType === 'ShiftClosing' && <ShiftSlipBody shift={sampleShift} layout={layout} />}
     </SheetFrame>
   );
 }

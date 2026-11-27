@@ -150,3 +150,43 @@ a difference is recorded, not posted; a second person approves a closing with a 
   endpoints and controller; the count of decisions in `PermissionConventionTests` is 20.
 - The demo seed takes cash only today, in the cashier's shift, and the earlier days' money by UPI and card.
 - Verified on .NET 10 with LocalDB 2019 in a throwaway copy, not on SQL Server 2022: see runbook section 8, row 11.2.
+
+## Amended 2026-11-27 (Prompt 11.2b): the screens and the closing slip
+
+1. **One section, Shifts** (`/shifts`, every role; `frontend/src/shifts`). Its page shows the user's own shift first,
+   to those who may work one: none, with the way to open one; open, with what the drawer should hold and the way to
+   count it; or waiting for approval. Below it is the list, a cashier's own or all (the API decides), by status and
+   business date in the address. Opening is `/shifts/new`, a shift's page `/shifts/:id`, counting `/shifts/:id/close`.
+2. **The count is added up in the browser in exact paise** (`shifts/api.ts`: `countedPaise`, on `BigInt`, as every
+   amount the browser compares, ADR 0041) and shown against the expected cash the API read from the ledger, with the
+   difference in words ("Short by", "Over by"), never a bare sign. The expected cash is shown before the count is
+   sent, as the plan said; a blind count was not asked for. With a difference the form asks its reason and its button
+   says that the closing goes for approval; the API adds the count up again and is the authority.
+3. **A conflict starts the count again.** When cash joined the shift while it was counted, the closing answers 409;
+   the page reads the shift again and the form starts from its new version and expected cash, with empty boxes: no
+   count is carried over to a figure it was not made against.
+4. **Recording cash** (`RecordPaymentPage`): when Cash is chosen the user's shift is read. Without an open one a
+   banner says so with the way to open one, and Record payment is disabled; with one, the payment date is the
+   shift's business date and cannot be changed. The API refuses either way (BR-311).
+5. **The closing slip** is `/shifts/:id/print`, for whoever may read the shift, once it is counted: `SheetFrame` with
+   a pure body, `ShiftSlipBody`, as the three printed documents are drawn (ADR 0059). It has **print settings of its
+   own**: a fourth `PrintedDocumentType`, `ShiftClosing` (A4, A5 or the roll; the letterhead, margins, signature
+   block, amount in words, footer and terms apply; the payer, patient contact and cashier switches do not, and the
+   settings screen does not offer them). **Its print is not recorded** and it is neither original nor duplicate: it
+   is no financial document. Its mark is where the shift stands, closed or waiting for approval. Migration
+   `0030_ShiftClosingSlip` widens the CHECK of `PrintSettings.DocumentType`, and that of `DocumentPrints`, which shares
+   the enum, though no row of that kind is written: `POST .../prints` exists for bills, payments and refunds only.
+6. **The day-end report** is `/reports/day-end` (policy `DayEnd`), in the reports index for those roles only, with the
+   CSV of the other reports and a link to the daily collection of the same date.
+7. **The browser journey** opens the cashier's shift of today through the API with the page's own token: the journey
+   is about the payment, and the shift screens have their own tests.
+
+### Built note of the amendment
+
+- A difference the API answers below zero is read with `signedPaise`; `paiseOfServer` refuses a negative amount, which
+  the component tests found on the first shortage.
+- No package, no change of nginx's policy, no inline style: the slip takes its paper and margins through
+  `useLayoutRules`, as the other sheets do.
+- Verified: 656 component tests; the seven shift routes of `e2e/routes.spec.ts` in Edge against the built app, both
+  themes, desktop and phone, with axe and nginx's policy applied by the test. Not verified: through nginx, on SQL
+  Server 2022, and on paper (runbook section 8, row 11.2b).
