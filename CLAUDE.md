@@ -1367,4 +1367,11 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    the last full backup (both written to the `ops-state` volume by `backup-loop.sh`) and the certificate, and mails once
    a day per check by `curl`. `deploy/prod/watch.test.sh` tests it against `watch-test-servers.mjs` and runs in CI's
    frontend job. Runbook section 20 is operations and on-call. A new secret file goes into the counts of
-   `ProductionDeploymentTests` (now nine files, nine images). Owed: runbook section 8, row 10.6b. **10.7 is next.**
+   `ProductionDeploymentTests` (now nine files, nine images). Owed: runbook section 8, row 10.6b. 
+
+9. **Prompt 10.7a (2026-11-27):** `docs/go-live.md` is complete but for the training notes: the checklist C1 to C20 (owners
+   are roles, dates counted back from the reference cut-over of 1 April 2027; none marked done by Claude Code), the
+   acceptance script in two parts with a column for the client's tester, the cut-over plan (rollback point: 1 April,
+   08:00, before the first live bill), go or no-go on 31 March, and two weeks of hypercare with the owner as first line.
+   C1, the client's acceptance date, stays open until there is a client. 10.7b: the training notes per role with
+   screenshots from the browser suite, the README, and `v1.2.0` proposed.
