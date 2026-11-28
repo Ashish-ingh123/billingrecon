@@ -313,3 +313,34 @@ What every role should know:
 
 6. **Import** is for the cut-over only (runbook section 18).
 7. **Keep two TenantAdmins with a second step** (C17): one resets the other.
+8. **Channels** (R2): each bank account the counter's UPI, card, transfer and cheque money reaches, with how its
+   statement is read. Download one statement from the bank as CSV, choose it as the sample, and pick each column from
+   the names it offers; keep only the last four digits of the account. A Razorpay account names the bank it pays into.
+   A change of the mapping applies to the next statement only.
+
+   ![A new settlement channel](ui/channel-new.png)
+   ![The channels](ui/settings-channels.png)
+
+### Accountant: the bank statements (R2)
+
+The Accountant reads everything a Viewer reads, makes the accountant's export, and imports the bank statements. An
+Accountant approves nothing and changes no bill, payment or setting.
+
+1. **Bank reconciliation, Import a statement**: choose the account, choose the bank's CSV (saved as UTF-8, at most
+   1 MB: a longer statement goes in as several files, a week or a fortnight each), and **Check the file** first. The
+   check stores nothing: it says how many lines are new, how many the account holds already from an earlier file, the
+   money in and out, and every row it cannot read with its line and the reason. Correct a refused row in the file, not
+   here.
+
+   ![Importing a statement](ui/statement-import.png)
+
+2. **Import** stores the new lines, each once. The same file twice adds nothing, and a file that overlaps the last one
+   adds only what is new, so the daily statement can be imported every morning without counting what was done.
+3. **Bank reconciliation** lists the latest imports and every line as the bank wrote it, by account, status, direction,
+   date and a search of the reference or the description. Every line is Unmatched until matching arrives (R2, Prompts
+   13.2 and 13.3).
+
+   ![The bank statements](ui/reconciliation.png)
+
+4. **Reports, Reconciliation** is another check: of the receivables ledger against itself, which should always be
+   empty. The bank statements are under **Bank reconciliation**.

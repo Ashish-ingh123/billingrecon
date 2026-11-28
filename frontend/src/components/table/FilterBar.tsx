@@ -11,7 +11,7 @@ import styles from './Table.module.css';
 
 /** A filter of a list's bar (Prompt 12.2; ADR 0063); each answers as it is changed. */
 export type FilterSpec<K extends string> =
-  | { kind: 'search'; key: K }
+  | { kind: 'search'; key: K; label?: string }
   | { kind: 'select'; key: K; label: string; options: readonly { value: string; label: string }[] }
   | { kind: 'dates'; from: K; to: K; label: string }
   | { kind: 'amounts'; from: K; to: K; label: string };
@@ -48,6 +48,7 @@ export function FilterBar<K extends string>({
                 sent={state.values[filter.key]}
                 onSend={(text) => state.change({ [filter.key]: text } as Partial<Record<K, string>>)}
                 busy={busy}
+                {...(filter.label === undefined ? {} : { label: filter.label })}
               />
             );
           case 'select':

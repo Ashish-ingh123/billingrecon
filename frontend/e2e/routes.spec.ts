@@ -38,6 +38,65 @@ const openingBatch = {
   decidedAtUtc: null,
   version: 'AAAAAAAADgA=',
 };
+
+// Since Prompt 13.1c (ADR 0065): a bank channel, one import of its statement and one of its lines.
+const bankChannel = {
+  id: 'ec000000-0000-4000-8000-000000000001',
+  kind: 'Bank',
+  name: 'HDFC current',
+  accountLabel: '4521',
+  gateway: null,
+  bankChannelId: null,
+  dateWindowDays: 3,
+  mapping: {
+    headerRow: 1,
+    dateColumn: 'Txn Date',
+    dateFormat: 'dd/MM/yyyy',
+    valueDateColumn: null,
+    descriptionColumn: 'Narration',
+    referenceColumn: 'Ref No',
+    amountLayout: 'TwoColumns',
+    amountColumn: null,
+    debitColumn: 'Debit',
+    creditColumn: 'Credit',
+    balanceColumn: 'Balance',
+    decimalStyle: 'Point',
+  },
+  status: 'Active',
+  createdAtUtc: '2026-10-16T05:00:00+00:00',
+  updatedAtUtc: '2026-10-16T05:00:00+00:00',
+  version: 'AAAAAAAAB9E=',
+};
+const statementImport = {
+  id: 'ed000000-0000-4000-8000-000000000001',
+  channelId: bankChannel.id,
+  fileName: 'hdfc-16-oct.csv',
+  fileHash: 'A'.repeat(64),
+  rowsRead: 5,
+  linesAdded: 4,
+  linesAlreadyHeld: 0,
+  rowsRefused: 1,
+  firstDate: '2026-10-16',
+  lastDate: '2026-10-16',
+  createdAtUtc: '2026-10-17T05:00:00+00:00',
+  createdByUserId: 'd0000000-0000-4000-8000-000000000002',
+};
+const statementLine = {
+  id: 'ee000000-0000-4000-8000-000000000001',
+  channelId: bankChannel.id,
+  importId: statementImport.id,
+  rowNumber: 2,
+  transactionDate: '2026-10-16',
+  valueDate: null,
+  direction: 'In',
+  amount: 12000,
+  reference: 'N3341',
+  description: 'NEFT CR-HDFC0001-RAVI KUMAR-OPD BILL',
+  balance: 152300.5,
+  rawText: '16/10/2026,NEFT CR-HDFC0001-RAVI KUMAR-OPD BILL,N3341,,"12,000.00","1,52,300.50"',
+  status: 'Unmatched',
+  version: 'AAAAAAAAB9F=',
+};
 const everyRole = sessionOf(['TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier']);
 
 const serviceItem = {
@@ -264,6 +323,11 @@ const dayEnd = {
 const answers: Answers = {
   // What the page of a forgotten password asks first: whether this product sends mail (ADR 0061, amended).
   'GET /api/v1/auth/options': () => ({ passwordResetByMail: true }),
+  // Since Prompt 13.1c: the channels, the imports and the lines of R2 (ADR 0065).
+  'GET /api/v1/settlement-channels': () => pageOf([bankChannel]),
+  [`GET /api/v1/settlement-channels/${bankChannel.id}`]: () => bankChannel,
+  'GET /api/v1/statement-imports': () => pageOf([statementImport]),
+  'GET /api/v1/statement-lines': () => pageOf([statementLine]),
   'GET /api/v1/patients': () => pageOf([patient]),
   [`GET /api/v1/patients/${patient.id}`]: () => patient,
   'GET /api/v1/payers': () => pageOf([payer]),
@@ -447,6 +511,12 @@ const routes: readonly (readonly [string, string | RegExp, ReturnType<typeof ses
   // Since Prompt 11.4b: the accountant's export and the names of its ledgers (ADR 0062).
   ['/reports/accounting-export', "Accountant's export"],
   ['/administration/accounting', 'Users and settings'],
+  // Since Prompt 13.1c: the settlement channels and the bank statements (ADR 0065).
+  ['/administration/channels', 'Users and settings'],
+  ['/administration/channels/new', 'New settlement channel'],
+  [`/administration/channels/${bankChannel.id}`, bankChannel.name],
+  ['/reconciliation', 'Bank reconciliation'],
+  ['/reconciliation/import', 'Import a bank statement'],
   ['/reports/outstanding', 'Outstanding by payer'],
   ['/reports/unapplied-cash', 'Unapplied cash'],
   ['/reports/available-credit', 'Available credit'],
@@ -486,6 +556,9 @@ const trainingShots: Record<string, { file: string; fullPage: boolean } | undefi
   '/reports/day-end': { file: 'day-end', fullPage: false },
   '/reports/accounting-export': { file: 'accounting-export', fullPage: false },
   '/administration/accounting': { file: 'settings-accounts', fullPage: true },
+  '/administration/channels/new': { file: 'channel-new', fullPage: true },
+  '/administration/channels': { file: 'settings-channels', fullPage: false },
+  '/reconciliation': { file: 'reconciliation', fullPage: false },
   '/administration': { file: 'users', fullPage: false },
   '/administration/users/new': { file: 'user-new', fullPage: false },
   '/second-step': { file: 'second-step', fullPage: false },

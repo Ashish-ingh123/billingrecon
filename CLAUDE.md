@@ -1439,3 +1439,14 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    its status will change (13.2). Events are named so that the audit's action reads well: the import's is
    `StatementImportRecorded` (action `Recorded`). The 1 MB file (10,590 lines) took 8.1 s, dry run and import, on
    LocalDB. **The next free migration is `0037`.**
+   **13.1c (2026-11-28): the screens** in `frontend/src/reconciliation`. Users and settings gains a sixth tab, Channels
+   (`/administration/channels`, `/new`, `/:id`; `ManageTenant`): a bank's mapping is typed with the header names of a
+   sample CSV offered in a `datalist` (`headersOf`, read in the browser, sent nowhere). The rail gains **Bank
+   reconciliation** (`/reconciliation`, `ReadReconciliation`): the latest imports and the lines on the shared table
+   with their filters in the address; `?import=` shows one import's lines. `/reconciliation/import`
+   (`ImportStatements`) is the wizard: check (the dry run), then Import under a key of `useIdempotentRequest`, sending
+   the check's `fileHash`. The section is "Bank reconciliation", not "Reconciliation", because the ledger's report of
+   that name (`/reports/reconciliation`) is another link of the rail's page. Gotcha: a `fieldset` is as wide as its
+   content by default; `min-width: 0` keeps it in a phone's width. Browser tests: the five routes in `routes.spec.ts`
+   and `reconciliation.spec.ts`; training notes for the Accountant and the channels in `docs/go-live.md`, screenshots
+   `channel-new`, `settings-channels`, `reconciliation`, `statement-import`. Prompt 13.1 is done.

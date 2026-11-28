@@ -70,3 +70,12 @@ columns.
   longer than 100 is cut to that length; the raw text keeps the whole row (up to 2,000 characters).
 - Measured on LocalDB 2019: 10,590 lines (899,987 characters) take 0.6 s to dry-run and 8.1 s for the dry run and the
   import together. Owed on SQL Server 2022 (runbook section 8, row 13.1b).
+
+## Built note (2026-11-28, Prompt 13.1c): the screens
+
+- The channels are a sixth tab of Users and settings. A bank's mapping is typed with the header names of a sample CSV
+  offered as suggestions; the sample is read in the browser and sent nowhere.
+- The rail's section is **Bank reconciliation** (`/reconciliation`): the requirements' "Reconciliation" would have
+  given the rail and the reports' index two links of one name, since the ledger's report is called that (ADR 0036).
+- The import wizard checks first and imports only after a check whose file has new lines; the import carries the
+  check's file hash and a key reused on a retry (ADR 0006).

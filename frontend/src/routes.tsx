@@ -60,6 +60,7 @@ const built = new Set([
   '/reports',
   '/dashboard',
   '/administration',
+  '/reconciliation',
 ]);
 
 const referenceData = { read: 'ReadReferenceData', write: 'WriteReferenceData' } as const;
@@ -271,6 +272,33 @@ export const routes: RouteObject[] = [
             async () => (await import('./administration/AccountingLedgersPage')).AccountingLedgersPage,
           ),
           // Bringing in a hospital's records and opening balances (Prompt 10.3b, ADR 0053).
+          // R2 Reconciliation (Prompt 13.1c, ADR 0065): the channels are set up by a TenantAdmin, under Users and settings;
+          // the statements are read by whoever reads the reconciliation and imported by a TenantAdmin, Supervisor or Accountant.
+          guarded(
+            '/administration/channels',
+            'ManageTenant',
+            async () => (await import('./reconciliation/ChannelsPage')).ChannelsPage,
+          ),
+          guarded(
+            '/administration/channels/new',
+            'ManageTenant',
+            async () => (await import('./reconciliation/ChannelFormPage')).NewChannelPage,
+          ),
+          guarded(
+            '/administration/channels/:id',
+            'ManageTenant',
+            async () => (await import('./reconciliation/ChannelFormPage')).ChannelPage,
+          ),
+          guarded(
+            '/reconciliation',
+            'ReadReconciliation',
+            async () => (await import('./reconciliation/StatementsPage')).StatementsPage,
+          ),
+          guarded(
+            '/reconciliation/import',
+            'ImportStatements',
+            async () => (await import('./reconciliation/StatementImportPage')).StatementImportPage,
+          ),
           guarded(
             '/administration/import',
             'ManageTenant',

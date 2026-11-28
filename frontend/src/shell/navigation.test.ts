@@ -19,6 +19,7 @@ const matrix: Record<Role, string[]> = {
     '/adjustments',
     '/approvals',
     '/reports',
+    '/reconciliation',
     '/administration',
   ],
   Supervisor: [
@@ -34,6 +35,7 @@ const matrix: Record<Role, string[]> = {
     '/adjustments',
     '/approvals',
     '/reports',
+    '/reconciliation',
   ],
   BillingClerk: [
     '/patients',
@@ -69,8 +71,9 @@ const matrix: Record<Role, string[]> = {
     '/credit-notes',
     '/adjustments',
     '/reports',
+    '/reconciliation',
   ],
-  // The Accountant (ADR 0069) opens what a Viewer opens; R2's Reconciliation section is added with its screens.
+  // The Accountant (ADR 0069) opens what a Viewer opens; and Reconciliation, its own work (13.1c).
   Accountant: [
     '/dashboard',
     '/patients',
@@ -83,6 +86,7 @@ const matrix: Record<Role, string[]> = {
     '/credit-notes',
     '/adjustments',
     '/reports',
+    '/reconciliation',
   ],
 };
 

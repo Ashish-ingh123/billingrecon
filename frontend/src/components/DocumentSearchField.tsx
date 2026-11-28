@@ -16,18 +16,21 @@ export function DocumentSearchField({
   sent,
   onSend,
   busy = false,
+  label = documentSearchLabel,
 }: {
   sent: string;
   onSend: (text: string) => void;
   /** Whether the list is reading: the box shows its spinner in the lens's place. */
   busy?: boolean;
+  /** What the box looks in, when a list searches other fields than a document's (the statement lines, Prompt 13.1c). */
+  label?: string;
 }) {
   const search = useLiveSearch(sent, onSend);
   const id = useId();
 
   return (
     <div className={styles.field}>
-      <label htmlFor={id}>{documentSearchLabel}</label>
+      <label htmlFor={id}>{label}</label>
       <SearchInput id={id} type="search" busy={busy} {...search} />
     </div>
   );

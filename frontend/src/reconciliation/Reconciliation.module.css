@@ -1,0 +1,73 @@
+/* R2 Reconciliation (Prompt 13.1c, ADR 0065): the channels' mapping, the statement import and the lists. Every value is a token. */
+
+/* The column mapping of a bank channel: a frame of its own under the channel's fields. */
+.mapping {
+  /* A fieldset is as wide as its content by default; this one shrinks with the page. */
+  min-width: 0;
+  margin: var(--space-5) 0 0;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+}
+
+.mapping legend {
+  padding: 0 var(--space-2);
+  font-weight: 600;
+}
+
+/* What a dry run found: tiles in a row, two by two on a phone, of a fixed height so the result arrives without a jump. */
+.figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: var(--space-4);
+  margin: 0 0 var(--space-5);
+}
+
+.tile {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.tile dt {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.tile dd {
+  min-height: 2.25rem;
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 600;
+  line-height: 2.25rem;
+  overflow-wrap: anywhere;
+}
+
+/* The place a result takes: reserved before it arrives. */
+.result {
+  min-height: 12rem;
+  margin-top: var(--space-5);
+}
+
+.section {
+  margin-top: var(--space-6);
+}
+
+.section h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
+}
+
+.note {
+  margin: var(--space-2) 0 var(--space-3);
+  color: var(--text-muted);
+}
+
+/* A line's description and its raw row may be long: they wrap inside their cell. */
+.wrapCell {
+  overflow-wrap: anywhere;
+}

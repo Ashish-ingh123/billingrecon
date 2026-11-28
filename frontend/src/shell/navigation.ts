@@ -118,6 +118,14 @@ export const sections: readonly Section[] = [
     builtBy: '7.5b',
   },
   {
+    path: '/reconciliation',
+    icon: 'handshake',
+    label: 'Bank reconciliation',
+    roles: ['TenantAdmin', 'Supervisor', 'Viewer', 'Accountant'],
+    purpose: 'The bank statements, imported line by line, to be matched with the payments (R2).',
+    builtBy: '13.1c',
+  },
+  {
     path: '/administration',
     icon: 'gear',
     label: 'Users and settings',
@@ -141,7 +149,12 @@ export function sectionsFor(roles: readonly Role[]): Section[] {
  * for a billing clerk; a user with no known role lands on a page that says so.
  */
 export function landingPath(roles: readonly Role[]): string {
-  if (roles.includes('TenantAdmin') || roles.includes('Supervisor') || roles.includes('Viewer') || roles.includes('Accountant')) {
+  if (
+    roles.includes('TenantAdmin') ||
+    roles.includes('Supervisor') ||
+    roles.includes('Viewer') ||
+    roles.includes('Accountant')
+  ) {
     return '/dashboard';
   }
 
