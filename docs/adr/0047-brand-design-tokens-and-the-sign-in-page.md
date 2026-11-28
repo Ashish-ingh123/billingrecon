@@ -98,14 +98,14 @@ change what a screen does, load anything from another origin, or loosen nginx's 
 The owner said on 2026-11-27 that the company is **Ashvanta Technologies**, not ashline, and gave its logo. Point 6 now
 reads: the logo is `src/assets/brand/ashvanta-logo.svg`, a clean copy of the owner's file (its inline style attributes
 turned into presentation attributes, its C2PA manifest removed, the drawing unchanged) that is never redrawn.
-At the size of a credit the logo's own "TECHNOLOGIES" and tagline shrink to 4 or 5 px, past reading (the owner, 2026-11-28,
-chose this answer of three): the credit is the mark alone, `ashvanta-mark.svg` (the same drawing with a viewBox around
-the letter A), with the name set beside it as text, "Ashvanta" in the navy and "TECHNOLOGIES" in the blue, legible at
-any size. On the sign-in page a window of 1200 px or more shows instead the whole logo, `ashvanta-lockup.svg` (the same
-drawing with a viewBox that leaves out the empty margin of its plate), 24rem wide so that its tagline can be read, and
-no text beside it (a `<picture>` source, no script). Either sits on a white plate of its own (`--company-plate:
-#ffffff`), the same in both themes; the plate is one image to assistive technology, "Ashvanta Technologies", named
-once. The sign-in page says "A product of" and the credit, bottom left.
-The `company-*` tokens are the logo's colours as drawn: ink navy #0B2A5B and accent blue #1F6FEB, the colours of the
-name's two words, both at least 4.5:1 on the plate (`contrast.test.ts`); its orange #F58A1F is only in the drawing.
+At the size of a credit the logo's own "TECHNOLOGIES" and tagline shrink to 4 or 5 px, past reading. The owner chose
+(2026-11-28) the mark alone, `ashvanta-mark.svg` (the same drawing with a viewBox around the letter A), with "Ashvanta"
+beside it as text in the navy, legible at any size, and no "Technologies" in that small room; the plate is still named
+"Ashvanta Technologies". On the sign-in page a window of 1200 px or more shows instead the whole logo,
+`ashvanta-lockup.svg` (the same drawing with a viewBox that leaves out the empty margin of its plate), 24rem wide so that
+its tagline can be read, and no text beside it (a `<picture>` source, no script). Either sits on a white plate of its
+own (`--company-plate: #ffffff`), the same in both themes; the plate is one image to assistive technology, "Ashvanta
+Technologies", named once. The sign-in page says "A product of" and the credit, bottom left.
+The `company-*` tokens are the logo's colours as drawn: ink navy #0B2A5B (the name beside the mark) and accent blue
+#1F6FEB, both at least 4.5:1 on the plate (`contrast.test.ts`); its orange #F58A1F is only in the drawing.
 `ashline-logo.svg` is deleted, and ashline is not named in the product again.
