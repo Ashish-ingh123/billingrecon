@@ -43,6 +43,9 @@ public static class AuditTrailPolicies
         [nameof(SettlementChannel)] = Policies.ReadReconciliation,
         [nameof(StatementImport)] = Policies.ReadReconciliation,
         [nameof(StatementLine)] = Policies.ReadReconciliation,
+        [nameof(Match)] = Policies.ReadReconciliation,
+        [nameof(MatchProposal)] = Policies.ReadReconciliation,
+        [nameof(MatchingRun)] = Policies.ReadReconciliation,
 
         // The users and the settings are the TenantAdmin's alone (ADR 0032 point 6, ADR 0033 point 9).
         [nameof(User)] = Policies.ManageTenant,

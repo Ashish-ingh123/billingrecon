@@ -2896,6 +2896,339 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.Match", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ChannelId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "ChannelId", "Status")
+                        .HasDatabaseName("IX_Matches_TenantId_ChannelId_Status");
+
+                    b.ToTable("Matches", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Matches_Kind", "[Kind] IN ('Payment', 'Refund')");
+
+                            t.HasCheckConstraint("CK_Matches_Source", "[Source] IN ('Automatic', 'ProposalAccepted', 'Manual')");
+
+                            t.HasCheckConstraint("CK_Matches_Status", "[Status] IN ('Active', 'Ended')");
+                        });
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.MatchItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ItemType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<Guid>("MatchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "MatchId")
+                        .HasDatabaseName("IX_MatchItems_TenantId_MatchId");
+
+                    b.HasIndex("TenantId", "ItemType", "ItemId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_MatchItems_TenantId_ItemType_ItemId_Active")
+                        .HasFilter("[IsActive] = 1");
+
+                    b.ToTable("MatchItems", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_MatchItems_Amount", "[Amount] > 0");
+
+                            t.HasCheckConstraint("CK_MatchItems_ItemType", "[ItemType] IN ('Payment', 'Refund')");
+                        });
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.MatchLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("MatchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("StatementLineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "MatchId")
+                        .HasDatabaseName("IX_MatchLines_TenantId_MatchId");
+
+                    b.HasIndex("TenantId", "StatementLineId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_MatchLines_TenantId_StatementLineId_Active")
+                        .HasFilter("[IsActive] = 1");
+
+                    b.ToTable("MatchLines", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_MatchLines_Amount", "[Amount] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.MatchProposal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ChannelId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("Rule")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("StatementLineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "ChannelId", "Status")
+                        .HasDatabaseName("IX_MatchProposals_TenantId_ChannelId_Status");
+
+                    b.HasIndex("TenantId", "StatementLineId", "Status")
+                        .HasDatabaseName("IX_MatchProposals_TenantId_StatementLineId_Status");
+
+                    b.ToTable("MatchProposals", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_MatchProposals_Kind", "[Kind] IN ('Payment', 'Refund')");
+
+                            t.HasCheckConstraint("CK_MatchProposals_Rule", "[Rule] BETWEEN 1 AND 3");
+
+                            t.HasCheckConstraint("CK_MatchProposals_Score", "[Score] BETWEEN 0 AND 100");
+
+                            t.HasCheckConstraint("CK_MatchProposals_Status", "[Status] IN ('Open', 'Accepted', 'Dismissed', 'Withdrawn')");
+                        });
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.MatchProposalItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ItemType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<Guid>("ProposalId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "ProposalId")
+                        .HasDatabaseName("IX_MatchProposalItems_TenantId_ProposalId");
+
+                    b.ToTable("MatchProposalItems", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_MatchProposalItems_Amount", "[Amount] > 0");
+
+                            t.HasCheckConstraint("CK_MatchProposalItems_ItemType", "[ItemType] IN ('Payment', 'Refund')");
+                        });
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.MatchingRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ChannelId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("LinesRead")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Matched")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Proposed")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("Skipped")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "ChannelId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_MatchingRuns_TenantId_ChannelId_Running")
+                        .HasFilter("[Status] = 'Running'");
+
+                    b.ToTable("MatchingRuns", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_MatchingRuns_Status", "[Status] IN ('Running', 'Finished', 'Abandoned')");
+                        });
+                });
+
             modelBuilder.Entity("BillingRecon.Domain.Reconciliation.SettlementChannel", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3977,6 +4310,158 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .HasConstraintName("FK_PayerBalances_TenantId");
                 });
 
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.Match", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Reconciliation.SettlementChannel", null)
+                        .WithMany()
+                        .HasForeignKey("ChannelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Matches_ChannelId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Matches_CreatedByUserId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Matches_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Matches_UpdatedByUserId");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.MatchItem", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Reconciliation.Match", null)
+                        .WithMany("Items")
+                        .HasForeignKey("MatchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_MatchItems_MatchId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_MatchItems_TenantId");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.MatchLine", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Reconciliation.Match", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("MatchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_MatchLines_MatchId");
+
+                    b.HasOne("BillingRecon.Domain.Reconciliation.StatementLine", null)
+                        .WithMany()
+                        .HasForeignKey("StatementLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_MatchLines_StatementLineId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_MatchLines_TenantId");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.MatchProposal", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Reconciliation.SettlementChannel", null)
+                        .WithMany()
+                        .HasForeignKey("ChannelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_MatchProposals_ChannelId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_MatchProposals_CreatedByUserId");
+
+                    b.HasOne("BillingRecon.Domain.Reconciliation.StatementLine", null)
+                        .WithMany()
+                        .HasForeignKey("StatementLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_MatchProposals_StatementLineId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_MatchProposals_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_MatchProposals_UpdatedByUserId");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.MatchProposalItem", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Reconciliation.MatchProposal", null)
+                        .WithMany("Items")
+                        .HasForeignKey("ProposalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_MatchProposalItems_ProposalId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_MatchProposalItems_TenantId");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.MatchingRun", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Reconciliation.SettlementChannel", null)
+                        .WithMany()
+                        .HasForeignKey("ChannelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_MatchingRuns_ChannelId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_MatchingRuns_CreatedByUserId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_MatchingRuns_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_MatchingRuns_UpdatedByUserId");
+                });
+
             modelBuilder.Entity("BillingRecon.Domain.Reconciliation.SettlementChannel", b =>
                 {
                     b.HasOne("BillingRecon.Domain.Reconciliation.SettlementChannel", null)
@@ -4089,6 +4574,18 @@ namespace BillingRecon.Infrastructure.Common.Migrations
             modelBuilder.Entity("BillingRecon.Domain.Receivables.LedgerPosting", b =>
                 {
                     b.Navigation("Entries");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.Match", b =>
+                {
+                    b.Navigation("Items");
+
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.MatchProposal", b =>
+                {
+                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }

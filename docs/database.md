@@ -1292,6 +1292,14 @@ DELETE ON [dbo].[StatementImports]` to the application's role (as 0024 and 0025 
 `Fingerprint` `char(64)`, `RawText` `nvarchar(2000)`, `UX_StatementLines_TenantId_ChannelId_Fingerprint_Occurrence`
 (BR-1004) and the indexes of the lists (by channel, status and date; by import; by date). Every foreign key restricts.
 
+*Built 2026-11-28 (Prompt 13.2a), migration `0037_Matching`:* `Matches` (Kind, Source, Reason `nvarchar(300)`,
+Status), `MatchLines` (StatementLineId with a foreign key, Amount, `IsActive`) and `MatchItems` (ItemType, ItemId with
+no foreign key, Amount, `IsActive`); `UX_MatchLines_TenantId_StatementLineId_Active` and
+`UX_MatchItems_TenantId_ItemType_ItemId_Active`, both `WHERE [IsActive] = 1` (BR-1029). `MatchProposals` (StatementLineId,
+Kind, Rule with `CK_..._Rule` 1 to 3, Score with `CK_..._Score` 0 to 100, Reason, Status) and `MatchProposalItems`.
+`MatchingRuns` (ChannelId, Status, the counts) with `UX_MatchingRuns_TenantId_ChannelId_Running WHERE [Status] =
+'Running'`: one run of a channel under way. No grant changes: a match is ended by an update of its status (13.3).
+
 ## 6. Idempotency store (ADR 0006)
 
 Lifecycle of a row in `IdempotencyKeys` for a financial POST:

@@ -1426,6 +1426,87 @@
         }
       }
     },
+    "/api/v1/settlement-channels/{id}/matching-runs": {
+      "post": {
+        "tags": [
+          "MatchingRuns"
+        ],
+        "summary": "Matches what is certain and proposes the rest; answers the counts.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchingRunDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchingRunDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchingRunDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settlement-channels": {
       "post": {
         "tags": [
@@ -21512,6 +21593,59 @@
         ],
         "description": "How large the logo is printed (ADR 0059): the size of the box it stands in."
       },
+      "MatchingRunDto": {
+        "required": [
+          "linesRead",
+          "matched",
+          "proposed",
+          "left",
+          "skipped"
+        ],
+        "type": "object",
+        "properties": {
+          "linesRead": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "matched": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "proposed": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "left": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "skipped": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What a matching run did: the unmatched lines it read, how many it matched by itself, how many it proposed matches for,\nhow many it left for a person, and how many another run or a user changed first (BR-1029)."
+      },
       "OpenCashierShiftRequest": {
         "type": "object",
         "properties": {
@@ -25201,9 +25335,39 @@
           },
           "version": {
             "type": "string"
+          },
+          "matchReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "proposalReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "proposalScore": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "proposalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32",
+            "default": 0
           }
         },
-        "description": "A line of a bank's statement as the API returns it (BR-1004, BR-1005); amounts in rupees with two decimals."
+        "description": "A line of a bank's statement as the API returns it (BR-1004, BR-1005); amounts in rupees with two decimals. Since 13.2:\nthe reason of its active match, or the reason and score of its best open proposal and how many it has (ADR 0066)."
       },
       "StatementLineStatus": {
         "enum": [
@@ -26416,6 +26580,9 @@
     },
     {
       "name": "Reports"
+    },
+    {
+      "name": "MatchingRuns"
     },
     {
       "name": "SettlementChannels"

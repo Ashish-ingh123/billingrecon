@@ -163,6 +163,11 @@ public sealed class TypedIdForeignKeyTests
                 "FK_SettlementChannels_BankChannelId", "FK_SettlementChannels_CreatedByUserId", "FK_SettlementChannels_UpdatedByUserId",
                 "FK_StatementImports_ChannelId", "FK_StatementImports_CreatedByUserId",
                 "FK_StatementLines_ChannelId", "FK_StatementLines_ImportId", "FK_StatementLines_CreatedByUserId", "FK_StatementLines_UpdatedByUserId",
+
+                // Since Prompt 13.2a (ADR 0066): the matches and the proposals.
+                "FK_Matches_ChannelId", "FK_Matches_CreatedByUserId", "FK_Matches_UpdatedByUserId", "FK_MatchLines_MatchId", "FK_MatchLines_StatementLineId",
+                "FK_MatchItems_MatchId", "FK_MatchProposals_ChannelId", "FK_MatchProposals_StatementLineId", "FK_MatchProposals_CreatedByUserId",
+                "FK_MatchProposals_UpdatedByUserId", "FK_MatchProposalItems_ProposalId", "FK_MatchingRuns_ChannelId", "FK_MatchingRuns_CreatedByUserId", "FK_MatchingRuns_UpdatedByUserId",
             ],
             ignoreOrder: true);
     }

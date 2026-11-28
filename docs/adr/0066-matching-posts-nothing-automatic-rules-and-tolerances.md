@@ -55,3 +55,25 @@ amounts and dates must be, and whether a second person must agree.
 - **Confirm by amount and date alone when there is one candidate:** more lines clear by themselves; a coincidence of
   amounts (two ₹500 consultations) would be matched wrongly. Rejected; it is a proposal instead.
 - **A checker for every manual match:** doubles the work of the morning for a record that moves no money. Rejected.
+
+## Built note (2026-11-28, Prompt 13.2a)
+
+- Approved with the 13.2 plan: a reference of 8 characters or more written in a line's description agrees (banks write
+  a UTR in the narration); a bank takes UPI and card payments too unless an active gateway channel settles into it;
+  a run is its own endpoint, `POST /settlement-channels/{id}/matching-runs`, called by the import wizard and by "Match
+  now", with no background job; scores 90, 70 and 50, less 5 a day.
+- Payments answers through `IMatchablePayments` (its Application layer): posted, unreversed, non-cash payments and
+  posted refunds, as `MatchableDocument`. Reconciliation names no entity of Payments; a match names an item by kind and
+  id, with no foreign key.
+- The link rows carry `IsActive`, a copy of the match's status, because a filtered unique index can only filter on its
+  own table; `UX_MatchLines_..._Active` and `UX_MatchItems_..._Active` keep a line and an item in one active match.
+- Two runs of one channel at once deadlocked in SQL Server on the inserts of their batches, which the unit of work does
+  not report as a lost race. So a run records itself in `MatchingRuns`, a unique index lets one run of a channel be under
+  way, and a second answers 409 `matching_run_in_progress`; a run left under way for 15 minutes by a stopped process is
+  abandoned by the next. BR-1029 allowed it ("the second answers 409").
+- A run commits 100 lines at a time and clears the context after each batch. One transaction a line took over 100 s for
+  10,000 lines; batches of 500 with everything tracked took 36 s a batch; batches of 500 with the context cleared took
+  4.8 s, because the unit of work's touch of changed children and its event dispatch grow with the square of what it
+  holds. Batches of 100: 26.7 s for 10,000 lines against 10,001 payments on LocalDB (5,000 matched, 5,000 proposed).
+  The matcher itself indexes the candidates by amount, reference and day: 140 ms for the same 10,000.
+- A run's proposals and their withdrawal raise no event (bookkeeping); a match raises `MatchMade` (action `Made`).

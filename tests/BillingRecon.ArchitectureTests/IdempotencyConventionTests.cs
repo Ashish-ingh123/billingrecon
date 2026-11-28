@@ -63,6 +63,9 @@ public sealed class IdempotencyConventionTests
         typeof(SettlementChannelsController),
         typeof(StatementDryRunsController),
 
+        // Since ADR 0066: a matching run posts nothing, and a second at once is kept apart by the unique indexes.
+        typeof(MatchingRunsController),
+
         // Since ADR 0059: removing an image of the letterhead, under If-Match; a second removal changes nothing.
         typeof(SettingsController),
 

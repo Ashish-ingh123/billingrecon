@@ -1047,6 +1047,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settlement-channels/{id}/matching-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Matches what is certain and proposes the rest; answers the counts. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MatchingRunDto"];
+                        "application/json": components["schemas"]["MatchingRunDto"];
+                        "text/json": components["schemas"]["MatchingRunDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settlement-channels": {
         parameters: {
             query?: never;
@@ -12511,6 +12573,22 @@ export interface components {
          * @enum {unknown}
          */
         LogoSize: "Small" | "Medium" | "Large";
+        /**
+         * @description What a matching run did: the unmatched lines it read, how many it matched by itself, how many it proposed matches for,
+         *     how many it left for a person, and how many another run or a user changed first (BR-1029).
+         */
+        MatchingRunDto: {
+            /** Format: int32 */
+            linesRead: number | string;
+            /** Format: int32 */
+            matched: number | string;
+            /** Format: int32 */
+            proposed: number | string;
+            /** Format: int32 */
+            left: number | string;
+            /** Format: int32 */
+            skipped: number | string;
+        };
         /** @description The body of `POST /api/v1/cashier-shifts`. */
         OpenCashierShiftRequest: {
             /**
@@ -13706,7 +13784,10 @@ export interface components {
             /** Format: uuid */
             createdByUserId: null | string;
         };
-        /** @description A line of a bank's statement as the API returns it (BR-1004, BR-1005); amounts in rupees with two decimals. */
+        /**
+         * @description A line of a bank's statement as the API returns it (BR-1004, BR-1005); amounts in rupees with two decimals. Since 13.2:
+         *     the reason of its active match, or the reason and score of its best open proposal and how many it has (ADR 0066).
+         */
         StatementLineDto: {
             /** Format: uuid */
             id: string;
@@ -13730,6 +13811,15 @@ export interface components {
             rawText: string;
             status: components["schemas"]["StatementLineStatus"];
             version: string;
+            matchReason?: null | string;
+            proposalReason?: null | string;
+            /** Format: int32 */
+            proposalScore?: null | number | string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            proposalCount: number | string;
         };
         /**
          * @description Where a statement line stands (BR-1004): the one thing about a line that changes, following its matches (Prompts

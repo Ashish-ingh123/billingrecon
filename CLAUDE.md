@@ -1450,3 +1450,17 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    content by default; `min-width: 0` keeps it in a phone's width. Browser tests: the five routes in `routes.spec.ts`
    and `reconciliation.spec.ts`; training notes for the Accountant and the channels in `docs/go-live.md`, screenshots
    `channel-new`, `settings-channels`, `reconciliation`, `statement-import`. Prompt 13.1 is done.
+   **13.2a (2026-11-28): automatic matching, the API** (ADR 0066 built note). Migration `0037_Matching`: `Matches`,
+   `MatchLines`, `MatchItems` (the link rows carry `IsActive` for their filtered unique indexes), `MatchProposals`,
+   `MatchProposalItems`, `MatchingRuns` (one run under way per channel). Payments answers `IMatchablePayments` (no cash,
+   no reversed payment, posted refunds). `StatementMatcher` is pure and indexed (`CandidateIndex`); `RunMatchingHandler`
+   takes the run's row, decides from an untracked read, commits 100 lines at a time and clears the context after each
+   (`IMatchRepository.Forget`). `POST /api/v1/settlement-channels/{id}/matching-runs` (`ImportStatements`, not
+   idempotent: it posts nothing). A line answers `matchReason`, `proposalReason`, `proposalScore`, `proposalCount`.
+   Gotcha: the unit of work's work on a commit grows with the square of what it tracks (backlog B51); a use case that
+   writes thousands of rows commits in small batches with the context cleared between them. 10,000 lines against 10,001
+   payments: 26.7 s on LocalDB. **The next free migration is `0038`.**
+   **13.2b (2026-11-28): the screens of matching.** The import wizard runs matching after the import and says what it
+   did (`runMatching`, `runSummary`); the lines list gains a Match column (the match's reason, or "Proposed, n of 100: …
+   (and k more)") and **Match now** for the account chosen in the filters. `e2e/reconciliation.spec.ts` answers the run;
+   the route test's sample line is a matched one, so `docs/ui/reconciliation.png` shows the column.

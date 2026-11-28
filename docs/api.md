@@ -1413,6 +1413,7 @@ channel's statement is imported from a CSV through the channel's column mapping,
 | `GET /api/v1/statement-imports` | `ReadReconciliation` | 200, a page, the latest first; `channelId` | 400 |
 | `GET /api/v1/statement-imports/{id}` | the same | 200, the import | 404 `statement_import_not_found` |
 | `GET /api/v1/statement-lines` | the same | 200, a page, the latest first; `channelId`, `importId`, `status`, `direction`, `from`, `to`, `search`, `sort` (`transactionDate`, `amount`) | 400 |
+| `POST /api/v1/settlement-channels/{id}/matching-runs` | TenantAdmin, Supervisor, Accountant (`ImportStatements`) | 200, the counts of the run; no `Idempotency-Key` (it posts nothing) | 404 `settlement_channel_not_found`; 409 `matching_run_in_progress`; 422 `settlement_channel_not_bank` |
 
 **A channel** answers `id`, `kind` (`Bank`, `Gateway`), `name`, `accountLabel` (at most the last four digits, never the
 full number), `gateway` (`Razorpay`, a gateway only), `bankChannelId` (the bank a gateway settles into), `dateWindowDays`
@@ -1443,9 +1444,21 @@ balance and description) as its place among the identical lines of the file (BR-
 
 **A line** answers `id`, `channelId`, `importId`, `rowNumber`, `transactionDate`, `valueDate`, `direction` (`In`,
 `Out`), `amount` (above zero), `reference`, `description`, `balance` (may be below zero), `rawText` (the row as the file
-held it), `status` (`Unmatched` until matching, Prompt 13.2) and `version`. Nothing changes the read fields of a line,
-and nothing removes a line or an import. The trails are `SettlementChannel` and `StatementImport`, read with
-`ReadReconciliation`.
+held it), `status` (`Unmatched`, `Matched`, `Excluded`), `version`, and since 13.2 `matchReason` (why its active match
+was made, or null), `proposalReason` and `proposalScore` (its best open proposal, or null) and `proposalCount`. Nothing
+changes the read fields of a line, and nothing removes a line or an import. The trails are `SettlementChannel`,
+`StatementImport` and `Match` (action `Made`), read with `ReadReconciliation`.
+
+**A matching run** (13.2, ADR 0066) reads the channel's unmatched lines and the payments (money in) and refunds (money
+out) no active match holds: posted, not reversed, never cash; UPI and card too unless an active gateway channel settles
+into this bank. It **confirms** a line only when the reference agrees, the amount is equal, the item is dated in the
+channel's window, and exactly one item fits the line and one line the item. A reference agrees when the line's equals
+the item's (without case, spaces and leading zeros), or when an item's reference of 8 characters or more is written in
+the line's description. Otherwise it **proposes**, by the first rule that finds anything: (1) the reference agrees but
+not the rest, 90; (2) the amount and the date, one to three candidates, 70; (3) two to five items of one payer adding up
+to the line, 50; each less 5 a day between the item and the line. A run withdraws a line's open proposals before
+proposing again. One run of a channel at a time: a second answers 409 `matching_run_in_progress` (a run left under way for 15 minutes by a stopped process is abandoned). Lines are committed 100 at a time; a batch in which a user changed a line first is redone line by line, and that line skipped. It
+answers `linesRead`, `matched`, `proposed`, `left` and `skipped`. A match posts nothing.
 
 ## 9. Error-code catalogue
 
@@ -1677,3 +1690,4 @@ server (ADR 0052, `docs/runbook.md` section 17), which prints them; they are lis
 | `statement_file_already_imported` | 409 | This file was already imported into this channel; nothing was added (BR-1004). |
 | `statement_file_changed` | 409 | The file differs from the one the dry run read. Run the dry run again (BR-1003). |
 | `statement_file_unreadable` | 400 | The file cannot be read: … (too large, not UTF-8, no header, a missing column). |
+| `matching_run_in_progress` | 409 | A matching run of this channel is under way. Wait for it and look at its result (BR-1029). |

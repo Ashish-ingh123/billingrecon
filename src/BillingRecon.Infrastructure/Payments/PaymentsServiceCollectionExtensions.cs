@@ -21,6 +21,8 @@ public static class PaymentsServiceCollectionExtensions
 
         // What Payments answers when an opening batch brings in advances (ADR 0053).
         services.AddScoped<IOpeningAdvances, OpeningAdvances>();
+        // What Payments answers to the matching of bank statements (R2, ADR 0066).
+        services.AddScoped<IMatchablePayments, MatchablePayments>();
 
         return services;
     }

@@ -101,6 +101,35 @@ public sealed class StatementReadService(BillingReconDbContext context) : IState
             .Take(query.PageSize)
             .ToListAsync(ct);
 
-        return new PageOf<StatementLineDto>([.. page.Select(line => line.ToDto())], query.Page, query.PageSize, totalCount);
+        // What each line of the page is matched to, or what is proposed for it (ADR 0066): two small reads by the page's ids.
+        var ids = page.Select(line => line.Id).ToList();
+        var matched = await context.Set<MatchLine>().AsNoTracking()
+            .Where(link => link.IsActive && ids.Contains(link.StatementLineId))
+            .Join(context.Set<Match>().AsNoTracking(), link => link.MatchId, match => match.Id, (link, match) => new { link.StatementLineId, match.Reason })
+            .ToListAsync(ct);
+        var proposed = await context.Set<MatchProposal>().AsNoTracking()
+            .Where(proposal => proposal.Status == MatchProposalStatus.Open && ids.Contains(proposal.StatementLineId))
+            .Select(proposal => new { proposal.StatementLineId, proposal.Score, proposal.Reason })
+            .ToListAsync(ct);
+        var reasons = matched.ToDictionary(row => row.StatementLineId, row => row.Reason);
+        var proposals = proposed.GroupBy(row => row.StatementLineId).ToDictionary(group => group.Key, group => group.OrderByDescending(row => row.Score).ToList());
+
+        return new PageOf<StatementLineDto>(
+            [
+                .. page.Select(line =>
+                {
+                    var best = proposals.GetValueOrDefault(line.Id);
+                    return line.ToDto() with
+                    {
+                        MatchReason = reasons.GetValueOrDefault(line.Id),
+                        ProposalReason = best?[0].Reason,
+                        ProposalScore = best?[0].Score,
+                        ProposalCount = best?.Count ?? 0,
+                    };
+                }),
+            ],
+            query.Page,
+            query.PageSize,
+            totalCount);
     }
 }

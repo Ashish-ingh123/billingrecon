@@ -17,4 +17,7 @@ public interface ISettlementChannelReadService
 
     /// <summary>Whether <paramref name="id"/> is an active bank channel of the tenant: the one a gateway may settle into.</summary>
     public Task<bool> IsActiveBankAsync(SettlementChannelId id, CancellationToken ct);
+
+    /// <summary>Whether an active gateway channel settles into <paramref name="bankId"/>: its UPI and card money then comes by the gateway's settlement (ADR 0066).</summary>
+    public Task<bool> HasGatewayIntoAsync(SettlementChannelId bankId, CancellationToken ct);
 }

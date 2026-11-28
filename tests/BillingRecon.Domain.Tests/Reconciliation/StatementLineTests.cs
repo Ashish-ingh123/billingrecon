@@ -42,10 +42,11 @@ public sealed class StatementLineTests
             typeof(StatementLine).GetProperty(name)!.SetMethod!.IsPublic.ShouldBeFalse(name);
         }
 
-        // Its only commands are the factory and the fingerprint: nothing that changes a read field.
+        // Its only command changes its status (13.2): nothing changes a read field.
         typeof(StatementLine).GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(method => !method.IsSpecialName)
-            .ShouldBeEmpty();
+            .Select(method => method.Name)
+            .ShouldBe([nameof(StatementLine.MarkMatched)]);
     }
 
     [Fact]

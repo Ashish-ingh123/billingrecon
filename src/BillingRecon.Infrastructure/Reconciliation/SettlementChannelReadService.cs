@@ -54,5 +54,9 @@ public sealed class SettlementChannelReadService(BillingReconDbContext context) 
     public Task<bool> IsActiveBankAsync(SettlementChannelId id, CancellationToken ct)
         => Channels().AnyAsync(channel => channel.Id == id && channel.Kind == SettlementChannelKind.Bank && channel.Status == SettlementChannelStatus.Active, ct);
 
+    /// <inheritdoc />
+    public Task<bool> HasGatewayIntoAsync(SettlementChannelId bankId, CancellationToken ct)
+        => Channels().AnyAsync(channel => channel.Kind == SettlementChannelKind.Gateway && channel.Status == SettlementChannelStatus.Active && channel.BankChannelId == bankId, ct);
+
     private IQueryable<SettlementChannel> Channels() => context.Set<SettlementChannel>().AsNoTracking();
 }

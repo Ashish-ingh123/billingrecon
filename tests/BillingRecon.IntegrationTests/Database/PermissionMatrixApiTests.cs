@@ -240,6 +240,7 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
         ("GET", "api/v1/statement-imports", "reconciliation: read"),
         ("GET", "api/v1/statement-imports/{id:guid}", "reconciliation: read"),
         ("GET", "api/v1/statement-lines", "reconciliation: read"),
+        ("POST", "api/v1/settlement-channels/{id:guid}/matching-runs", "statements: import"),
 
         // The last row on purpose: the walk below sends every row as every role, and a sign-out ends the sessions of the
         // user who sent it (ADR 0057), so nothing may follow it.

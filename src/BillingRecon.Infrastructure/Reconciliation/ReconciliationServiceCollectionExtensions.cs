@@ -17,6 +17,7 @@ public static class ReconciliationServiceCollectionExtensions
         services.AddScoped<ISettlementChannelReadService, SettlementChannelReadService>();
         services.AddScoped<IStatementRepository, StatementRepository>();
         services.AddScoped<IStatementReadService, StatementReadService>();
+        services.AddScoped<IMatchRepository, MatchRepository>();
 
         return services;
     }

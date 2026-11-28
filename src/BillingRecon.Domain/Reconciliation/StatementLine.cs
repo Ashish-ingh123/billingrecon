@@ -136,6 +136,21 @@ public sealed class StatementLine : AggregateRoot<StatementLineId>, ITenantScope
     }
 
     /// <summary>
+    /// The line joins a match (BR-1006): the one change a line accepts, of its status only. The match is audited; the
+    /// status is its cache on the line, kept in the match's transaction under the line's row version.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The line is not unmatched; the use case should have left it alone.</exception>
+    public void MarkMatched()
+    {
+        if (Status != StatementLineStatus.Unmatched)
+        {
+            throw new InvalidOperationException($"Only an unmatched line joins a match; this one is {Status}.");
+        }
+
+        Status = StatementLineStatus.Matched;
+    }
+
+    /// <summary>
     /// The fingerprint of a line of <paramref name="channelId"/> (BR-1004): a SHA-256 of the channel, the date, the
     /// direction, the amount, the reference, the balance and the description, in upper-case hexadecimal. Two rows with
     /// the same values have the same fingerprint, whatever file they came from.

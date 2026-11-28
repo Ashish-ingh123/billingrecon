@@ -16,6 +16,7 @@ public static class ReconciliationErrors
     public const string StatementFileAlreadyImportedCode = "statement_file_already_imported";
     public const string StatementFileChangedCode = "statement_file_changed";
     public const string StatementFileUnreadableCode = "statement_file_unreadable";
+    public const string MatchingRunInProgressCode = "matching_run_in_progress";
 
     /// <summary>No channel of the hospital has that id.</summary>
     public static Error SettlementChannelNotFound() => Error.NotFound(SettlementChannelNotFoundCode, "The settlement channel does not exist.");
@@ -58,4 +59,8 @@ public static class ReconciliationErrors
     /// <summary>The file cannot be read as a whole: no header, a missing column, too large, not UTF-8 (BR-1003).</summary>
     public static Error StatementFileUnreadable(string reason)
         => Error.Validation(StatementFileUnreadableCode, $"The file cannot be read: {reason}");
+
+    /// <summary>A matching run of the channel is under way; one runs at a time (BR-1029).</summary>
+    public static Error MatchingRunInProgress()
+        => Error.Conflict(MatchingRunInProgressCode, "A matching run of this channel is under way. Wait for it and look at its result.");
 }
