@@ -18,6 +18,7 @@ using BillingRecon.Infrastructure.Common;
 using BillingRecon.Infrastructure.Payers;
 using BillingRecon.Infrastructure.Payments;
 using BillingRecon.Infrastructure.Receivables;
+using BillingRecon.Infrastructure.Reconciliation;
 using BillingRecon.Infrastructure.Reporting;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
@@ -57,6 +58,7 @@ builder.Services.AddBilling();
 builder.Services.AddReceivables();
 builder.Services.AddPayments();
 builder.Services.AddAdjustments();
+builder.Services.AddReconciliation();
 builder.Services.AddReporting();
 builder.Services.AddApplication();
 

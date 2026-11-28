@@ -1762,7 +1762,7 @@ Tests: each rule on its own; a tie proposed twice and confirmed never; a reverse
 ignored; a payment never matched beyond its amount; two runs at once match nothing twice; a match
 posts nothing (the ledger and every R1 figure unchanged, drift zero); 10,000 lines against 10,000
 payments, the time measured on LocalDB and owed on SQL Server 2022 (runbook section 8).
-Migration 0037_Matching.
+Migration 0037_Matching (13.1b took 0036).
 Done when: a morning's import shows most lines already matched or proposed, each with its reason.
 ```
 

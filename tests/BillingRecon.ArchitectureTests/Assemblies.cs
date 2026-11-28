@@ -17,7 +17,7 @@ internal static class Assemblies
 
     public static readonly string[] Layers = ["Domain", "Application", "Infrastructure", "Api"];
 
-    public static readonly string[] BusinessModules = ["Payers", "Billing", "Payments", "Receivables", "Adjustments", "Reporting"];
+    public static readonly string[] BusinessModules = ["Payers", "Billing", "Payments", "Receivables", "Adjustments", "Reporting", "Reconciliation"];
 
     public static readonly string[] CrossCuttingModules = ["Common", "Identity", "Audit"];
 }

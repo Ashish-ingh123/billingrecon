@@ -723,7 +723,7 @@ needed; `ModuleDependencyTests` lists Reconciliation among the business modules.
 | Aggregate | Fields | Commands | Invariants | Events |
 |---|---|---|---|---|
 | `SettlementChannel` | Kind, Name, AccountLabel, Gateway?, BankChannelId?, DateWindowDays, `ColumnMapping`, Status | `Create`, `Change`, `ChangeMapping`, `Deactivate` | BR-1001, BR-1002 | `SettlementChannelCreated`, `…Changed`, `…Deactivated` |
-| `StatementImport` (insert-only) and `StatementLine` (its own entity, many per import) | as `database.md` §5.16 | `StatementImport.Read(file, mapping)` (the dry run, pure), `Import` | BR-1003 – BR-1005; a line's read fields never change | `StatementImported` (one per import, with its counts, not one per line) |
+| `StatementImport` (insert-only) and `StatementLine` (its own entity, many per import) | as `database.md` §5.16 | `StatementImport.Read(file, mapping)` (the dry run, pure), `Import` | BR-1003 – BR-1005; a line's read fields never change | `StatementImportRecorded` (one per import, with its counts, not one per line) |
 | `Match` | Kind, Source, Reason, Note, lines, items, Status | `Confirm` (automatic), `AcceptProposal`, `MatchByHand`, `Exclude`, `End(reason)` | BR-1006 – BR-1009, BR-1012, BR-1029: the amounts agree; each line and item in one active match | `MatchMade`, `MatchEnded` |
 | `MatchProposal` | Line, items, Rule, Score, Reason, Status | `Propose`, `Accept`, `Dismiss`, `Withdraw` | BR-1011 | `MatchProposed` (one per run, with its count), `ProposalDismissed` |
 | `SuspenseItem` | Number, date, Amount, Remaining, line, Status; children `SuspenseApplication`, `SuspenseReturn` | `Record`, `RequestApplication`, `ApproveApplication` (checker), `RejectApplication`, `RequestReturn`, `ApproveReturn` (checker), `RejectReturn`, `TakeBack(amount)` (a suspense payment reversed) | BR-1014 – BR-1017: `0 ≤ Remaining ≤ Amount`; one pending request | `SuspenseRecorded`, `SuspenseApplicationRequested`, `…Approved`, `…Rejected`, `SuspenseReturnRequested`, `SuspenseReturned`, `SuspenseReturnRejected`, `SuspenseTakenBack` |
@@ -753,3 +753,22 @@ posted under a payment number with the `SuspenseApplied` posting; its `Reverse` 
   and the line's status in one transaction, in the six steps of ADR 0022, the number series first.
 - Approving a suspense application: the approval, the new payment with its number and its posting, the item's
   `Remaining`, in one transaction; the lock order is the number series, then the payer's balances, then the item.
+
+### 11.5 Built so far
+
+*Prompt 13.1b (2026-11-28): settlement channels and the import of a bank's statement.*
+`SettlementChannel.CreateBank(name, label, window, mapping)` and `CreateGateway(name, label, window, gateway, bank)`
+make an active channel; `Change` replaces the name, the label, the window and a gateway's bank, `ChangeMapping` a bank's
+mapping (a gateway answers `settlement_channel_not_bank`), `Deactivate` and `Reactivate` its status; each raises its
+event only when something changed. `ColumnMapping` is a readonly record struct (so that Entity Framework never takes it
+for an entity) whose `Problem` says in words what is wrong with a mapping; the validator and the channel both ask it.
+`AmountLayout` is `OneColumn` (a signed amount, or a trailing `Cr` or `Dr`) or `TwoColumns` (a debit and a credit);
+the names `Signed` and `DebitAndCredit` were refused by the analyzer (CA1720, a type name in an identifier).
+`StatementImport.Record` is insert-only (`IAppendOnly`) and raises `StatementImportRecorded`, whose audit action is
+`Recorded` (an event named `StatementImported` would have left the action `ed`, since the audit strips the entity's
+name). `StatementLine.Read` makes an unmatched line; no setter of a read field is public and the type has no other
+command, which `StatementLineTests` checks by reflection. `StatementLine.FingerprintOf` is the SHA-256 of BR-1004 (the
+value date is not part of it). The reading is `StatementReader.Read` in Application (pure: a header row below the
+account's lines, the two layouts, the date formats, the Indian grouping, refusals with their row and reason, a line of
+commas skipped as blank), and `StatementPlan` decides, alike for the dry run and the import, which lines are held
+already: the n-th line of a fingerprint in a file is held when the channel has n or more.

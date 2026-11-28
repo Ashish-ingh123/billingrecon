@@ -74,10 +74,20 @@ public static class Policies
     public const string DayEnd = nameof(DayEnd);
 
     /// <summary>
-    /// The accountant's export (ADR 0062): whoever runs or audits the hospital, as for the day-end report. An
-    /// accountant is given the role Viewer.
+    /// The accountant's export (ADR 0062): whoever runs or audits the hospital, as for the day-end report, and since R2
+    /// the Accountant (ADR 0069).
     /// </summary>
     public const string AccountingExport = nameof(AccountingExport);
+
+    /// <summary>
+    /// Reading the reconciliation (R2, docs/requirements.md section 7.2): the settlement channels, the imports and the
+    /// statement lines. Whoever runs or audits the hospital, and the Accountant. Setting up a channel is
+    /// <see cref="ManageTenant"/>'s.
+    /// </summary>
+    public const string ReadReconciliation = nameof(ReadReconciliation);
+
+    /// <summary>Importing a bank's statement, its dry run included (BR-1003): a TenantAdmin, a Supervisor or an Accountant.</summary>
+    public const string ImportStatements = nameof(ImportStatements);
 
     /// <summary>Any signed-in user, whatever the roles: the service information.</summary>
     public const string SignedIn = nameof(SignedIn);
@@ -106,6 +116,8 @@ public static class Policies
         [ReadShifts] = [Role.TenantAdmin, Role.Supervisor, Role.BillingClerk, Role.Cashier, Role.Viewer, Role.Accountant],
         [DayEnd] = [Role.TenantAdmin, Role.Supervisor, Role.Viewer, Role.Accountant],
         [AccountingExport] = [Role.TenantAdmin, Role.Supervisor, Role.Viewer, Role.Accountant],
+        [ReadReconciliation] = [Role.TenantAdmin, Role.Supervisor, Role.Viewer, Role.Accountant],
+        [ImportStatements] = [Role.TenantAdmin, Role.Supervisor, Role.Accountant],
     };
 
     /// <summary>Every policy of the catalogue, <see cref="SignedIn"/> included.</summary>

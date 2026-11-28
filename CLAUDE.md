@@ -1429,3 +1429,13 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    a Viewer does" holds until the Reconciliation policies of 13.1b add its own work. 13.1 was split as 12.2 was: 13.1a the
    role, 13.1b the API of channels and statement import (migration `0036_Reconciliation`), 13.1c the screens. A file of
    at most 1 MB and UTF-8 only (BR-1003 as amended by the 13.1 plan). **The next free migration is `0036`.**
+   **13.1b (2026-11-28): the API of settlement channels and statement import** (ADR 0065). The module `Reconciliation`
+   in all four projects (`Assemblies.BusinessModules`, `AddReconciliation` in `Program.cs`); migration
+   `0036_Reconciliation` (three tables, and by hand `DENY UPDATE, DELETE` on `StatementImports`). Two policies:
+   `ReadReconciliation` (TenantAdmin, Supervisor, Viewer, Accountant) and `ImportStatements` (TenantAdmin, Supervisor,
+   Accountant); a channel is set up with `ManageTenant`. Endpoints in `docs/api.md` section 8.22, codes in 9.9. The file
+   travels as text in JSON, as the opening batch's does; the dry run is its own controller without an Idempotency-Key,
+   the import is `[Idempotent]` and must send the dry run's `fileHash`. A line's read fields have no public setter; only
+   its status will change (13.2). Events are named so that the audit's action reads well: the import's is
+   `StatementImportRecorded` (action `Recorded`). The 1 MB file (10,590 lines) took 8.1 s, dry run and import, on
+   LocalDB. **The next free migration is `0037`.**

@@ -158,6 +158,11 @@ public sealed class TypedIdForeignKeyTests
 
                 // Since Prompt 11.4 (ADR 0062): who saved the names of the accountant's ledgers.
                 "FK_AccountingLedgers_CreatedByUserId", "FK_AccountingLedgers_UpdatedByUserId",
+
+                // Since Prompt 13.1b (ADR 0065): the settlement channels, a gateway's bank channel, the imports and the lines.
+                "FK_SettlementChannels_BankChannelId", "FK_SettlementChannels_CreatedByUserId", "FK_SettlementChannels_UpdatedByUserId",
+                "FK_StatementImports_ChannelId", "FK_StatementImports_CreatedByUserId",
+                "FK_StatementLines_ChannelId", "FK_StatementLines_ImportId", "FK_StatementLines_CreatedByUserId", "FK_StatementLines_UpdatedByUserId",
             ],
             ignoreOrder: true);
     }

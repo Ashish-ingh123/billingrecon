@@ -1047,6 +1047,696 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settlement-channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the channels one page at a time, by name. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Bank or Gateway; both when left out. */
+                    Kind?: components["schemas"]["SettlementChannelKind"];
+                    /** @description Active or Inactive; both when left out. */
+                    Status?: components["schemas"]["SettlementChannelStatus"];
+                    /** @description The page, from 1; the first when left out. */
+                    Page?: number | string;
+                    /** @description Channels per page, 1 to 100; 20 when left out. */
+                    PageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PageOfOfSettlementChannelDto"];
+                        "application/json": components["schemas"]["PageOfOfSettlementChannelDto"];
+                        "text/json": components["schemas"]["PageOfOfSettlementChannelDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Sets up a channel. 409 `settlement_channel_name_duplicate` when the hospital already has the name. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateSettlementChannelRequest"];
+                    "text/json": components["schemas"]["CreateSettlementChannelRequest"];
+                    "application/*+json": components["schemas"]["CreateSettlementChannelRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SettlementChannelDto"];
+                        "application/json": components["schemas"]["SettlementChannelDto"];
+                        "text/json": components["schemas"]["SettlementChannelDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settlement-channels/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one channel. */
+        get: operations["GetSettlementChannel"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Changes the name, the label, the window, and the mapping of a bank or the bank of a gateway. Lines imported before
+         *     keep what was read. Needs If-Match.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateSettlementChannelRequest"];
+                    "text/json": components["schemas"]["UpdateSettlementChannelRequest"];
+                    "application/*+json": components["schemas"]["UpdateSettlementChannelRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SettlementChannelDto"];
+                        "application/json": components["schemas"]["SettlementChannelDto"];
+                        "text/json": components["schemas"]["SettlementChannelDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Precondition Required */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/settlement-channels/{id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivates a channel: it takes no import. Needs If-Match. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SettlementChannelDto"];
+                        "application/json": components["schemas"]["SettlementChannelDto"];
+                        "text/json": components["schemas"]["SettlementChannelDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Precondition Required */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settlement-channels/{id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Makes an inactive channel active again. Needs If-Match. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SettlementChannelDto"];
+                        "application/json": components["schemas"]["SettlementChannelDto"];
+                        "text/json": components["schemas"]["SettlementChannelDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Precondition Required */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/statement-imports/dry-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reads the file with the channel's mapping and answers what importing it would do. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["StatementFileRequest"];
+                    "text/json": components["schemas"]["StatementFileRequest"];
+                    "application/*+json": components["schemas"]["StatementFileRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["StatementDryRunDto"];
+                        "application/json": components["schemas"]["StatementDryRunDto"];
+                        "text/json": components["schemas"]["StatementDryRunDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/statement-imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the imports one page at a time, the latest first. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Only the imports of this channel. */
+                    ChannelId?: string;
+                    /** @description The page, from 1; the first when left out. */
+                    Page?: number | string;
+                    /** @description Imports per page, 1 to 100; 20 when left out. */
+                    PageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PageOfOfStatementImportDto"];
+                        "application/json": components["schemas"]["PageOfOfStatementImportDto"];
+                        "text/json": components["schemas"]["PageOfOfStatementImportDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Imports the file its dry run read: the lines the channel does not hold yet. 409 `statement_file_changed` for
+         *     another file than the dry run's, 409 `statement_file_already_imported` for a file the channel took before.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["StatementFileRequest"];
+                    "text/json": components["schemas"]["StatementFileRequest"];
+                    "application/*+json": components["schemas"]["StatementFileRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["StatementImportDto"];
+                        "application/json": components["schemas"]["StatementImportDto"];
+                        "text/json": components["schemas"]["StatementImportDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/statement-imports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one import. */
+        get: operations["GetStatementImport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/statement-lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the lines one page at a time, the latest first. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Only the lines of this channel. */
+                    ChannelId?: string;
+                    /** @description Only the lines this import stored. */
+                    ImportId?: string;
+                    /** @description Unmatched, Matched or Excluded; all when left out. */
+                    Status?: components["schemas"]["StatementLineStatus"];
+                    /** @description In or Out; both when left out. */
+                    Direction?: components["schemas"]["StatementDirection"];
+                    /** @description The first transaction date, included. */
+                    From?: string;
+                    /** @description The last transaction date, included. */
+                    To?: string;
+                    /** @description Part of a reference or of a description. */
+                    Search?: string;
+                    /**
+                     * @description The order: `transactionDate` or `amount`, with `-` in front for the latest or largest first. The
+                     *     latest first when left out.
+                     */
+                    Sort?: string;
+                    /** @description The page, from 1; the first when left out. */
+                    Page?: number | string;
+                    /** @description Lines per page, 1 to 100; 20 when left out. */
+                    PageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PageOfOfStatementLineDto"];
+                        "application/json": components["schemas"]["PageOfOfStatementLineDto"];
+                        "text/json": components["schemas"]["PageOfOfStatementLineDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/opening-batches/dry-run": {
         parameters: {
             query?: never;
@@ -10690,6 +11380,11 @@ export interface components {
              */
             amount?: null | number | string;
         };
+        /**
+         * @description How a bank's CSV writes the money of a line (BR-1002). Stored as text inside the column mapping.
+         * @enum {unknown}
+         */
+        AmountLayout: "OneColumn" | "TwoColumns";
         /** @description The body of `POST /api/v1/credit-notes/{id}/applications` (BR-213): the bills and the amount for each. Unknown members are refused. */
         ApplyCreditNoteRequest: {
             /** @description Between 1 and 50 applications; a bill is named once. */
@@ -11137,6 +11832,39 @@ export interface components {
             /** Format: double */
             net: number | string;
         };
+        /**
+         * @description The column mapping of a bank channel as the API takes it in and hands it out (BR-1002): the header line, the header
+         *     names of each column, the date format, how the money is laid out and how its decimals are written.
+         */
+        ColumnMappingDto: {
+            /**
+             * Format: int32
+             * @description The line of the file that holds the header, from 1.
+             */
+            headerRow?: number | string;
+            /** @description The column of the transaction date. */
+            dateColumn?: null | string;
+            /** @description One of the formats the API lists, such as dd/MM/yyyy. */
+            dateFormat?: null | string;
+            /** @description The column of the value date, when the bank gives one. */
+            valueDateColumn?: null | string;
+            /** @description The column of the description. */
+            descriptionColumn?: null | string;
+            /** @description The column of the reference, when the bank gives one. */
+            referenceColumn?: null | string;
+            /** @description OneColumn (a signed amount) or TwoColumns (a debit and a credit). */
+            amountLayout?: components["schemas"]["AmountLayout"];
+            /** @description The signed amount's column, for OneColumn. */
+            amountColumn?: null | string;
+            /** @description The debit column, for TwoColumns. */
+            debitColumn?: null | string;
+            /** @description The credit column, for TwoColumns. */
+            creditColumn?: null | string;
+            /** @description The column of the running balance, when the bank gives one. */
+            balanceColumn?: null | string;
+            /** @description Point (1,234.56) or Comma (1.234,56). */
+            decimalStyle?: components["schemas"]["DecimalStyle"];
+        };
         /** @description The body of `POST /api/v1/adjustments`: a draft adjustment against a posted bill (BR-501). Unknown members are refused. */
         CreateAdjustmentRequest: {
             /**
@@ -11276,6 +12004,29 @@ export interface components {
             taxRatePercent?: null | number | string;
             /** @description The SAC code of the service, six digits; left out for none. */
             sacCode?: null | string;
+        };
+        /**
+         * @description The body of `POST /api/v1/settlement-channels` (BR-1001, BR-1002). A bank sends its mapping; a gateway sends its
+         *     gateway and the bank channel it settles into. A member the API does not know is refused with 400.
+         */
+        CreateSettlementChannelRequest: {
+            kind?: null | components["schemas"]["SettlementChannelKind"];
+            /** @description How people name the account, unique in the hospital. */
+            name?: null | string;
+            /** @description At most the last four digits of the account or merchant number, never the full number. */
+            accountLabel?: null | string;
+            /**
+             * Format: int32
+             * @description Days before a line an item may be dated and still match it, 0 to 10; 3 when left out.
+             */
+            dateWindowDays?: null | number | string;
+            gateway?: null | components["schemas"]["PaymentGateway"];
+            /**
+             * Format: uuid
+             * @description The bank channel a gateway settles into.
+             */
+            bankChannelId?: null | string;
+            mapping?: null | components["schemas"]["ColumnMappingDto"];
         };
         /** @description The body of `POST /api/v1/users`. Unknown members are refused. */
         CreateUserRequest: {
@@ -11601,6 +12352,11 @@ export interface components {
             /** @description What the checker says. */
             comment?: null | string;
         };
+        /**
+         * @description How a bank's CSV writes the decimals of an amount (BR-1002). Stored as text inside the column mapping.
+         * @enum {unknown}
+         */
+        DecimalStyle: "Point" | "Comma";
         /**
          * @description Where a bill or a payment comes from (ADR 0053). The member names are stored as text.
          * @enum {unknown}
@@ -12036,6 +12792,45 @@ export interface components {
          * @description One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that
          *     was asked for, and how many items all pages hold together.
          */
+        PageOfOfSettlementChannelDto: {
+            items: components["schemas"]["SettlementChannelDto"][];
+            /** Format: int32 */
+            page: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int32 */
+            totalCount: number | string;
+        };
+        /**
+         * @description One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that
+         *     was asked for, and how many items all pages hold together.
+         */
+        PageOfOfStatementImportDto: {
+            items: components["schemas"]["StatementImportDto"][];
+            /** Format: int32 */
+            page: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int32 */
+            totalCount: number | string;
+        };
+        /**
+         * @description One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that
+         *     was asked for, and how many items all pages hold together.
+         */
+        PageOfOfStatementLineDto: {
+            items: components["schemas"]["StatementLineDto"][];
+            /** Format: int32 */
+            page: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int32 */
+            totalCount: number | string;
+        };
+        /**
+         * @description One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that
+         *     was asked for, and how many items all pages hold together.
+         */
         PageOfOfUserDto: {
             items: components["schemas"]["UserDto"][];
             /** Format: int32 */
@@ -12237,6 +13032,8 @@ export interface components {
             updatedAtUtc: string;
             version: string;
         };
+        /** @enum {unknown} */
+        PaymentGateway: "Razorpay" | null;
         /**
          * @description How money was received (BR-301). The member names are stored as text, so renaming one is a data migration.
          * @enum {unknown}
@@ -12783,6 +13580,40 @@ export interface components {
          * @enum {unknown}
          */
         ServiceItemStatus: "Active" | "Inactive";
+        /**
+         * @description A settlement channel as the API returns it (BR-1001). string SettlementChannelDto.Version is the row version in base64, the same
+         *     value as the response's ETag; a change sends it back in If-Match (BR-804).
+         */
+        SettlementChannelDto: {
+            /** Format: uuid */
+            id: string;
+            kind: components["schemas"]["SettlementChannelKind"];
+            name: string;
+            accountLabel: null | string;
+            gateway: null | components["schemas"]["PaymentGateway"];
+            /** Format: uuid */
+            bankChannelId: null | string;
+            /** Format: int32 */
+            dateWindowDays: number | string;
+            mapping: null | components["schemas"]["ColumnMappingDto"];
+            status: components["schemas"]["SettlementChannelStatus"];
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: date-time */
+            updatedAtUtc: string;
+            version: string;
+        };
+        /**
+         * @description What a settlement channel is (BR-1001). The member names are stored as text (docs/database.md §5.16), so renaming
+         *     one is a data migration.
+         * @enum {unknown}
+         */
+        SettlementChannelKind: "Bank" | "Gateway";
+        /**
+         * @description Whether a settlement channel takes new imports (BR-1001). Stored as text.
+         * @enum {unknown}
+         */
+        SettlementChannelStatus: "Active" | "Inactive";
         /** @enum {unknown} */
         Sex: "Male" | "Female" | "Other" | "Unknown" | null;
         /** @description What a successful sign-in answers (docs/api.md, section 8.12): the token, its type, and when it expires. */
@@ -12800,6 +13631,134 @@ export interface components {
         SignInOptionsDto: {
             /** @description True when a forgotten password can be reset by a link in a mail. */
             passwordResetByMail: boolean;
+        };
+        /**
+         * @description Which way a statement line's money went (BR-1005). Stored as text.
+         * @enum {unknown}
+         */
+        StatementDirection: "In" | "Out";
+        /**
+         * @description What importing a file would do (BR-1003), with nothing stored: the file's hash, which the import sends back so that it
+         *     imports exactly this file; the counts; the money of the lines it would add; every refused row with its reason; and the
+         *     first int DryRunStatementHandler.PreviewLimit lines it read.
+         */
+        StatementDryRunDto: {
+            fileHash: string;
+            alreadyImported: boolean;
+            /** Format: int32 */
+            rowsRead: number | string;
+            /** Format: int32 */
+            linesToAdd: number | string;
+            /** Format: int32 */
+            linesAlreadyHeld: number | string;
+            /** Format: int32 */
+            rowsRefused: number | string;
+            /** Format: double */
+            moneyIn: number | string;
+            /** Format: double */
+            moneyOut: number | string;
+            /** Format: date */
+            firstDate: null | string;
+            /** Format: date */
+            lastDate: null | string;
+            refusals: components["schemas"]["StatementRefusal"][];
+            lines: components["schemas"]["StatementPreviewLineDto"][];
+        };
+        /**
+         * @description The body of the dry run and of the import of a bank's statement (BR-1003): the channel, the file's name and its text,
+         *     read as UTF-8, and for the import the file hash its dry run answered. A member the API does not know is refused.
+         */
+        StatementFileRequest: {
+            /**
+             * Format: uuid
+             * @description The bank channel the file is for.
+             */
+            channelId?: null | string;
+            /** @description The name of the file. */
+            fileName?: null | string;
+            /** @description The text of the file, at most 1 MB. */
+            text?: null | string;
+            /** @description The file hash its dry run answered; read by the import only. */
+            fileHash?: null | string;
+        };
+        /** @description An import of a bank's statement as the API returns it (BR-1003, BR-1004): what was read, added, held before and refused. */
+        StatementImportDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            channelId: string;
+            fileName: string;
+            fileHash: string;
+            /** Format: int32 */
+            rowsRead: number | string;
+            /** Format: int32 */
+            linesAdded: number | string;
+            /** Format: int32 */
+            linesAlreadyHeld: number | string;
+            /** Format: int32 */
+            rowsRefused: number | string;
+            /** Format: date */
+            firstDate: null | string;
+            /** Format: date */
+            lastDate: null | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: uuid */
+            createdByUserId: null | string;
+        };
+        /** @description A line of a bank's statement as the API returns it (BR-1004, BR-1005); amounts in rupees with two decimals. */
+        StatementLineDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            channelId: string;
+            /** Format: uuid */
+            importId: string;
+            /** Format: int32 */
+            rowNumber: number | string;
+            /** Format: date */
+            transactionDate: string;
+            /** Format: date */
+            valueDate: null | string;
+            direction: components["schemas"]["StatementDirection"];
+            /** Format: double */
+            amount: number | string;
+            reference: null | string;
+            description: string;
+            /** Format: double */
+            balance: null | number | string;
+            rawText: string;
+            status: components["schemas"]["StatementLineStatus"];
+            version: string;
+        };
+        /**
+         * @description Where a statement line stands (BR-1004): the one thing about a line that changes, following its matches (Prompts
+         *     13.2 and 13.3). Stored as text.
+         * @enum {unknown}
+         */
+        StatementLineStatus: "Unmatched" | "Matched" | "Excluded";
+        /** @description A line the dry run read, as the import would store it, and whether the channel already holds it. */
+        StatementPreviewLineDto: {
+            /** Format: int32 */
+            rowNumber: number | string;
+            /** Format: date */
+            transactionDate: string;
+            /** Format: date */
+            valueDate: null | string;
+            direction: components["schemas"]["StatementDirection"];
+            /** Format: double */
+            amount: number | string;
+            reference: null | string;
+            description: string;
+            /** Format: double */
+            balance: null | number | string;
+            alreadyHeld: boolean;
+        };
+        /** @description A row of a statement that was refused (BR-1003): the line of the file it started on and the reason in words. */
+        StatementRefusal: {
+            /** Format: int32 */
+            rowNumber: number | string;
+            reason: string;
         };
         /**
          * @description One card of the dashboard: its figure for the period, the same figure for the previous period, and the change in
@@ -13149,6 +14108,27 @@ export interface components {
              */
             defaultDueDays?: null | number | string;
         };
+        /**
+         * @description The body of `PATCH /api/v1/settlement-channels/{id}`: every field is sent, and a label left out is cleared. A
+         *     bank sends its mapping, a gateway its bank channel. The kind and the gateway are not part of it.
+         */
+        UpdateSettlementChannelRequest: {
+            /** @description How people name the account, unique in the hospital. */
+            name?: null | string;
+            /** @description At most the last four digits of the account or merchant number. */
+            accountLabel?: null | string;
+            /**
+             * Format: int32
+             * @description Days before a line an item may be dated and still match it, 0 to 10; unchanged when left out.
+             */
+            dateWindowDays?: null | number | string;
+            /**
+             * Format: uuid
+             * @description The bank channel a gateway settles into.
+             */
+            bankChannelId?: null | string;
+            mapping?: null | components["schemas"]["ColumnMappingDto"];
+        };
         /** @description The body of `PATCH /api/v1/users/{id}`: both values, given again. Unknown members are refused. */
         UpdateUserRequest: {
             /** @description The e-mail address. Required. */
@@ -13210,6 +14190,76 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    GetSettlementChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["SettlementChannelDto"];
+                    "application/json": components["schemas"]["SettlementChannelDto"];
+                    "text/json": components["schemas"]["SettlementChannelDto"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetStatementImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["StatementImportDto"];
+                    "application/json": components["schemas"]["StatementImportDto"];
+                    "text/json": components["schemas"]["StatementImportDto"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetOpeningBatch: {
         parameters: {
             query?: never;

@@ -1280,6 +1280,18 @@ mutable ones, audit columns as §1):
 Grants (§7): the application login may not DELETE any of these tables; `StatementImports`, `GatewayCharges` and the
 ledger's two stay insert-only. No table here is `IHardDeletable`.
 
+*Built 2026-11-28 (Prompt 13.1b), migration `0036_Reconciliation`:* `SettlementChannels`, `StatementImports` and
+`StatementLines` as the table above says, with these particulars. `SettlementChannels`: `Kind`, `Gateway` and `Status`
+as text with their CHECKs; `Mapping` `nvarchar(2000)` JSON (enums as text); `CK_SettlementChannels_Kind` (a bank has
+a mapping and no gateway or bank channel, a gateway the opposite) and `CK_SettlementChannels_DateWindowDays` (0 to 10);
+`UX_SettlementChannels_TenantId_Name` (the collation compares without case); `FK_SettlementChannels_BankChannelId` to
+the same table. `StatementImports`: `FileHash` `char(64)`, `UX_StatementImports_TenantId_ChannelId_FileHash`,
+`CK_StatementImports_Counts` (rows read = added + held + refused), and the one statement written by hand, `DENY UPDATE,
+DELETE ON [dbo].[StatementImports]` to the application's role (as 0024 and 0025 did). `StatementLines`: `Amount`
+`decimal(18,2)` with `CK_StatementLines_Amount` (above zero), `Balance` `decimal(18,2) NULL` (may be below zero),
+`Fingerprint` `char(64)`, `RawText` `nvarchar(2000)`, `UX_StatementLines_TenantId_ChannelId_Fingerprint_Occurrence`
+(BR-1004) and the indexes of the lists (by channel, status and date; by import; by date). Every foreign key restricts.
+
 ## 6. Idempotency store (ADR 0006)
 
 Lifecycle of a row in `IdempotencyKeys` for a financial POST:

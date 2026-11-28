@@ -1426,6 +1426,1204 @@
         }
       }
     },
+    "/api/v1/settlement-channels": {
+      "post": {
+        "tags": [
+          "SettlementChannels"
+        ],
+        "summary": "Sets up a channel. 409 `settlement_channel_name_duplicate` when the hospital already has the name.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSettlementChannelRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSettlementChannelRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSettlementChannelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementChannelDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementChannelDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementChannelDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "SettlementChannels"
+        ],
+        "summary": "Lists the channels one page at a time, by name.",
+        "parameters": [
+          {
+            "name": "Kind",
+            "in": "query",
+            "description": "Bank or Gateway; both when left out.",
+            "schema": {
+              "$ref": "#/components/schemas/SettlementChannelKind"
+            }
+          },
+          {
+            "name": "Status",
+            "in": "query",
+            "description": "Active or Inactive; both when left out.",
+            "schema": {
+              "$ref": "#/components/schemas/SettlementChannelStatus"
+            }
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "description": "The page, from 1; the first when left out.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Channels per page, 1 to 100; 20 when left out.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfOfSettlementChannelDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfOfSettlementChannelDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfOfSettlementChannelDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settlement-channels/{id}": {
+      "get": {
+        "tags": [
+          "SettlementChannels"
+        ],
+        "summary": "Reads one channel.",
+        "operationId": "GetSettlementChannel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementChannelDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementChannelDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementChannelDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "SettlementChannels"
+        ],
+        "summary": "Changes the name, the label, the window, and the mapping of a bank or the bank of a gateway. Lines imported before\nkeep what was read. Needs If-Match.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSettlementChannelRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSettlementChannelRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSettlementChannelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementChannelDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementChannelDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementChannelDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Precondition Required",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settlement-channels/{id}/deactivate": {
+      "post": {
+        "tags": [
+          "SettlementChannels"
+        ],
+        "summary": "Deactivates a channel: it takes no import. Needs If-Match.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementChannelDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementChannelDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementChannelDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Precondition Required",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settlement-channels/{id}/reactivate": {
+      "post": {
+        "tags": [
+          "SettlementChannels"
+        ],
+        "summary": "Makes an inactive channel active again. Needs If-Match.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementChannelDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementChannelDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementChannelDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Precondition Required",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/statement-imports/dry-run": {
+      "post": {
+        "tags": [
+          "StatementDryRuns"
+        ],
+        "summary": "Reads the file with the channel's mapping and answers what importing it would do.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatementFileRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatementFileRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatementFileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementDryRunDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementDryRunDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementDryRunDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/statement-imports": {
+      "post": {
+        "tags": [
+          "StatementImports"
+        ],
+        "summary": "Imports the file its dry run read: the lines the channel does not hold yet. 409 `statement_file_changed` for\nanother file than the dry run's, 409 `statement_file_already_imported` for a file the channel took before.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatementFileRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatementFileRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatementFileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementImportDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementImportDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementImportDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "StatementImports"
+        ],
+        "summary": "Lists the imports one page at a time, the latest first.",
+        "parameters": [
+          {
+            "name": "ChannelId",
+            "in": "query",
+            "description": "Only the imports of this channel.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "description": "The page, from 1; the first when left out.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Imports per page, 1 to 100; 20 when left out.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfOfStatementImportDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfOfStatementImportDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfOfStatementImportDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/statement-imports/{id}": {
+      "get": {
+        "tags": [
+          "StatementImports"
+        ],
+        "summary": "Reads one import.",
+        "operationId": "GetStatementImport",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementImportDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementImportDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementImportDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/statement-lines": {
+      "get": {
+        "tags": [
+          "StatementLines"
+        ],
+        "summary": "Lists the lines one page at a time, the latest first.",
+        "parameters": [
+          {
+            "name": "ChannelId",
+            "in": "query",
+            "description": "Only the lines of this channel.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "ImportId",
+            "in": "query",
+            "description": "Only the lines this import stored.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Status",
+            "in": "query",
+            "description": "Unmatched, Matched or Excluded; all when left out.",
+            "schema": {
+              "$ref": "#/components/schemas/StatementLineStatus"
+            }
+          },
+          {
+            "name": "Direction",
+            "in": "query",
+            "description": "In or Out; both when left out.",
+            "schema": {
+              "$ref": "#/components/schemas/StatementDirection"
+            }
+          },
+          {
+            "name": "From",
+            "in": "query",
+            "description": "The first transaction date, included.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "To",
+            "in": "query",
+            "description": "The last transaction date, included.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Search",
+            "in": "query",
+            "description": "Part of a reference or of a description.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "description": "The order: `transactionDate` or `amount`, with `-` in front for the latest or largest first. The\nlatest first when left out.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "description": "The page, from 1; the first when left out.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Lines per page, 1 to 100; 20 when left out.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfOfStatementLineDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfOfStatementLineDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfOfStatementLineDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/opening-batches/dry-run": {
       "post": {
         "tags": [
@@ -17171,6 +18369,13 @@
         "additionalProperties": false,
         "description": "One line of an allocation request: an amount of the payment for one bill. Unknown members are refused."
       },
+      "AmountLayout": {
+        "enum": [
+          "OneColumn",
+          "TwoColumns"
+        ],
+        "description": "How a bank's CSV writes the money of a line (BR-1002). Stored as text inside the column mapping."
+      },
       "ApplyCreditNoteRequest": {
         "type": "object",
         "properties": {
@@ -18484,6 +19689,92 @@
         },
         "description": "Every method of one business date together. decimal CollectionTotalsDto.Net equals the movement of the Cash account in the ledger on\nthat date: its debits less its credits (BR-901)."
       },
+      "ColumnMappingDto": {
+        "type": "object",
+        "properties": {
+          "headerRow": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The line of the file that holds the header, from 1.",
+            "format": "int32"
+          },
+          "dateColumn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The column of the transaction date."
+          },
+          "dateFormat": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "One of the formats the API lists, such as dd/MM/yyyy."
+          },
+          "valueDateColumn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The column of the value date, when the bank gives one."
+          },
+          "descriptionColumn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The column of the description."
+          },
+          "referenceColumn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The column of the reference, when the bank gives one."
+          },
+          "amountLayout": {
+            "description": "OneColumn (a signed amount) or TwoColumns (a debit and a credit).",
+            "$ref": "#/components/schemas/AmountLayout"
+          },
+          "amountColumn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The signed amount's column, for OneColumn."
+          },
+          "debitColumn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The debit column, for TwoColumns."
+          },
+          "creditColumn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The credit column, for TwoColumns."
+          },
+          "balanceColumn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The column of the running balance, when the bank gives one."
+          },
+          "decimalStyle": {
+            "description": "Point (1,234.56) or Comma (1.234,56).",
+            "$ref": "#/components/schemas/DecimalStyle"
+          }
+        },
+        "description": "The column mapping of a bank channel as the API takes it in and hands it out (BR-1002): the header line, the header\nnames of each column, the date format, how the money is laid out and how its decimals are written."
+      },
       "CreateAdjustmentRequest": {
         "type": "object",
         "properties": {
@@ -18805,6 +20096,78 @@
         },
         "additionalProperties": false,
         "description": "The body of `POST /api/v1/service-items`. A member the API does not know is refused with 400, so a misspelt\nfield cannot pass unnoticed."
+      },
+      "CreateSettlementChannelRequest": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Bank or Gateway. It cannot be changed later.",
+                "$ref": "#/components/schemas/SettlementChannelKind"
+              }
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "How people name the account, unique in the hospital."
+          },
+          "accountLabel": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "At most the last four digits of the account or merchant number, never the full number."
+          },
+          "dateWindowDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Days before a line an item may be dated and still match it, 0 to 10; 3 when left out.",
+            "format": "int32"
+          },
+          "gateway": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The gateway of a gateway channel: Razorpay. It cannot be changed later.",
+                "$ref": "#/components/schemas/PaymentGateway"
+              }
+            ]
+          },
+          "bankChannelId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The bank channel a gateway settles into.",
+            "format": "uuid"
+          },
+          "mapping": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "How a bank's CSV is read.",
+                "$ref": "#/components/schemas/ColumnMappingDto"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "description": "The body of `POST /api/v1/settlement-channels` (BR-1001, BR-1002). A bank sends its mapping; a gateway sends its\ngateway and the bank channel it settles into. A member the API does not know is refused with 400."
       },
       "CreateUserRequest": {
         "type": "object",
@@ -19710,6 +21073,13 @@
         },
         "additionalProperties": false,
         "description": "The decision on an opening batch: a comment, optional for an approval and required for a rejection."
+      },
+      "DecimalStyle": {
+        "enum": [
+          "Point",
+          "Comma"
+        ],
+        "description": "How a bank's CSV writes the decimals of an amount (BR-1002). Stored as text inside the column mapping."
       },
       "DocumentOrigin": {
         "enum": [
@@ -20969,6 +22339,132 @@
         },
         "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
       },
+      "PageOfOfSettlementChannelDto": {
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SettlementChannelDto"
+            }
+          },
+          "page": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
+      },
+      "PageOfOfStatementImportDto": {
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatementImportDto"
+            }
+          },
+          "page": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
+      },
+      "PageOfOfStatementLineDto": {
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatementLineDto"
+            }
+          },
+          "page": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "One page of a list (docs/api.md): the items in a stable order, the number of the page (from 1), the page size that\nwas asked for, and how many items all pages hold together."
+      },
       "PageOfOfUserDto": {
         "required": [
           "items",
@@ -21534,6 +23030,12 @@
           }
         },
         "description": "A payment as the API returns it. `ReversedAtUtc` and `ReversalReason` are null unless the payment was\n            reversed (BR-306). `Version` is the row version, sent back as the ETag (BR-804)."
+      },
+      "PaymentGateway": {
+        "enum": [
+          "Razorpay",
+          null
+        ]
       },
       "PaymentMethod": {
         "enum": [
@@ -23220,6 +24722,105 @@
         ],
         "description": "Whether an entry of the service catalogue can be put on new bill lines. The member names are stored as text\n(docs/database.md, section 3.3), so renaming one is a data migration."
       },
+      "SettlementChannelDto": {
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "accountLabel",
+          "gateway",
+          "bankChannelId",
+          "dateWindowDays",
+          "mapping",
+          "status",
+          "createdAtUtc",
+          "updatedAtUtc",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SettlementChannelKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "accountLabel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gateway": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PaymentGateway"
+              }
+            ]
+          },
+          "bankChannelId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "dateWindowDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "mapping": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ColumnMappingDto"
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/SettlementChannelStatus"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "description": "A settlement channel as the API returns it (BR-1001). string SettlementChannelDto.Version is the row version in base64, the same\nvalue as the response's ETag; a change sends it back in If-Match (BR-804)."
+      },
+      "SettlementChannelKind": {
+        "enum": [
+          "Bank",
+          "Gateway"
+        ],
+        "description": "What a settlement channel is (BR-1001). The member names are stored as text (docs/database.md §5.16), so renaming\none is a data migration."
+      },
+      "SettlementChannelStatus": {
+        "enum": [
+          "Active",
+          "Inactive"
+        ],
+        "description": "Whether a settlement channel takes new imports (BR-1001). Stored as text."
+      },
       "Sex": {
         "enum": [
           "Male",
@@ -23278,6 +24879,428 @@
           }
         },
         "description": "What this deployment offers at the sign-in."
+      },
+      "StatementDirection": {
+        "enum": [
+          "In",
+          "Out"
+        ],
+        "description": "Which way a statement line's money went (BR-1005). Stored as text."
+      },
+      "StatementDryRunDto": {
+        "required": [
+          "fileHash",
+          "alreadyImported",
+          "rowsRead",
+          "linesToAdd",
+          "linesAlreadyHeld",
+          "rowsRefused",
+          "moneyIn",
+          "moneyOut",
+          "firstDate",
+          "lastDate",
+          "refusals",
+          "lines"
+        ],
+        "type": "object",
+        "properties": {
+          "fileHash": {
+            "type": "string"
+          },
+          "alreadyImported": {
+            "type": "boolean"
+          },
+          "rowsRead": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "linesToAdd": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "linesAlreadyHeld": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rowsRefused": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "moneyIn": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "moneyOut": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "firstDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "lastDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "refusals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatementRefusal"
+            }
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatementPreviewLineDto"
+            }
+          }
+        },
+        "description": "What importing a file would do (BR-1003), with nothing stored: the file's hash, which the import sends back so that it\nimports exactly this file; the counts; the money of the lines it would add; every refused row with its reason; and the\nfirst int DryRunStatementHandler.PreviewLimit lines it read."
+      },
+      "StatementFileRequest": {
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The bank channel the file is for.",
+            "format": "uuid"
+          },
+          "fileName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The name of the file."
+          },
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The text of the file, at most 1 MB."
+          },
+          "fileHash": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The file hash its dry run answered; read by the import only."
+          }
+        },
+        "additionalProperties": false,
+        "description": "The body of the dry run and of the import of a bank's statement (BR-1003): the channel, the file's name and its text,\nread as UTF-8, and for the import the file hash its dry run answered. A member the API does not know is refused."
+      },
+      "StatementImportDto": {
+        "required": [
+          "id",
+          "channelId",
+          "fileName",
+          "fileHash",
+          "rowsRead",
+          "linesAdded",
+          "linesAlreadyHeld",
+          "rowsRefused",
+          "firstDate",
+          "lastDate",
+          "createdAtUtc",
+          "createdByUserId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "channelId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "fileHash": {
+            "type": "string"
+          },
+          "rowsRead": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "linesAdded": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "linesAlreadyHeld": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rowsRefused": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "firstDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "lastDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdByUserId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        },
+        "description": "An import of a bank's statement as the API returns it (BR-1003, BR-1004): what was read, added, held before and refused."
+      },
+      "StatementLineDto": {
+        "required": [
+          "id",
+          "channelId",
+          "importId",
+          "rowNumber",
+          "transactionDate",
+          "valueDate",
+          "direction",
+          "amount",
+          "reference",
+          "description",
+          "balance",
+          "rawText",
+          "status",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "channelId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "importId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rowNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "transactionDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "valueDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/StatementDirection"
+          },
+          "amount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "reference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "balance": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "rawText": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StatementLineStatus"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "description": "A line of a bank's statement as the API returns it (BR-1004, BR-1005); amounts in rupees with two decimals."
+      },
+      "StatementLineStatus": {
+        "enum": [
+          "Unmatched",
+          "Matched",
+          "Excluded"
+        ],
+        "description": "Where a statement line stands (BR-1004): the one thing about a line that changes, following its matches (Prompts\n13.2 and 13.3). Stored as text."
+      },
+      "StatementPreviewLineDto": {
+        "required": [
+          "rowNumber",
+          "transactionDate",
+          "valueDate",
+          "direction",
+          "amount",
+          "reference",
+          "description",
+          "balance",
+          "alreadyHeld"
+        ],
+        "type": "object",
+        "properties": {
+          "rowNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "transactionDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "valueDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/StatementDirection"
+          },
+          "amount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "reference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "balance": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "alreadyHeld": {
+            "type": "boolean"
+          }
+        },
+        "description": "A line the dry run read, as the import would store it, and whether the channel already holds it."
+      },
+      "StatementRefusal": {
+        "required": [
+          "rowNumber",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "rowNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "description": "A row of a statement that was refused (BR-1003): the line of the file it started on and the reason in words."
       },
       "SummaryFigureDto": {
         "required": [
@@ -24181,6 +26204,56 @@
         "additionalProperties": false,
         "description": "The body of `PATCH /api/v1/settings`: every setting it changes, as the new state (docs/api.md section 5). A\nthreshold left out or null means none. The prefixes are not here: they change through a prefix change. Unknown\nmembers are refused."
       },
+      "UpdateSettlementChannelRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "How people name the account, unique in the hospital."
+          },
+          "accountLabel": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "At most the last four digits of the account or merchant number."
+          },
+          "dateWindowDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Days before a line an item may be dated and still match it, 0 to 10; unchanged when left out.",
+            "format": "int32"
+          },
+          "bankChannelId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The bank channel a gateway settles into.",
+            "format": "uuid"
+          },
+          "mapping": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "How a bank's CSV is read.",
+                "$ref": "#/components/schemas/ColumnMappingDto"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "description": "The body of `PATCH /api/v1/settlement-channels/{id}`: every field is sent, and a label left out is cleared. A\nbank sends its mapping, a gateway its bank channel. The kind and the gateway are not part of it."
+      },
       "UpdateUserRequest": {
         "type": "object",
         "properties": {
@@ -24343,6 +26416,18 @@
     },
     {
       "name": "Reports"
+    },
+    {
+      "name": "SettlementChannels"
+    },
+    {
+      "name": "StatementDryRuns"
+    },
+    {
+      "name": "StatementImports"
+    },
+    {
+      "name": "StatementLines"
     },
     {
       "name": "OpeningBatchChecks"

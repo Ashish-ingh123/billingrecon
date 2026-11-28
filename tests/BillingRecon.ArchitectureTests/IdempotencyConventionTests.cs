@@ -7,6 +7,7 @@ using BillingRecon.Api.Identity;
 using BillingRecon.Api.Payers;
 using BillingRecon.Api.Payments;
 using BillingRecon.Api.Receivables;
+using BillingRecon.Api.Reconciliation;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BillingRecon.ArchitectureTests;
@@ -32,6 +33,9 @@ public sealed class IdempotencyConventionTests
 
         // Since ADR 0053: its approval posts every opening receivable and advance of a batch.
         typeof(OpeningBatchesController),
+
+        // Since ADR 0065: an import stores the lines of a bank statement; a retry answers the first import (BR-1003).
+        typeof(StatementImportsController),
     ];
 
     /// <summary>
@@ -53,6 +57,11 @@ public sealed class IdempotencyConventionTests
         // an opening batch, which writes nothing.
         typeof(PartyImportsController),
         typeof(OpeningBatchChecksController),
+
+        // Since ADR 0065: the settlement channels are set-up data under their unique name and If-Match, and the dry run of
+        // a statement writes nothing.
+        typeof(SettlementChannelsController),
+        typeof(StatementDryRunsController),
 
         // Since ADR 0059: removing an image of the letterhead, under If-Match; a second removal changes nothing.
         typeof(SettingsController),

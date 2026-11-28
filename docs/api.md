@@ -72,6 +72,8 @@ at the next sign-in. In short:
 | Audit trail (the trails of a user, the tenant, its prefix changes and its number series: TenantAdmin only) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Reports (section 8.15) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Dashboard (section 8.16) | ✓ | ✓ | | | ✓ | ✓ |
+| Settlement channels (section 8.22): read / set up | ✓ / ✓ | ✓ / | | | ✓ / | ✓ / |
+| Statements (section 8.22): read / dry run and import | ✓ / ✓ | ✓ / ✓ | | | ✓ / | ✓ / ✓ |
 | `GET /api/v1/system/info` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `GET /api/v1/system/business-date` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
@@ -1393,6 +1395,58 @@ line, and `version`. A hospital that saved none answers none, with the version o
 `If-Match` of its first save. A member left out, null or empty takes that name away; an unknown member is 400. Two
 may be the same. The trail (`entityType=AccountingLedgers`, `Changed`) is the TenantAdmin's.
 
+### 8.22 Settlement channels and the import of a bank's statement (US-60, US-61; BR-1001 to BR-1005; ADR 0065)
+
+R2 Reconciliation, built by Prompt 13.1b. A channel is one of the hospital's bank accounts or gateway accounts; a bank
+channel's statement is imported from a CSV through the channel's column mapping, a dry run first.
+
+| Endpoint | Who | Success | Refusals |
+|---|---|---|---|
+| `POST /api/v1/settlement-channels` | TenantAdmin (`ManageTenant`) | 201, the channel, `ETag`, `Location` | 400; 409 `settlement_channel_name_duplicate`; 422 `settlement_channel_bank_invalid` |
+| `GET /api/v1/settlement-channels` | TenantAdmin, Supervisor, Viewer, Accountant (`ReadReconciliation`) | 200, a page by name; `kind`, `status` | 400 |
+| `GET /api/v1/settlement-channels/{id}` | the same | 200, the channel, `ETag` | 404 `settlement_channel_not_found` |
+| `PATCH /api/v1/settlement-channels/{id}` (needs `If-Match`) | TenantAdmin | 200, the channel, `ETag` | 400; 404; 409 `concurrency_conflict`, `settlement_channel_name_duplicate`; 422 `settlement_channel_bank_invalid`, `settlement_channel_not_bank`; 428 |
+| `POST /api/v1/settlement-channels/{id}/deactivate` (needs `If-Match`) | TenantAdmin | 200, the channel `Inactive` | 404; 409; 422 `settlement_channel_already_inactive`; 428 |
+| `POST /api/v1/settlement-channels/{id}/reactivate` (needs `If-Match`) | TenantAdmin | 200, the channel `Active` | 404; 409; 422 `settlement_channel_already_active`; 428 |
+| `POST /api/v1/statement-imports/dry-run` | TenantAdmin, Supervisor, Accountant (`ImportStatements`) | 200, what the import would do; stores nothing, no `Idempotency-Key` | 400 `statement_file_unreadable` and field errors; 404 `settlement_channel_not_found`; 422 `settlement_channel_not_bank`, `settlement_channel_inactive` |
+| `POST /api/v1/statement-imports` (needs `Idempotency-Key`) | the same | 201, the import, `Location` | the dry run's, and 409 `statement_file_changed`, `statement_file_already_imported` |
+| `GET /api/v1/statement-imports` | `ReadReconciliation` | 200, a page, the latest first; `channelId` | 400 |
+| `GET /api/v1/statement-imports/{id}` | the same | 200, the import | 404 `statement_import_not_found` |
+| `GET /api/v1/statement-lines` | the same | 200, a page, the latest first; `channelId`, `importId`, `status`, `direction`, `from`, `to`, `search`, `sort` (`transactionDate`, `amount`) | 400 |
+
+**A channel** answers `id`, `kind` (`Bank`, `Gateway`), `name`, `accountLabel` (at most the last four digits, never the
+full number), `gateway` (`Razorpay`, a gateway only), `bankChannelId` (the bank a gateway settles into), `dateWindowDays`
+(0 to 10, 3 by default), `mapping` (a bank only), `status`, the two instants and `version`. The kind and the gateway
+never change; a bank sends its mapping on every `PATCH` and a gateway its `bankChannelId`.
+
+**The mapping** is `headerRow` (the line of the header, 1 to 50, the lines above it skipped), `dateColumn`,
+`dateFormat` (one of `dd/MM/yyyy`, `dd-MM-yyyy`, `dd.MM.yyyy`, `dd/MM/yy`, `dd-MM-yy`, `dd-MMM-yyyy`, `dd-MMM-yy`,
+`dd MMM yyyy`, `yyyy-MM-dd`), `valueDateColumn`, `descriptionColumn`, `referenceColumn`, `amountLayout` (`OneColumn`
+with `amountColumn`, a signed amount, or a trailing `Cr` or `Dr`; `TwoColumns` with `debitColumn` and `creditColumn`),
+`balanceColumn` and `decimalStyle` (`Point` for 1,23,456.78, `Comma` for 1.23.456,78). Columns are named by their
+header, without regard to case; each value has a column of its own.
+
+**The file** is sent as text in the body: `channelId`, `fileName`, `text` (UTF-8, at most 900,000 characters, about
+1 MB: a longer statement is sent as several files) and, for the import, `fileHash`, the hash its dry run answered. A
+text holding the replacement character (a file that was not UTF-8), with no header line, or whose header lacks a column
+of the mapping is 400 `statement_file_unreadable`, whose message says which. A row is refused, not the file, for a
+missing or unreadable date or amount, an amount of zero, both a debit and a credit, more than two decimals, a date
+after today in India, or neither a description nor a reference.
+
+**The dry run** answers `fileHash`, `alreadyImported`, `rowsRead`, `linesToAdd`, `linesAlreadyHeld`, `rowsRefused`,
+`moneyIn` and `moneyOut` (of the lines it would add), `firstDate`, `lastDate`, `refusals` (each `rowNumber` and
+`reason`) and the first 1,000 `lines` with `alreadyHeld`. **The import** stores the lines the channel does not hold
+yet and answers the import: `rowsRead`, `linesAdded`, `linesAlreadyHeld`, `rowsRefused`, the dates and who imported it.
+A line is held when the channel has as many lines with its fingerprint (the date, direction, amount, reference,
+balance and description) as its place among the identical lines of the file (BR-1004). The same file again is 409
+`statement_file_already_imported`; another file than the dry run's is 409 `statement_file_changed`.
+
+**A line** answers `id`, `channelId`, `importId`, `rowNumber`, `transactionDate`, `valueDate`, `direction` (`In`,
+`Out`), `amount` (above zero), `reference`, `description`, `balance` (may be below zero), `rawText` (the row as the file
+held it), `status` (`Unmatched` until matching, Prompt 13.2) and `version`. Nothing changes the read fields of a line,
+and nothing removes a line or an import. The trails are `SettlementChannel` and `StatementImport`, read with
+`ReadReconciliation`.
+
 ## 9. Error-code catalogue
 
 Every `errorCode` the API can answer, with its status and what the client is told (the `detail`). Section 3 gives the
@@ -1607,3 +1661,19 @@ changed what this one read; the others only raise balances and cannot meet it. `
 that onboarding would make wrongly. No endpoint creates, suspends or resumes a tenant: `tenant_invalid`,
 `tenant_code_taken`, `tenant_not_found` and `tenant_status_unchanged` are the refusals of the operator's command on the
 server (ADR 0052, `docs/runbook.md` section 17), which prints them; they are listed for completeness.
+
+### 9.9 Reconciliation: settlement channels and statements (R2)
+
+| Code | Status | Message |
+|---|---|---|
+| `settlement_channel_not_found` | 404 | The settlement channel does not exist. |
+| `settlement_channel_name_duplicate` | 409 | A settlement channel with this name already exists (BR-1001). |
+| `settlement_channel_already_inactive` | 422 | The settlement channel is already inactive. |
+| `settlement_channel_already_active` | 422 | The settlement channel is already active. |
+| `settlement_channel_inactive` | 422 | The settlement channel is inactive and takes no import (BR-1001). |
+| `settlement_channel_not_bank` | 422 | Only a bank channel has a column mapping and takes a bank's statement. |
+| `settlement_channel_bank_invalid` | 422 | A gateway settles into an active bank channel of the hospital. |
+| `statement_import_not_found` | 404 | The statement import does not exist. |
+| `statement_file_already_imported` | 409 | This file was already imported into this channel; nothing was added (BR-1004). |
+| `statement_file_changed` | 409 | The file differs from the one the dry run read. Run the dry run again (BR-1003). |
+| `statement_file_unreadable` | 400 | The file cannot be read: … (too large, not UTF-8, no header, a missing column). |

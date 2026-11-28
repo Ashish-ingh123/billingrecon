@@ -56,3 +56,17 @@ columns.
 - **Bank and gateway APIs:** no file to download, but an agreement and a secret per hospital and per bank. Left for
   later, each as its own decision.
 - **Matching inside Payments:** no new module, but Payments would learn bank columns and settlement reports. Rejected.
+
+## Built note (2026-11-28, Prompt 13.1b)
+
+- As decided, with migration `0036_Reconciliation`. The file travels as text inside the JSON body, as the opening
+  batch does (ADR 0053), so the limit is characters: 900,000, about 1 MB with its JSON around it (point 7 as amended).
+  A text holding the replacement character U+FFFD is refused as "not UTF-8": it is what a browser makes of the bytes
+  of another encoding.
+- The dry run answers the file's SHA-256; the import must send it back, and a file that differs is 409
+  `statement_file_changed`. The same file again is 409 `statement_file_already_imported`, decided first by a read and
+  finally by the unique index on (tenant, channel, hash).
+- A line of only commas is a blank line, not a refused row. A description longer than 500 characters or a reference
+  longer than 100 is cut to that length; the raw text keeps the whole row (up to 2,000 characters).
+- Measured on LocalDB 2019: 10,590 lines (899,987 characters) take 0.6 s to dry-run and 8.1 s for the dry run and the
+  import together. Owed on SQL Server 2022 (runbook section 8, row 13.1b).

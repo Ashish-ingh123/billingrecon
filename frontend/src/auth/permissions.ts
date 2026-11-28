@@ -28,6 +28,8 @@ export const policies = {
   ReadShifts: ['TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier', 'Viewer', 'Accountant'],
   DayEnd: ['TenantAdmin', 'Supervisor', 'Viewer', 'Accountant'],
   AccountingExport: ['TenantAdmin', 'Supervisor', 'Viewer', 'Accountant'],
+  ReadReconciliation: ['TenantAdmin', 'Supervisor', 'Viewer', 'Accountant'],
+  ImportStatements: ['TenantAdmin', 'Supervisor', 'Accountant'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Policy = keyof typeof policies;

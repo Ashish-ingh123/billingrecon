@@ -6,6 +6,7 @@ using BillingRecon.Domain.Identity;
 using BillingRecon.Domain.Payers;
 using BillingRecon.Domain.Payments;
 using BillingRecon.Domain.Receivables;
+using BillingRecon.Domain.Reconciliation;
 
 namespace BillingRecon.Api.Audit;
 
@@ -36,6 +37,12 @@ public static class AuditTrailPolicies
         // What a checker decides, and the batch of opening balances, are read by who may decide.
         [nameof(ApprovalRequest)] = Policies.Decide,
         [nameof(OpeningBatch)] = Policies.Decide,
+
+        // R2 (ADR 0065): a channel and an import are read by who reads the reconciliation. A statement line raises no event
+        // of its own yet (its import does, ADR 0065); its trail is read likewise once matching changes it (13.2).
+        [nameof(SettlementChannel)] = Policies.ReadReconciliation,
+        [nameof(StatementImport)] = Policies.ReadReconciliation,
+        [nameof(StatementLine)] = Policies.ReadReconciliation,
 
         // The users and the settings are the TenantAdmin's alone (ADR 0032 point 6, ADR 0033 point 9).
         [nameof(User)] = Policies.ManageTenant,

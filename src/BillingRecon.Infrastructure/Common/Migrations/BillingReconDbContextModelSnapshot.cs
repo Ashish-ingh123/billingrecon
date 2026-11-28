@@ -2896,6 +2896,272 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.SettlementChannel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AccountLabel")
+                        .HasMaxLength(4)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(4)");
+
+                    b.Property<Guid?>("BankChannelId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("DateWindowDays")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Gateway")
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Mapping")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "BankChannelId")
+                        .HasDatabaseName("IX_SettlementChannels_TenantId_BankChannelId");
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("UX_SettlementChannels_TenantId_Name");
+
+                    b.ToTable("SettlementChannels", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_SettlementChannels_DateWindowDays", "[DateWindowDays] BETWEEN 0 AND 10");
+
+                            t.HasCheckConstraint("CK_SettlementChannels_Gateway", "[Gateway] IN ('Razorpay')");
+
+                            t.HasCheckConstraint("CK_SettlementChannels_Kind", "[Kind] IN ('Bank', 'Gateway')");
+
+                            t.HasCheckConstraint("CK_SettlementChannels_Status", "[Status] IN ('Active', 'Inactive')");
+                        });
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.StatementImport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ChannelId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("FileHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<DateOnly?>("FirstDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("LastDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("LinesAdded")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LinesAlreadyHeld")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RowsRead")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RowsRefused")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "CreatedAtUtc")
+                        .HasDatabaseName("IX_StatementImports_TenantId_CreatedAtUtc");
+
+                    b.HasIndex("TenantId", "ChannelId", "FileHash")
+                        .IsUnique()
+                        .HasDatabaseName("UX_StatementImports_TenantId_ChannelId_FileHash");
+
+                    b.ToTable("StatementImports", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_StatementImports_Counts", "[RowsRead] = [LinesAdded] + [LinesAlreadyHeld] + [RowsRefused] AND [LinesAdded] >= 0 AND [LinesAlreadyHeld] >= 0 AND [RowsRefused] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.StatementLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("Balance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("ChannelId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Fingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("ImportId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Occurrence")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RawText")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("RowNumber")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("TransactionDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("ValueDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "ImportId")
+                        .HasDatabaseName("IX_StatementLines_TenantId_ImportId");
+
+                    b.HasIndex("TenantId", "TransactionDate")
+                        .HasDatabaseName("IX_StatementLines_TenantId_TransactionDate");
+
+                    b.HasIndex("TenantId", "ChannelId", "Fingerprint", "Occurrence")
+                        .IsUnique()
+                        .HasDatabaseName("UX_StatementLines_TenantId_ChannelId_Fingerprint_Occurrence");
+
+                    b.HasIndex("TenantId", "ChannelId", "Status", "TransactionDate")
+                        .HasDatabaseName("IX_StatementLines_TenantId_ChannelId_Status_TransactionDate");
+
+                    b.ToTable("StatementLines", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_StatementLines_Amount", "[Amount] > 0");
+
+                            t.HasCheckConstraint("CK_StatementLines_Direction", "[Direction] IN ('In', 'Out')");
+
+                            t.HasCheckConstraint("CK_StatementLines_RowNumber", "[RowNumber] >= 1 AND [Occurrence] >= 1");
+
+                            t.HasCheckConstraint("CK_StatementLines_Status", "[Status] IN ('Unmatched', 'Matched', 'Excluded')");
+                        });
+                });
+
             modelBuilder.Entity("BillingRecon.Domain.Adjustments.Adjustment", b =>
                 {
                     b.HasOne("BillingRecon.Domain.Billing.Bill", null)
@@ -3709,6 +3975,93 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_PayerBalances_TenantId");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.SettlementChannel", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Reconciliation.SettlementChannel", null)
+                        .WithMany()
+                        .HasForeignKey("BankChannelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_SettlementChannels_BankChannelId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_SettlementChannels_CreatedByUserId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_SettlementChannels_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_SettlementChannels_UpdatedByUserId");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.StatementImport", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Reconciliation.SettlementChannel", null)
+                        .WithMany()
+                        .HasForeignKey("ChannelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_StatementImports_ChannelId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_StatementImports_CreatedByUserId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_StatementImports_TenantId");
+                });
+
+            modelBuilder.Entity("BillingRecon.Domain.Reconciliation.StatementLine", b =>
+                {
+                    b.HasOne("BillingRecon.Domain.Reconciliation.SettlementChannel", null)
+                        .WithMany()
+                        .HasForeignKey("ChannelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_StatementLines_ChannelId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_StatementLines_CreatedByUserId");
+
+                    b.HasOne("BillingRecon.Domain.Reconciliation.StatementImport", null)
+                        .WithMany()
+                        .HasForeignKey("ImportId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_StatementLines_ImportId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_StatementLines_TenantId");
+
+                    b.HasOne("BillingRecon.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_StatementLines_UpdatedByUserId");
                 });
 
             modelBuilder.Entity("BillingRecon.Domain.Billing.Bill", b =>

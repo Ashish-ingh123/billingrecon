@@ -60,6 +60,9 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
         ["shifts: read"] = Everyone,
         ["day end"] = [TenantAdmin, Supervisor, Viewer, Accountant],
         ["accounting export"] = [TenantAdmin, Supervisor, Viewer, Accountant],
+        ["settlement channels: set up"] = [TenantAdmin],
+        ["reconciliation: read"] = [TenantAdmin, Supervisor, Viewer, Accountant],
+        ["statements: import"] = [TenantAdmin, Supervisor, Accountant],
         ["signed in"] = Everyone,
     };
 
@@ -224,6 +227,19 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
         ("POST", "api/v1/bills/{id:guid}/prints", "bills: read"),
         ("POST", "api/v1/payments/{id:guid}/prints", "payments: read"),
         ("POST", "api/v1/refunds/{id:guid}/prints", "refunds: read"),
+
+        // R2 Reconciliation (Prompt 13.1b, docs/requirements.md section 7.2): the channels are set up by a TenantAdmin.
+        ("POST", "api/v1/settlement-channels", "settlement channels: set up"),
+        ("GET", "api/v1/settlement-channels", "reconciliation: read"),
+        ("GET", "api/v1/settlement-channels/{id:guid}", "reconciliation: read"),
+        ("PATCH", "api/v1/settlement-channels/{id:guid}", "settlement channels: set up"),
+        ("POST", "api/v1/settlement-channels/{id:guid}/deactivate", "settlement channels: set up"),
+        ("POST", "api/v1/settlement-channels/{id:guid}/reactivate", "settlement channels: set up"),
+        ("POST", "api/v1/statement-imports/dry-run", "statements: import"),
+        ("POST", "api/v1/statement-imports", "statements: import"),
+        ("GET", "api/v1/statement-imports", "reconciliation: read"),
+        ("GET", "api/v1/statement-imports/{id:guid}", "reconciliation: read"),
+        ("GET", "api/v1/statement-lines", "reconciliation: read"),
 
         // The last row on purpose: the walk below sends every row as every role, and a sign-out ends the sessions of the
         // user who sent it (ADR 0057), so nothing may follow it.
