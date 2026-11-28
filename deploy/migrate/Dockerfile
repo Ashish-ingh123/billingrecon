@@ -19,5 +19,5 @@ RUN dotnet tool restore \
 # sqlcmd comes with the SQL Server image the compose file already pulls.
 FROM mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04
 COPY --from=script /out/migrate.sql /migrate/migrate.sql
-COPY deploy/migrate/logins.sql deploy/migrate/membership.sql deploy/migrate/setup.sh /migrate/
+COPY deploy/migrate/logins.sql deploy/migrate/contained-users.sql deploy/migrate/membership.sql deploy/migrate/setup.sh /migrate/
 ENTRYPOINT ["/bin/bash", "/migrate/setup.sh"]
