@@ -158,7 +158,7 @@ const balance = {
 };
 const colleague = {
   id: 'a7000000-0000-4000-8000-000000000001',
-  email: 'ravi.iyer@cityhospital.org',
+  email: 'ravi.iyer@cityhospital.example',
   displayName: 'Ravi Iyer',
   status: 'Active',
   roles: ['Supervisor', 'Cashier'],
@@ -476,6 +476,22 @@ const routes: readonly (readonly [string, string | RegExp, ReturnType<typeof ses
 
 const sizes = { desktop: { width: 1440, height: 900 }, phone: { width: 390, height: 844 } } as const;
 
+/** The training notes' screenshots in docs/ui, by route (docs/go-live.md); payment.png is cashier.spec.ts's. */
+const trainingShots: Record<string, { file: string; fullPage: boolean } | undefined> = {
+  '/patients/new': { file: 'patient-new', fullPage: false },
+  [`/payments/new?payerId=${payer.id}`]: { file: 'payment-new', fullPage: false },
+  '/approvals': { file: 'approvals', fullPage: false },
+  '/shifts/new': { file: 'shift-open', fullPage: false },
+  [`/shifts/${openShift.id}/close`]: { file: 'shift-close', fullPage: true },
+  '/reports/day-end': { file: 'day-end', fullPage: false },
+  '/reports/accounting-export': { file: 'accounting-export', fullPage: false },
+  '/administration/accounting': { file: 'settings-accounts', fullPage: true },
+  '/administration': { file: 'users', fullPage: false },
+  '/administration/users/new': { file: 'user-new', fullPage: false },
+  '/second-step': { file: 'second-step', fullPage: false },
+  '/second-step/enrol': { file: 'second-step-enrol', fullPage: false },
+};
+
 async function sidewaysAt(page: Page, width: number) {
   await page.setViewportSize({ width, height: 900 });
   return page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -503,6 +519,12 @@ for (const [path, heading, signedIn = everyRole] of routes) {
           await page.screenshot({
             path: `../docs/ui/${chosen}${label === 'phone' ? '-phone' : ''}${theme === 'dark' ? '-dark' : ''}.png`,
           });
+        }
+        // The training notes' screenshots (docs/go-live.md, Prompt 10.7b), light and desktop only; taken by hand until
+        // 2026-11-28 and written here since, so that a change to a screen can retake them. A tall form is the full page.
+        const training = trainingShots[path];
+        if (screenshots && training !== undefined && theme === 'light' && label === 'desktop') {
+          await page.screenshot({ path: `../docs/ui/${training.file}.png`, fullPage: training.fullPage });
         }
 
         if (label === 'desktop') {

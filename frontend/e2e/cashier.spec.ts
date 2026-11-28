@@ -233,6 +233,10 @@ for (const screen of screens) {
             fullPage: label === 'desktop',
           });
         }
+        // The training notes' view of a payment (docs/go-live.md), light and desktop only, the full page.
+        if (screenshots && screen.name === 'payment' && theme === 'light' && label === 'desktop') {
+          await page.screenshot({ path: '../docs/ui/payment.png', fullPage: true });
+        }
       });
     }
   }

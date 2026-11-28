@@ -1042,6 +1042,15 @@ reduced motion, the keyboard, narrow windows), which needs no API but does need 
 or `npm run build` and `npm run preview` with `E2E_BASE_URL=http://localhost:4173` (the Vite dev server's own inline
 scripts are rightly refused by the policy). `E2E_SCREENSHOTS=1` also writes the page's screenshots into `docs/ui/`.
 
+**Retaking the screenshots of `docs/ui` (2026-11-28).** Every in-app screenshot comes from a stubbed browser spec, so no
+API is needed: `npm run build`, `npx vite preview --port 4173`, then with `E2E_BASE_URL=http://localhost:4173`,
+`E2E_BROWSER_CHANNEL=msedge` and `E2E_SCREENSHOTS=1` run `shell`, `dashboard`, `money`, `cashier`, `searchtab`,
+`letterhead`, `printsettings`, `print`, `routes` and `signin`. The thirteen screenshots of the training notes
+(`docs/go-live.md`) are written by `routes.spec.ts` (`trainingShots`, light and desktop only) and, for `payment.png`, by
+`cashier.spec.ts`; until 2026-11-28 they were taken by hand. Never written by a test, and kept as they are:
+`sign-in.png` (the owner's design reference) and `dashboard.png`, `-dark`, `-phone` (the prototype). The sample user's
+address is `cityhospital.example`, a domain reserved for documentation (it was `cityhospital.org`, which someone may own).
+
 Node 22.22 or later on the machine, the stack up with the demo, then from `frontend/`:
 
 ```powershell

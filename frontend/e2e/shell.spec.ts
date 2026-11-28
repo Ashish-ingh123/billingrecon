@@ -18,7 +18,7 @@ const session = {
   userId: 'd0000000-0000-4000-8000-000000000002',
   tenantId: 'd0000000-0000-4000-8000-000000000001',
   roles,
-  email: 'asha@cityhospital.org',
+  email: 'asha@cityhospital.example',
   hospital: 'city-hospital',
 };
 const names = ['Asha Verma', 'Ravi Kumar', 'Meera Iyer', 'Imran Shaikh', 'Lakshmi Babu', 'Gurpreet Pillai'];

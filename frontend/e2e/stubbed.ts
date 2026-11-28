@@ -26,7 +26,7 @@ export function sessionOf(roles: readonly string[]) {
     credentialsChangeDue: false,
     secondStep: 'Done',
     roles,
-    email: 'asha@cityhospital.org',
+    email: 'asha@cityhospital.example',
     hospital: 'city-hospital',
   };
 }
