@@ -29,8 +29,9 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
     private const Role BillingClerk = Role.BillingClerk;
     private const Role Cashier = Role.Cashier;
     private const Role Viewer = Role.Viewer;
+    private const Role Accountant = Role.Accountant;
 
-    private static readonly Role[] Everyone = [TenantAdmin, Supervisor, BillingClerk, Cashier, Viewer];
+    private static readonly Role[] Everyone = [TenantAdmin, Supervisor, BillingClerk, Cashier, Viewer, Accountant];
 
     // The rows of the matrix, with the decisions of ADR 0032: a blank cell is no access, except that a Cashier reads
     // credit notes (point 3); applying credit is the credit notes' row (point 4); the inbox is the checkers' (point 5);
@@ -45,20 +46,20 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
         ["bills: read"] = Everyone,
         ["credit notes and adjustments: change"] = [TenantAdmin, Supervisor, BillingClerk],
         ["credit notes: read"] = Everyone,
-        ["adjustments: read"] = [TenantAdmin, Supervisor, BillingClerk, Viewer],
+        ["adjustments: read"] = [TenantAdmin, Supervisor, BillingClerk, Viewer, Accountant],
         ["payments: record, allocate"] = [TenantAdmin, Supervisor, BillingClerk, Cashier],
         ["payments: read"] = Everyone,
         ["refunds: change"] = [TenantAdmin, Supervisor, Cashier],
-        ["refunds: read"] = [TenantAdmin, Supervisor, Cashier, Viewer],
+        ["refunds: read"] = [TenantAdmin, Supervisor, Cashier, Viewer, Accountant],
         ["reversals: request"] = [TenantAdmin, Supervisor, BillingClerk, Cashier],
         ["approve or reject"] = [TenantAdmin, Supervisor],
         ["audit trail"] = Everyone,
         ["reports"] = Everyone,
-        ["dashboard"] = [TenantAdmin, Supervisor, Viewer],
+        ["dashboard"] = [TenantAdmin, Supervisor, Viewer, Accountant],
         ["shifts: open, close"] = [TenantAdmin, Supervisor, BillingClerk, Cashier],
         ["shifts: read"] = Everyone,
-        ["day end"] = [TenantAdmin, Supervisor, Viewer],
-        ["accounting export"] = [TenantAdmin, Supervisor, Viewer],
+        ["day end"] = [TenantAdmin, Supervisor, Viewer, Accountant],
+        ["accounting export"] = [TenantAdmin, Supervisor, Viewer, Accountant],
         ["signed in"] = Everyone,
     };
 
@@ -337,6 +338,14 @@ public sealed partial class PermissionMatrixApiTests(SqlServerFixture sqlServer)
             (Role.Viewer, "Adjustment", true),
             (Role.Viewer, "Refund", true),
             (Role.Viewer, "Patient", true),
+
+            // The Accountant reads as a Viewer does (ADR 0069), and decides nothing.
+            (Role.Accountant, "Adjustment", true),
+            (Role.Accountant, "Refund", true),
+            (Role.Accountant, "Payment", true),
+            (Role.Accountant, "ApprovalRequest", false),
+            (Role.Accountant, "OpeningBatch", false),
+            (Role.Accountant, "AccountingLedgers", false),
 
             // What a checker decides is read by who decides.
             (Role.Supervisor, "OpeningBatch", true),

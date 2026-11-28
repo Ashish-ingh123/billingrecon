@@ -20,4 +20,10 @@ public enum Role
 
     /// <summary>Reads and reports only.</summary>
     Viewer = 4,
+
+    /// <summary>
+    /// Reconciles: imports bank and gateway statements, matches them, records suspense cash and asks for it to be applied
+    /// or returned (maker); reads documents and reports and makes the accountant's export. Approves nothing (ADR 0069).
+    /// </summary>
+    Accountant = 5,
 }

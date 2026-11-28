@@ -149,7 +149,7 @@ table has `CreatedAtUtc` only, set by `Tenant.Create`; changes to its settings a
 | LastSignInAtUtc | datetimeoffset(3) | • | |
 | RowVersion | rowversion | | |
 
-**Roles** — global, seeded by migration: `TenantAdmin`, `Supervisor`, `BillingClerk`, `Cashier`, `Viewer`.
+**Roles** — global, seeded by migration: `TenantAdmin`, `Supervisor`, `BillingClerk`, `Cashier`, `Viewer`, and since migration `0035_AccountantRole` (ADR 0069) `Accountant`.
 
 | Column | Type | Null | Notes |
 |---|---|---|---|

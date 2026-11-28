@@ -39,7 +39,7 @@ columns.
    Fingerprint, Occurrence) makes the database refuse a duplicate.
 6. **A line keeps what was read.** Its fields and the row's raw text never change and are never deleted; only its
    status follows its matches. The row has a row version for that status.
-7. **Limits:** 5 MB and 20,000 lines a file; the import of the largest file under 30 seconds.
+7. **Limits:** 1 MB a file (about 6,000 lines), UTF-8 only, so that a file fits the proxy's 1 MB request (ADR 0045) and the Vercel demo; a longer statement is several files. The import of the largest file under 30 seconds. *Amended by the approved plan of Prompt 13.1 (2026-11-28); it said 5 MB and 20,000 lines.*
 
 ## Consequences
 

@@ -70,6 +70,20 @@ const matrix: Record<Role, string[]> = {
     '/adjustments',
     '/reports',
   ],
+  // The Accountant (ADR 0069) opens what a Viewer opens; R2's Reconciliation section is added with its screens.
+  Accountant: [
+    '/dashboard',
+    '/patients',
+    '/payers',
+    '/service-items',
+    '/bills',
+    '/payments',
+    '/refunds',
+    '/shifts',
+    '/credit-notes',
+    '/adjustments',
+    '/reports',
+  ],
 };
 
 describe('the navigation follows the permission matrix', () => {

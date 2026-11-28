@@ -12732,7 +12732,7 @@ export interface components {
          *     are stored as text and are the codes of the `Roles` table, so renaming one is a data migration.
          * @enum {unknown}
          */
-        Role: "TenantAdmin" | "Supervisor" | "BillingClerk" | "Cashier" | "Viewer";
+        Role: "TenantAdmin" | "Supervisor" | "BillingClerk" | "Cashier" | "Viewer" | "Accountant";
         /** @description The body of the second step of a sign-in and of the confirmation of its enrolment: the code. */
         SecondStepCodeRequest: {
             /** @description Six digits of the authenticator app; for the second step of a sign-in also a recovery code. */

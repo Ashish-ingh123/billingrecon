@@ -76,6 +76,25 @@ public sealed class UsersApiTests(SqlServerFixture sqlServer) : DatabaseTest(sql
     }
 
     [Fact]
+    public async Task ADR0069_a_tenant_administrator_makes_an_accountant_who_signs_in_with_that_role()
+    {
+        using var factory = new DatabaseApiFactory(SqlServer);
+        var admin = await NewApiTenantAsync();
+        using var client = factory.CreateClientFor(admin, "TenantAdmin");
+
+        using var created = await client.PostJsonAsync(Users, new CreateUserRequest { Email = "meera.shah@example.in", DisplayName = "Meera Shah", Password = Password, Roles = [Role.Accountant] });
+
+        created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync());
+        var user = await created.ReadAsAsync<UserDto>();
+        user.Roles.ShouldBe([Role.Accountant]);
+        (await ListAsync(client, "role=Accountant")).ShouldHaveSingleItem().Id.ShouldBe(user.Id);
+
+        // The Roles table holds the role by the migration 0035_AccountantRole, and the database accepts it.
+        (await CountAsync("SELECT COUNT(*) AS [Value] FROM dbo.Roles WHERE [Code] = 'Accountant' AND [Name] = 'Accountant'")).ShouldBe(1);
+        (await CountAsync($"SELECT COUNT(*) AS [Value] FROM dbo.UserRoles WHERE [UserId] = '{user.Id}' AND [RoleCode] = 'Accountant'")).ShouldBe(1);
+    }
+
+    [Fact]
     public async Task BR601_an_address_is_unique_in_the_tenant_without_regard_to_case_and_free_in_another_tenant()
     {
         using var factory = new DatabaseApiFactory(SqlServer);
@@ -251,7 +270,7 @@ public sealed class UsersApiTests(SqlServerFixture sqlServer) : DatabaseTest(sql
         stamp.Number.ShouldBe(547);
         stamp.Message.ShouldContain("FK_Payers_UpdatedByUserId");
         role.Number.ShouldBe(547);
-        (await CountAsync("SELECT COUNT(*) AS [Value] FROM dbo.Roles")).ShouldBe(5, "the reset of the tests leaves the roles alone");
+        (await CountAsync("SELECT COUNT(*) AS [Value] FROM dbo.Roles")).ShouldBe(RoleDefinition.All.Count, "the reset of the tests leaves the roles alone");
     }
 
     [Fact]

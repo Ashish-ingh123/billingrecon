@@ -57,23 +57,23 @@ signed-in user whose roles the permission does not admit gets 403 `forbidden`, b
 a user with several roles may do what any of them may. The roles are those of the token, so a change of roles applies
 at the next sign-in. In short:
 
-| Endpoints | TenantAdmin | Supervisor | BillingClerk | Cashier | Viewer |
-|---|---|---|---|---|---|
-| Users (section 8.11), settings (8.13), asking for a prefix change (8.14) | ✓ | | | | |
-| Reading the prefix changes (8.14) | ✓ | ✓ | | | |
-| Patients, payers, service items: read / change | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / | ✓ / |
-| Bills: read / draft, edit, void, post | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / | ✓ / |
-| Credit notes: read / draft, edit, void, submit, apply | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / | ✓ / |
-| Adjustments: read / draft, edit, void, submit | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | | ✓ / |
-| Payments and allocations: read / record, allocate | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / |
-| Refunds: read / draft, edit, void, submit | ✓ / ✓ | ✓ / ✓ | | ✓ / ✓ | ✓ / |
-| Ask for a reversal (payment, allocation, application of credit) | ✓ | ✓ | ✓ | ✓ | |
-| Approve, reject, and the inbox `GET /approval-requests` | ✓ | ✓ | | | |
-| Audit trail (the trails of a user, the tenant, its prefix changes and its number series: TenantAdmin only) | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Reports (section 8.15) | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Dashboard (section 8.16) | ✓ | ✓ | | | ✓ |
-| `GET /api/v1/system/info` | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `GET /api/v1/system/business-date` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Endpoints | TenantAdmin | Supervisor | BillingClerk | Cashier | Viewer | Accountant |
+|---|---|---|---|---|---|---|
+| Users (section 8.11), settings (8.13), asking for a prefix change (8.14) | ✓ | | | | | |
+| Reading the prefix changes (8.14) | ✓ | ✓ | | | | |
+| Patients, payers, service items: read / change | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / | ✓ / | ✓ / |
+| Bills: read / draft, edit, void, post | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / | ✓ / | ✓ / |
+| Credit notes: read / draft, edit, void, submit, apply | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / | ✓ / | ✓ / |
+| Adjustments: read / draft, edit, void, submit | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | | ✓ / | ✓ / |
+| Payments and allocations: read / record, allocate | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / | ✓ / |
+| Refunds: read / draft, edit, void, submit | ✓ / ✓ | ✓ / ✓ | | ✓ / ✓ | ✓ / | ✓ / |
+| Ask for a reversal (payment, allocation, application of credit) | ✓ | ✓ | ✓ | ✓ | | |
+| Approve, reject, and the inbox `GET /approval-requests` | ✓ | ✓ | | | | |
+| Audit trail (the trails of a user, the tenant, its prefix changes and its number series: TenantAdmin only) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Reports (section 8.15) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Dashboard (section 8.16) | ✓ | ✓ | | | ✓ | ✓ |
+| `GET /api/v1/system/info` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `GET /api/v1/system/business-date` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 A checker also has to be another user than the maker (BR-603): a decision by the maker is 403
 `approval_checker_is_maker`, and the decision itself checks the role again (403 `approval_checker_role`), whatever the
@@ -831,7 +831,7 @@ The body of a creation (unknown members are refused):
 | `email` | yes | One `@`, a domain with a dot, no white space; at most 256 characters; unique in the tenant without regard to case |
 | `displayName` | yes | At most 200 characters |
 | `password` | yes | 12 to 128 characters, any characters (no rules of composition) |
-| `roles` | yes | At least one of `TenantAdmin`, `Supervisor`, `BillingClerk`, `Cashier`, `Viewer` |
+| `roles` | yes | At least one of `TenantAdmin`, `Supervisor`, `BillingClerk`, `Cashier`, `Viewer`, `Accountant` (since R2, ADR 0069) |
 
 `PATCH` takes `email` and `displayName`, both required. `PUT .../roles` takes `roles`, every role the user is to hold.
 `password` takes `password`, which an administrator sets; nothing forces a change at the next sign-in.
@@ -1012,8 +1012,8 @@ date. A report reads committed rows and takes no lock.
 | `GET /api/v1/reports/bill-register` | page of posted bills, by bill date | `from`, `to`, `payerId`, `status` (`Posted`, `PartiallyPaid`, `Settled`) |
 | `GET /api/v1/reports/payment-register` | page of payments, by payment date, reversed ones included | `from`, `to`, `payerId`, `method`, `status` (`Posted`, `PendingReversal`, `Reversed`), `order` (`OldestFirst` by default, `NewestFirst`) |
 | `GET /api/v1/reports/daily-collection` | the collection of one day by method | `date` |
-| `GET /api/v1/reports/day-end` | every shift of one day with its cash, and the cash outside the shifts (section 8.20); for a TenantAdmin, a Supervisor and a Viewer only | `date` |
-| `GET /api/v1/reports/accounting-export`, `GET /api/v1/reports/accounting-export/summary` | the vouchers of a period for the accountant's package, as a file, and their control totals (section 8.21); for a TenantAdmin, a Supervisor and a Viewer only | `from`, `to` (both required) |
+| `GET /api/v1/reports/day-end` | every shift of one day with its cash, and the cash outside the shifts (section 8.20); for a TenantAdmin, a Supervisor, a Viewer and an Accountant only | `date` |
+| `GET /api/v1/reports/accounting-export`, `GET /api/v1/reports/accounting-export/summary` | the vouchers of a period for the accountant's package, as a file, and their control totals (section 8.21); for a TenantAdmin, a Supervisor, a Viewer and an Accountant only | `from`, `to` (both required) |
 | `GET /api/v1/reports/outstanding-by-payer` | page of payers with a balance, the largest net outstanding first | `search` |
 | `GET /api/v1/reports/payers/{payerId}/balance` | one payer's balances (US-40); 404 `payer_not_found` | |
 | `GET /api/v1/reports/unapplied-cash` | page of payments that hold unapplied cash, the oldest first | `payerId` |
@@ -1073,7 +1073,7 @@ Money is a decimal with two places, as everywhere.
 
 ### 8.16 Dashboard (US-44, BR-902; ADR 0037)
 
-Read-only, for a TenantAdmin, a Supervisor or a Viewer; a BillingClerk or a Cashier gets 403 `forbidden` (they keep
+Read-only, for a TenantAdmin, a Supervisor, a Viewer or an Accountant; a BillingClerk or a Cashier gets 403 `forbidden` (they keep
 every report of section 8.15). One endpoint per panel, so that each loads, and fails, on its own. Every figure is
 derived from the ledger by business date, or comes from one of the reports of section 8.15, never from a copy of their
 queries. Amounts are exact decimals with two places; nothing is rounded to lakh or crore on the server.
@@ -1305,7 +1305,7 @@ is never posted to the ledger (BR-314).
 | `POST /api/v1/cashier-shifts/{id}/close` (needs `If-Match`) | the cashier of the shift | 200, the shift `Closed`; **202**, the shift in `PendingApproval` | 400; 403 `shift_not_own`; 404 `shift_not_found`; 409 `concurrency_conflict`; 422 `shift_not_open`, `shift_difference_needs_reason`; 428 |
 | `POST /api/v1/cashier-shifts/{id}/approve` (needs `If-Match`; optional body `comment`) | TenantAdmin, Supervisor | 200, the shift `Closed` | 403 `approval_checker_is_maker`, `approval_checker_role`, `approval_needs_user`; 404; 409 `concurrency_conflict`; 422 `shift_not_pending_approval`; 428 |
 | `POST /api/v1/cashier-shifts/{id}/reject` (needs `If-Match`; body `comment`, required) | TenantAdmin, Supervisor | 200, the shift `Open` again | 400; 403; 404; 409; 422 `shift_not_pending_approval`; 428 |
-| `GET /api/v1/reports/day-end?date=` | TenantAdmin, Supervisor, Viewer | 200, the day-end report | 400 |
+| `GET /api/v1/reports/day-end?date=` | TenantAdmin, Supervisor, Viewer, Accountant | 200, the day-end report | 400 |
 
 **Opening.** The body is `openingFloat` (0 or more, at most two decimals). The shift belongs to the user who asks and
 takes today's business date in India, which it keeps however long it stays open. A user has one shift at a time: a
@@ -1350,14 +1350,14 @@ paidOut, net }`. The `net` of `cash` equals the `net` of the Cash row of the dai
 8.15), always: both are the ledger's Cash entries of the cash documents of the date.
 
 The trail of a shift (`entityType=CashierShift`: `Opened`, `Closed`, `SubmittedForApproval`, `ClosingApproved`,
-`ClosingRejected`) is read by a TenantAdmin, a Supervisor and a Viewer. A cash document that joins a shift is not a
+`ClosingRejected`) is read by a TenantAdmin, a Supervisor, a Viewer and an Accountant. A cash document that joins a shift is not a
 change of the shift and leaves no record in its trail: the trail of the document says what happened.
 
 ### 8.21 The accountant's export and the names of the accountant's ledgers (US-52; BR-904; ADR 0062)
 
 | Endpoint | Who | Success | Refusals |
 |---|---|---|---|
-| `GET /api/v1/reports/accounting-export/summary?from=&to=` | TenantAdmin, Supervisor, Viewer (`AccountingExport`) | 200, the control totals | 400 |
+| `GET /api/v1/reports/accounting-export/summary?from=&to=` | TenantAdmin, Supervisor, Viewer, Accountant (`AccountingExport`) | 200, the control totals | 400 |
 | `GET /api/v1/reports/accounting-export?from=&to=` | the same | 200, the file (`application/xml`, an attachment, `Cache-Control: no-store`) | 400; 422 `accounting_ledger_not_mapped` |
 | `GET /api/v1/settings/accounting-ledgers` | TenantAdmin (`ManageTenant`) | 200, the twelve names, `ETag` | |
 | `PUT /api/v1/settings/accounting-ledgers` | TenantAdmin (`ManageTenant`) | 200, the names, `ETag` | 400; 409 `concurrency_conflict`; 428 |

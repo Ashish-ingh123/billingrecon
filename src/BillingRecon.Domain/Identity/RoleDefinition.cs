@@ -18,7 +18,7 @@ public sealed class RoleDefinition
         Name = name;
     }
 
-    /// <summary>The five roles of R1, in the order of <see cref="Role"/>.</summary>
+    /// <summary>The roles: the five of R1 and, since R2, the Accountant (ADR 0069), in the order of <see cref="Role"/>.</summary>
     public static IReadOnlyList<RoleDefinition> All { get; } =
     [
         new(Role.TenantAdmin, "Tenant administrator"),
@@ -26,6 +26,7 @@ public sealed class RoleDefinition
         new(Role.BillingClerk, "Billing clerk"),
         new(Role.Cashier, "Cashier"),
         new(Role.Viewer, "Viewer"),
+        new(Role.Accountant, "Accountant"),
     ];
 
     /// <summary>The role, stored by its name.</summary>

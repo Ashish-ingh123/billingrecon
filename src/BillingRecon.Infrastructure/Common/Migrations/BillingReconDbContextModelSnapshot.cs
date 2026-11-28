@@ -1479,7 +1479,7 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                     b.ToTable("Roles", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Roles_Code", "[Code] IN ('TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier', 'Viewer')");
+                            t.HasCheckConstraint("CK_Roles_Code", "[Code] IN ('TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier', 'Viewer', 'Accountant')");
                         });
 
                     b.HasData(
@@ -1507,6 +1507,11 @@ namespace BillingRecon.Infrastructure.Common.Migrations
                         {
                             Code = "Viewer",
                             Name = "Viewer"
+                        },
+                        new
+                        {
+                            Code = "Accountant",
+                            Name = "Accountant"
                         });
                 });
 
@@ -1895,7 +1900,7 @@ namespace BillingRecon.Infrastructure.Common.Migrations
 
                     b.ToTable("UserRoles", null, t =>
                         {
-                            t.HasCheckConstraint("CK_UserRoles_RoleCode", "[RoleCode] IN ('TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier', 'Viewer')");
+                            t.HasCheckConstraint("CK_UserRoles_RoleCode", "[RoleCode] IN ('TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier', 'Viewer', 'Accountant')");
                         });
                 });
 

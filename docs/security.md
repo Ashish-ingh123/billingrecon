@@ -74,7 +74,7 @@ else (since 2026-11-26, review finding R7: until then every role read every trai
 role could not open): the trail of a user is the TenantAdmin's alone, as the users are; so are the trails of the
 tenant, of its prefix changes, of its number series (ADR 0033) and of its print settings, and the settings themselves;
 the trail of an approval request or an opening batch is read by who may decide. The
-dashboard is the TenantAdmin's, the Supervisor's and the Viewer's (US-44, ADR 0037); clerks and cashiers read the
+dashboard is the TenantAdmin's, the Supervisor's, the Viewer's and, since R2, the Accountant's (US-44, ADR 0037, ADR 0069); clerks and cashiers read the
 same figures in the reports, which every role may. The table
 of what each role may call is in `docs/api.md` section 2, and one table-driven test walks every endpoint with every
 role against the database.

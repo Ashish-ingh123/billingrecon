@@ -18,14 +18,14 @@ export interface Section {
   builtBy: string;
 }
 
-const everyone: readonly Role[] = ['TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier', 'Viewer'];
+const everyone: readonly Role[] = ['TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier', 'Viewer', 'Accountant'];
 
 export const sections: readonly Section[] = [
   {
     path: '/dashboard',
     icon: 'grid',
     label: 'Dashboard',
-    roles: ['TenantAdmin', 'Supervisor', 'Viewer'],
+    roles: ['TenantAdmin', 'Supervisor', 'Viewer', 'Accountant'],
     purpose: 'The figures of a period against the previous one, the ageing of what is owed, and what needs attention.',
     builtBy: '7.6',
   },
@@ -73,7 +73,7 @@ export const sections: readonly Section[] = [
     path: '/refunds',
     icon: 'undo',
     label: 'Refunds',
-    roles: ['TenantAdmin', 'Supervisor', 'Cashier', 'Viewer'],
+    roles: ['TenantAdmin', 'Supervisor', 'Cashier', 'Viewer', 'Accountant'],
     purpose: "Refund a payment's unapplied cash or a credit note's available credit.",
     builtBy: '7.4',
   },
@@ -97,7 +97,7 @@ export const sections: readonly Section[] = [
     path: '/adjustments',
     icon: 'sliders',
     label: 'Adjustments',
-    roles: ['TenantAdmin', 'Supervisor', 'BillingClerk', 'Viewer'],
+    roles: ['TenantAdmin', 'Supervisor', 'BillingClerk', 'Viewer', 'Accountant'],
     purpose: 'Discounts, write-offs and rounding against a bill.',
     builtBy: '7.5',
   },
@@ -141,7 +141,7 @@ export function sectionsFor(roles: readonly Role[]): Section[] {
  * for a billing clerk; a user with no known role lands on a page that says so.
  */
 export function landingPath(roles: readonly Role[]): string {
-  if (roles.includes('TenantAdmin') || roles.includes('Supervisor') || roles.includes('Viewer')) {
+  if (roles.includes('TenantAdmin') || roles.includes('Supervisor') || roles.includes('Viewer') || roles.includes('Accountant')) {
     return '/dashboard';
   }
 

@@ -1423,3 +1423,9 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    `docs/build-prompts.md`. A match posts nothing and needs no checker; applying and returning suspense do. Also B26:
    `<Version>2.0.0-dev</Version>` in `Directory.Build.props`, held by `SystemEndpointsTests`; 13.6 sets `2.0.0`. No
    migration; **the next free migration is `0035` and the next ADR `0070`.**
+   **13.1a (2026-11-28): the Accountant role** (ADR 0069). `Role.Accountant = 5` and its row of `Roles`, migration
+   `0035_AccountantRole` (the row and the two role CHECK constraints redone); it is in every policy the Viewer is in and
+   in no other (`Policies.Roles`, `frontend/src/auth/permissions.ts`, the rail, `ShiftReaders`), so "Accountant reads as
+   a Viewer does" holds until the Reconciliation policies of 13.1b add its own work. 13.1 was split as 12.2 was: 13.1a the
+   role, 13.1b the API of channels and statement import (migration `0036_Reconciliation`), 13.1c the screens. A file of
+   at most 1 MB and UTF-8 only (BR-1003 as amended by the 13.1 plan). **The next free migration is `0036`.**

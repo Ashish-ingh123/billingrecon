@@ -1715,7 +1715,7 @@ Written 2026-11-28 by Prompt 13.0, whose contract the owner approved "as recomme
 `docs/requirements.md` section 7 (BR-1001 to BR-1029, US-60 to US-70), `docs/domain-model.md` section 11,
 `docs/database.md` §5.16, ADR 0065 to ADR 0069. The standing preamble and the rules for every release are those of
 `BILLINGRECON-R2-R5-PROMPTS.md` beside the repository; "The bar of Phase 9" and "The bar of Phase 10" hold for every
-screen. The next free numbers: migration `0035`, ADR `0070`. 13.0 also fixed B26 (the version is
+screen. The next free numbers: migration `0035`, ADR `0070` (13.1a takes 0035 for the role). 13.0 also fixed B26 (the version is
 `2.0.0-dev` in `Directory.Build.props` until 13.6 sets `2.0.0`).
 
 What 13.0 decided, which every prompt below builds against: a match posts nothing and needs no checker; the machine
@@ -1741,9 +1741,9 @@ against any change. Screens: Statements under a new Reconciliation section of th
 import wizard and the lists of imports and lines on the shared table.
 Tests: a CSV with a signed amount and one with debit and credit columns; dd/MM/yyyy and
 dd-MMM-yy; a duplicate line, a duplicate file, two identical lines in one file and again in a
-later file; a malformed row refused with its number; 20,000 lines under 30 s, measured; a line
+later file; a malformed row refused with its number; a file in another encoding refused; a 1 MB file under 30 s, measured; a line
 of another hospital never visible; the matrix test; axe; the browser tests and screenshots.
-Migration 0035_Reconciliation (channels, imports, lines). Run the database tests in the
+Migration 0036_Reconciliation (channels, imports, lines; 13.1a took 0035_AccountantRole). Run the database tests in the
 throwaway LocalDB copy and add the personal-machine rows to docs/runbook.md section 8.
 Done when: an accountant imports yesterday's bank statement and sees every line, once.
 ```
@@ -1762,7 +1762,7 @@ Tests: each rule on its own; a tie proposed twice and confirmed never; a reverse
 ignored; a payment never matched beyond its amount; two runs at once match nothing twice; a match
 posts nothing (the ledger and every R1 figure unchanged, drift zero); 10,000 lines against 10,000
 payments, the time measured on LocalDB and owed on SQL Server 2022 (runbook section 8).
-Migration 0036_Matching.
+Migration 0037_Matching.
 Done when: a morning's import shows most lines already matched or proposed, each with its reason.
 ```
 
@@ -1799,7 +1799,7 @@ recorded" row of the daily collection.
 Tests: every posting balances and drift is zero after every test; applied twice refused; more
 than Remaining refused at the request and at the approval; the maker cannot approve; a suspense
 payment reversed gives the money back; the gapless check of the new series; the export refuses
-a period with suspense and no ledger name; the matrix test. Migration 0037_Suspense.
+a period with suspense and no ledger name; the matrix test. Migration 0038_Suspense.
 Done when: unknown money is parked, found later, and applied to the right payer with no drift.
 ```
 
@@ -1815,7 +1815,7 @@ The account GatewayCharges, its template, identity 15, the export's ledger name.
 Tests: a settlement of many payments with fees ties to one bank line to the paisa; items that do
 not add up refused; a settlement imported twice adds nothing; the charges balance and drift is
 zero; ending the net's match refused while the charges stand; a chargeback listed, never posted.
-Migration 0038_GatewaySettlements.
+Migration 0039_GatewaySettlements.
 Done when: a day of UPI and card payments through the gateway reconciles to the bank to the paisa.
 ```
 

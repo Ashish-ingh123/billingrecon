@@ -23078,7 +23078,8 @@
           "Supervisor",
           "BillingClerk",
           "Cashier",
-          "Viewer"
+          "Viewer",
+          "Accountant"
         ],
         "description": "What a user may do in a tenant (BR-601; docs/requirements.md section 1). A user holds one or more. The member names\nare stored as text and are the codes of the `Roles` table, so renaming one is a data migration."
       },

@@ -1,5 +1,5 @@
-/** The five roles of docs/requirements.md section 1, as the API names them in the token's `role` claim. */
-export const roles = ['TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier', 'Viewer'] as const;
+/** The roles of docs/requirements.md section 1 (the Accountant since R2, ADR 0069), as the API names them in the token's `role` claim. */
+export const roles = ['TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier', 'Viewer', 'Accountant'] as const;
 
 export type Role = (typeof roles)[number];
 
@@ -14,4 +14,5 @@ export const roleLabels: Record<Role, string> = {
   BillingClerk: 'Billing clerk',
   Cashier: 'Cashier',
   Viewer: 'Viewer',
+  Accountant: 'Accountant',
 };

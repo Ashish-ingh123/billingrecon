@@ -21,6 +21,7 @@ export const roleDuties: Record<Role, string> = {
   BillingClerk: 'Registers patients and payers, drafts and posts bills, drafts credit notes and adjustments.',
   Cashier: 'Records payments, allocates them, drafts refunds; asks for reversals.',
   Viewer: 'Reads bills, payments, reports and the dashboard; changes nothing.',
+  Accountant: 'Reconciles the bank and the gateway with the payments and parks unknown money; reads everything a viewer reads; exports for the accounting package; approves nothing.',
 };
 
 /** The documents that are numbered, in the order the settings show them, with the key of their prefix. */
