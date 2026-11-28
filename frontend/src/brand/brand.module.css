@@ -20,30 +20,58 @@
   color: var(--brand-on-tint);
 }
 
+/* The logo of Ashvanta Technologies is drawn on white: its plate is white in both themes (ADR 0047, amended). */
 .plate {
   display: inline-flex;
   align-items: center;
-  gap: 0.55em;
-  padding: 0.4em 0.85em 0.4em 0.6em;
-  font-size: var(--text-lg);
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1);
   line-height: 1;
   background: var(--company-plate);
   border-radius: var(--radius-md);
   box-shadow: var(--company-plate-shadow);
 }
 
+/* The mark, the file as it is; its name beside it as text, legible at any size. */
 .companyLogo {
-  height: 1.7em;
-  width: auto;
+  display: block;
+  width: 2.5rem;
+  height: 2.5rem;
 }
 
 .companyName {
-  font-weight: 500;
-  color: var(--company-ink);
-  letter-spacing: -0.01em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
-.companyAccent {
-  font-weight: 400;
+.companyWord {
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--company-ink);
+}
+
+.companyKind {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   color: var(--company-accent);
+}
+
+/* The sign-in page on a wide window: the whole logo, its tagline legible, and no text beside it. */
+@media (min-width: 1200px) {
+  .plate[data-wide] {
+    padding: var(--space-1);
+  }
+
+  .plate[data-wide] .companyLogo {
+    width: 24rem;
+    height: auto;
+  }
+
+  .plate[data-wide] .companyName {
+    display: none;
+  }
 }

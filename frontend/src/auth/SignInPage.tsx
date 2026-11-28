@@ -267,7 +267,7 @@ export function SignInPage() {
       </main>
 
       <footer className={styles.company}>
-        <CompanyCredit lead="A product of" />
+        <CompanyCredit lead="A product of" wide />
       </footer>
     </div>
   );

@@ -32,9 +32,9 @@ describe('the sign-in page (ADR 0047)', () => {
       'Better care through accurate billing',
     ]);
 
-    // The company's logo is named once, by its alternative text; the name set beside it is for the eye.
+    // The company's logo is named once, by its alternative text (the name is drawn in the logo).
     expect(screen.getByText('A product of')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'ashline' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Ashvanta Technologies' })).toBeInTheDocument();
     expect(document.title).toBe('Sign in · BillingRecon');
   });
 

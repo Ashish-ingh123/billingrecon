@@ -18,7 +18,7 @@ service items, with no change of what any screen does.
 ## Decision
 
 1. **The sidebar** holds the BillingRecon mark and name, the sections of the permission matrix each with its own icon
-   (`Section.icon`), and at its foot "BillingRecon by" with the ashline logo and name. The current section is marked by a
+   (`Section.icon`), and at its foot "BillingRecon by" with the ashline logo and name (the logo of Ashvanta Technologies since the amendment of 2026-11-28 below). The current section is marked by a
    bar at its edge and bold text, not by colour alone.
 2. **The rail.** "Collapse the navigation" (a toggle button with `aria-pressed`) shrinks the sidebar to icons with
    tooltips; the names stay for assistive technology. The choice is kept in `localStorage` (`billingrecon.navigation`).
@@ -85,3 +85,11 @@ and moves the columns by keyboard, with "Reset columns"; the number (or name) an
 **Under 720 px nothing changes:** the table still scrolls inside its own frame with its first column in view; no rows
 fold into cards (decided with the plan of 12.2). The header and the totals row in view, the skeleton, the empty state
 and print on A4 stay as they were. The five document lists use it from 12.2b; the other lists and the reports from 12.2c.
+
+## Amended 2026-11-28: the company's credit and mark in the sidebar
+
+The foot of the sidebar says "BillingRecon by" with the logo of Ashvanta Technologies (ADR 0047, amended 2026-11-28), in
+place of the ashline logo and name. In the rail the credit is kept for assistive technology only, as the section names
+are, and the company's mark alone is shown in its place, without the name beside it: `ashvanta-mark.svg`, the same drawing with a viewBox around the
+letter A, its swoosh and its three pixels, on its own white ground, with an empty alternative text because the credit
+already names the company. The drawer under the fold shows the credit, never the mark.

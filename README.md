@@ -5,7 +5,9 @@ modular monolith with a React front end. The core promise is ledger-grade financ
 numbering, immutable postings, a double-entry receivables subledger with cached balances that a reconciliation holds to
 it, maker-checker approval and an append-only audit trail.
 
-**BillingRecon by ashline**, a product of [ashline](https://ashish-singh-ai-studio.vercel.app/).
+<img src="frontend/src/assets/brand/ashvanta-logo.svg" alt="Ashvanta Technologies" width="345">
+
+**BillingRecon by Ashvanta Technologies**, a product of Ashvanta Technologies.
 
 ![The dashboard of BillingRecon: six figure cards, billing against collections, the ageing of what is owed, and the
 recent payments, top payers, pending approvals and reconciliation panels](docs/ui/dashboard-built.png)

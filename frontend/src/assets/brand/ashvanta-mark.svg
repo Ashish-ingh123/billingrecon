@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="81.5 27 160 160" width="160" height="160" role="img" aria-labelledby="ashvanta-mark-title">
+  <!--
+    The mark of Ashvanta Technologies alone, for the collapsed sidebar: the drawing of ashvanta-logo.svg, unchanged, with
+    a viewBox around the letter A, its swoosh and its three pixels (ADR 0048, amended 2026-11-28).
+  -->
+  <title id="ashvanta-mark-title">Ashvanta Technologies</title>
+  <rect x="0.5" y="0.5" width="679" height="219" rx="12" fill="#FFFFFF" stroke="#D9DEE7" stroke-width="1" />
+  <g transform="translate(90,45) scale(1.3)">
+    <polygon points="10,90 46,12 54,12 54,42.3 32,90" fill="#1F6FEB" />
+    <polygon points="54,12 62,12 98,90 76,90 54,42.3" fill="#0B2A5B" />
+    <path d="M0 70 C28 86 74 72 110 36 C78 60 34 68 0 70 Z" fill="#F58A1F" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" paint-order="stroke" />
+    <rect x="80" y="6" width="8" height="8" rx="1" fill="#0B2A5B" />
+    <rect x="91" y="6" width="8" height="8" rx="1" fill="#F58A1F" />
+    <rect x="91" y="17" width="8" height="8" rx="1" fill="#1F6FEB" />
+  </g>
+  <g transform="translate(270,62)" fill="#0B2A5B">
+    <polygon points="0,40 15,0 25,0 40,40 29,40 20,16 11,40" />
+    <polygon points="15,40 20,27 25,40" fill="#1F6FEB" />
+    <path transform="translate(43,0)" d="M28 4.5 H12 A7.75 7.75 0 0 0 12 20 H18 A7.75 7.75 0 0 1 18 35.5 H2" fill="none" stroke="#0B2A5B" stroke-width="9" />
+    <g transform="translate(79,0)"><rect x="0" y="0" width="10" height="40" /><rect x="22" y="0" width="10" height="40" /><rect x="0" y="15.5" width="32" height="9" /></g>
+    <polygon transform="translate(115,0)" points="0,0 11,0 20,24 29,0 40,0 25,40 15,40" />
+    <g transform="translate(150,0)"><polygon points="0,40 15,0 25,0 40,40 29,40 20,16 11,40" /><polygon points="15,40 20,27 25,40" fill="#1F6FEB" /></g>
+    <polygon transform="translate(194,0)" points="0,40 0,0 10,0 24,24 24,0 34,0 34,40 24,40 10,16 10,40" />
+    <g transform="translate(233,0)"><rect x="0" y="0" width="32" height="9" /><rect x="11" y="0" width="10" height="40" /></g>
+    <g transform="translate(260,0)"><polygon points="0,40 15,0 25,0 40,40 29,40 20,16 11,40" /><polygon points="15,40 20,27 25,40" fill="#1F6FEB" /></g>
+  </g>
+  <text x="270" y="128" textLength="300" lengthAdjust="spacing" fill="#1F6FEB" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="500">TECHNOLOGIES</text>
+  <line x1="270" y1="152" x2="308" y2="152" stroke="#F58A1F" stroke-width="1.5" />
+  <text x="420" y="156" text-anchor="middle" fill="#0B2A5B" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="13" font-style="italic">Technology for a Better Tomorrow.</text>
+  <line x1="532" y1="152" x2="570" y2="152" stroke="#F58A1F" stroke-width="1.5" />
+</svg>

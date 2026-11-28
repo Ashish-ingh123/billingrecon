@@ -19,8 +19,8 @@
  * brand-*          the BillingRecon mark and what stands on the brand's blue
  * signin-*         the sign-in page's ground: the blue that runs from navy to the page, the tint over the photograph,
  *                  the photograph's mask, the waves and the curve
- * company-*        ashline's own colours, as on the company's site; its plate stays light in both themes, because the
- *                  mark's file is drawn for a light ground
+ * company-*        the colours of the logo of Ashvanta Technologies, as drawn; its plate stays white in both themes,
+ *                  because the logo is drawn for a white ground (amended 2026-11-28)
  * shadow-*, radius-*, space-*, text-*, duration-*, ease-*   one scale each, for every screen
  * theme-color      what the browser's own chrome takes, read by the theme provider
  *
@@ -65,10 +65,10 @@
 
   --breakpoint-fold: 900px;
 
-  /* ashline, as on the company's site (light ground). */
-  --company-accent: #7c3aed;
-  --company-ink: #1a1033;
-  --company-plate: #f5f7fc;
+  /* Ashvanta Technologies, the colours of its logo as drawn (white ground). */
+  --company-accent: #1f6feb;
+  --company-ink: #0b2a5b;
+  --company-plate: #ffffff;
   --company-plate-shadow: 0 6px 18px -8px rgba(0, 20, 60, 0.45);
 }
 

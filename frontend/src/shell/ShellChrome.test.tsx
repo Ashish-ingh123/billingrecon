@@ -33,7 +33,7 @@ describe('the shell (ADR 0048)', () => {
     const sidebar = await screen.findByRole('complementary', { name: 'Sections' });
     expect(within(sidebar).getByText('BillingRecon')).toBeInTheDocument();
     expect(within(sidebar).getByText('BillingRecon by')).toBeInTheDocument();
-    expect(within(sidebar).getByRole('img', { name: 'ashline' })).toBeInTheDocument();
+    expect(within(sidebar).getByRole('img', { name: 'Ashvanta Technologies' })).toBeInTheDocument();
   });
 
   it('collapses the navigation to a rail, keeps its names, and remembers the choice', async () => {

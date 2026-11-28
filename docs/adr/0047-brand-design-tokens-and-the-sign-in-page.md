@@ -38,7 +38,7 @@ change what a screen does, load anything from another origin, or loosen nginx's 
 5. **Icons are our own inline SVG** on a 24 px grid, drawn with `currentColor` (`src/brand/Icon.tsx`); no package. The
    BillingRecon mark (a cross with rounded arms and a darker cross inside) is drawn from tokens (`BrandMark`), and is the
    favicon as a file with the light colours.
-6. **The company.** ashline's mark is the file `src/assets/brand/ashline-logo.svg`, copied path for path from the
+6. **The company** (Ashvanta Technologies since the amendment of 2026-11-28 below). ashline's mark is the file `src/assets/brand/ashline-logo.svg`, copied path for path from the
    company's site and used as it is; its name is set beside it as on the site ("ash" at medium weight, "line" at regular
    weight in the company's violet), on a pale plate that is the same in both themes, because the file is drawn for a
    light ground. The sign-in page says "A product of ashline", bottom left. It and the theme control, top right, are the
@@ -92,3 +92,20 @@ change what a screen does, load anything from another origin, or loosen nginx's 
   page.
 - **Found:** `Shell.test.tsx`, "shows the hospital, the user and their roles", failed twice in six full runs and never
   alone: it waits one second for the dashboard, which loads on demand. Not changed; `docs/backlog.md` B35.
+
+## Amended 2026-11-28: the company is Ashvanta Technologies
+
+The owner said on 2026-11-27 that the company is **Ashvanta Technologies**, not ashline, and gave its logo. Point 6 now
+reads: the logo is `src/assets/brand/ashvanta-logo.svg`, a clean copy of the owner's file (its inline style attributes
+turned into presentation attributes, its C2PA manifest removed, the drawing unchanged) that is never redrawn.
+At the size of a credit the logo's own "TECHNOLOGIES" and tagline shrink to 4 or 5 px, past reading (the owner, 2026-11-28,
+chose this answer of three): the credit is the mark alone, `ashvanta-mark.svg` (the same drawing with a viewBox around
+the letter A), with the name set beside it as text, "Ashvanta" in the navy and "TECHNOLOGIES" in the blue, legible at
+any size. On the sign-in page a window of 1200 px or more shows instead the whole logo, `ashvanta-lockup.svg` (the same
+drawing with a viewBox that leaves out the empty margin of its plate), 24rem wide so that its tagline can be read, and
+no text beside it (a `<picture>` source, no script). Either sits on a white plate of its own (`--company-plate:
+#ffffff`), the same in both themes; the plate is one image to assistive technology, "Ashvanta Technologies", named
+once. The sign-in page says "A product of" and the credit, bottom left.
+The `company-*` tokens are the logo's colours as drawn: ink navy #0B2A5B and accent blue #1F6FEB, the colours of the
+name's two words, both at least 4.5:1 on the plate (`contrast.test.ts`); its orange #F58A1F is only in the drawing.
+`ashline-logo.svg` is deleted, and ashline is not named in the product again.

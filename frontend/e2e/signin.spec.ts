@@ -110,7 +110,7 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(page).toHaveTitle('Sign in · BillingRecon');
     await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg');
     await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', /^#[0-9a-f]{6}$/);
-    await expect(page.getByRole('img', { name: 'ashline' })).toBeVisible();
+    await expect(page.getByRole('img', { name: 'Ashvanta Technologies' })).toBeVisible();
 
     const { violations, shift } = await probe();
     expect(violations, 'refused by the content security policy').toEqual([]);
@@ -155,7 +155,7 @@ for (const width of [390, 360]) {
 
     await expect(page.getByText('Trusted financial insights')).toBeHidden();
     await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
-    await expect(page.getByRole('img', { name: 'ashline' })).toBeVisible();
+    await expect(page.getByRole('img', { name: 'Ashvanta Technologies' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     expect((await probe()).violations).toEqual([]);
     expect(errors).toEqual([]);

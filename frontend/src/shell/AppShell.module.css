@@ -171,11 +171,21 @@
   color: var(--text-muted);
 }
 
+/* The mark of Ashvanta Technologies alone, on its white ground, shown only in the rail (ADR 0048, amended 2026-11-28). */
+.companyMark {
+  display: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-inline: auto;
+  border-radius: var(--radius-md);
+  box-shadow: var(--company-plate-shadow);
+}
+
 /* The rail: icons only, their names in tooltips and for assistive technology. */
 
 .shell[data-rail] .productName,
 .shell[data-rail] .linkLabel,
-.shell[data-rail] .company {
+.shell[data-rail] .company p {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -189,6 +199,10 @@
 .shell[data-rail] .railToggle {
   justify-content: center;
   padding-inline: 0;
+}
+
+.shell[data-rail] .companyMark {
+  display: block;
 }
 
 /* The top bar. */
@@ -344,7 +358,7 @@
   /* The rail does not apply to the drawer: names stay. */
   .shell[data-rail] .productName,
   .shell[data-rail] .linkLabel,
-  .shell[data-rail] .company {
+  .shell[data-rail] .company p {
     position: static;
     width: auto;
     height: auto;
@@ -356,6 +370,10 @@
   .shell[data-rail] .link {
     justify-content: flex-start;
     padding-inline: var(--space-3);
+  }
+
+  .shell[data-rail] .companyMark {
+    display: none;
   }
 
   .railToggle {

@@ -4,7 +4,7 @@ import { useSession } from '../auth/AuthContext';
 import { useSignOut } from '../auth/useSignOut';
 import { roleLabels } from '../auth/roles';
 import { BrandMark } from '../brand/BrandMark';
-import { CompanyCredit } from '../brand/CompanyCredit';
+import { CompanyCredit, CompanyMark } from '../brand/CompanyCredit';
 import { Icon } from '../brand/Icon';
 import { formatDate, todayInIndia } from '../format';
 import { ThemeToggle } from '../theme/ThemeToggle';
@@ -176,6 +176,7 @@ export function AppShell() {
 
         <footer className={styles.company}>
           <CompanyCredit lead="BillingRecon by" />
+          <CompanyMark className={styles.companyMark} />
         </footer>
       </aside>
 
