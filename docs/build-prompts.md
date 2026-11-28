@@ -1708,3 +1708,128 @@ where users may be read), in three commits:
 - **12.2b, the shared table and the five document lists** (bills, payments, credit notes, adjustments, refunds).
 - **12.2c, the remaining lists and the reports**, the browser suite, the screenshots, and ADR 0063 completed (amending
   ADR 0036 and ADR 0048).
+
+### Phase 13. R2 Reconciliation (branch `r2-reconciliation`)
+
+Written 2026-11-28 by Prompt 13.0, whose contract the owner approved "as recommended" the same day:
+`docs/requirements.md` section 7 (BR-1001 to BR-1029, US-60 to US-70), `docs/domain-model.md` section 11,
+`docs/database.md` §5.16, ADR 0065 to ADR 0069. The standing preamble and the rules for every release are those of
+`BILLINGRECON-R2-R5-PROMPTS.md` beside the repository; "The bar of Phase 9" and "The bar of Phase 10" hold for every
+screen. The next free numbers: migration `0035`, ADR `0070`. 13.0 also fixed B26 (the version is
+`2.0.0-dev` in `Directory.Build.props` until 13.6 sets `2.0.0`).
+
+What 13.0 decided, which every prompt below builds against: a match posts nothing and needs no checker; the machine
+confirms only an exact reference and amount with one candidate each way, and proposes the rest; the amount to the
+paisa, the date within the channel's window (3 days by default, 0 to 10); suspense cash is a ledger account
+(`Suspense`) recorded without a checker and applied or returned under maker-checker; gateway fees post to a new control
+account (`GatewayCharges`) once the settlement's net is matched to its bank line; chargebacks are only listed; files
+only (a CSV with a mapping per bank, Razorpay's settlement report), no bank or gateway API; a new role, Accountant.
+
+#### 13.1 The Accountant role, settlement channels and statement import
+
+```
+Read docs/requirements.md section 7, ADR 0065, ADR 0069, ADR 0030, ADR 0032, ADR 0053 (the dry
+run), ADR 0063, docs/database.md §5.16.
+Build the role Accountant (ADR 0069): the enum, its seeding, the users screen, every policy
+saying whether it is in, and the Accountant's rows of PermissionMatrixApiTests.
+Build the module Reconciliation (folders in every project, ModuleDependencyTests) and in it:
+settlement channels (BR-1001, BR-1002) under Users and settings, by a TenantAdmin, with the
+column mapping and a preview of a sample file; and the import of a bank's CSV (BR-1003 to
+BR-1005): upload, dry run with every refused row and its reason, then the import, idempotent,
+never a line twice (fingerprint and occurrence, the unique index), the read fields guarded
+against any change. Screens: Statements under a new Reconciliation section of the rail, with the
+import wizard and the lists of imports and lines on the shared table.
+Tests: a CSV with a signed amount and one with debit and credit columns; dd/MM/yyyy and
+dd-MMM-yy; a duplicate line, a duplicate file, two identical lines in one file and again in a
+later file; a malformed row refused with its number; 20,000 lines under 30 s, measured; a line
+of another hospital never visible; the matrix test; axe; the browser tests and screenshots.
+Migration 0035_Reconciliation (channels, imports, lines). Run the database tests in the
+throwaway LocalDB copy and add the personal-machine rows to docs/runbook.md section 8.
+Done when: an accountant imports yesterday's bank statement and sees every line, once.
+```
+
+#### 13.2 Automatic matching
+
+```
+Read ADR 0066, BR-1006 to BR-1011 and BR-1029, ADR 0006, ADR 0007, docs/domain-model.md 11.4.
+Build matches (with their lines and items) and proposals, and the matching run: after each import
+and on demand; each line in its own transaction; confirm only the certain case of BR-1010,
+propose by the three rules of BR-1011 with a score and the reason in words; the method rules of
+BR-1008 (never a cash payment, never a reversed one); the date window of BR-1009; the filtered
+unique indexes on the link tables. The read contract of payments and refunds comes from
+Payments' Application layer; Reconciliation never names its entities.
+Tests: each rule on its own; a tie proposed twice and confirmed never; a reversed payment
+ignored; a payment never matched beyond its amount; two runs at once match nothing twice; a match
+posts nothing (the ledger and every R1 figure unchanged, drift zero); 10,000 lines against 10,000
+payments, the time measured on LocalDB and owed on SQL Server 2022 (runbook section 8).
+Migration 0036_Matching.
+Done when: a morning's import shows most lines already matched or proposed, each with its reason.
+```
+
+#### 13.3 The reconciliation workspace
+
+```
+Read ADR 0066, BR-1006, BR-1007, BR-1009, BR-1012, BR-1013, BR-1023, ADR 0063, ADR 0048.
+A workspace with a channel's unmatched lines on one side and the candidates on the other
+(payments, refunds, payment reversals, closed shifts' counted cash), filters by channel, date
+and amount, and the actions: accept or dismiss a proposal; match by hand, one to many and many to
+one, amounts equal, a note outside the window; unmatch with a reason (a new record); exclude a
+line with its category and reason; record a forgotten payment from a line (BR-1013, one
+transaction with its match). No checker for any of them (ADR 0066); every one audited.
+Tests: every action and its audit record; amounts that differ refused; outside the window
+without a note refused; a cash payment refused, a shift's deposit accepted; a forgotten payment
+numbered, posted and matched together or not at all; the browser tests with the keyboard alone
+and at phone width; axe; screenshots; training notes for the Accountant in docs/go-live.md.
+Done when: the accountant clears a day's statement with the keyboard alone.
+```
+
+#### 13.4 Suspense cash
+
+```
+Read ADR 0067, BR-1014 to BR-1018, docs/database.md §5.16 (templates and identities 9, 13, 14),
+ADR 0005, ADR 0022, ADR 0023, ADR 0042, ADR 0053 (a payment's origin), ADR 0056, ADR 0062.
+Build the account Suspense and its branch of CK_LedgerEntries_Subject; the templates
+SuspenseRecorded, SuspenseApplied, SuspensePaymentReversed, SuspenseReturned; the document types
+SuspenseItem (SUS) and SuspenseReturn (SRN); the suspense item recorded from a line (no checker);
+applying it to a payer and returning it, each through the checker's inbox, the approval being the
+posting; the payment of origin Suspense in Payments, and its reversal back to suspense; the
+identities in the reconciliation query, the nightly reconciliation and the drift tests; the
+Suspense ledger in the accountant's export; a suspense list with its ageing; the "Suspense
+recorded" row of the daily collection.
+Tests: every posting balances and drift is zero after every test; applied twice refused; more
+than Remaining refused at the request and at the approval; the maker cannot approve; a suspense
+payment reversed gives the money back; the gapless check of the new series; the export refuses
+a period with suspense and no ledger name; the matrix test. Migration 0037_Suspense.
+Done when: unknown money is parked, found later, and applied to the right payer with no drift.
+```
+
+#### 13.5 Gateway settlements
+
+```
+Read ADR 0068, BR-1019 to BR-1022, docs/database.md §5.16 (identity 15).
+Read Razorpay's settlement report (a sample file the owner downloads from the dashboard, with
+every name and number replaced; ask for it in the plan) by a dry run and an import; match its
+items to payments and refunds and its net to the bank line; post the gateway charges document
+(GWC) when the net is matched; list chargebacks, unknown refunds and adjustments as exceptions.
+The account GatewayCharges, its template, identity 15, the export's ledger name.
+Tests: a settlement of many payments with fees ties to one bank line to the paisa; items that do
+not add up refused; a settlement imported twice adds nothing; the charges balance and drift is
+zero; ending the net's match refused while the charges stand; a chargeback listed, never posted.
+Migration 0038_GatewaySettlements.
+Done when: a day of UPI and card payments through the gateway reconciles to the bank to the paisa.
+```
+
+#### 13.6 Reconciliation reports, the dashboard and release R2
+
+```
+Read BR-1025 to BR-1028, ADR 0036, ADR 0037, ADR 0043, ADR 0044, docs/go-live.md.
+The reports on the shared table: unmatched lines by channel and age, non-cash payments not
+matched after their window, matches by channel and day, suspense by age, the exceptions; the
+dashboard's "unreconciled" and "suspense"; the day-end report's matched column. Training notes.
+Update README, docs/traceability.md (US-60 to US-70 to their tests; TraceabilityTests reads only
+section 4 today, so make it read section 7's stories too), docs/backlog.md, CLAUDE.md
+section 1 (R2 built), the runbook rows; set <Version> to 2.0.0; run the personal-machine
+verification; propose the merge of r2-reconciliation to main and the tag v2.0.0.
+Done when: every R2 story has a passing test, the personal-machine verification of R2 is
+recorded, and the release is ready to tag.
+```

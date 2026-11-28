@@ -1,6 +1,7 @@
 # Requirements
 
-- **Status:** R1 written and approved 2026-09-29; R2–R5 are outlines to be expanded when each release starts.
+- **Status:** R1 written and approved 2026-09-29; R2 written and approved 2026-11-28 (section 7, Prompt 13.0); R3–R5
+  are outlines to be expanded when each release starts.
 - **Product:** BillingRecon.
 - **Domain (confirmed 2026-09-29):** patient billing for hospitals and clinics in India. A **bill** is
   raised for a **patient** and owed by a **payer**. In R1 every payer is self-pay (the patient or a
@@ -80,7 +81,7 @@ shift with a difference is in the checker's row, and its cashier is never its ch
 
 ### Out of scope for R1 (and where it lands)
 
-- Bank and payment-gateway statement import, matching, suspense cash: **R2**.
+- Bank and payment-gateway statement import, matching, suspense cash: **R2**, written out in section 7.
 - Ageing buckets, dunning, reminders, promises to pay, disputes, bulk write-off workflow: **R3**.
 - Insurers, TPAs, corporate payers, claims, pre-authorisation, payer-specific pricing and credit limits: **R4**.
 - Period close, backup/DR drills, observability, compliance reporting: **R5**.
@@ -163,7 +164,7 @@ shift with a difference is in the checker's row, and its cashier is never its ch
 |---|---|
 | **BR-401** | Every financial posting writes exactly one ledger posting with two or more entries whose debits equal credits, in the same transaction as the document (BR-007). A posted document without ledger entries, or ledger entries without a document, is a defect. *Amended 2026-11-20 (ADR 0022):* a posted document whose total is zero has no ledger posting, because an entry has an amount above zero; a bill that comes to nothing is posted as Settled without one (BR-206). |
 | **BR-402** | Ledger postings and entries are append-only. Corrections are reversing postings that reference the original posting. |
-| **BR-403** | The subledger has six accounts: `Receivable` (subject: bill), `UnappliedCash` (subject: payment), `CreditAvailable` (subject: credit note), and the control accounts `Revenue`, `Cash` and `Adjustments`. Subject and payer are required on the first three and absent on the control accounts. |
+| **BR-403** | The subledger has six accounts: `Receivable` (subject: bill), `UnappliedCash` (subject: payment), `CreditAvailable` (subject: credit note), and the control accounts `Revenue`, `Cash` and `Adjustments`. Subject and payer are required on the first three and absent on the control accounts. *Amended with ADR 0053:* `OpeningBalances`, a control account. *Amended 2026-11-28 for R2 (ADR 0067, ADR 0068):* `Suspense` (subject: suspense item; no payer, since the payer is not known) and the control account `GatewayCharges`. |
 | **BR-404** | The balance identities in `database.md` §5.5 hold after every transaction: bill balance due, payment unapplied amount, credit note available amount and payer balances each equal the corresponding ledger sum. A reconciliation query detects drift; drift is a Sev-1 defect, never silently corrected. |
 | **BR-405** | No subject balance is ever negative: `Receivable(bill) ≥ 0`, `UnappliedCash(payment) ≥ 0`, `CreditAvailable(creditNote) ≥ 0`. |
 | **BR-406** | Each ledger posting carries the document's business date (IST) and the posting instant (UTC). Period close is out of scope for R1; postings into any past date allowed by BR-205 are accepted. |
@@ -305,7 +306,123 @@ Acceptance criteria cite the rules they verify. "Given/when/then" is abbreviated
 
 ## 6. Later releases (outline)
 
-- **R2 Reconciliation:** bank and gateway statement import, auto and manual matching to payments, unapplied and suspense cash, reconciliation reports.
+- **R2 Reconciliation:** written out in section 7 (Prompt 13.0, 2026-11-28).
 - **R3 Recovery:** ageing buckets (0–30, 31–60, 61–90, 90+ days from due date), dunning schedules and reminders, promises to pay, disputes, bulk write-off workflow under maker-checker.
 - **R4 Insurance / Corporate:** payer kinds `Insurer` and `Corporate`, claims and pre-authorisation, split billing between patient and third-party payer, payer statements, payer-specific pricing and credit limits (credit-limit changes under maker-checker).
 - **R5 Maturity:** period close, hardening, performance, observability, backup/DR drills, GST and compliance reporting, extension points.
+
+---
+
+## 7. R2 Reconciliation
+
+*Written 2026-11-28 with Prompt 13.0 and approved by the owner the same day ("approve as recommended"). The design is
+ADR 0065 (the module, settlement channels and statement import), ADR 0066 (matching), ADR 0067 (suspense cash), ADR
+0068 (gateway settlements and charges) and ADR 0069 (the Accountant role). Built by Prompts 13.1 to 13.6
+(`docs/build-prompts.md` Part B), on the branch `r2-reconciliation`.*
+
+What a hospital's accountant does every morning by hand: compare the bank statement and the payment gateway's
+settlement report with the payments BillingRecon recorded, find what is missing on either side, and park money that
+arrived with no known payer. The core idea: **a match moves no money.** A payment already posted `Dr Cash` the moment
+it was recorded (BR-302); a match is the record that a line of the bank's statement is that payment. Only two kinds of
+R2 document post to the ledger: suspense cash (money in from a payer not yet known) and gateway charges (the fee a
+gateway keeps).
+
+### 7.1 Scope
+
+| Module | R2 content |
+|---|---|
+| Reconciliation (new) | Settlement channels (the hospital's bank accounts and gateway accounts); statement import from a CSV with a column mapping per channel, dry run first; statement lines; automatic matching with proposals; manual matching, unmatching and exclusion; recording a forgotten payment from a line; suspense cash, applied to a payer or returned; gateway settlements with their fees; reconciliation reports. |
+| Payments | A payment's origin may be suspense (it was money parked and later applied); its reversal goes back to suspense. |
+| Receivables | Two ledger accounts, `Suspense` and `GatewayCharges`; their posting templates and reconciliation identities. |
+| Identity | The role `Accountant` (ADR 0069). |
+| Reporting | Unmatched lines and payments, matched by channel and day, suspense by age, exceptions; the dashboard's "unreconciled" figure; the day-end report and the accountant's export learn the new documents. |
+
+Out of scope for R2: a bank's or a gateway's API (files only; no outside service, no secret); named banks' file
+formats (any bank's CSV through a mapping instead); Excel files (saved as CSV first); gateways other than Razorpay's
+settlement report (PayU, Paytm and PhonePe through a later writer of the same model); posting a chargeback by itself;
+statements in a currency other than INR (BR-001).
+
+### 7.2 Roles and permissions
+
+A sixth role (ADR 0069):
+
+| Role | Purpose |
+|---|---|
+| **Accountant** | Imports bank and gateway statements, matches them, records forgotten payments and suspense cash from statement lines and asks for suspense to be applied or returned (maker); reads documents, reports and the dashboard; exports for the accounting package. Approves nothing, posts no bill, sets up nothing. |
+
+Rows added to the permission matrix of section 1 (an Accountant column is added to it; in every R1 row not listed
+here the Accountant reads documents and reports and does nothing else):
+
+| Capability | TenantAdmin | Supervisor | BillingClerk | Cashier | Viewer | Accountant |
+|---|---|---|---|---|---|---|
+| Settlement channels: create, change the mapping and window, deactivate | ✓ | R | | | R | R |
+| Statements: import (dry run and import), read | ✓ | ✓ | | | R | ✓ |
+| Matching: run, accept or dismiss a proposal, match, unmatch, exclude | ✓ | ✓ | | | R | ✓ |
+| Record a payment from a statement line | ✓ | ✓ | | | | ✓ |
+| Suspense: record; ask to apply or return (maker) | ✓ | ✓ | | | R | ✓ |
+| Suspense: approve or reject an application or a return (checker) | ✓ | ✓ | | | | |
+| Gateway settlements: import, match | ✓ | ✓ | | | R | ✓ |
+| Reconciliation reports | ✓ | ✓ | | | ✓ | ✓ |
+| Dashboard, day-end report, accountant's export | as R1 | as R1 | | | as R1 | ✓ |
+
+The checker of a suspense request is never its maker (BR-603), and a Supervisor or TenantAdmin who matched a line may
+still approve the suspense request made by another user from it.
+
+### 7.3 Business rules (BR-1001 – BR-1029)
+
+| Id | Rule |
+|---|---|
+| **BR-1001** | A settlement channel is one of the hospital's bank accounts (`Bank`) or payment-gateway accounts (`Gateway`). It has a name unique within the hospital, a label of at most the last four digits of the account or merchant id (never the full number), a date window of 0 to 10 days (default 3), and for a bank a column mapping (BR-1002). A gateway channel names its gateway (`Razorpay` in R2) and the bank channel it settles into. A TenantAdmin creates and changes channels; every change is audited (BR-701); a channel is deactivated, never deleted, and a deactivated channel takes no import. |
+| **BR-1002** | A column mapping says, for a bank's CSV: the header row, the columns of the transaction date, the value date (optional), the description, the reference (optional: the description is searched when absent), the money either as one signed amount or as a debit column and a credit column, and the running balance (optional); the date format; and the decimal style. It is saved per channel and changed like the channel. |
+| **BR-1003** | A statement file is a CSV of at most 5 MB and 20,000 lines. Its import is two steps: a **dry run** that reads the file with the channel's mapping and shows every line it would import and every row it refuses, with the row number and the reason in words, and stores nothing; then the **import**, which reads the file again, refuses it whole if anything differs from what the dry run showed, and stores the accepted lines. A row is refused for a missing or unreadable date or amount, an amount of zero, both a debit and a credit, or a date after today (IST). The import is an idempotent POST (BR-803). |
+| **BR-1004** | A statement line is never imported twice. Its fingerprint is the channel, the transaction date, the direction, the amount, the reference, the balance and the description. A file sent again adds no line. Two identical lines of one file are two lines; a later file adds an identical line only beyond the number of identical lines already stored. A statement line keeps what was read (the fields and the row's raw text), and those fields never change and are never deleted; only its status follows its matches (`Unmatched`, `Matched`, `Excluded`). |
+| **BR-1005** | A line's direction is `In` (money reached the account) or `Out` (money left it), and its amount is above zero, in INR. |
+| **BR-1006** | A **match** joins statement lines of one channel to what they are: payments (lines `In`), refunds, payment reversals of a dishonoured cheque and suspense returns (lines `Out`), the counted cash of closed cashier shifts deposited at the bank (`In`), a gateway settlement's net (`In`, BR-1020), or suspense cash (`In`, BR-1014). One line may match many items and many lines one item. The amounts of the lines equal the amounts of the items to the paisa. A line, a payment, a refund, a shift's deposit and a settlement are each in at most one active match. |
+| **BR-1007** | A match **posts nothing and moves no money**; it changes no balance, no ledger entry and no figure of R1. Ending a match (**unmatch**) is a new record on it with who, when and why; the match is kept, its status `Ended`, and its lines and items are free again. A match and its end are audited (BR-701). Neither needs a checker. |
+| **BR-1008** | A payment is matched only to a line of a channel that its method reaches: `UPI` and `Card` a gateway's settlement (BR-1020) or, when the hospital takes them straight into the bank, a bank line; `BankTransfer` and `Cheque` a bank line. A `Cash` payment is never matched to a line by itself: cash reaches the bank as a shift's deposit. A reversed payment is never matched; a payment reversed while matched leaves its match standing and is listed among the exceptions (BR-1026) until the reversal's `Out` line, if any, is matched to the reversal. |
+| **BR-1009** | The **date window**: a line matches an item dated on or before the line, and at most the channel's window of days before it (a cheque clears days after it was recorded). A manual match outside the window needs a note. |
+| **BR-1010** | **Automatic matching** runs after each import and on demand, over the channel's unmatched lines. It **confirms a match by itself** only when all of these hold: the line's reference equals the payment's reference (compared without case, spaces and leading zeros), the amounts are equal, the date is in the window, the payment is not reversed and not matched, and exactly one payment fits the line and exactly one line fits the payment. Such a match records `Automatic` and the reason in words. |
+| **BR-1011** | Otherwise automatic matching only **proposes**: in order, (1) the reference is equal but something else is not; (2) the amount is equal and the date in the window, with one candidate; (3) up to five payments of one payer, in the window, add up to the line. Each proposal has a score and its reason in words. Two candidates of the same score are both proposed and neither is preferred. A user accepts a proposal (it becomes a match, `Proposal accepted`) or dismisses it. A proposal whose line or item was matched otherwise is withdrawn. |
+| **BR-1012** | A user may **exclude** an `In` or `Out` line that is not a patient's money (bank interest, bank charges, a transfer between the hospital's own accounts, other) with its category and a reason. An exclusion posts nothing, is audited, and is ended like a match. |
+| **BR-1013** | A user may **record a payment from an `In` line** that BillingRecon never recorded (the counter forgot): a normal payment (BR-301, BR-302, BR-309) of the payer chosen, dated the line's date (BR-205), its method from the channel, its reference from the line, and matched to the line in the same transaction. Never `Cash` (BR-1008). |
+| **BR-1014** | Money on an `In` line whose payer is not known may be recorded as **suspense cash**: a suspense item with a gapless number of its own series (`SUS/26-27/000001`, BR-801), dated the line's date (BR-205), with the line's amount, posted `Dr Cash / Cr Suspense(item)`, its `Remaining` equal to the amount, and matched to the line in the same transaction. It needs no checker: the money did arrive. Suspense is never recorded from a `Cash` payment or a line already matched. |
+| **BR-1015** | **Applying suspense to a payer** (all or part of `Remaining`) is a maker-checker action (BR-603, BR-604). The maker names an active payer (BR-309) and an amount, `0 < Amount ≤ Remaining`, checked when asked and again at the approval. The approval is the posting (BR-606): a payment of that payer, numbered in the payment series, dated the approval's business date, with the method and reference of the line and the origin `Suspense`, posted `Dr Suspense(item) / Cr UnappliedCash(payment)`; `Remaining` falls by the amount. The payment then allocates like any other (BR-303). |
+| **BR-1016** | **Returning suspense** (money sent back to whoever sent it) is a maker-checker action with a method other than cash, a reference and a reason; `0 < Amount ≤ Remaining`. The approval posts a suspense return, numbered in its own series (`SRN/26-27/000001`), `Dr Suspense(item) / Cr Cash`; `Remaining` falls by the amount. Its `Out` line matches the return. |
+| **BR-1017** | A suspense item has at most one pending request (BR-605). `0 ≤ Remaining ≤ Amount` (BR-405). An item whose `Remaining` is zero is `Cleared`. A suspense item is never reversed; a payment that came from suspense, when reversed (BR-306), gives its money back to suspense: its allocations are reversed first, then `Dr UnappliedCash(payment) / Cr Suspense(item)`, and `Remaining` rises by the amount. |
+| **BR-1018** | Suspense, its applications and its returns are in the nightly reconciliation (ADR 0056) and the accountant's export (BR-904), under a ledger the hospital names for suspense. |
+| **BR-1019** | A **gateway settlement** is read from the gateway's settlement report (Razorpay's in R2) through a dry run and an import as in BR-1003: one settlement per settlement id of the gateway, with its date, the UTR of the bank transfer, and for each item its kind (`Payment`, `Refund`, `Chargeback`, `Adjustment`), the gateway's payment id, the gross amount, the fee, the tax on the fee and the net. A settlement whose items do not add up (gross − fee − tax = net, for each item and in total, to the paisa) is refused. A settlement is never imported twice. |
+| **BR-1020** | A settlement's `Payment` items are matched to BillingRecon's payments by the gateway's payment id (the payment's reference), and its `Refund` items to BillingRecon's refunds, by the rules of BR-1010 and BR-1011. The settlement's net matches the one `In` line of the gateway's bank channel that carries its UTR or its amount and date (BR-1009). |
+| **BR-1021** | When a settlement's net is matched to its bank line, its fees and the tax on them are posted as one **gateway charges** document, numbered in its own series (`GWC/26-27/000001`), dated the settlement's date, `Dr GatewayCharges / Cr Cash` for fee plus tax. It needs no checker: it is the gateway's figure, read from its report, and it changes no payer's balance. Ending that match is refused while the charges stand; R2 does not reverse a gateway charges document (a settlement read in error is corrected with the gateway and an adjusting entry by the accountant outside BillingRecon). |
+| **BR-1022** | A `Chargeback`, or a `Refund` item with no refund in BillingRecon, is never posted by itself: it is listed among the exceptions (BR-1026) until a user records the payment's reversal or the refund through R1's maker-checker. An `Adjustment` item is listed likewise. |
+| **BR-1023** | A shift's deposit: an `In` line of a bank channel matches the counted cash of one or more closed cashier shifts (BR-313), in the window after their date. Nothing is posted (cash and bank are one `Cash` account in the receivables ledger). |
+| **BR-1024** | Every record of R2 is the hospital's own (BR-002): a channel, a line, a match, a suspense item or a settlement of another hospital is never read or named, by id or otherwise. |
+| **BR-1025** | Reports (BR-901 extended): unmatched statement lines by channel and age; non-cash payments not matched after their window; matches by channel and day; suspense by age (0–7, 8–30, 31–90, over 90 days); exceptions (BR-1026). Each reads committed data; every sum that is money ties to the ledger or to the statement lines as read. |
+| **BR-1026** | The **exceptions** are: a matched payment that was reversed; a settlement item of kind `Chargeback`, `Adjustment` or an unknown `Refund`; a settlement item whose payment is not in BillingRecon; a settlement whose net matches no bank line after the window; a suspense item open more than 30 days. |
+| **BR-1027** | The dashboard (BR-902) gains **unreconciled**: the count and sum of `In` lines neither matched nor excluded, and of non-cash payments past their window and not matched, at the end of the period, with no previous figure; and **suspense**, the balance of `Suspense` at the end of the period. Collected (BR-902) stays the Cash debits of payments; suspense is shown apart until it is applied. |
+| **BR-1028** | The day-end report (BR-903) shows, for each non-cash payment of the date, whether it is matched; its totals are unchanged. |
+| **BR-1029** | Matching runs never match an item twice: two runs at once, or a run and a user, end with each line and item in at most one active match (BR-804; the second answers 409 or leaves the item alone). |
+
+### 7.4 User stories and acceptance criteria
+
+| Id | Story | Acceptance |
+|---|---|---|
+| US-60 | As a TenantAdmin I set up our bank accounts and our Razorpay account as settlement channels, with each bank's column mapping. | Name unique; only the last four digits kept; window 0–10; change audited; deactivated channel takes no import; an Accountant reads them and cannot change them (BR-1001, BR-1002). |
+| US-61 | As an Accountant I import yesterday's bank statement. | The dry run shows every line and every refused row with its row number and reason, stores nothing; the import stores each line once; the same file again adds nothing; another hospital never sees the lines (BR-1003, BR-1004, BR-1024). |
+| US-62 | As an Accountant I see most lines matched or proposed right after the import. | An exact reference and amount with one candidate is matched with its reason; anything ambiguous is proposed, never matched; a reversed payment is never matched; a cash payment is never matched to a line (BR-1008, BR-1010, BR-1011). |
+| US-63 | As an Accountant I clear the rest by hand from the keyboard. | Accept, dismiss, match one to many and many to one, unmatch with a reason, exclude with a category; amounts must equal; outside the window needs a note; every action audited; nothing posted and no R1 figure changes (BR-1006, BR-1007, BR-1009, BR-1012). |
+| US-64 | As an Accountant I record a payment the counter forgot, from its bank line. | A normal payment, numbered, posted and matched in one transaction; never cash (BR-1013). |
+| US-65 | As an Accountant I park money from an unknown sender as suspense cash. | Numbered `SUS`, posted `Dr Cash / Cr Suspense`, matched to its line; no drift (BR-1014, BR-404). |
+| US-66 | As an Accountant I ask for suspense to be applied to the payer once we know who sent it; a Supervisor approves. | The maker cannot approve; the approval creates the payer's payment from suspense; `Remaining` falls; a reversal of that payment gives it back to suspense; no drift (BR-1015, BR-1017). |
+| US-67 | As an Accountant I ask for suspense to be returned to the sender; a Supervisor approves. | Numbered `SRN`, posted `Dr Suspense / Cr Cash`; its `Out` line matches it (BR-1016). |
+| US-68 | As an Accountant I import Razorpay's settlement report and reconcile a day of UPI and card payments to the bank to the paisa. | Items tie to payments; the net ties to one bank line; the fees post as `GWC`; a chargeback is listed, never posted (BR-1019 – BR-1022). |
+| US-69 | As a Supervisor, an Accountant or a Viewer I read the reconciliation reports and see "unreconciled" and "suspense" on the dashboard. | Every figure ties to the ledger or the lines; the exceptions are listed; a BillingClerk or a Cashier is refused with 403 (BR-1025 – BR-1028). |
+| US-70 | As the platform, two matching runs at once match nothing twice. | Each line and item ends in at most one active match (BR-1029). |
+
+### 7.5 Non-functional requirements (R2)
+
+| Area | Requirement |
+|---|---|
+| Correctness | R1's rules hold for every new posting: a template in Receivables, its identity, drift zero after every test (BR-404). |
+| Performance | Importing a 20,000-line statement: under 30 s. Automatic matching of 10,000 lines against 10,000 payments: under 60 s on LocalDB, measured, and owed on SQL Server 2022. Reading a page of the workspace: p95 under 500 ms. |
+| Security | No bank or gateway credential is stored (files only). A statement's raw text may name payers; it is never logged (ADR 0015's masking applies to the request log). |
+| Retention | Statement lines and settlements are kept with the financial documents (8 years); an uploaded file itself is not kept, only its hash and the lines read from it. |

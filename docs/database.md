@@ -1212,6 +1212,74 @@ Twelve columns `nvarchar(100) NULL`, a name of a ledger in the accountant's book
 and `RowVersion`. The accountant's export reads the row and the ledger; it has no table of its own and writes
 nothing. No grant changes.
 
+### 5.16 R2 Reconciliation: the ledger and the tables (designed 2026-11-28, Prompt 13.0; not built)
+
+*The design approved with the R2 contract (`requirements.md` section 7; ADR 0065 to ADR 0068). Each part is built by
+the prompt named beside it, with its migration, and this section then gets its built note.*
+
+**Two new ledger accounts** (BR-403 as amended):
+
+| Account | Normal side | Subject | Balance formula | Meaning of a positive balance | Prompt |
+|---|---|---|---|---|---|
+| `Suspense` | Credit | Suspense item (no payer) | Σ Credit − Σ Debit | money that reached the hospital's bank from a sender not yet known, not yet applied or returned | 13.4 |
+| `GatewayCharges` | Debit | — | Σ Debit − Σ Credit | what the gateways kept as fees and the tax on them | 13.5 |
+
+`CK_LedgerEntries_Subject` gains two branches: `(Account = 'Suspense' AND SubjectType = 'SuspenseItem' AND SubjectId
+IS NOT NULL AND PayerId IS NULL)` and `GatewayCharges` among the control accounts. `Cash` keeps its meaning, net money
+held at the counter and in the bank, and from R2 it is net of the gateways' charges too, so that it ties to the bank.
+
+**New posting templates** (§5.3):
+
+| Kind | Trigger | Entries | Cache deltas | Prompt |
+|---|---|---|---|---|
+| `SuspenseRecorded` | Suspense recorded from a statement line, amount *S* (BR-1014) | Dr `Cash` S · Cr `Suspense(item)` S | `SuspenseItem.Remaining = S` | 13.4 |
+| `SuspenseApplied` | Application approved, amount *A* (BR-1015); the document is the new payment | Dr `Suspense(item)` A · Cr `UnappliedCash(payment)` A | `Remaining −= A`; `Payment.UnappliedAmount = A`; `Payer.UnappliedCash += A` | 13.4 |
+| `SuspensePaymentReversed` | Reversal approved of a payment whose origin is suspense (BR-1017) | one `AllocationReversed` per active allocation, then Dr `UnappliedCash(payment)` A · Cr `Suspense(item)` A | `Payment.UnappliedAmount = 0`; `Payer.UnappliedCash −= A`; `Remaining += A` | 13.4 |
+| `SuspenseReturned` | Return approved, amount *R* (BR-1016) | Dr `Suspense(item)` R · Cr `Cash` R | `Remaining −= R` | 13.4 |
+| `GatewayChargesPosted` | Settlement's net matched to its bank line, fees and tax *F* (BR-1021) | Dr `GatewayCharges` F · Cr `Cash` F | none | 13.5 |
+
+Worked example. ₹12,000 reaches the bank by NEFT with the reference "N3341 KUMAR"; nobody recorded it. The accountant
+records `SUS/26-27/000004`: Dr Cash 12,000 · Cr Suspense 12,000. A week later the family says it was for Ravi Kumar's
+bill; the accountant asks to apply ₹12,000 to his payer, a Supervisor approves: `PAY/26-27/000233`, origin Suspense,
+Dr Suspense 12,000 · Cr UnappliedCash 12,000, and the cashier allocates it as usual. Over the two documents the ledger
+says what a counter payment would have said, Dr Cash · Cr UnappliedCash, and `Suspense` is back to zero.
+
+**New balance identities** (§5.5):
+
+| # | Identity | Prompt |
+|---|---|---|
+| 9 (amended) | Tenant trial balance: `Receivable + Cash + Adjustments + GatewayCharges` (debit balances) `= Revenue + UnappliedCash + CreditAvailable + OpeningBalances + Suspense` (credit balances). | 13.4, 13.5 |
+| 13 | `SuspenseItems.Remaining = Σ(Credit − Debit)` over `Suspense` entries for the item; `0 ≤ Remaining ≤ Amount` (BR-405, BR-1017). | 13.4 |
+| 14 | `Σ SuspenseItems.Amount − Σ` approved applications `+ Σ` reversed suspense payments `− Σ` posted returns `=` the balance of `Suspense`; and every payment of origin Suspense names an approved application. | 13.4 |
+| 15 | The balance of `GatewayCharges` `= Σ GatewayCharges.Amount` of the posted charges documents, and each equals the fees plus tax of its settlement. | 13.5 |
+| 2 and 11 (amended) | The new documents count: a suspense item (`SuspenseRecorded`), a suspense return (`SuspenseReturned`), a gateway charges document (`GatewayChargesPosted`), each in its own series (`SuspenseItem` SUS, `SuspenseReturn` SRN, `GatewayCharges` GWC); a payment of origin Suspense is counted against the series `Payment` and looks for the kind `SuspenseApplied`. | 13.4, 13.5 |
+
+A match posts nothing, so the matching tables appear in no identity. Their own checks are constraints and a query
+of the reconciliation report: an active match's lines add up to its items (BR-1006), and no line or item is in two
+active matches (BR-1029, a filtered unique index on each link table where the match is active).
+
+**New tables** (module Reconciliation unless named; every one `TenantId` first in each index, row version on the
+mutable ones, audit columns as §1):
+
+| Table | Holds | Prompt |
+|---|---|---|
+| `SettlementChannels` | Kind (`Bank`, `Gateway`), Name (unique per tenant), AccountLabel (≤ 4 characters), Gateway (`Razorpay`), BankChannelId (a gateway's bank channel), DateWindowDays (0–10), the column mapping as JSON, Status (`Active`, `Inactive`) | 13.1 |
+| `StatementImports` | ChannelId, FileName, FileHash (SHA-256, unique per channel), LineCount, period from/to, imported stamps; insert-only | 13.1 |
+| `StatementLines` | ChannelId, ImportId, RowNumber, TransactionDate, ValueDate, Direction (`In`, `Out`), Amount `decimal(18,2)`, Reference, Description, Balance, RawText, Fingerprint (SHA-256), Occurrence (the n-th identical line), Status (`Unmatched`, `Matched`, `Excluded`), row version; unique (TenantId, ChannelId, Fingerprint, Occurrence). The read fields never change (an update guard, like the posted documents' frozen fields) | 13.1 |
+| `Matches` | ChannelId, Kind (`Payment`, `Refund`, `PaymentReversal`, `ShiftDeposit`, `Settlement`, `Suspense`, `SuspenseReturn`, `Excluded`), Source (`Automatic`, `ProposalAccepted`, `Manual`), Reason, Note, ExclusionCategory, Status (`Active`, `Ended`), ended stamps and reason, row version | 13.2, 13.3 |
+| `MatchLines`, `MatchItems` | A match's lines with amounts; its items (ItemType, ItemId, Amount). Filtered unique indexes on (TenantId, StatementLineId) and (TenantId, ItemType, ItemId) where the match is active | 13.2 |
+| `MatchProposals` + `MatchProposalItems` | A line, its candidate items, Rule (1–3), Score, Reason, Status (`Open`, `Accepted`, `Dismissed`, `Withdrawn`), row version | 13.2 |
+| `SuspenseItems` | Number, FiscalYear, SequenceNumber, ChannelId, StatementLineId, SuspenseDate, Amount, Remaining, Reference, Description, Status (`Open`, `Cleared`), PostingId, row version | 13.4 |
+| `SuspenseApplications` | SuspenseItemId, PayerId, Amount, Status (`PendingApproval`, `Approved`, `Rejected`), PaymentId, decision stamps | 13.4 |
+| `SuspenseReturns` | Number, FiscalYear, SequenceNumber, SuspenseItemId, ReturnDate, Amount, Method, Reference, Reason, Status (`PendingApproval`, `Posted`, `Rejected`), PostingId | 13.4 |
+| `GatewaySettlements` + `GatewaySettlementItems` | ChannelId, the gateway's settlement id (unique per channel), SettlementDate, Utr, Gross, Fees, Tax, Net; items: Kind, GatewayPaymentId, Gross, Fee, Tax, Net, the matched payment or refund | 13.5 |
+| `GatewayCharges` | Number, FiscalYear, SequenceNumber, SettlementId, ChargesDate, Amount, PostingId; insert-only | 13.5 |
+| `Payments` (Payments module) | Origin gains `Suspense`, with SuspenseItemId (FK) | 13.4 |
+| `AccountingLedgers` (ADR 0062) | Two more names: `Suspense`, `GatewayCharges` | 13.4, 13.5 |
+
+Grants (§7): the application login may not DELETE any of these tables; `StatementImports`, `GatewayCharges` and the
+ledger's two stay insert-only. No table here is `IHardDeletable`.
+
 ## 6. Idempotency store (ADR 0006)
 
 Lifecycle of a row in `IdempotencyKeys` for a financial POST:

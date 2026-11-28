@@ -36,7 +36,7 @@ the domain model, the schema and the tests.
 | Release | Theme | Scope (R1 confirmed in `docs/requirements.md` §2; R2–R5 indicative) |
 |---|---|---|
 | **R1** | MVP | Tenants, users and roles, patients and self-pay payers, service catalogue, bills and credit notes, payments and allocation, reversals, refunds, adjustments, receivables subledger with cached balances, gapless numbering, maker-checker, idempotency, audit, basic reports |
-| **R2** | Reconciliation | Bank and payment-gateway statement import, automatic and manual matching, unapplied and suspense cash, reconciliation reports |
+| **R2** | Reconciliation | Bank and payment-gateway statement import, automatic and manual matching, unapplied and suspense cash, reconciliation reports. *Contract approved 2026-11-28 (Prompt 13.0): `docs/requirements.md` section 7, ADR 0065 to ADR 0069; being built on `r2-reconciliation`* |
 | **R3** | Recovery | Ageing, dunning schedules and reminders, promises to pay, disputes, write-off workflow under maker-checker |
 | **R4** | Insurance / Corporate | Third-party payers (insurers/TPAs, corporate accounts), claims and pre-authorisation, payer statements, payer-specific terms and pricing |
 | **R5** | Maturity | Hardening, performance, observability, backup/DR drills, compliance reporting, extensibility |
@@ -540,6 +540,10 @@ Each source project has `AssemblyMarker` (Domain, Application, Infrastructure) o
 
 `Common` · `Payers` · `Billing` · `Payments` · `Receivables` · `Adjustments` · `Reporting` · `Identity` · `Audit`
 
+*R2 adds `Reconciliation`* (designed 2026-11-28, ADR 0065; its folders arrive with Prompt 13.1): settlement channels,
+statement lines, matches, suspense cash and gateway settlements. It uses Payments' and Receivables' public Application
+contracts only, so it needs no exception to the dependency rule below.
+
 Namespace pattern: `BillingRecon.<Layer>.<Module>`, for example `BillingRecon.Domain.Billing`,
 `BillingRecon.Application.Payments`, `BillingRecon.Infrastructure.Receivables`. The folder must match
 the namespace (IDE0130 is a build error). Every module folder that has no code yet holds a `README.md`
@@ -994,6 +998,13 @@ the owner's answers and approval of the Prompt 11.4 plan, 2026-11-27; it amends 
 API on Render in the Demo environment, the database on Azure SQL with contained users (`setup.sh` with `AZURE_SQL=true`);
 visitors share the address the sign-in limits see, cold starts accepted; never a hospital's data (Accepted on the
 owner's approval of the plan, 2026-11-28; it amends ADR 0035 for this hosting only, and ADR 0045). Runbook section 21.
+0065 to 0069 the design of R2 Reconciliation (Accepted as design on the owner's approval of the Prompt 13.0 contract,
+2026-11-28; each gets its built note from the prompt that builds it): 0065 the module `Reconciliation`, settlement
+channels and the import of a bank's CSV through a mapping per channel (dry run, never a line twice); 0066 a match posts
+nothing and needs no checker, the machine confirms only an exact reference and amount with one candidate, the window of
+days; 0067 suspense cash, a ledger account recorded without a checker and applied or returned under maker-checker (it
+amends ADR 0005, ADR 0056 and ADR 0062); 0068 gateway settlements and the control account `GatewayCharges` (it amends
+ADR 0005 and ADR 0062); 0069 the Accountant role (it amends ADR 0030 and ADR 0032).
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1405,3 +1416,10 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    (`vercelConfig.test.ts`), the Azure mode of the migrator (`contained-users.sql`, `AZURE_SQL=true`), runbook section 21.
    No migration; **the next free migration is `0035` and the next ADR `0065`.** Owed: the first deploy (runbook 21.2 to
    21.5), which proves Azure SQL, the certificate check, Render's proxy range and the host of Vercel's rewrite.
+12. **R2 Reconciliation, Prompt 13.0 (2026-11-28), on `r2-reconciliation`:** the contract, approved "as recommended":
+   `docs/requirements.md` section 7 (the Accountant role and its matrix rows, BR-1001 to BR-1029, US-60 to US-70),
+   `docs/domain-model.md` section 11, `docs/database.md` §5.16 (the accounts `Suspense` and `GatewayCharges`, five
+   templates, identities 9 amended and 13 to 15), ADR 0065 to ADR 0069, and Prompts 13.1 to 13.6 in
+   `docs/build-prompts.md`. A match posts nothing and needs no checker; applying and returning suspense do. Also B26:
+   `<Version>2.0.0-dev</Version>` in `Directory.Build.props`, held by `SystemEndpointsTests`; 13.6 sets `2.0.0`. No
+   migration; **the next free migration is `0035` and the next ADR `0070`.**

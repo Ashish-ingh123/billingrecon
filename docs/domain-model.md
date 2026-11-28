@@ -43,6 +43,7 @@
 | **Adjustments** | `Adjustment` | `AdjustmentNumber`, `AdjustmentKind` | |
 | **Reporting** | none (read models / queries) | `ReportBillStatus`, `ReportPaymentStatus`, `ReportPaymentMethod` (its own words for the Billing and Payments enums) | Reads any module's tables through query services; never writes. Built with Prompt 6.1 (ADR 0036): its Infrastructure may name the entities of every business module (five exceptions of ADR 0003), and `ReportingConventionTests` keeps it from writing. The dashboard (Prompt 6.3, ADR 0037) reads the ledger by business date through the Receivables contract `ILedgerMovements`. |
 | **Audit** | `AuditRecord` (append-only) | `IAuditWriter` | Subscribes to every domain event. |
+| **Reconciliation** (R2, designed 2026-11-28, ADR 0065) | `SettlementChannel`, `StatementImport` + `StatementLine`, `Match` (+ lines and items), `MatchProposal`, `SuspenseItem` (+ applications and returns), `GatewaySettlement` + items, `GatewayChargesDocument` | `ColumnMapping`, `Fingerprint`, `MatchKind`, `MatchSource`, `ExclusionCategory`, `SuspenseNumber` | Uses Payments' and Receivables' public Application contracts only, so it needs no exception to the module rule. See section 11. |
 
 Cross-module rule (CLAUDE.md §3): a module touches another module's data only through that module's
 Application contracts. Payments never loads `Bill` through a `DbSet`; it calls Billing's
@@ -693,3 +694,62 @@ as the table plans them.
 3. ~~Whether `Sex` and address fields are needed for billing at all, or whether the HIS remains the
    only place for demographics and BillingRecon stores just MRN and name.~~ Resolved 2026-10-17 (owner's
    approval of the Prompt 2.2 plan): the fields stay, as `database.md` §3.2 lists them.
+
+---
+
+## 11. R2 Reconciliation (designed 2026-11-28, Prompt 13.0; not built)
+
+The rules are `requirements.md` section 7 (BR-1001 to BR-1029); the storage and the postings are `database.md` §5.16;
+the decisions are ADR 0065 to ADR 0069. Each aggregate gets its built note from the prompt that builds it.
+
+### 11.1 Where things live
+
+A new module, **Reconciliation**, a folder and namespace in every project like the others. It depends on `Common`
+and on public Application contracts only:
+
+- Payments: a read contract of payments and refunds by tenant, method, date and reference (for matching), and the
+  command to record a payment (for a forgotten payment, BR-1013) and a payment of origin Suspense (BR-1015). The
+  payment stays Payments' aggregate; Reconciliation never loads it through a `DbSet`.
+- Payments: a read contract of closed shifts and their counted cash (BR-1023).
+- Receivables: `IReceivablesLedger` with the new templates (`SuspenseRecorded`, `SuspenseReturned`,
+  `GatewayChargesPosted`); Receivables owns the templates and the identities, as for every module.
+- Common: `INumberSeries` (three new document types), `ApprovalRequest` for the suspense requests.
+
+Reporting reads the new tables as it reads every module (ADR 0036). No exception to the module-dependency rule is
+needed; `ModuleDependencyTests` lists Reconciliation among the business modules.
+
+### 11.2 Aggregates
+
+| Aggregate | Fields | Commands | Invariants | Events |
+|---|---|---|---|---|
+| `SettlementChannel` | Kind, Name, AccountLabel, Gateway?, BankChannelId?, DateWindowDays, `ColumnMapping`, Status | `Create`, `Change`, `ChangeMapping`, `Deactivate` | BR-1001, BR-1002 | `SettlementChannelCreated`, `…Changed`, `…Deactivated` |
+| `StatementImport` (insert-only) and `StatementLine` (its own entity, many per import) | as `database.md` §5.16 | `StatementImport.Read(file, mapping)` (the dry run, pure), `Import` | BR-1003 – BR-1005; a line's read fields never change | `StatementImported` (one per import, with its counts, not one per line) |
+| `Match` | Kind, Source, Reason, Note, lines, items, Status | `Confirm` (automatic), `AcceptProposal`, `MatchByHand`, `Exclude`, `End(reason)` | BR-1006 – BR-1009, BR-1012, BR-1029: the amounts agree; each line and item in one active match | `MatchMade`, `MatchEnded` |
+| `MatchProposal` | Line, items, Rule, Score, Reason, Status | `Propose`, `Accept`, `Dismiss`, `Withdraw` | BR-1011 | `MatchProposed` (one per run, with its count), `ProposalDismissed` |
+| `SuspenseItem` | Number, date, Amount, Remaining, line, Status; children `SuspenseApplication`, `SuspenseReturn` | `Record`, `RequestApplication`, `ApproveApplication` (checker), `RejectApplication`, `RequestReturn`, `ApproveReturn` (checker), `RejectReturn`, `TakeBack(amount)` (a suspense payment reversed) | BR-1014 – BR-1017: `0 ≤ Remaining ≤ Amount`; one pending request | `SuspenseRecorded`, `SuspenseApplicationRequested`, `…Approved`, `…Rejected`, `SuspenseReturnRequested`, `SuspenseReturned`, `SuspenseReturnRejected`, `SuspenseTakenBack` |
+| `GatewaySettlement` + `GatewaySettlementItem` | as `database.md` §5.16 | `Read(report)` (dry run), `Import`, `MatchItem`, `MatchNet` | BR-1019 – BR-1022: gross − fee − tax = net per item and in total | `GatewaySettlementImported`, `GatewaySettlementReconciled` |
+| `GatewayChargesDocument` (insert-only) | Number, settlement, date, Amount, PostingId | `Post` | BR-1021 | `GatewayChargesPosted` |
+
+`Payment` (Payments) gains the origin `Suspense` with the suspense item's id; `Payment.RecordFromSuspense` creates it
+posted under a payment number with the `SuspenseApplied` posting; its `Reverse` names the posting
+`SuspensePaymentReversed` when its origin is suspense, and the use case calls `SuspenseItem.TakeBack`.
+
+### 11.3 State machines
+
+- **Statement line:** `Unmatched` → `Matched` (a match) or `Excluded` (an exclusion) → `Unmatched` (the match ends).
+- **Match:** `Active` → `Ended`. Never back; a new match is made instead.
+- **Proposal:** `Open` → `Accepted` | `Dismissed` | `Withdrawn`.
+- **Suspense item:** `Open` → `Cleared` when `Remaining` is zero → `Open` again if a suspense payment is reversed.
+  Its application and return: `PendingApproval` → `Approved` / `Posted` | `Rejected`.
+
+### 11.4 Transactions
+
+- An import is one transaction: the import row and its lines, then automatic matching runs in a transaction of its
+  own (so a long matching run never holds the import's locks).
+- A matching run takes each line in a transaction of its own and relies on the filtered unique indexes and the row
+  versions of the lines (BR-1029): a line or item taken in between makes the second insert fail, and that line is
+  left for the next run.
+- Recording a forgotten payment or suspense cash from a line: the document, its number, its ledger posting, the match
+  and the line's status in one transaction, in the six steps of ADR 0022, the number series first.
+- Approving a suspense application: the approval, the new payment with its number and its posting, the item's
+  `Remaining`, in one transaction; the lock order is the number series, then the payer's balances, then the item.
