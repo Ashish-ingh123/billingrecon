@@ -5,23 +5,38 @@ import listStyles from '../components/ListControls.module.css';
 import { pageSize } from '../components/listParams';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
-import { readAvailableCredit, useReport } from './api';
+import { DateRange } from '../components/table/FilterBar';
+import { readAvailableCredit, useReport, type ReportExtras } from './api';
 import { availableCreditColumns, availableCreditTotals, availableCreditIsWhole } from './columns';
 import { reportCsv } from './csv';
 import { readWholeReport } from './exportReport';
-import { ExportButton, PayerFilter, ReportTable } from './ReportParts';
+import { ExportButton, FiltersInUse, PayerFilter, ReportTable } from './ReportParts';
 import { useReportQuery, counted } from './view';
 import styles from './Reports.module.css';
 
+/** The orders the API takes, by the header of the column (Prompt 12.2, ADR 0063). */
+const sorts = {
+  'Credit note': 'number',
+  Date: 'creditNoteDate',
+  'Available (₹)': 'availableAmount',
+};
+
+const names = ['payerId', 'from', 'to', 'sort'] as const;
+
+/** The filters of the bar, which "Clear filters" empties. */
+const barFilters = ['payerId', 'from', 'to'] as const;
+
 /**
- * Available credit (BR-901): the posted credit notes that still hold credit, the oldest first; the total is the balance
+ * Available credit (BR-901): the posted credit notes that still hold credit, the oldest first unless another order is chosen, narrowed by payer and a period of dates; the total is the balance
  * of the CreditAvailable account.
  */
 export function AvailableCreditPage() {
   const client = useApiClient();
-  const { values, page, change } = useReportQuery(['payerId'] as const);
-  const report = useReport('available-credit', { payerId: values.payerId, page }, (api) =>
-    readAvailableCredit(api, values.payerId, page, pageSize),
+  const query = useReportQuery(names);
+  const { values, page, change } = query;
+  const extras: ReportExtras = { sort: values.sort, dateFrom: values.from, dateTo: values.to };
+  const report = useReport('available-credit', { payerId: values.payerId, extras, page }, (api) =>
+    readAvailableCredit(api, values.payerId, page, pageSize, extras),
   );
   const totals = report.data?.totals;
 
@@ -35,12 +50,17 @@ export function AvailableCreditPage() {
       <div className={styles.toolbar}>
         <div className={listStyles.filters}>
           <PayerFilter payerId={values.payerId} onChange={(payerId) => change({ payerId })} />
+          <DateRange<(typeof names)[number]>
+            state={query}
+            filter={{ kind: 'dates', from: 'from', to: 'to', label: 'Date' }}
+          />
+          <FiltersInUse count={query.inUse(barFilters)} onClear={() => change({ payerId: '', from: '', to: '' })} />
         </div>
         <ExportButton
           fileName="available-credit.csv"
           build={async (progress) => {
             const whole = await readWholeReport({
-              read: (number, size) => readAvailableCredit(client, values.payerId, number, size),
+              read: (number, size) => readAvailableCredit(client, values.payerId, number, size, extras),
               isWhole: availableCreditIsWhole,
               onPage: progress,
             });
@@ -69,6 +89,9 @@ export function AvailableCreditPage() {
             keyOf={(row) => row.creditNoteId}
             count={counted(totals?.creditNotes ?? report.data.totalCount, 'credit note', 'credit notes')}
             totals={totals ? availableCreditTotals(totals).filter((total) => total.under !== undefined) : []}
+            sorts={sorts}
+            sort={values.sort}
+            onSort={(sort) => change({ sort })}
           />
           <Pagination
             page={page}

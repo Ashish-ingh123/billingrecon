@@ -4,8 +4,8 @@
   and approved the plan "as recommended", with its six points: a business date from the server (there was no 12.1);
   TanStack Table 9 with its three packages pinned; the seventeen tables of the plan; no fold under 720 px; three
   commits on the branch `phase-12-tables`; the maker filter only where users may be read. Written with 12.2a, the
-  API; amended by 12.2b (the shared table and the five document lists, built note below); 12.2c (the rest of the
-  screens) will amend it again.
+  API; amended by 12.2b (the shared table and the five document lists, built note below); and by 12.2c (every other
+  table, the reports, the CSV and print; built note below).
 - **Date:** 2026-11-27
 - **Deciders:** project owner, Claude Code
 - **Amends:** ADR 0036 (the reports filter and order on request, and their totals follow), ADR 0018 (a list's order
@@ -111,3 +111,34 @@ it holds, and an order never to be a column name passed through to SQL.
   shortcuts from the server's date with the browser's clock a day ahead, "Made by" for an administrator only,
   `aria-sort` through the three states, the menu by keyboard with the fixed columns, the choice kept for one user and
   not another, `periodOf` and `orderOf`. Every earlier test unchanged (698).
+
+## Built note (2026-11-27, Prompt 12.2c)
+
+- **The rest of the tables on the shared table:** patients, payers (with a kind filter), service items (with a
+  category, sent after the pause), users, shifts (a period of business dates with the shortcuts; an old `?date=`
+  still opens one day), and every report through `ReportTable`, which is now `DataTable` with a totals footer:
+  a hidden column hides its total with it; the first column and the status are never hidden; the header and the
+  totals stay in view in the report's frame, as before.
+- **The reports' filters and orders:** the registers an amount from and to (Total, Amount), unapplied cash and
+  available credit a period of dates, and a header order on each paged report (`ReportExtras` in `reports/api.ts`).
+  The payment register's own "Order" stays and clears a header's order when chosen. The period of a register is its
+  scope, not a filter: "Clear filters" keeps it.
+- **The CSV follows the filters and the order** (the same reader and `ReportExtras` as the screen) **and keeps every
+  column, in its order and bytes**, whatever is hidden on screen. **Print follows the columns shown**: a hidden
+  column is not in the page, and the "Columns" button and the filter bar do not print.
+- **The checker's inbox** is a list of cards (ADR 0049), not a table: it gets an "Order" (oldest or newest first,
+  `sort=-requestedAtUtc`) and the count of its filter; no "Columns" menu.
+- **The address** of every list and report is replaced, not pushed (`useListParams`, `useUserListParams`,
+  `useReportQuery`, the shifts and the inbox), and a change goes back to page 1.
+- **One assertion of 12.2b changed:** the amount fields are now "At least" and "At most" (they were "From" and "to",
+  which collided with a register's period "From" that an existing report test finds by its label);
+  `Table.test.tsx` finds them by the new labels. No earlier test was changed. The kind filter of the payers names
+  groups ("Self-pay payers"), so an existing test that counts the cells "Self-pay" holds.
+- **The status line** of a sort and of the count is `aria-live="polite"` with no `status` role, so a page's own
+  status (an export's outcome, a list's loading line) stays the one of its kind.
+- **Tests:** `Screens.test.tsx` (10): the patients sorted from a header with the address replaced and page 1, the
+  name and status never hidden; the count and "Clear filters" keeping the order; the payers' kind; the category after
+  the pause; the users by last sign-in; the shifts by "Last 30 days" from the server's date; the inbox newest first;
+  the bill register with a hidden column and its total, the CSV read with the filters and order and every column; the
+  register's "Clear filters" keeping its period; unapplied cash by a period. 724 component tests; the browser specs
+  of the lists and reports (374) in Edge under nginx's policy, both themes, 1440 and 390 px, axe; the budgets.

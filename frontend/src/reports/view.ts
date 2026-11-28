@@ -40,7 +40,8 @@ export function useReportQuery<N extends string>(names: readonly N[]) {
   const parsed = Number.parseInt(params.get('page') ?? '1', 10);
   const page = Number.isFinite(parsed) && parsed >= 1 ? parsed : 1;
 
-  const change = (next: Partial<Record<N | 'page', string>>, options?: { replace?: boolean }) => {
+  // Every change takes the place of the address's entry, so Back leaves the report (Prompt 12.2, ADR 0063).
+  const change = (next: Partial<Record<N | 'page', string>>) => {
     const merged: Record<string, string> = { ...values, page: String(page), ...next };
     if (!('page' in next)) {
       merged.page = '1';
@@ -48,15 +49,18 @@ export function useReportQuery<N extends string>(names: readonly N[]) {
 
     const query = new URLSearchParams();
     for (const [name, value] of Object.entries(merged)) {
-      if (value !== '' && !(name === 'page' && value === '1')) {
-        query.set(name, value);
+      if (value.trim() !== '' && !(name === 'page' && value === '1')) {
+        query.set(name, value.trim());
       }
     }
 
-    setParams(query, { replace: options?.replace === true });
+    setParams(query, { replace: true });
   };
 
-  return { values, page, change };
+  /** How many of `names` are set: the count of the filters in use of a report's bar. */
+  const inUse = (names: readonly N[]) => names.filter((name) => values[name].trim() !== '').length;
+
+  return { values, page, change, inUse };
 }
 
 /** A count with its noun: "1 bill", "120 bills". */

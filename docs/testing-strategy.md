@@ -378,3 +378,8 @@ date shortcuts count from the server's date with the browser's clock a day ahead
 `aria-sort` through ascending, descending and none; the "Columns" menu by keyboard with the columns never hidden; the
 choice of columns kept for one user and not another; `periodOf` and `orderOf`. The browser suite runs the five lists
 under nginx's policy with axe, no sideways scroll from 360 to 1,920 px and no layout shift while a filter is typed.
+
+**The rest of the tables** (Prompt 12.2c; ADR 0063): `Screens.test.tsx`: each other list sorted, filtered and counted
+with its address replaced; the shifts by a shortcut from the server's date; the inbox's order; a report's hidden column
+taking its total with it, and its CSV read with the filters and the order and keeping every column; a register's
+"Clear filters" keeping its period. The routes suite covers every list and report in both themes at 1440 and 390 px.

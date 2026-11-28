@@ -1393,4 +1393,4 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    hospital, user and table; `periodOf` from the server's business date; `useListQuery` keeping the rows and cancelling
    a stale request; `MakerFilter` only with `ManageTenant`) and the five document lists on it. A header sorts when its
    column names an API order (`sort`), never by TanStack's `getCanSort`, which is false for display columns. A new list
-   on the table keeps its address names and its `['<list>', 'list', …]` query key. 12.2c is the rest of the screens.
+   on the table keeps its address names and its `['<list>', 'list', …]` query key. **12.2c (2026-11-27):** every other list and every report on it; `ReportTable` is `DataTable` with a totals footer; `ReportExtras` carries a report's 12.2 filters and order to the screen and the CSV alike; the CSV keeps every column whatever is hidden. Prompt 12.2 is done.

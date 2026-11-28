@@ -38,12 +38,43 @@ const periodQuery = ({ from, to }: Period) => (from !== '' && to !== '' ? { From
 const optional = <K extends string>(name: K, value: string | undefined) =>
   value === undefined || value === '' ? {} : ({ [name]: value } as Record<K, string>);
 
+/**
+ * The filters and the order of Prompt 12.2 a report takes beside its own (ADR 0063, `docs/api.md` section 6): an amount
+ * or a period of dates, and `sort`, a column the API names. Each one left empty filters nothing, and the totals of the
+ * report are of the rows the filters leave. The screen and its CSV read a report with the same ones.
+ */
+export interface ReportExtras {
+  sort?: string;
+  totalFrom?: string;
+  totalTo?: string;
+  amountFrom?: string;
+  amountTo?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+const extrasQuery = (extras: ReportExtras) => ({
+  ...optional('Sort', extras.sort),
+  ...optional('TotalFrom', extras.totalFrom),
+  ...optional('TotalTo', extras.totalTo),
+  ...optional('AmountFrom', extras.amountFrom),
+  ...optional('AmountTo', extras.amountTo),
+  ...optional('DateFrom', extras.dateFrom),
+  ...optional('DateTo', extras.dateTo),
+});
+
 export interface BillRegisterFilter extends Period {
   payerId: string;
   status: ReportBillStatus | undefined;
 }
 
-export function readBillRegister(client: ApiClient, filter: BillRegisterFilter, page: number, pageSize: number) {
+export function readBillRegister(
+  client: ApiClient,
+  filter: BillRegisterFilter,
+  page: number,
+  pageSize: number,
+  extras: ReportExtras = {},
+) {
   return answer(
     client.GET('/api/v1/reports/bill-register', {
       params: {
@@ -51,6 +82,7 @@ export function readBillRegister(client: ApiClient, filter: BillRegisterFilter, 
           ...periodQuery(filter),
           ...optional('PayerId', filter.payerId),
           ...optional('Status', filter.status),
+          ...extrasQuery(extras),
           Page: page,
           PageSize: pageSize,
         },
@@ -66,7 +98,13 @@ export interface PaymentRegisterFilter extends Period {
   order: ReportOrder;
 }
 
-export function readPaymentRegister(client: ApiClient, filter: PaymentRegisterFilter, page: number, pageSize: number) {
+export function readPaymentRegister(
+  client: ApiClient,
+  filter: PaymentRegisterFilter,
+  page: number,
+  pageSize: number,
+  extras: ReportExtras = {},
+) {
   return answer(
     client.GET('/api/v1/reports/payment-register', {
       params: {
@@ -76,6 +114,7 @@ export function readPaymentRegister(client: ApiClient, filter: PaymentRegisterFi
           ...optional('Method', filter.method),
           ...optional('Status', filter.status),
           ...(filter.order === 'NewestFirst' ? { Order: 'NewestFirst' as const } : {}),
+          ...extrasQuery(extras),
           Page: page,
           PageSize: pageSize,
         },
@@ -94,27 +133,42 @@ export function readOutstanding(
   page: number,
   pageSize: number,
   signal?: AbortSignal,
+  extras: ReportExtras = {},
 ) {
   return answer(
     client.GET('/api/v1/reports/outstanding-by-payer', {
       ...(signal === undefined ? {} : { signal }),
-      params: { query: { ...optional('Search', search.trim()), Page: page, PageSize: pageSize } },
+      params: {
+        query: { ...optional('Search', search.trim()), ...extrasQuery(extras), Page: page, PageSize: pageSize },
+      },
     }),
   );
 }
 
-export function readUnappliedCash(client: ApiClient, payerId: string, page: number, pageSize: number) {
+export function readUnappliedCash(
+  client: ApiClient,
+  payerId: string,
+  page: number,
+  pageSize: number,
+  extras: ReportExtras = {},
+) {
   return answer(
     client.GET('/api/v1/reports/unapplied-cash', {
-      params: { query: { ...optional('PayerId', payerId), Page: page, PageSize: pageSize } },
+      params: { query: { ...optional('PayerId', payerId), ...extrasQuery(extras), Page: page, PageSize: pageSize } },
     }),
   );
 }
 
-export function readAvailableCredit(client: ApiClient, payerId: string, page: number, pageSize: number) {
+export function readAvailableCredit(
+  client: ApiClient,
+  payerId: string,
+  page: number,
+  pageSize: number,
+  extras: ReportExtras = {},
+) {
   return answer(
     client.GET('/api/v1/reports/available-credit', {
-      params: { query: { ...optional('PayerId', payerId), Page: page, PageSize: pageSize } },
+      params: { query: { ...optional('PayerId', payerId), ...extrasQuery(extras), Page: page, PageSize: pageSize } },
     }),
   );
 }
@@ -124,10 +178,13 @@ export function readPendingApprovals(
   documentType: ApprovalDocumentType | undefined,
   page: number,
   pageSize: number,
+  extras: ReportExtras = {},
 ) {
   return answer(
     client.GET('/api/v1/reports/pending-approvals', {
-      params: { query: { ...optional('DocumentType', documentType), Page: page, PageSize: pageSize } },
+      params: {
+        query: { ...optional('DocumentType', documentType), ...extrasQuery(extras), Page: page, PageSize: pageSize },
+      },
     }),
   );
 }

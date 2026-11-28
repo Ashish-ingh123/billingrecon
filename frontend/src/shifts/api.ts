@@ -28,7 +28,13 @@ export const maxPieces = 99_999;
 
 export interface ShiftListParams {
   status: ShiftStatus | undefined;
+  /** One business date (an address of before Prompt 12.2 still opens with it). */
   date: string;
+  /** A period of business dates, both ends included (Prompt 12.2, ADR 0063). */
+  dateFrom: string;
+  dateTo: string;
+  /** The order asked for, as the API names it; `''` for the list's own. */
+  sort: string;
   page: number;
 }
 
@@ -82,6 +88,9 @@ export function useShifts(params: ShiftListParams) {
             query: {
               ...(params.status === undefined ? {} : { Status: params.status }),
               ...(params.date === '' ? {} : { Date: params.date }),
+              ...(params.dateFrom === '' ? {} : { DateFrom: params.dateFrom }),
+              ...(params.dateTo === '' ? {} : { DateTo: params.dateTo }),
+              ...(params.sort === '' ? {} : { Sort: params.sort }),
               Page: params.page,
               PageSize: pageSize,
             },

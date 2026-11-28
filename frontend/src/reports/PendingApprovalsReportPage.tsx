@@ -13,7 +13,7 @@ import { readPendingApprovals, useReport, type ApprovalDocumentType } from './ap
 import { pendingColumns, pendingTotals, pendingIsWhole } from './columns';
 import { reportCsv } from './csv';
 import { readWholeReport } from './exportReport';
-import { ExportButton, ReportTable } from './ReportParts';
+import { ExportButton, FiltersInUse, ReportTable } from './ReportParts';
 import { useReportQuery, counted } from './view';
 import styles from './Reports.module.css';
 
@@ -25,12 +25,13 @@ export function PendingApprovalsReportPage() {
   const client = useApiClient();
   const canDecide = useCan('Decide');
   const typeId = useId();
-  const { values, page, change } = useReportQuery(['documentType'] as const);
+  const query = useReportQuery(['documentType', 'sort'] as const);
+  const { values, page, change } = query;
   const documentType = approvalDocumentTypes.includes(values.documentType as ApprovalDocumentType)
     ? (values.documentType as ApprovalDocumentType)
     : undefined;
-  const report = useReport('pending-approvals', { documentType, page }, (api) =>
-    readPendingApprovals(api, documentType, page, pageSize),
+  const report = useReport('pending-approvals', { documentType, sort: values.sort, page }, (api) =>
+    readPendingApprovals(api, documentType, page, pageSize, { sort: values.sort }),
   );
   const totals = report.data?.totals;
 
@@ -69,12 +70,13 @@ export function PendingApprovalsReportPage() {
               ))}
             </select>
           </div>
+          <FiltersInUse count={query.inUse(['documentType'])} onClear={() => change({ documentType: '' })} />
         </div>
         <ExportButton
           fileName="pending-approvals.csv"
           build={async (progress) => {
             const whole = await readWholeReport({
-              read: (number, size) => readPendingApprovals(client, documentType, number, size),
+              read: (number, size) => readPendingApprovals(client, documentType, number, size, { sort: values.sort }),
               isWhole: pendingIsWhole,
               onPage: progress,
             });
@@ -103,6 +105,9 @@ export function PendingApprovalsReportPage() {
             keyOf={(row) => row.approvalRequestId}
             count={counted(totals?.requests ?? report.data.totalCount, 'request', 'requests')}
             totals={totals ? pendingTotals(totals).filter((total) => total.kind === 'instant') : []}
+            sorts={{ Asked: 'requestedAtUtc' }}
+            sort={values.sort}
+            onSort={(sort) => change({ sort })}
           />
           <Pagination
             page={page}

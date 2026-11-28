@@ -74,6 +74,9 @@ export function DataTable<T extends RowData>({
   sort = '',
   onSort,
   busy = false,
+  foot,
+  frameClassName,
+  footClassName,
 }: {
   tableId: string;
   label: string;
@@ -86,6 +89,14 @@ export function DataTable<T extends RowData>({
   onSort?: (sort: string) => void;
   /** A newer answer is on its way: the rows on screen stay until it arrives. */
   busy?: boolean;
+  /**
+   * The totals row of a report, as the server answered it: the first column shown says `label`, and each other column
+   * shown its total, if it has one. A hidden column's total is hidden with it; the browser adds nothing up.
+   */
+  foot?: { label: ReactNode; cells: Readonly<Record<string, ReactNode>> };
+  /** A frame of the page's own around the table (a report's, which keeps the header and the totals in view). */
+  frameClassName?: string;
+  footClassName?: string;
 }) {
   const session = useSession();
   const key = prefsKey(session.hospital, session.userId, tableId);
@@ -179,7 +190,7 @@ export function DataTable<T extends RowData>({
           onReset={() => save({ hidden: [], order: [] })}
         />
       </div>
-      <div className={table.wrap}>
+      <div className={frameClassName === undefined ? table.wrap : `${table.wrap} ${frameClassName}`}>
         <table className={table.table} aria-label={label} aria-busy={busy}>
           <thead>
             {instance.getHeaderGroups().map((group) => (
@@ -231,9 +242,27 @@ export function DataTable<T extends RowData>({
               </tr>
             ))}
           </tbody>
+          {foot !== undefined && (
+            <tfoot className={footClassName}>
+              <tr>
+                {visible.map((id, index) =>
+                  index === 0 ? (
+                    <th key={id} scope="row">
+                      {foot.label}
+                    </th>
+                  ) : (
+                    <td key={id} className={byId.get(id)?.numeric === true ? table.number : undefined}>
+                      {foot.cells[id] ?? ''}
+                    </td>
+                  ),
+                )}
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
-      <p className={styles.said} role="status" aria-live="polite">
+      {/* Polite, and no `status` role: a page's own status line (an export's outcome) stays the one of its kind. */}
+      <p className={styles.said} aria-live="polite">
         {said}
       </p>
       {/* For a test and for print: the columns shown, in their order. */}

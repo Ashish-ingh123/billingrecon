@@ -32,16 +32,23 @@ export const documentTypes: readonly { type: DocumentType; label: string; key: k
   { type: 'Refund', label: 'Refunds', key: 'refund' },
 ];
 
-/** The filters of the list of users, kept in the address: `?email=&status=&role=&page=`. */
+/**
+ * The filters of the list of users, kept in the address: `?email=&status=&role=&sort=&page=`. Every change takes the
+ * place of the entry of the address and, but for a page, goes back to the first page (Prompt 12.2, ADR 0063).
+ */
 export interface UserListParams {
   email: string;
   status: UserStatus | undefined;
   role: Role | undefined;
   page: number;
+  /** The order asked for, as the API names it; `''` for the list's own. */
+  sort: string;
 }
 
 export function useUserListParams(): UserListParams & {
   change: (next: Partial<UserListParams>, options?: { replace?: boolean }) => void;
+  inUse: number;
+  clear: () => void;
 } {
   const [query, setQuery] = useSearchParams();
   const status = query.get('status');
@@ -52,19 +59,25 @@ export function useUserListParams(): UserListParams & {
     status: status === 'Active' || status === 'Disabled' ? status : undefined,
     role: isRole(role) ? role : undefined,
     page: Number.isFinite(page) && page >= 1 ? page : 1,
+    sort: query.get('sort') ?? '',
   };
 
-  const change = (next: Partial<UserListParams>, options?: { replace?: boolean }) => {
+  const change = (next: Partial<UserListParams>) => {
     const merged = { ...params, ...next, page: next.page ?? 1 };
     const search = new URLSearchParams();
     if (merged.email.trim() !== '') search.set('email', merged.email.trim());
     if (merged.status !== undefined) search.set('status', merged.status);
     if (merged.role !== undefined) search.set('role', merged.role);
+    if (merged.sort !== '') search.set('sort', merged.sort);
     if (merged.page > 1) search.set('page', String(merged.page));
-    setQuery(search, { replace: options?.replace === true });
+    setQuery(search, { replace: true });
   };
 
-  return { ...params, change };
+  const inUse =
+    (params.email.trim() === '' ? 0 : 1) + (params.status === undefined ? 0 : 1) + (params.role === undefined ? 0 : 1);
+  const clear = () => change({ email: '', status: undefined, role: undefined });
+
+  return { ...params, change, inUse, clear };
 }
 
 export const userKeys = {
@@ -91,6 +104,7 @@ export function useUsers(params: UserListParams) {
               ...(params.email === '' ? {} : { Email: params.email }),
               ...(params.status === undefined ? {} : { Status: params.status }),
               ...(params.role === undefined ? {} : { Role: params.role }),
+              ...(params.sort === '' ? {} : { Sort: params.sort }),
               Page: params.page,
               PageSize: pageSize,
             },

@@ -12,9 +12,12 @@ import { readOutstanding, useReport } from './api';
 import { outstandingColumns, outstandingTotals, outstandingIsWhole } from './columns';
 import { reportCsv } from './csv';
 import { readWholeReport } from './exportReport';
-import { ExportButton, ReportTable } from './ReportParts';
+import { ExportButton, FiltersInUse, ReportTable } from './ReportParts';
 import { useReportQuery, counted } from './view';
 import styles from './Reports.module.css';
+
+/** The orders the API takes, by the header of the column (Prompt 12.2, ADR 0063). */
+const sorts = { Payer: 'name', 'Owed (₹)': 'receivable', 'Net outstanding (₹)': 'netOutstanding' };
 
 /**
  * Outstanding by payer (US-40, BR-901): every payer with a balance, the largest net outstanding first; each links to the
@@ -23,11 +26,12 @@ import styles from './Reports.module.css';
 export function OutstandingPage() {
   const client = useApiClient();
   const searchId = useId();
-  const { values, page, change } = useReportQuery(['search'] as const);
+  const query = useReportQuery(['search', 'sort'] as const);
+  const { values, page, change } = query;
   // The name is searched while it is typed (ADR 0039, amended 2026-11-25); the page shown stays until the next arrives.
-  const search = useLiveSearch(values.search, (text) => change({ search: text }, { replace: true }));
-  const report = useReport('outstanding-by-payer', { search: values.search, page }, (api, signal) =>
-    readOutstanding(api, values.search, page, pageSize, signal),
+  const search = useLiveSearch(values.search, (text) => change({ search: text }));
+  const report = useReport('outstanding-by-payer', { search: values.search, sort: values.sort, page }, (api, signal) =>
+    readOutstanding(api, values.search, page, pageSize, signal, { sort: values.sort }),
   );
   const totals = report.data?.totals;
 
@@ -44,12 +48,14 @@ export function OutstandingPage() {
             <label htmlFor={searchId}>Payer name</label>
             <SearchInput id={searchId} type="search" busy={report.isFetching} {...search} />
           </div>
+          <FiltersInUse count={query.inUse(['search'])} onClear={() => change({ search: '' })} />
         </form>
         <ExportButton
           fileName="outstanding-by-payer.csv"
           build={async (progress) => {
             const whole = await readWholeReport({
-              read: (number, size) => readOutstanding(client, values.search, number, size),
+              read: (number, size) =>
+                readOutstanding(client, values.search, number, size, undefined, { sort: values.sort }),
               isWhole: outstandingIsWhole,
               onPage: progress,
             });
@@ -78,6 +84,9 @@ export function OutstandingPage() {
             keyOf={(row) => row.payerId}
             count={counted(totals?.payers ?? report.data.totalCount, 'payer', 'payers')}
             totals={totals ? outstandingTotals(totals).filter((total) => total.under !== undefined) : []}
+            sorts={sorts}
+            sort={values.sort}
+            onSort={(sort) => change({ sort })}
           />
           <Pagination
             page={page}

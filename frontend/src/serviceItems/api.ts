@@ -122,7 +122,17 @@ export function useServiceItems(params: ListParams) {
   return useQuery({
     queryKey: serviceItemKeys.list(params),
     queryFn: ({ signal }) =>
-      answer(client.GET('/api/v1/service-items', { params: { query: listQuery(params) }, signal })),
+      answer(
+        client.GET('/api/v1/service-items', {
+          params: {
+            query: {
+              ...listQuery(params),
+              ...((params.extra.category ?? '') === '' ? {} : { Category: params.extra.category }),
+            },
+          },
+          signal,
+        }),
+      ),
     // The rows on screen stay while a search that is being typed is read (ADR 0039, amended 2026-11-25).
     placeholderData: keepPreviousData,
   });

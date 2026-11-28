@@ -1,15 +1,14 @@
-import { useId } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link } from 'react-router';
 import { useCan } from '../auth/permissions';
 import { Badge } from '../components/Badge';
 import { Banner } from '../components/Banner';
-import buttons from '../components/buttons.module.css';
-import table from '../components/DataTable.module.css';
 import { EmptyState } from '../components/EmptyState';
 import { Pagination } from '../components/ListControls';
-import listStyles from '../components/ListControls.module.css';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
+import { DataTable, type TableColumn } from '../components/table/DataTable';
+import { FilterBar, type FilterSpec } from '../components/table/FilterBar';
+import { known, useListState } from '../components/table/listState';
 import { formatDate, formatDecimal, formatMoney } from '../format';
 import {
   differenceOfServer,
@@ -19,40 +18,60 @@ import {
   useShifts,
   type CashierShift,
   type ShiftListParams,
-  type ShiftStatus,
 } from './api';
 import styles from './Shifts.module.css';
 
-function useShiftListParams(): ShiftListParams & { change: (next: Partial<ShiftListParams>) => void } {
-  const [params, setParams] = useSearchParams();
-  const status = params.get('status') as ShiftStatus | null;
-  const page = Number.parseInt(params.get('page') ?? '1', 10);
-  const current: ShiftListParams = {
-    status: status !== null && shiftStatuses.includes(status) ? status : undefined,
-    date: params.get('date') ?? '',
-    page: Number.isFinite(page) && page >= 1 ? page : 1,
-  };
+/** Every filter of the shifts the address may hold (Prompt 12.2, ADR 0063); `date` is one day, as before. */
+const keys = ['status', 'date', 'from', 'to'] as const;
 
-  const change = (next: Partial<ShiftListParams>) => {
-    const merged = { ...current, ...next, page: next.page ?? 1 };
-    const query = new URLSearchParams();
-    if (merged.status !== undefined) {
-      query.set('status', merged.status);
-    }
+const filters: readonly FilterSpec<(typeof keys)[number]>[] = [
+  {
+    kind: 'select',
+    key: 'status',
+    label: 'Status',
+    options: shiftStatuses.map((status) => ({ value: status, label: shiftStatusLabels[status].label })),
+  },
+  { kind: 'dates', from: 'from', to: 'to', label: 'Business date' },
+];
 
-    if (merged.date !== '') {
-      query.set('date', merged.date);
-    }
+const money = (value: number | string) => formatDecimal(value);
 
-    if (merged.page > 1) {
-      query.set('page', String(merged.page));
-    }
-
-    setParams(query);
-  };
-
-  return { ...current, change };
-}
+const columns: readonly TableColumn<CashierShift>[] = [
+  {
+    id: 'date',
+    header: 'Business date',
+    fixed: true,
+    sort: 'businessDate',
+    cell: (shift) => <Link to={`/shifts/${shift.id}`}>{formatDate(shift.businessDate)}</Link>,
+  },
+  { id: 'cashier', header: 'Cashier', cell: (shift) => shift.cashierName },
+  {
+    id: 'status',
+    header: 'Status',
+    fixed: true,
+    cell: (shift) => (
+      <Badge tone={shiftStatusLabels[shift.status].tone} icon={shiftStatusLabels[shift.status].icon}>
+        {shiftStatusLabels[shift.status].label}
+      </Badge>
+    ),
+  },
+  { id: 'float', header: 'Float (₹)', numeric: true, cell: (shift) => money(shift.openingFloat) },
+  { id: 'taken', header: 'Taken (₹)', numeric: true, cell: (shift) => money(shift.cashReceived) },
+  { id: 'paidOut', header: 'Paid out (₹)', numeric: true, cell: (shift) => money(shift.cashPaidOut) },
+  { id: 'expected', header: 'Expected (₹)', numeric: true, cell: (shift) => money(shift.expectedCash) },
+  {
+    id: 'counted',
+    header: 'Counted (₹)',
+    numeric: true,
+    cell: (shift) => (shift.countedCash === null ? '—' : money(shift.countedCash)),
+  },
+  {
+    id: 'difference',
+    header: 'Difference',
+    sort: 'difference',
+    cell: (shift) => (shift.difference === null ? '—' : differenceOfServer(shift.difference)),
+  },
+];
 
 /** The shift the user has now, and what to do with it; or that they have none. */
 function MyShift() {
@@ -86,41 +105,26 @@ function MyShift() {
   );
 }
 
-function ShiftRow({ shift }: { shift: CashierShift }) {
-  const look = shiftStatusLabels[shift.status];
-
-  return (
-    <tr>
-      <td>
-        <Link to={`/shifts/${shift.id}`}>{formatDate(shift.businessDate)}</Link>
-      </td>
-      <td>{shift.cashierName}</td>
-      <td>
-        <Badge tone={look.tone} icon={look.icon}>
-          {look.label}
-        </Badge>
-      </td>
-      <td className={table.number}>{formatDecimal(shift.openingFloat)}</td>
-      <td className={table.number}>{formatDecimal(shift.cashReceived)}</td>
-      <td className={table.number}>{formatDecimal(shift.cashPaidOut)}</td>
-      <td className={table.number}>{formatDecimal(shift.expectedCash)}</td>
-      <td className={table.number}>{shift.countedCash === null ? '—' : formatDecimal(shift.countedCash)}</td>
-      <td>{shift.difference === null ? '—' : differenceOfServer(shift.difference)}</td>
-    </tr>
-  );
-}
-
 /**
  * The shifts of the cash counter (Prompt 11.2b, ADR 0060): the user's own shift and what to do with it, and the list.
  * A cashier and a billing clerk see the shifts they opened; a supervisor, an administrator and a viewer see all (the
- * API decides which, BR-310 to BR-315).
+ * API decides which, BR-310 to BR-315). Filtered by status and a period of business dates, in the order asked for; the
+ * API filters, sorts and pages (Prompt 12.2, ADR 0063).
  */
 export function ShiftsPage() {
   const canWork = useCan('WorkShift');
   const canSeeDayEnd = useCan('DayEnd');
-  const params = useShiftListParams();
+  const state = useListState(keys);
+  const { values, sort, page } = state;
+  const params: ShiftListParams = {
+    status: known(values.status, shiftStatuses),
+    date: values.date,
+    dateFrom: values.from,
+    dateTo: values.to,
+    sort,
+    page,
+  };
   const shifts = useShifts(params);
-  const ids = { status: useId(), date: useId() };
 
   return (
     <section aria-labelledby="page-title">
@@ -134,84 +138,24 @@ export function ShiftsPage() {
           <MyShift />
         </div>
       )}
-      <form className={listStyles.filters} role="search" onSubmit={(event) => event.preventDefault()}>
-        <div className={listStyles.field}>
-          <label htmlFor={ids.status}>Status</label>
-          <select
-            id={ids.status}
-            className={listStyles.input}
-            value={params.status ?? ''}
-            onChange={(event) =>
-              params.change({ status: (event.target.value || undefined) as ShiftStatus | undefined })
-            }
-          >
-            <option value="">All</option>
-            {shiftStatuses.map((status) => (
-              <option key={status} value={status}>
-                {shiftStatusLabels[status].label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className={listStyles.field}>
-          <label htmlFor={ids.date}>Business date</label>
-          <input
-            id={ids.date}
-            className={listStyles.input}
-            type="date"
-            value={params.date}
-            onChange={(event) => params.change({ date: event.target.value })}
-          />
-        </div>
-        {params.date !== '' && (
-          <button type="button" className={buttons.link} onClick={() => params.change({ date: '' })}>
-            Every date
-          </button>
-        )}
-      </form>
+      <FilterBar state={state} filters={filters} busy={shifts.isFetching} />
       {shifts.data === undefined ? (
         <LoadState error={shifts.error} what="shifts" />
       ) : shifts.data.items.length === 0 ? (
         <EmptyState icon="clock">No shift matches.</EmptyState>
       ) : (
         <>
-          <div className={table.wrap}>
-            <table className={table.table}>
-              <thead>
-                <tr>
-                  <th scope="col">Business date</th>
-                  <th scope="col">Cashier</th>
-                  <th scope="col">Status</th>
-                  <th scope="col" className={table.number}>
-                    Float (₹)
-                  </th>
-                  <th scope="col" className={table.number}>
-                    Taken (₹)
-                  </th>
-                  <th scope="col" className={table.number}>
-                    Paid out (₹)
-                  </th>
-                  <th scope="col" className={table.number}>
-                    Expected (₹)
-                  </th>
-                  <th scope="col" className={table.number}>
-                    Counted (₹)
-                  </th>
-                  <th scope="col">Difference</th>
-                </tr>
-              </thead>
-              <tbody>
-                {shifts.data.items.map((shift) => (
-                  <ShiftRow key={shift.id} shift={shift} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Pagination
-            page={params.page}
-            totalCount={Number(shifts.data.totalCount)}
-            onChange={(page) => params.change({ page })}
+          <DataTable
+            tableId="shifts"
+            label="Shifts"
+            columns={columns}
+            rows={shifts.data.items}
+            keyOf={(shift) => shift.id}
+            sort={sort}
+            onSort={state.setSort}
+            busy={shifts.isFetching}
           />
+          <Pagination page={page} totalCount={Number(shifts.data.totalCount)} onChange={state.setPage} />
         </>
       )}
     </section>

@@ -99,15 +99,18 @@ function SelectFilter<K extends string>({
   );
 }
 
+/** What a range reads and writes of a list: its values and their change (a report's filters too). */
+export type RangeState<K extends string> = Pick<ListState<K>, 'values' | 'change'>;
+
 /**
  * A period of business dates in India, both ends included, with four shortcuts. A shortcut asks the server for today
  * (`GET /api/v1/system/business-date`) and counts from it: the browser's clock plays no part, whatever it says.
  */
-function DateRange<K extends string>({
+export function DateRange<K extends string>({
   state,
   filter,
 }: {
-  state: ListState<K>;
+  state: RangeState<K>;
   filter: Extract<FilterSpec<K>, { kind: 'dates' }>;
 }) {
   const client = useApiClient();
@@ -169,11 +172,11 @@ function DateRange<K extends string>({
 }
 
 /** Amounts from and to, in rupees, each sent after the pause of typing; an amount that is not one is said and not sent. */
-function AmountRange<K extends string>({
+export function AmountRange<K extends string>({
   state,
   filter,
 }: {
-  state: ListState<K>;
+  state: RangeState<K>;
   filter: Extract<FilterSpec<K>, { kind: 'amounts' }>;
 }) {
   return (
@@ -181,12 +184,12 @@ function AmountRange<K extends string>({
       <legend>{filter.label}</legend>
       <div className={styles.rangeFields}>
         <AmountField
-          label="From"
+          label="At least"
           sent={state.values[filter.from]}
           send={(text) => state.change({ [filter.from]: text } as Partial<Record<K, string>>)}
         />
         <AmountField
-          label="to"
+          label="At most"
           sent={state.values[filter.to]}
           send={(text) => state.change({ [filter.to]: text } as Partial<Record<K, string>>)}
         />

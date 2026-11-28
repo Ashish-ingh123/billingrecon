@@ -24,6 +24,9 @@ export function payerValues(payer: Payer): PayerValues {
 
 const blankAsNull = (value: string): string | null => (value.trim() === '' ? null : value);
 
+/** The kinds of payer, as the API names them; a list may be narrowed to one (Prompt 12.2). */
+export const payerKinds: readonly Payer['kind'][] = ['SelfPay', 'Insurer', 'Corporate'];
+
 /** How a payer's kind reads: Self-pay is the only one in R1 (BR-103). */
 export function kindLabel(kind: Payer['kind']): string {
   return kind === 'SelfPay' ? 'Self-pay' : kind;
@@ -100,7 +103,15 @@ export function usePayers(params: ListParams) {
   const client = useApiClient();
   return useQuery({
     queryKey: payerKeys.list(params),
-    queryFn: ({ signal }) => answer(client.GET('/api/v1/payers', { params: { query: listQuery(params) }, signal })),
+    queryFn: ({ signal }) => {
+      const kind = payerKinds.find((known) => known === params.extra.kind);
+      return answer(
+        client.GET('/api/v1/payers', {
+          params: { query: { ...listQuery(params), ...(kind === undefined ? {} : { Kind: kind }) } },
+          signal,
+        }),
+      );
+    },
     // The rows on screen stay while a search that is being typed is read (ADR 0039, amended 2026-11-25).
     placeholderData: keepPreviousData,
   });

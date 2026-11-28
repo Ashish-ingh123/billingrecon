@@ -6,6 +6,7 @@ import listStyles from '../components/ListControls.module.css';
 import { pageSize } from '../components/listParams';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
+import { AmountRange } from '../components/table/FilterBar';
 import { methodLabels, paymentMethods, paymentStatuses, paymentStatusLabels } from '../payments/api';
 import {
   readPaymentRegister,
@@ -13,24 +14,40 @@ import {
   type PaymentRegisterFilter,
   type ReportPaymentMethod,
   type ReportPaymentStatus,
+  type ReportExtras,
 } from './api';
 import { paymentRegisterColumns, paymentRegisterTotals, paymentRegisterIsWhole } from './columns';
 import { reportCsv } from './csv';
 import { readWholeReport } from './exportReport';
-import { ExportButton, PayerFilter, PeriodFilter, ReportTable } from './ReportParts';
+import { ExportButton, FiltersInUse, PayerFilter, PeriodFilter, ReportTable } from './ReportParts';
 import { useReportQuery, counted } from './view';
 import styles from './Reports.module.css';
 
+/** The orders the API takes, by the header of the column (Prompt 12.2, ADR 0063). */
+const sorts = {
+  Number: 'number',
+  'Payment date': 'paymentDate',
+  'Amount (₹)': 'amount',
+  'Unapplied (₹)': 'unappliedAmount',
+};
+
+const names = ['from', 'to', 'payerId', 'method', 'status', 'order', 'amountFrom', 'amountTo', 'sort'] as const;
+
+/** The filters of the bar, which "Clear filters" empties; the period and the order stay. */
+const barFilters = ['payerId', 'method', 'status', 'amountFrom', 'amountTo'] as const;
+
 /**
  * The payment register (BR-901): the payments of a period by payment date, reversed ones included, the oldest first or,
- * when asked, the newest first.
+ * when asked, the newest first, or in the order of a column; narrowed by payer, method, status and amount. The totals
+ * are of the payments the filters leave, and the CSV reads the same filters and order with every column (Prompt 12.2).
  */
 export function PaymentRegisterPage() {
   const client = useApiClient();
   const methodId = useId();
   const statusId = useId();
   const orderId = useId();
-  const { values, page, change } = useReportQuery(['from', 'to', 'payerId', 'method', 'status', 'order'] as const);
+  const query = useReportQuery(names);
+  const { values, page, change } = query;
   const filter: PaymentRegisterFilter = {
     from: values.from,
     to: values.to,
@@ -43,8 +60,9 @@ export function PaymentRegisterPage() {
       : undefined,
     order: values.order === 'NewestFirst' ? 'NewestFirst' : 'OldestFirst',
   };
-  const report = useReport('payment-register', { filter, page }, (api) =>
-    readPaymentRegister(api, filter, page, pageSize),
+  const extras: ReportExtras = { sort: values.sort, amountFrom: values.amountFrom, amountTo: values.amountTo };
+  const report = useReport('payment-register', { filter, extras, page }, (api) =>
+    readPaymentRegister(api, filter, page, pageSize, extras),
   );
   const period = report.data?.period;
   const totals = report.data?.totals;
@@ -62,7 +80,7 @@ export function PaymentRegisterPage() {
           fileName={`payment-register-${period?.from ?? 'month'}-to-${period?.to ?? 'month'}.csv`}
           build={async (progress) => {
             const whole = await readWholeReport({
-              read: (number, size) => readPaymentRegister(client, filter, number, size),
+              read: (number, size) => readPaymentRegister(client, filter, number, size, extras),
               isWhole: paymentRegisterIsWhole,
               onPage: progress,
             });
@@ -119,12 +137,20 @@ export function PaymentRegisterPage() {
             id={orderId}
             className={listStyles.input}
             value={filter.order}
-            onChange={(event) => change({ order: event.target.value === 'NewestFirst' ? 'NewestFirst' : '' })}
+            onChange={(event) => change({ order: event.target.value === 'NewestFirst' ? 'NewestFirst' : '', sort: '' })}
           >
             <option value="OldestFirst">Oldest first</option>
             <option value="NewestFirst">Newest first</option>
           </select>
         </div>
+        <AmountRange<(typeof names)[number]>
+          state={query}
+          filter={{ kind: 'amounts', from: 'amountFrom', to: 'amountTo', label: 'Amount' }}
+        />
+        <FiltersInUse
+          count={query.inUse(barFilters)}
+          onClear={() => change(Object.fromEntries(barFilters.map((name) => [name, ''])))}
+        />
       </div>
       {report.data === undefined ? (
         <LoadState error={report.error} what="the payment register" />
@@ -139,6 +165,9 @@ export function PaymentRegisterPage() {
             keyOf={(row) => row.paymentId}
             count={counted(totals?.payments ?? report.data.totalCount, 'payment', 'payments')}
             totals={totals ? paymentRegisterTotals(totals).filter((total) => total.under !== undefined) : []}
+            sorts={sorts}
+            sort={values.sort}
+            onSort={(sort) => change({ sort })}
           />
           <Pagination
             page={page}

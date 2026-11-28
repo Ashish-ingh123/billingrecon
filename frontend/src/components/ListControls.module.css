@@ -8,6 +8,18 @@
   margin-bottom: var(--space-4);
 }
 
+/* The count of the filters in use and "Clear filters" (Prompt 12.2): a line of its own, always there. */
+.inUse {
+  display: flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 1.75rem;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
 .field {
   display: flex;
   flex-direction: column;

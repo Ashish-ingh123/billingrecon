@@ -45,7 +45,7 @@ describe('the filter bar of a list', () => {
     expect(sentQueries(api)).toHaveLength(1);
 
     const total = within(screen.getByRole('group', { name: 'Total' }));
-    await user.type(total.getByLabelText('From'), '1500');
+    await user.type(total.getByLabelText('At least'), '1500');
     // Typed, and the pause not over: nothing more was sent.
     expect(sentQueries(api)).toHaveLength(1);
 
@@ -61,10 +61,10 @@ describe('the filter bar of a list', () => {
     await screen.findByRole('link', { name: 'BIL/26-27/000001' });
 
     const total = within(screen.getByRole('group', { name: 'Total' }));
-    await user.type(total.getByLabelText('From'), '15.005');
+    await user.type(total.getByLabelText('At least'), '15.005');
 
     expect(await total.findByText('An amount, like 1500 or 1500.50')).toBeInTheDocument();
-    expect(total.getByLabelText('From')).toHaveAttribute('aria-invalid', 'true');
+    expect(total.getByLabelText('At least')).toHaveAttribute('aria-invalid', 'true');
     await new Promise((resolve) => setTimeout(resolve, 450));
     expect(sentQueries(api)).toHaveLength(1);
   });

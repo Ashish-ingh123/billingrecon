@@ -15,6 +15,7 @@ import { EmptyState } from '../components/EmptyState';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
 import { ReasonForm } from '../components/ReasonForm';
+import { filtersInUse } from '../components/table/listState';
 import { useDocumentAction } from '../components/useDocumentAction';
 import { formatDecimal, formatInstant } from '../format';
 import styles from './Approvals.module.css';
@@ -62,11 +63,15 @@ export function ApprovalsPage() {
   const params: ApprovalListParams = {
     documentType: type !== null && approvalDocumentTypes.includes(type) ? type : undefined,
     page: Number.isFinite(page) && page >= 1 ? page : 1,
+    sort: query.get('sort') === '-requestedAtUtc' ? '-requestedAtUtc' : '',
   };
   const pending = usePendingApprovals(params);
   const [reviewing, setReviewing] = useState<string | null>(null);
   const [decided, setDecided] = useState<string | null>(null);
+  const orderId = useId();
+  const newestFirst = params.sort === '-requestedAtUtc';
 
+  // The address is replaced, not added to, so Back leaves the inbox; a change goes back to the first page (Prompt 12.2).
   const change = (next: Partial<ApprovalListParams>) => {
     const merged = { ...params, ...next, page: next.page ?? 1 };
     const search = new URLSearchParams();
@@ -74,12 +79,16 @@ export function ApprovalsPage() {
       search.set('documentType', merged.documentType);
     }
 
+    if (merged.sort !== undefined && merged.sort !== '') {
+      search.set('sort', merged.sort);
+    }
+
     if (merged.page > 1) {
       search.set('page', String(merged.page));
     }
 
     setReviewing(null);
-    setQuery(search);
+    setQuery(search, { replace: true });
   };
 
   return (
@@ -112,6 +121,26 @@ export function ApprovalsPage() {
             ))}
           </select>
         </div>
+        <div className={listStyles.field}>
+          <label htmlFor={orderId}>Order</label>
+          <select
+            id={orderId}
+            className={listStyles.input}
+            value={params.sort ?? ''}
+            onChange={(event) => change({ sort: event.target.value === '-requestedAtUtc' ? '-requestedAtUtc' : '' })}
+          >
+            <option value="">Oldest first</option>
+            <option value="-requestedAtUtc">Newest first</option>
+          </select>
+        </div>
+        <p className={listStyles.inUse} aria-live="polite">
+          <span>{filtersInUse(params.documentType === undefined ? 0 : 1)}</span>
+          {params.documentType !== undefined && (
+            <button type="button" className={buttons.link} onClick={() => change({ documentType: undefined })}>
+              Clear filters
+            </button>
+          )}
+        </p>
       </div>
       {pending.data === undefined ? (
         <LoadState error={pending.error} what="the requests that wait" />
@@ -125,7 +154,10 @@ export function ApprovalsPage() {
               `, the oldest since ${formatInstant(pending.data.totals.oldestRequestedAtUtc)}`}
             .
           </p>
-          <ul className={styles.cards} aria-label="Requests that wait, oldest first">
+          <ul
+            className={styles.cards}
+            aria-label={newestFirst ? 'Requests that wait, newest first' : 'Requests that wait, oldest first'}
+          >
             {pending.data.items.map((request) => {
               const own = request.makerUserId === session.userId;
               const link = documentLink(request);

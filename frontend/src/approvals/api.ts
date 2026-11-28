@@ -87,6 +87,8 @@ export function documentLink(request: PendingApproval): { to: string; label: str
 export interface ApprovalListParams {
   documentType: ApprovalDocumentType | undefined;
   page: number;
+  /** `''` the oldest first, as the inbox is by default; `-requestedAtUtc` the newest first (Prompt 12.2). */
+  sort?: '' | '-requestedAtUtc';
 }
 
 export const approvalKeys = {
@@ -122,6 +124,7 @@ export function usePendingApprovals(params: ApprovalListParams) {
           params: {
             query: {
               ...(params.documentType === undefined ? {} : { DocumentType: params.documentType }),
+              ...(params.sort === undefined || params.sort === '' ? {} : { Sort: params.sort }),
               Page: params.page,
               PageSize: pageSize,
             },

@@ -3,11 +3,12 @@ import { useId, useState, type FormEvent } from 'react';
 import { useApiClient } from '../api/ApiClientContext';
 import { answer, problemOf } from '../api/call';
 import buttons from '../components/buttons.module.css';
-import table from '../components/DataTable.module.css';
 import fieldStyles from '../components/Field.module.css';
 import forms from '../components/forms.module.css';
 import listStyles from '../components/ListControls.module.css';
 import { RecordPicker } from '../components/RecordPicker';
+import { DataTable, type TableColumn } from '../components/table/DataTable';
+import { filtersInUse } from '../components/table/listState';
 import { formatDate } from '../format';
 import { kindLabel, usePayer, type Payer } from '../payers/api';
 import { saveCsv, type CellKind } from './csv';
@@ -18,16 +19,39 @@ import { shown, type ReportColumn, type ReportTotal } from './view';
 const numeric = (kind: CellKind) => kind === 'amount' || kind === 'count';
 
 /**
- * The rows of a report and, in its footer, the totals of every page as the server answered them (ADR 0043 point 3): the
- * screen never adds the rows up itself.
+ * The count of a report's filters in use, in words, and "Clear filters" (Prompt 12.2, ADR 0063): on a line of its own,
+ * always there, so that nothing moves when it changes. The period of a register is its scope, not a filter, and stays.
  */
-export function ReportTable<T>({
+export function FiltersInUse({ count, onClear }: { count: number; onClear: () => void }) {
+  return (
+    <p className={listStyles.inUse} aria-live="polite">
+      <span>{filtersInUse(count)}</span>
+      {count > 0 && (
+        <button type="button" className={buttons.link} onClick={onClear}>
+          Clear filters
+        </button>
+      )}
+    </p>
+  );
+}
+
+/**
+ * The rows of a report and, in its footer, the totals of every page as the server answered them (ADR 0043 point 3): the
+ * screen never adds the rows up itself. Drawn by the shared table (Prompt 12.2, ADR 0063): a column the API can order by
+ * (`sorts`, by header) sorts from its header; the "Columns" menu hides and moves the columns on screen and in print, and
+ * a hidden column's total is hidden with it. The first column and the status are never hidden. The CSV is written from
+ * the report's own columns, every one of them, whatever is hidden here.
+ */
+export function ReportTable<T extends object>({
   label,
   columns,
   rows,
   keyOf,
   count,
   totals,
+  sorts = {},
+  sort = '',
+  onSort,
 }: {
   label: string;
   columns: readonly ReportColumn<T>[];
@@ -36,52 +60,43 @@ export function ReportTable<T>({
   /** What the footer's first cell says: "4 bills". */
   count: string;
   totals: readonly ReportTotal[];
+  /** The API's name of the order of each column that has one, by the column's header. */
+  sorts?: Readonly<Record<string, string>>;
+  sort?: string;
+  onSort?: (sort: string) => void;
 }) {
   const under = new Map(totals.filter((total) => total.under !== undefined).map((total) => [total.under, total]));
   const beside = totals.filter((total) => total.under === undefined);
+  const first = columns[0]?.header;
+  const tableColumns: TableColumn<T>[] = columns.map((column) => ({
+    id: column.header,
+    header: column.header,
+    numeric: numeric(column.kind),
+    fixed: column.header === first || column.header === 'Status',
+    ...(sorts[column.header] === undefined ? {} : { sort: sorts[column.header] }),
+    cell: (row: T) => (column.show === undefined ? shown(column.kind, column.value(row)) : column.show(row)),
+  }));
+  const cells = Object.fromEntries(
+    columns.flatMap((column) => {
+      const total = under.get(column.header);
+      return total === undefined ? [] : [[column.header, shown(total.kind, total.value)]];
+    }),
+  );
 
   return (
     <>
-      <div className={`${table.wrap} ${styles.frame}`}>
-        <table className={table.table} aria-label={label}>
-          <thead>
-            <tr>
-              {columns.map((column) => (
-                <th key={column.header} scope="col" className={numeric(column.kind) ? table.number : undefined}>
-                  {column.header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={keyOf(row)}>
-                {columns.map((column) => (
-                  <td key={column.header} className={numeric(column.kind) ? table.number : undefined}>
-                    {column.show === undefined ? shown(column.kind, column.value(row)) : column.show(row)}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-          <tfoot className={styles.totals}>
-            <tr>
-              {columns.map((column, index) => {
-                const total = under.get(column.header);
-                return index === 0 ? (
-                  <th key={column.header} scope="row">
-                    {count}
-                  </th>
-                ) : (
-                  <td key={column.header} className={numeric(column.kind) ? table.number : undefined}>
-                    {total === undefined ? '' : shown(total.kind, total.value)}
-                  </td>
-                );
-              })}
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+      <DataTable
+        tableId={`report-${label.toLowerCase().replaceAll(' ', '-')}`}
+        label={label}
+        columns={tableColumns}
+        rows={rows}
+        keyOf={keyOf}
+        sort={sort}
+        {...(onSort === undefined ? {} : { onSort })}
+        foot={{ label: count, cells }}
+        frameClassName={styles.frame}
+        footClassName={styles.totals}
+      />
       {beside.length > 0 && (
         <dl className={styles.beside}>
           {beside.map((total) => (
