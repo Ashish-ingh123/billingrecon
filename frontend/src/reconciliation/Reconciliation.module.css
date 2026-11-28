@@ -71,3 +71,16 @@
 .wrapCell {
   overflow-wrap: anywhere;
 }
+
+/* Match now, under the filters, with what the last run did beside it (Prompt 13.2). */
+.matchBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  margin: var(--space-3) 0;
+}
+
+.matchBar .note {
+  margin: 0;
+}

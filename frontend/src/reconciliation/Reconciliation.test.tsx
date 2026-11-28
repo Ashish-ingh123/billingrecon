@@ -99,6 +99,10 @@ const line: StatementLine = {
   rawText: '16/10/2026,NEFT CR RAVI KUMAR,N3341,,"12,000.00","1,52,300.50"',
   status: 'Unmatched',
   version: 'AAAAAAAAB9F=',
+  matchReason: null,
+  proposalReason: 'The amount ₹12,000.00 agrees with PAY/26-27/000233 of 16 Oct 2026, the same day.',
+  proposalScore: 70,
+  proposalCount: 2,
 };
 
 async function bodyOf(request: Request | undefined): Promise<Record<string, unknown>> {
@@ -184,6 +188,8 @@ describe('importing a bank statement, for the accountant', () => {
       [`GET ${channels}`]: () => json(200, page([bank])),
       [`POST ${dryRun}`]: () => json(200, checked),
       [`POST ${imports}`]: () => json(201, imported),
+      [`POST ${channels}/${bank.id}/matching-runs`]: () =>
+        json(200, { linesRead: 4, matched: 3, proposed: 1, left: 0, skipped: 0 }),
     });
     const { user } = renderApp('/reconciliation/import', { session: accountant, fetch: api.fetch });
 
@@ -209,6 +215,9 @@ describe('importing a bank statement, for the accountant', () => {
 
     await user.click(importIt);
     expect(await screen.findByText('Imported')).toBeInTheDocument();
+    // Since 13.2: the import is followed by a matching run over the account, and its result is said.
+    expect(await screen.findByText(/Matching: 3 matched, 1 proposed, 0 left for you\./)).toBeInTheDocument();
+    expect(api.sent('POST', `${channels}/${bank.id}/matching-runs`)).toHaveLength(1);
     const sent = api.sent('POST', imports)[0];
     expect(sent?.headers.get('Idempotency-Key')).toMatch(/^[0-9a-f-]{36}$/);
     expect((await bodyOf(sent)).fileHash).toBe(checked.fileHash);
@@ -251,8 +260,49 @@ describe('the statements, for whoever reads the reconciliation', () => {
     expect(lineRows[1]).toHaveTextContent('NEFT CR RAVI KUMAR');
     expect(lineRows[1]).toHaveTextContent('12,000.00');
     expect(lineRows[1]).toHaveTextContent('Unmatched');
+    expect(lineRows[1]).toHaveTextContent(
+      'Proposed, 70 of 100: The amount ₹12,000.00 agrees with PAY/26-27/000233 of 16 Oct 2026, the same day. (and 1 more)',
+    );
+    expect(screen.queryByRole('button', { name: 'Match now' })).not.toBeInTheDocument();
     expect(screen.getByText(/The lines of one import/)).toBeInTheDocument();
     expect(new URL(api.sent('GET', lines)[0]!.url).searchParams.get('ImportId')).toBe(imported.id);
     expect(screen.queryByRole('link', { name: 'Import a statement' })).not.toBeInTheDocument();
+  });
+});
+
+describe('matching from the lines, for the accountant', () => {
+  it('runs matching over the account chosen and says what it did', async () => {
+    const api = routedApi({
+      [`GET ${channels}`]: () => json(200, page([bank])),
+      [`GET ${imports}`]: () => json(200, page([imported])),
+      [`GET ${lines}`]: () =>
+        json(200, page([{ ...line, status: 'Matched', matchReason: 'The reference N3341 agrees.' }])),
+      [`POST ${channels}/${bank.id}/matching-runs`]: () =>
+        json(200, { linesRead: 9, matched: 2, proposed: 3, left: 3, skipped: 1 }),
+    });
+    const { user } = renderApp(`/reconciliation?channel=${bank.id}`, { session: accountant, fetch: api.fetch });
+
+    const lineRows = within(await screen.findByRole('table', { name: 'Statement lines' })).getAllByRole('row');
+    expect(lineRows[1]).toHaveTextContent('The reference N3341 agrees.');
+    await user.click(screen.getByRole('button', { name: 'Match now' }));
+
+    expect(
+      await screen.findByText(
+        'Matched the unmatched lines of HDFC current: 2 matched, 3 proposed, 3 left for you, 1 skipped, changed meanwhile.',
+      ),
+    ).toBeInTheDocument();
+    expect(api.sent('POST', `${channels}/${bank.id}/matching-runs`)).toHaveLength(1);
+  });
+
+  it('keeps Match now closed until an account is chosen', async () => {
+    const api = routedApi({
+      [`GET ${channels}`]: () => json(200, page([bank])),
+      [`GET ${imports}`]: () => json(200, page([])),
+      [`GET ${lines}`]: () => json(200, page([])),
+    });
+    renderApp('/reconciliation', { session: accountant, fetch: api.fetch });
+
+    expect(await screen.findByRole('button', { name: 'Match now' })).toBeDisabled();
+    expect(screen.getByText('Choose an account to match its unmatched lines with the payments.')).toBeInTheDocument();
   });
 });

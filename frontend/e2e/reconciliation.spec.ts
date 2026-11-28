@@ -56,6 +56,8 @@ const checked = {
     alreadyHeld: index < 2,
   })),
 };
+// Since 13.2: the matching run that follows an import.
+const matched = { linesRead: 38, matched: 30, proposed: 6, left: 2, skipped: 0 };
 const imported = {
   id: 'ed000000-0000-4000-8000-000000000001',
   channelId: bank.id,
@@ -90,6 +92,7 @@ for (const theme of ['light', 'dark'] as const) {
         imports.push('import');
         return imported;
       },
+      [`POST /api/v1/settlement-channels/${bank.id}/matching-runs`]: () => matched,
     };
     const view = await open(page, '/reconciliation/import', theme, desktop, answers, accountant);
     await expect(page.getByRole('heading', { level: 1, name: 'Import a bank statement' })).toBeVisible();
@@ -117,6 +120,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.getByRole('button', { name: 'Import', exact: true }).click();
     await expect(page.getByText('Imported', { exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: 'See the lines of this import' })).toBeVisible();
+    await expect(page.getByText(/Matching: 30 matched, 6 proposed, 2 left for you\./)).toBeVisible();
     expect(imports).toHaveLength(1);
     await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeDisabled();
 
@@ -130,6 +134,7 @@ test('the import is done with the keyboard alone, and the result fits a phone', 
     'GET /api/v1/settlement-channels': () => pageOf([bank]),
     'POST /api/v1/statement-imports/dry-run': () => checked,
     'POST /api/v1/statement-imports': () => imported,
+    [`POST /api/v1/settlement-channels/${bank.id}/matching-runs`]: () => matched,
   };
   const view = await open(page, '/reconciliation/import', 'light', phone, answers, accountant);
   await expect(page.getByRole('heading', { level: 1, name: 'Import a bank statement' })).toBeVisible();

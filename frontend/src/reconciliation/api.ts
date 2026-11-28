@@ -241,3 +241,24 @@ export function headersOf(text: string, headerRow: number): string[] {
   names.push(field.trim());
   return names.filter((name) => name !== '');
 }
+
+export type MatchingRun = components['schemas']['MatchingRunDto'];
+
+/**
+ * A matching run over a bank channel (Prompt 13.2, ADR 0066): it confirms the certain lines and proposes the rest. It
+ * posts nothing, so it takes no Idempotency-Key; a run already under way answers 409 `matching_run_in_progress`.
+ */
+export function runMatching(client: ApiClient, channelId: string): Promise<MatchingRun> {
+  return answer(client.POST('/api/v1/settlement-channels/{id}/matching-runs', { params: { path: { id: channelId } } }));
+}
+
+/** What a run did, in words. */
+export function runSummary(run: MatchingRun): string {
+  const count = (value: number | string) => Number(value).toLocaleString('en-IN');
+  const parts = [`${count(run.matched)} matched`, `${count(run.proposed)} proposed`, `${count(run.left)} left for you`];
+  if (Number(run.skipped) > 0) {
+    parts.push(`${count(run.skipped)} skipped, changed meanwhile`);
+  }
+
+  return `${parts.join(', ')}.`;
+}

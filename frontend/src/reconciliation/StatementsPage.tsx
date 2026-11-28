@@ -1,4 +1,7 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
+import { problemOf } from '../api/call';
+import { useApiClient } from '../api/ApiClientContext';
 import { useCan } from '../auth/permissions';
 import { Badge } from '../components/Badge';
 import buttons from '../components/buttons.module.css';
@@ -6,6 +9,7 @@ import { EmptyState } from '../components/EmptyState';
 import { Pagination } from '../components/ListControls';
 import { LoadState } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
+import { ProblemAlert } from '../components/ProblemAlert';
 import { DataTable, type TableColumn } from '../components/table/DataTable';
 import { FilterBar, type FilterSpec } from '../components/table/FilterBar';
 import { known, useListState } from '../components/table/listState';
@@ -15,6 +19,9 @@ import {
   directions,
   lineStatuses,
   lineStatusLabels,
+  runMatching,
+  runSummary,
+  statementsChanged,
   useChannels,
   useImports,
   useLines,
@@ -86,7 +93,27 @@ const lineColumns = (nameOf: (id: string) => string): readonly TableColumn<State
     fixed: true,
     cell: (line) => <Badge tone={lineStatusLabels[line.status].tone}>{lineStatusLabels[line.status].label}</Badge>,
   },
+  // Since 13.2 (ADR 0066): why the line is matched, or the likeliest proposal and how many there are.
+  {
+    id: 'match',
+    header: 'Match',
+    cell: (line) => <span className={styles.wrapCell}>{matchText(line)}</span>,
+  },
 ];
+
+/** What a line's Match column says: the reason of its match, or its best proposal with its score. */
+function matchText(line: StatementLine): string {
+  if (line.matchReason !== null && line.matchReason !== undefined) {
+    return line.matchReason;
+  }
+
+  if (line.proposalReason !== null && line.proposalReason !== undefined) {
+    const more = Number(line.proposalCount) > 1 ? ` (and ${String(Number(line.proposalCount) - 1)} more)` : '';
+    return `Proposed, ${String(line.proposalScore)} of 100: ${line.proposalReason}${more}`;
+  }
+
+  return '—';
+}
 
 const importColumns = (nameOf: (id: string) => string): readonly TableColumn<StatementImport>[] => [
   {
@@ -113,7 +140,8 @@ const importColumns = (nameOf: (id: string) => string): readonly TableColumn<Sta
 /**
  * The hospital's bank statements (Prompt 13.1c, US-61; BR-1004, BR-1005; ADR 0065): the latest imports, and the lines
  * as they were read, filtered by account, status, direction, a period and a search of a reference or a description.
- * Matching them to the payments comes with Prompts 13.2 and 13.3; until then every line is Unmatched.
+ * Since 13.2, a line says what it is matched to or what is proposed for it, and Match now runs matching over the account
+ * chosen; matching by hand comes with 13.3.
  */
 export function StatementsPage() {
   const canImport = useCan('ImportStatements');
@@ -135,6 +163,13 @@ export function StatementsPage() {
   const imports = useImports(values.channel, 1);
   const all = channels.data ?? [];
   const nameOf = (id: string) => all.find((channel) => channel.id === id)?.name ?? '—';
+  const client = useApiClient();
+  const queryClient = useQueryClient();
+  // Since 13.2 (ADR 0066): a matching run over the account chosen in the filters.
+  const matching = useMutation({
+    mutationFn: (channelId: string) => runMatching(client, channelId),
+    onSettled: () => statementsChanged(queryClient),
+  });
 
   return (
     <section aria-labelledby="page-title">
@@ -179,6 +214,27 @@ export function StatementsPage() {
           </p>
         )}
         <FilterBar state={state} filters={filtersOf(all)} busy={lines.isFetching} />
+        {canImport && (
+          <div className={styles.matchBar}>
+            <button
+              type="button"
+              className={buttons.secondary}
+              disabled={values.channel === '' || matching.isPending}
+              aria-describedby="match-note"
+              onClick={() => matching.mutate(values.channel)}
+            >
+              {matching.isPending ? 'Matching…' : 'Match now'}
+            </button>
+            <p id="match-note" className={styles.note} aria-live="polite">
+              {matching.data !== undefined
+                ? `Matched the unmatched lines of ${nameOf(values.channel)}: ${runSummary(matching.data)}`
+                : values.channel === ''
+                  ? 'Choose an account to match its unmatched lines with the payments.'
+                  : 'Matches what is certain and proposes the rest. Nothing is posted.'}
+            </p>
+          </div>
+        )}
+        {matching.error !== null && <ProblemAlert problem={problemOf(matching.error)} />}
         {lines.data === undefined ? (
           <LoadState error={lines.error} what="lines" />
         ) : lines.data.items.length === 0 ? (

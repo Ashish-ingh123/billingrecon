@@ -20,6 +20,8 @@ import {
   dryRunStatement,
   importStatement,
   maxStatementLength,
+  runMatching,
+  runSummary,
   statementsChanged,
   useChannels,
   type StatementBody,
@@ -50,9 +52,17 @@ export function StatementImportPage() {
   const banks = (channels.data ?? []).filter((candidate) => candidate.kind === 'Bank' && candidate.status === 'Active');
 
   const check = useMutation({ mutationFn: (body: StatementBody) => dryRunStatement(client, body) });
+  // Since 13.2 (ADR 0066): straight after the import, a matching run over the account.
+  const matching = useMutation({
+    mutationFn: (channelId: string) => runMatching(client, channelId),
+    onSettled: () => statementsChanged(queryClient),
+  });
   const run = useMutation({
     mutationFn: (body: StatementBody) => sendOnce(JSON.stringify(body), (key) => importStatement(client, body, key)),
-    onSuccess: () => statementsChanged(queryClient),
+    onSuccess: (done) => {
+      statementsChanged(queryClient);
+      matching.mutate(done.channelId);
+    },
   });
   const checked: StatementDryRun | undefined = check.data;
   const imported: StatementImport | undefined = run.data;
@@ -61,6 +71,7 @@ export function StatementImportPage() {
     setRefusal(null);
     check.reset();
     run.reset();
+    matching.reset();
   };
 
   const body = (fileHash: string | null): StatementBody | null =>
@@ -181,7 +192,9 @@ export function StatementImportPage() {
       <div className={styles.result} aria-live="polite">
         {imported !== undefined && (
           <Banner tone="success" title="Imported" live>
-            {count(imported.linesAdded)} lines are in.{' '}
+            {count(imported.linesAdded)} lines are in. {matching.isPending && 'Matching them with the payments…'}
+            {matching.data !== undefined && `Matching: ${runSummary(matching.data)}`}
+            {matching.error !== null && 'Matching did not run now; choose Match now on the lines.'}{' '}
             <Link to={`/reconciliation?import=${imported.id}`}>See the lines of this import</Link>
           </Banner>
         )}

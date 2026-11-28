@@ -335,10 +335,14 @@ Accountant approves nothing and changes no bill, payment or setting.
    ![Importing a statement](ui/statement-import.png)
 
 2. **Import** stores the new lines, each once. The same file twice adds nothing, and a file that overlaps the last one
-   adds only what is new, so the daily statement can be imported every morning without counting what was done.
+   adds only what is new, so the daily statement can be imported every morning without counting what was done. Right
+   after it, the lines are **matched** with the payments: a line whose reference (the UTR, the UPI or cheque number)
+   and amount agree with exactly one payment of the last few days is matched by itself; for the rest the page proposes
+   what they may be, with a score out of 100 and the reason in words. A match posts nothing and moves no money.
 3. **Bank reconciliation** lists the latest imports and every line as the bank wrote it, by account, status, direction,
-   date and a search of the reference or the description. Every line is Unmatched until matching arrives (R2, Prompts
-   13.2 and 13.3).
+   date and a search of the reference or the description. The Match column says what a line is matched to, or what is
+   proposed for it. **Match now**, with an account chosen, matches again, for instance after the counter recorded a
+   payment it had forgotten. Accepting a proposal and matching by hand come with the next prompt (13.3).
 
    ![The bank statements](ui/reconciliation.png)
 

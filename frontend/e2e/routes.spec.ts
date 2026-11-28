@@ -94,8 +94,12 @@ const statementLine = {
   description: 'NEFT CR-HDFC0001-RAVI KUMAR-OPD BILL',
   balance: 152300.5,
   rawText: '16/10/2026,NEFT CR-HDFC0001-RAVI KUMAR-OPD BILL,N3341,,"12,000.00","1,52,300.50"',
-  status: 'Unmatched',
+  status: 'Matched',
   version: 'AAAAAAAAB9F=',
+  matchReason: 'The reference N3341 and the amount ₹12,000.00 agree with PAY/26-27/000233 of 16 Oct 2026.',
+  proposalReason: null,
+  proposalScore: null,
+  proposalCount: 0,
 };
 const everyRole = sessionOf(['TenantAdmin', 'Supervisor', 'BillingClerk', 'Cashier']);
 
