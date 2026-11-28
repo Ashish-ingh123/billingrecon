@@ -81,6 +81,9 @@ and open https://localhost: hospital code `demo`, `DEMO_PASSWORD`, and one of `a
 `supervisor@demo.local`, `clerk@demo.local`, `cashier@demo.local`, `viewer@demo.local`
 ([docs/runbook.md](docs/runbook.md), section 13).
 
+The same demo can run online for free, the app on Vercel, the API on Render and the database on Azure SQL
+([docs/runbook.md](docs/runbook.md), section 21; ADR 0064). It is for showing, never for a hospital's data.
+
 ## Build and test
 
 Prerequisites: a .NET 10 SDK (`global.json` accepts 10.0.4xx), Docker for the database tests (they start SQL Server

@@ -7,7 +7,8 @@
   section 14, the load test and the browser journey (Prompt 8.2), and with the release (Prompt 8.3, 2026-11-24) rolling
   back a migration (section 3), backup and restore (section 15) and the incident procedures (section 16). Migrations
   outside Development are section 10. Complete for R1. Section 17, onboarding and suspending a hospital, with Prompt 10.2
-  (ADR 0052). Section 20, operations: alerts, the watchdog and on-call, with Prompt 10.6 (ADR 0056).
+  (ADR 0052). Section 20, operations: alerts, the watchdog and on-call, with Prompt 10.6 (ADR 0056). Section 21, the free
+  hosting of the demo on Vercel, Render and Azure SQL, 2026-11-28 (ADR 0064).
 
 ---
 
@@ -1457,3 +1458,169 @@ data at risk, the hospital unable to bill). **Within** 15 minutes for Sev-1, the
 
 After any Sev-1: what happened, when it was noticed, what was done, and what changes so it does not recur, written
 the same day.
+
+---
+
+## 21. Free hosting of the demo: Vercel, Render and Azure SQL (ADR 0064)
+
+The demo hospital online at no cost: the app on **Vercel**, the API on **Render** (free web service), the database on
+**Azure SQL Database** (free offer). **For the demo only, never for a hospital's data**: no backups of section 15, no
+TDE under the hospital's certificate, no watchdog, no mail (ADR 0064, Consequences). **None of this has run yet:** the
+checks at the end of each step say what to look at, and where the services disagree with this section, correct it.
+
+Do the steps in this order: the API needs the database, the app needs the API's address.
+
+### 21.1 The secrets, once
+
+Make new ones; reuse nothing of the local `.env`. In Windows PowerShell:
+
+```powershell
+function New-Secret([int]$Bytes) { $b = New-Object byte[] $Bytes; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b) }
+```
+
+| Secret | Made with | Goes to |
+|---|---|---|
+| The signing key | `New-Secret 32` | Render, `Jwt__SigningKey` |
+| The key of the second step | `New-Secret 32` (exactly 32 bytes) | Render, `TwoStep__EncryptionKey` |
+| The Azure administrator's password | `(New-Secret 24) -replace '[+/=]', ''` | Azure (21.2), the migration (21.2) |
+| `billingrecon_migrator`'s password | the same | the migration (21.2) |
+| `billingrecon_app`'s password | the same | the migration (21.2), Render's connection string |
+| The demo password | the same | Render, `Demo__AdminPassword`; the demo's data (21.5) |
+
+The passwords are letters and digits only, so that none of `$ # ; = ' " \` breaks a connection string or an env file.
+Keep every secret in the vault as it is made. **The demo password signs in every user of the demo**, the
+administrator included: whoever is given it can change the demo hospital as its TenantAdmin.
+
+### 21.2 The database: Azure SQL Database
+
+1. In portal.azure.com: **Create a resource, SQL Database**. Take **Apply offer** (the free offer, one database for each
+   subscription). Database name **`BillingRecon`** (the migration connects to that name).
+2. Server: **Create new**. A server name (it becomes `<server>.database.windows.net`), a region (Central India is
+   nearest the hospitals; put Render's region near it), **Use SQL authentication**, an administrator login of your own
+   (Azure refuses `sa` and `admin`) and the administrator's password of 21.1.
+3. When the free amount of a month is used up: **Auto-pause the database until next month** (the other choice bills).
+4. Networking: **Public endpoint**; **Allow Azure services and resources to access this server: Yes** (Render's
+   addresses are not fixed); **Add current client IP address: Yes** (the migration runs from this machine). Create.
+5. The migration, on a machine with Docker, from the repository's root. The image carries the migrations of the
+   checkout it is built from:
+
+   ```powershell
+   docker build -f deploy/migrate/Dockerfile -t billingrecon-migrate .
+   ```
+
+   An env file **outside the repository**, for example `C:\secrets\azure-migrate.env`:
+
+   ```text
+   AZURE_SQL=true
+   SQL_SERVER=tcp:<server>.database.windows.net,1433
+   SQL_ADMIN_USER=<the administrator login>
+   MSSQL_SA_PASSWORD=<the administrator's password>
+   MIGRATOR_PASSWORD=<billingrecon_migrator's password>
+   APP_PASSWORD=<billingrecon_app's password>
+   ```
+
+   ```powershell
+   docker run --rm --env-file C:\secrets\azure-migrate.env billingrecon-migrate
+   ```
+
+   It prints four lines and ends with `The database is ready.` Running it again changes nothing but the two passwords,
+   which it sets to the file's.
+
+**Check.** `Client with IP address ... is not allowed`: step 4, add this machine's address under the server's
+**Networking**. `Login failed` for the administrator: the login of step 2, without `@<server>`. An error about the
+server's certificate: say so before changing anything; the Azure mode checks the certificate on purpose (ADR 0064).
+In the portal's **Query editor**, as the administrator, `SELECT COUNT(*) FROM __EFMigrationsHistory` is the number of
+migrations in `src/BillingRecon.Infrastructure/Common/Migrations`.
+
+### 21.3 The API: Render
+
+1. In dashboard.render.com: **New, Web Service**, connect GitHub and pick the repository.
+2. Name **`billingrecon-api`**: the address is then `https://billingrecon-api.onrender.com`, which
+   `frontend/vercel.json` names. If Render gives another address (the name is taken), change both lines of
+   `vercel.json` that name it, and push.
+3. Language **Docker**; branch **`main`**; a region near the database's; **Dockerfile Path**
+   `./src/BillingRecon.Api/Dockerfile`; **Docker Build Context Directory** `.` (the repository's root, as the
+   Dockerfile says); instance type **Free**; **Health Check Path** `/health/live`.
+4. **Environment Variables**:
+
+   | Key | Value |
+   |---|---|
+   | `ASPNETCORE_ENVIRONMENT` | `Demo` |
+   | `PORT` | `8080` (the port the image listens on) |
+   | `AllowedHosts` | `billingrecon-api.onrender.com` (the host of step 2) |
+   | `ReverseProxy__KnownProxies__0` | `10.0.0.0/8` |
+   | `ReverseProxy__KnownProxies__1` | `172.16.0.0/12` |
+   | `ReverseProxy__KnownProxies__2` | `192.168.0.0/16` |
+   | `Database__ConnectionString` | `Server=tcp:<server>.database.windows.net,1433;Database=BillingRecon;User ID=billingrecon_app;Password=<billingrecon_app's password>;Encrypt=True;TrustServerCertificate=False;Connect Timeout=60` |
+   | `Jwt__SigningKey` | the signing key of 21.1 |
+   | `TwoStep__EncryptionKey` | the key of the second step of 21.1 |
+   | `Demo__Enabled` | `true` |
+   | `Demo__AdminPassword` | the demo password of 21.1 |
+
+   Nothing for Seq (its sink is off without `Seq__ServerUrl`) or mail. Never `ASPNETCORE_FORWARDEDHEADERS_ENABLED`
+   (section 11). **Create Web Service**: the first build takes several minutes.
+
+**Check**, once the log shows the API listening:
+
+```powershell
+curl.exe -sS https://billingrecon-api.onrender.com/health/ready
+curl.exe -sS -D - -o NUL https://billingrecon-api.onrender.com/api/v1/system/info
+```
+
+The first answers `Healthy` (after up to a minute if the service slept), the second 401. A 503 from `/health/ready` is
+the database: the connection string, or a migration the database lacks (21.2, step 5). A 400 `host_not_allowed` is
+`AllowedHosts`. **A 400 `https_required`** is Render's proxy outside the three ranges: do not loosen anything; the API
+needs to log the address its requests come from before the range can be named, a change of its own.
+
+### 21.4 The app: Vercel
+
+1. In vercel.com: **Add New, Project**, import the repository.
+2. **Root Directory** `frontend`. The rest comes from `frontend/vercel.json` (Vite, `npm run build`, `dist`). No
+   environment variables (`VITE_SUPPORT_EMAIL` if the sign-in page should offer "Contact support", section 12).
+3. **Deploy**. The address is `https://<project>.vercel.app`.
+
+**Check:**
+
+```powershell
+curl.exe -sS -D - -o NUL https://<project>.vercel.app/bills
+curl.exe -sS https://<project>.vercel.app/health/ready
+```
+
+The first answers 200 with `Content-Security-Policy`, `X-Frame-Options: DENY` and `Cache-Control: no-cache`; the second
+`Healthy`, through the rewrite. A 400 `host_not_allowed` through Vercel while 21.3's check passes means Vercel's rewrite
+sends its own host: add it to `AllowedHosts`, separated by a semicolon
+(`billingrecon-api.onrender.com;<project>.vercel.app`).
+
+### 21.5 The demo's data
+
+The API makes the hospital `demo` and its administrator at startup; the rest (four users, a catalogue, patients and a
+week of bills and payments) is entered through the API by the seed, once, from this machine with Node 24:
+
+```powershell
+$env:BASE_URL = 'https://billingrecon-api.onrender.com'; $env:DEMO_ENABLED = 'true'; $env:DEMO_PASSWORD = '<the demo password>'; node deploy/demo/seed.mjs
+```
+
+It talks to Render directly, not through Vercel, and does nothing the second time. Then open
+`https://<project>.vercel.app`: hospital code `demo`, the demo password, and one of `admin@demo.local`,
+`supervisor@demo.local`, `clerk@demo.local`, `cashier@demo.local`, `viewer@demo.local`.
+
+### 21.6 A release
+
+A push to `main` builds and deploys both Vercel and Render. **A release that brings a migration:** build the migration
+image from that commit and run it (21.2, step 5) **before** pushing, so that the API Render starts finds its database
+ready. When this machine's address has changed since, add the new one under the server's **Networking** first.
+
+### 21.7 What to expect, and a secret to change
+
+- **Cold starts.** Render sleeps after about 15 minutes without a request and Azure pauses the idle database: the first
+  visit after a while waits up to a minute, and its first request may fail once; the next one succeeds (ADR 0064,
+  point 6).
+- **Shared sign-in limit.** Behind Vercel the API sees Vercel's address, not the visitor's: visitors share the limit of 30
+  sign-ins a minute for each address (ADR 0064, point 5).
+- **The free amounts.** The database's page in the portal shows the free amount of the month that is left; Render's
+  dashboard shows the service's memory against its 512 MB. The logs are Render's **Logs** tab (the API's JSON console
+  log).
+- **A secret to change.** The signing key or the key of the second step: change it in Render's environment (the service
+  restarts). A new signing key signs everybody out (section 9). A database password: put the new one in the env file of
+  21.2, run the migration again (it sets the passwords), then change Render's connection string. The demo password set
+  at the first start stays the administrator's; change it in the app, as any user does.

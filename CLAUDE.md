@@ -990,6 +990,10 @@ has a mail server.
 ledger of its method and the tax of a bill as a ledger of its own; twelve ledger names a hospital sets; a missing name
 refuses the file by name; Tally's XML, confirmed against Tally's documentation in part and never imported (Accepted on
 the owner's answers and approval of the Prompt 11.4 plan, 2026-11-27; it amends ADR 0032, ADR 0033 and ADR 0036).
+0064 the free hosting of the demo: the app on Vercel (`frontend/vercel.json`, held to `nginx.conf` by a test), the
+API on Render in the Demo environment, the database on Azure SQL with contained users (`setup.sh` with `AZURE_SQL=true`);
+visitors share the address the sign-in limits see, cold starts accepted; never a hospital's data (Accepted on the
+owner's approval of the plan, 2026-11-28; it amends ADR 0035 for this hosting only, and ADR 0045). Runbook section 21.
 ADR 0005 is Accepted since its implementation (Prompt 3.3, 2026-11-20); its built note records what the build
 decided about the ledger (the port and its template, the BR-405 check, the lock, who opens a payer's balances).
 ADR 0006 is Accepted since its implementation (Prompt 3.2, 2026-11-20); its built note records where the build
@@ -1397,3 +1401,7 @@ Since the release of R1 (Prompt 8.3, 2026-11-24) the open work lives in two docu
    a stale request; `MakerFilter` only with `ManageTenant`) and the five document lists on it. A header sorts when its
    column names an API order (`sort`), never by TanStack's `getCanSort`, which is false for display columns. A new list
    on the table keeps its address names and its `['<list>', 'list', …]` query key. **12.2c (2026-11-27):** every other list and every report on it; `ReportTable` is `DataTable` with a totals footer; `ReportExtras` carries a report's 12.2 filters and order to the screen and the CSV alike; the CSV keeps every column whatever is hidden. Prompt 12.2 is done.
+11. **Free hosting of the demo (2026-11-28, ADR 0064), on `main`:** `frontend/vercel.json` and its test
+   (`vercelConfig.test.ts`), the Azure mode of the migrator (`contained-users.sql`, `AZURE_SQL=true`), runbook section 21.
+   No migration; **the next free migration is `0035` and the next ADR `0065`.** Owed: the first deploy (runbook 21.2 to
+   21.5), which proves Azure SQL, the certificate check, Render's proxy range and the host of Vercel's rewrite.
