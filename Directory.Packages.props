@@ -40,14 +40,14 @@
       EF Core 10.0.12 asks for Microsoft.Data.SqlClient 6.1.6 or later; this pin is one major version ahead of that.
       The reasoning and the fallback (6.1.7) are in docs/adr/0014-target-framework-net10.md.
     -->
-    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.1" />
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="8.0.0" />
     <!--
       Not used by any code here. A NuGet audit fix made on the personal machine on 2026-10-18: the restore reported an
       advisory against the version of this package that arrives transitively, and the Infrastructure project references
       it directly to lift it to a patched version. Remove the pin and the reference once the package that brings it in
       asks for a patched version itself.
     -->
-    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="9.0.21" />
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.15" />
     <!-- EF Core: same version for the provider, the design-time package and the dotnet-ef tool (.config/dotnet-tools.json). -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12" />
