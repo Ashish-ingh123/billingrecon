@@ -41,6 +41,11 @@
     <Product>BillingRecon</Product>
     <NeutralLanguage>en</NeutralLanguage>
     <IsPackable>false</IsPackable>
+    <!--
+      The release, reported by GET /api/v1/system/info (B26). "-dev" while a release is built on its branch; the
+      release prompt sets the plain number before the tag (v2.0.0 sets 2.0.0). The build adds "+" and the commit.
+    -->
+    <Version>2.0.0-dev</Version>
   </PropertyGroup>
 
 </Project>
